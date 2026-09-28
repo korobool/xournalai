@@ -42,7 +42,7 @@ Any MCP agent can connect to a running xournalai (over HTTP or the stdio bridge)
 |---|---|---|---|---|
 | T0.2.1 | US-0.2 | **Baseline build & tests** — Build the unmodified fork and run test-units; record the results in docs/mcp/BASELINE.md. | `mcp: record upstream baseline build and test results (T0.2.1)` | ✅ done `49a6458f6` |
 | T0.2.2 | US-0.2 | **ENABLE_MCP & dependencies** — CMake option, pkg-config libsoup-3.0, nlohmann_json (system or FetchContent), nanosvg via FetchContent, ENABLE_MCP in config-features.h. | `mcp: add ENABLE_MCP build option and dependencies (T0.2.2)` | ✅ done `6d70348ee` |
-| T0.2.3 | US-0.2 | **Module skeleton & lifecycle** — src/core/mcp and src/core/api directories; McpServer is owned by Control and started and stopped with the application. Bump 0.0.2. | `mcp: add MCP module skeleton wired into Control lifecycle (T0.2.3)` | ✅ done |
+| T0.2.3 | US-0.2 | **Module skeleton & lifecycle** — src/core/mcp and src/core/api directories; McpServer is owned by Control and started and stopped with the application. Bump 0.0.2. | `mcp: add MCP module skeleton wired into Control lifecycle (T0.2.3)` | ✅ done `a30cdcb80` |
 
 ### S0.3 — Protocol & transport → v0.0.3
 
@@ -55,7 +55,7 @@ Any MCP agent can connect to a running xournalai (over HTTP or the stdio bridge)
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T0.3.1 | US-0.3 | **JSON-RPC/MCP protocol core** — McpProtocol (initialize, ping, tools/list, tools/call, prompts, resources, error codes), ToolRegistry with flat schemas and a schema-portability lint; unit tests. | `mcp: implement JSON-RPC 2.0 / MCP protocol core and tool registry (T0.3.1)` | ⬜ todo |
+| T0.3.1 | US-0.3 | **JSON-RPC/MCP protocol core** — McpProtocol (initialize, ping, tools/list, tools/call, prompts, resources, error codes), ToolRegistry with flat schemas and a schema-portability lint; unit tests. | `mcp: implement JSON-RPC 2.0 / MCP protocol core and tool registry (T0.3.1)` | ✅ done |
 | T0.3.2 | US-0.3 | **HTTP transport** — SoupServer on the GLib main loop: POST /mcp, GET /mcp (SSE), DELETE session, Mcp-Session-Id, Origin check, bearer auth, paused responses. | `mcp: add Streamable HTTP transport on libsoup (T0.3.2)` | ⬜ todo |
 | T0.3.3 | US-0.3 | **Config, token, CLI flags** — ~/.config/xournalpp/mcp.json (enabled, port, token, permission tiers), token generation, --mcp, --mcp-port, --no-mcp flags. | `mcp: add configuration file, token and command line flags (T0.3.3)` | ⬜ todo |
 | T0.3.4 | US-0.3 | **stdio bridge** — xournalpp --mcp-stdio proxies stdio JSON-RPC to the running instance (and starts the app if it isn't running). Bump 0.0.3. | `mcp: add stdio bridge mode for stdio-only clients (T0.3.4)` | ⬜ todo |

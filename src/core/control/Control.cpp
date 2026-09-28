@@ -119,7 +119,7 @@
 #include "config-dev.h"                      // for SETT...
 #include "config-features.h"                 // for ENABLE_MCP
 #ifdef ENABLE_MCP
-#include "mcp/McpServer.h"                   // for McpServer
+#include "mcp/McpServer.h"  // for McpServer
 #endif
 #include "config.h"                          // for PROJ...
 

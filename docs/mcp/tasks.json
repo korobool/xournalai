@@ -143,7 +143,10 @@
               "story": "US-0.3",
               "title": "JSON-RPC/MCP protocol core",
               "details": "McpProtocol (initialize, ping, tools/list, tools/call, prompts, resources, error codes), ToolRegistry with flat schemas and a schema-portability lint; unit tests.",
-              "commit": "mcp: implement JSON-RPC 2.0 / MCP protocol core and tool registry"
+              "commit": "mcp: implement JSON-RPC 2.0 / MCP protocol core and tool registry",
+              "status": "done",
+              "started": "2026-09-28T22:18:15+01:00",
+              "finished": "2026-09-28T22:23:26+01:00"
             },
             {
               "id": "T0.3.2",
