@@ -337,7 +337,10 @@
               "story": "US-1.2",
               "title": "layout_analyze",
               "details": "Stroke clustering, block classification, reading order and connector detection; unit tests.",
-              "commit": "mcp: add layout analysis of pages into content blocks"
+              "commit": "mcp: add layout analysis of pages into content blocks",
+              "status": "done",
+              "started": "2026-09-28T23:10:09+01:00",
+              "finished": "2026-09-28T23:14:56+01:00"
             },
             {
               "id": "T1.2.3",

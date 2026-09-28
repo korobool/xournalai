@@ -80,3 +80,15 @@ def test_page_render_errors(app):
     assert "outside the page" in c.call_error("page_render", region=[5000, 5000, 10, 10])
     assert "does not exist" in c.call_error("page_render", layers=[9])
     assert "Unknown element id" in c.call_error("page_render", highlight=["e999999"])
+
+
+def test_layout_analyze_handwriting(app):
+    c = app.client()
+    r = c.call("layout_analyze", page=1)
+    kinds = [b["kind"] for b in r["blocks"]]
+    assert "handwriting" in kinds and "figure" not in kinds, kinds
+    main = max(r["blocks"], key=lambda b: b["element_count"])
+    assert len(main["lines"]) > 10
+    assert 4 < r["typical_stroke_height"] < 20
+    ids = c.call("layout_analyze", page=1, region=[40, 40, 250, 60], include_element_ids=True)
+    assert all(len(b["element_ids"]) == b["element_count"] for b in ids["blocks"])
