@@ -50,7 +50,8 @@
 #include "config.h"           // for GETTEXT_PACKAGE, ENABLE_NLS
 #include "filesystem.h"       // for path, operator/, exists
 #ifdef ENABLE_MCP
-#include "mcp/McpConfig.h"  // for McpConfig
+#include "mcp/McpConfig.h"       // for McpConfig
+#include "mcp/McpStdioBridge.h"  // for runStdioBridge
 #endif
 
 namespace {
@@ -304,6 +305,7 @@ struct XournalMainPrivate {
     gboolean attachMode = false;
     gboolean mcpEnable = false;
     gboolean mcpDisable = false;
+    gboolean mcpStdio = false;
     int mcpPort = -1;
     gchar* exportPdfBackend{};
     std::unique_ptr<GladeSearchpath> gladePath;
@@ -539,6 +541,9 @@ auto on_handle_local_options(GApplication*, GVariantDict*, XMPtr app_data) -> gi
     if (app_data->mcpPort > 0 && app_data->mcpPort < 65536) {
         xoj::mcp::McpConfig::overrides().port = static_cast<uint16_t>(app_data->mcpPort);
     }
+    if (app_data->mcpStdio) {
+        return xoj::mcp::runStdioBridge(nullptr);
+    }
 #endif
 
     if (app_data->pdfFilename && app_data->optFilename && *app_data->optFilename) {
@@ -651,6 +656,10 @@ auto XournalMain::run(int argc, char** argv) -> int {
                          _("Enable the embedded MCP server for AI agents in this session"), nullptr},
             GOptionEntry{"no-mcp", 0, 0, G_OPTION_ARG_NONE, &app_data.mcpDisable,
                          _("Disable the embedded MCP server in this session"), nullptr},
+            GOptionEntry{"mcp-stdio", 0, 0, G_OPTION_ARG_NONE, &app_data.mcpStdio,
+                         _("Run as a stdio MCP server that forwards to the running application (starting it if "
+                           "needed). For MCP clients that can only launch stdio servers."),
+                         nullptr},
             GOptionEntry{"mcp-port", 0, 0, G_OPTION_ARG_INT, &app_data.mcpPort,
                          _("Port of the embedded MCP server for this session (default: from mcp.json, 7474)"), "PORT"},
             GOptionEntry{nullptr}};
