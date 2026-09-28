@@ -153,7 +153,10 @@
               "story": "US-0.3",
               "title": "HTTP transport",
               "details": "SoupServer on the GLib main loop: POST /mcp, GET /mcp (SSE), DELETE session, Mcp-Session-Id, Origin check, bearer auth, paused responses.",
-              "commit": "mcp: add Streamable HTTP transport on libsoup"
+              "commit": "mcp: add Streamable HTTP transport on libsoup",
+              "status": "done",
+              "started": "2026-09-28T22:23:26+01:00",
+              "finished": "2026-09-28T22:26:35+01:00"
             },
             {
               "id": "T0.3.3",

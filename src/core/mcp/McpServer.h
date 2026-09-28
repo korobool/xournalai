@@ -8,9 +8,17 @@
 
 #pragma once
 
+#include <memory>  // for unique_ptr
+#include <string>  // for string
+
+#include "Registry.h"
+
 class Control;
 
 namespace xoj::mcp {
+
+class McpProtocol;
+class McpHttpServer;
 
 /**
  * @brief Owner of the embedded MCP server (transport, protocol, tool registry).
@@ -32,10 +40,19 @@ public:
     bool isRunning() const;
 
     Control* getControl() const { return control; }
+    Registry& getRegistry() { return registry; }
+    McpHttpServer* getHttpServer() const { return http.get(); }
+
+    /// Text sent to agents in the initialize response (how to use this server)
+    static std::string instructions();
 
 private:
+    void registerTools();
+
     Control* control;
-    bool running = false;
+    Registry registry;
+    std::unique_ptr<McpProtocol> protocol;
+    std::unique_ptr<McpHttpServer> http;
 };
 
 }  // namespace xoj::mcp
