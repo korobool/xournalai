@@ -6,6 +6,18 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+### 0.3.2 — UI automation
+- `ui_windows`, `ui_inspect` (widget tree with stable ids, role, label, glade name, value, enabled, bbox; filter),
+  `ui_screenshot`.
+- `ui_menu_tree` (the whole main menu with actions, shortcuts, enabled and checked state) and `ui_menu_select`
+  (by path or unique suffix; visible mode really opens each menu level before activating).
+- `ui_interact` (click, set_value for entry/spin/scale/check/toggle/switch/combo/color/font/tabs/text,
+  select_row, activate, focus, close), `ui_keys` (application shortcuts run their action; other keys are sent as key
+  events; type text), `ui_file_chooser` (sets the path, waits for the selection, clicks the dialog's confirm button),
+  `ui_wait_for_window`.
+- Integration tests run the installed build (`build/install`), so resources are present and there are no startup
+  error dialogs.
+
 ### 0.3.1 — Semantic application control
 - `actions_list` / `action_run`: every application action (the win.* and app.* GActions behind menus, toolbar and
   shortcuts), with menu labels, enabled flag, parameter type and state; parameters and states are converted from

@@ -23,6 +23,7 @@ void registerAll(McpServer& server) {
     registerControlTools(server);
     registerUiTools(server);
     registerMenuTools(server);
+    registerInteractTools(server);
 }
 
 }  // namespace xoj::mcp::tools
