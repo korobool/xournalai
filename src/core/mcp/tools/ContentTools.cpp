@@ -62,7 +62,7 @@ void registerContentTools(McpServer& server) {
     text.asyncHandler = [ctrl, srv](const json& j, Responder respond) {
         requireDocument(ctrl);
         Args args(j);
-        args.rejectUnknown({"texts", "page", "layer", "animate", "speed"});
+        args.rejectUnknown({"texts", "page", "new_page", "layer", "animate", "speed"});
         const json& list = args.raw("texts");
         if (!list.is_array() || list.empty()) {
             throw ToolError("'texts' must be a non-empty array");
@@ -101,7 +101,7 @@ void registerContentTools(McpServer& server) {
     link.asyncHandler = [ctrl, srv](const json& j, Responder respond) {
         requireDocument(ctrl);
         Args args(j);
-        args.rejectUnknown({"links", "page", "layer", "animate", "speed"});
+        args.rejectUnknown({"links", "page", "new_page", "layer", "animate", "speed"});
         const json& list = args.raw("links");
         if (!list.is_array() || list.empty()) {
             throw ToolError("'links' must be a non-empty array");
@@ -135,7 +135,8 @@ void registerContentTools(McpServer& server) {
     image.asyncHandler = [ctrl, srv](const json& j, Responder respond) {
         requireDocument(ctrl);
         Args args(j);
-        args.rejectUnknown({"path", "data", "x", "y", "width", "height", "page", "layer", "animate", "speed"});
+        args.rejectUnknown(
+                {"path", "data", "x", "y", "width", "height", "page", "new_page", "layer", "animate", "speed"});
         std::string bytes;
         if (args.has("path")) {
             srv->requireTier(Tier::Files, "reading an image file");
@@ -195,7 +196,7 @@ void registerContentTools(McpServer& server) {
     latex.asyncHandler = [ctrl, srv](const json& j, Responder respond) {
         requireDocument(ctrl);
         Args args(j);
-        args.rejectUnknown({"latex", "x", "y", "height", "color", "page", "layer", "animate", "speed"});
+        args.rejectUnknown({"latex", "x", "y", "height", "color", "page", "new_page", "layer", "animate", "speed"});
         const std::string source = args.str("latex");
         if (source.find_first_not_of(" \t\n") == std::string::npos) {
             throw ToolError("'latex' is empty");
@@ -203,7 +204,9 @@ void registerContentTools(McpServer& server) {
         const double x = args.number("x"), y = args.number("y");
         const double height = args.number("height", 0, 0, 2000);
         const Color color = args.has("color") ? parseColor(args.raw("color")) : Color(0, 0, 0);
-        resolvePageIndex(ctrl, args);  // validate before the slow part
+        if (!args.boolean("new_page", false)) {
+            resolvePageIndex(ctrl, args);  // validate before the slow part
+        }
         auto argsCopy = std::make_shared<json>(j);
         api::typesetLatex(ctrl, source, color, [srv, argsCopy, x, y, height, respond](api::LatexResult r) {
             if (!r.image) {

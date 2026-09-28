@@ -53,7 +53,7 @@ void registerSvgTools(McpServer& server) {
         requireDocument(ctrl);
         Args args(j);
         args.rejectUnknown({"svg", "path", "target", "fit", "x", "y", "scale", "profile", "tremor", "color", "page",
-                            "layer", "animate", "speed"});
+                            "new_page", "layer", "animate", "speed"});
         std::string text;
         if (args.has("svg")) {
             text = args.str("svg");

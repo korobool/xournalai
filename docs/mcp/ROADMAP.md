@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **0.2.0**
+Current version: **0.2.1**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -151,8 +151,8 @@ The agent draws with stylus-like pressure, either by simulating a pen or by crea
 | T2.1.2 | US-2.2 | **DrawApi core** — Target layer resolution (AI layer), attribution, grouped undo, animated insertion. | `mcp: add DrawApi core with AI layer, attribution and undo (T2.1.2)` | ✅ done `72be4d62f` |
 | T2.1.3 | US-2.2 | **create_strokes & create_shapes** — Geometry generators for line, arrow, rectangle, ellipse, polygon, bezier, arc and coordinate system. | `mcp: add create_strokes and create_shapes tools (T2.1.3)` | ✅ done `c38b7738d` |
 | T2.1.4 | US-2.2 | **create_text/latex/image/link** — Text elements, LaTeX via the existing pipeline, image elements, links. | `mcp: add text, LaTeX, image and link creation tools (T2.1.4)` | ✅ done `f92eda7e7` |
-| T2.1.5 | US-2.2 | **create_from_svg** — nanosvg flattening into strokes, <text> pre-pass, fit modes, warnings. | `mcp: add SVG to editable strokes conversion (T2.1.5)` | ✅ done |
-| T2.1.6 | US-2.2 | **Placement helpers** — find_free_space, relative anchors, page new or current. Bump 0.2.1. | `mcp: add placement helpers and anchors (T2.1.6)` | ⬜ todo |
+| T2.1.5 | US-2.2 | **create_from_svg** — nanosvg flattening into strokes, <text> pre-pass, fit modes, warnings. | `mcp: add SVG to editable strokes conversion (T2.1.5)` | ✅ done `a51ac3265` |
+| T2.1.6 | US-2.2 | **Placement helpers** — find_free_space, relative anchors, page new or current. Bump 0.2.1. | `mcp: add placement helpers and anchors (T2.1.6)` | ✅ done |
 
 ### S2.2 — Pen engine → v0.2.2
 

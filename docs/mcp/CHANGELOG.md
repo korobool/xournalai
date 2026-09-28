@@ -6,6 +6,23 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+### 0.2.1 — Pressure model & direct drawing
+- Stylus-like pressure model: width is computed exactly like hardware input
+  (`max(minPressure, p·multiplier)·width`), with resampling to stylus density. Profiles: ink, brush, pencil,
+  calligraphy (nib angle), marker, constant; tapers, variation and seed are adjustable, profiles are speed-aware
+  when timestamps are given, and an optional hand tremor is available.
+- `DrawApi`: content goes to an "AI" layer by default (created on top; the user's selected layer is kept). Every
+  call is one undo step (including the new layer) and is tagged with an operation id (`op7`). Optional animation
+  grows strokes point by point and stops safely if the document is replaced.
+- Tools: `create_strokes` (points plus pressure, widths or times, or a profile), `create_shapes` (line, arrow,
+  double_arrow, rectangle with rounded corners, ellipse, circle, polygon, polyline, bezier, arc, coordinate_system;
+  fill; clean or hand-drawn), `create_text`, `create_link`, `create_image` (file or base64; aspect ratio kept),
+  `create_latex` (the user's template; a built-in minimal template is used when standalone/scontents are missing),
+  `create_from_svg` (paths, shapes, groups, transforms, colors, opacity, dashes, fills and `<text>`; fit into a
+  target area), `find_free_space` (nearest free spot, optionally on one side of an element), and `new_page=true`
+  on all drawing tools.
+- Fixed an upstream crash: inserting undecodable image data (`Image::setImage`/`renderBuffer`).
+
 ## 0.2.0 — Files & Understanding (epoch E1)
 Agents can open and save documents, read and see their content in detail, and export it.
 - File tools: `file_info`, `file_open` (.xopp/.xoj, PDF to annotate, PNG, .xopt; `page`; `on_unsaved` =

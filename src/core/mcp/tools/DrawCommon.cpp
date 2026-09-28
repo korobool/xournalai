@@ -4,6 +4,7 @@
 
 #include "api/ElementIds.h"       // for ElementIds
 #include "api/Geometry.h"         // for roundTo
+#include "api/Placement.h"        // for appendPage
 #include "control/Control.h"      // for Control
 #include "control/ToolHandler.h"  // for ToolHandler
 #include "mcp/ElementJson.h"
@@ -166,6 +167,7 @@ void addStyleSchema(std::vector<schema::Property>& props) {
 
 void addTargetSchema(std::vector<schema::Property>& props) {
     props.push_back({"page", schema::integer("Page (1-based); default: current page")});
+    props.push_back({"new_page", schema::boolean("Append a new page and draw there (ignores 'page')")});
     props.push_back({"layer", schema::string("Target layer: \"AI\" (default, created on top), \"current\", a layer "
                                              "name or \"#<n>\"")});
     props.push_back({"animate", schema::boolean("Draw progressively so the user sees it being drawn (default from "
@@ -253,7 +255,11 @@ void insertAndRespond(McpServer& server, const Args& args, std::vector<ElementPt
                       json extra) {
     Control* ctrl = server.getControl();
     api::DrawTarget target;
-    target.page = resolvePageIndex(ctrl, args);
+    if (args.boolean("new_page", false)) {
+        target.page = api::appendPage(ctrl);
+    } else {
+        target.page = resolvePageIndex(ctrl, args);
+    }
     target.layer = args.str("layer", server.getConfig().defaultLayer);
     api::AnimationOptions anim;
     anim.enabled = args.boolean("animate", server.getConfig().animate);

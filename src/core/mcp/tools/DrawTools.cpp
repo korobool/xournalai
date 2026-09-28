@@ -91,7 +91,7 @@ void registerDrawTools(McpServer& server) {
         requireDocument(ctrl);
         Args args(j);
         args.rejectUnknown({"strokes", "color", "width", "tool", "line_style", "fill_opacity", "profile",
-                            "profile_options", "tremor", "spacing", "page", "layer", "animate", "speed"});
+                            "profile_options", "tremor", "spacing", "page", "new_page", "layer", "animate", "speed"});
         const StrokeStyleSpec shared = readStyle(j, defaultStyle(ctrl, true), "");
         const auto pressure = api::DrawApi(ctrl).pressureSettings();
         const json& list = args.raw("strokes");
@@ -178,7 +178,7 @@ void registerDrawTools(McpServer& server) {
         requireDocument(ctrl);
         Args args(j);
         args.rejectUnknown({"shapes", "hand_drawn", "color", "width", "tool", "line_style", "fill_opacity", "profile",
-                            "profile_options", "tremor", "spacing", "page", "layer", "animate", "speed"});
+                            "profile_options", "tremor", "spacing", "page", "new_page", "layer", "animate", "speed"});
         const bool hand = args.boolean("hand_drawn", false);
         StrokeStyleSpec base = defaultStyle(ctrl, hand);
         if (hand) {
