@@ -175,6 +175,12 @@ auto InputContext::handle(GdkEvent* sourceEvent) -> bool {
         return false;
     }
 
+    return dispatch(event);
+}
+
+auto InputContext::handleSynthetic(InputEvent const& event) -> bool { return dispatch(event); }
+
+auto InputContext::dispatch(InputEvent const& event) -> bool {
     // Deactivate touchscreen when a pen event occurs
     this->handRecognition->event(event.deviceClass);
 

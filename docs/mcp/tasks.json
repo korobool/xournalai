@@ -231,7 +231,10 @@
               "story": "US-0.4",
               "title": "Technical spikes",
               "details": "Synthetic pen events through InputContext, nanosvg to strokes, highlighter and pressure behaviour; findings in docs/mcp/SPIKES.md.",
-              "commit": "mcp: document technical spikes (pen input, SVG, pressure)"
+              "commit": "mcp: document technical spikes (pen input, SVG, pressure)",
+              "status": "done",
+              "started": "2026-09-28T22:39:01+01:00",
+              "finished": "2026-09-28T22:42:32+01:00"
             },
             {
               "id": "T0.4.5",
