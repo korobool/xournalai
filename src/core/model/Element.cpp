@@ -1,6 +1,7 @@
 #include "Element.h"
 
 #include <algorithm>  // for max, min
+#include <atomic>     // for atomic
 #include <cmath>      // for ceil, floor, NAN
 #include <cstdint>    // for uint32_t
 
@@ -14,6 +15,20 @@
 using xoj::util::Rectangle;
 
 Element::Element(ElementType type): type(type) {}
+
+namespace {
+std::atomic<Element::DestructionObserver> destructionObserver{nullptr};
+}
+
+Element::~Element() {
+    if (auto observer = destructionObserver.load(std::memory_order_acquire)) {
+        observer(this);
+    }
+}
+
+void Element::setDestructionObserver(DestructionObserver observer) {
+    destructionObserver.store(observer, std::memory_order_release);
+}
 
 auto Element::getType() const -> ElementType { return this->type; }
 

@@ -74,7 +74,7 @@ Any MCP agent can connect to a running xournalai (over HTTP or the stdio bridge)
 | T0.4.2 | US-0.4 | **app_status & doc_info** — Version, capabilities, permissions, document summary, current page, layer and tool. | `mcp: add app_status and doc_info tools (T0.4.2)` | ✅ done `7b9db5065` |
 | T0.4.3 | US-0.4 | **Integration harness & client docs** — test/mcp_integration (Python, stdlib HTTP client, xvfb-run) plus docs/mcp/CLIENTS.md (Claude Code, Gemini CLI, OpenCode, Codex, Cursor, generic). | `mcp: add integration test harness and client setup docs (T0.4.3)` | ✅ done `6f956dfdb` |
 | T0.4.4 | US-0.4 | **Technical spikes** — Synthetic pen events through InputContext, nanosvg to strokes, highlighter and pressure behaviour; findings in docs/mcp/SPIKES.md. | `mcp: document technical spikes (pen input, SVG, pressure) (T0.4.4)` | ✅ done `e7696c890` |
-| T0.4.5 | US-0.4 | **Release 0.1.0** — CHANGELOG, version 0.1.0, tag ai-v0.1.0. | `mcp: release 0.1.0 (T0.4.5)` | ✅ done |
+| T0.4.5 | US-0.4 | **Release 0.1.0** — CHANGELOG, version 0.1.0, tag ai-v0.1.0. | `mcp: release 0.1.0 (T0.4.5)` | ✅ done `053117d13` |
 
 ## E1 — Files & Understanding (release 0.2.0)
 
@@ -90,7 +90,7 @@ The agent can open files, read and see content in detail, and export it.
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T1.1.1 | US-1.1 | **ElementIdRegistry** — Stable session ids for elements and pages, invalidated on deletion; unit tests. | `mcp: add stable element and page id registry (T1.1.1)` | ⬜ todo |
+| T1.1.1 | US-1.1 | **ElementIdRegistry** — Stable session ids for elements and pages, invalidated on deletion; unit tests. | `mcp: add stable element and page id registry (T1.1.1)` | ✅ done |
 | T1.1.2 | US-1.1 | **DocumentApi snapshots** — api/DocumentApi: document, page, layer and element snapshots; RDP simplification; JSON mapping. | `mcp: add DocumentApi with element snapshots and simplification (T1.1.2)` | ⬜ todo |
 | T1.1.3 | US-1.1 | **page_elements & pdf_text** — Tools with filters (page, layer, region, detail, tolerance) and pagination. Bump 0.1.1. | `mcp: add page_elements and pdf_text tools (T1.1.3)` | ⬜ todo |
 

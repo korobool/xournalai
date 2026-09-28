@@ -50,7 +50,12 @@ protected:
     Element& operator=(Element&&) = default;
 
 public:
-    ~Element() override = default;
+    ~Element() override;
+
+    /// Observer notified when any element is destroyed (used by xournalai to retire stable element ids).
+    /// May be called from any thread.
+    using DestructionObserver = void (*)(const Element*);
+    static void setDestructionObserver(DestructionObserver observer);
 
     using Index = std::ptrdiff_t;
     static constexpr auto InvalidIndex = static_cast<Index>(-1);
