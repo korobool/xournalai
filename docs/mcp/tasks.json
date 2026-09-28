@@ -1,0 +1,784 @@
+{
+  "meta": {
+    "project": "xournalai — embedded MCP server",
+    "branch": "mcp",
+    "plan": "docs/mcp/PLAN.md",
+    "version": "0.0.0",
+    "versioning": [
+      "The fork has its own semantic version, XOURNALAI_VERSION, kept in CMakeLists.txt. The application version string becomes <upstream>+ai.<XOURNALAI_VERSION>, e.g. 1.3.7+ai.0.2.0.",
+      "Each task is exactly one commit. The commit message is '<planned message> (<task id>)'.",
+      "The last task of a stage bumps the PATCH version (0.E.s), in the same commit.",
+      "The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>."
+    ],
+    "statuses": [
+      "todo",
+      "doing",
+      "review",
+      "done",
+      "blocked"
+    ]
+  },
+  "epochs": [
+    {
+      "id": "E0",
+      "title": "Foundations",
+      "release": "0.1.0",
+      "goal": "Any MCP agent can connect to a running xournalai (over HTTP or the stdio bridge) and call its first tools.",
+      "stages": [
+        {
+          "id": "S0.1",
+          "title": "Planning & tooling",
+          "version": "0.0.1",
+          "stories": [
+            {
+              "id": "US-0.1",
+              "text": "As the owner, I want a task roadmap and a live Kanban board in my browser, so that I can follow the implementation as it happens.",
+              "acceptance": [
+                "tasks.json lists epochs, stages, stories and tasks, each task with its planned commit message",
+                "the board at http://127.0.0.1:8765 shows task status, commits, build/test status and activity, and refreshes automatically",
+                "the application reports a fork version"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T0.1.1",
+              "story": "US-0.1",
+              "title": "Roadmap & task registry",
+              "details": "docs/mcp/tasks.json is the source of truth; docs/mcp/ROADMAP.md is generated from it.",
+              "commit": "mcp: add implementation roadmap and task registry",
+              "status": "done",
+              "started": "2026-09-28T22:01:58+01:00",
+              "finished": "2026-09-28T22:01:58+01:00"
+            },
+            {
+              "id": "T0.1.2",
+              "story": "US-0.1",
+              "title": "Kanban monitor",
+              "details": "tools/monitor: stdlib Python server + standalone HTML board; track.py CLI for status, activity, build and test updates.",
+              "commit": "mcp: add browser-based Kanban progress monitor"
+            },
+            {
+              "id": "T0.1.3",
+              "story": "US-0.1",
+              "title": "Fork versioning",
+              "details": "XOURNALAI_VERSION in CMake, '+ai.<v>' version suffix, docs/mcp/CHANGELOG.md; bump to 0.0.1.",
+              "commit": "mcp: introduce xournalai fork versioning"
+            }
+          ]
+        },
+        {
+          "id": "S0.2",
+          "title": "Build integration",
+          "version": "0.0.2",
+          "stories": [
+            {
+              "id": "US-0.2",
+              "text": "As the owner, I want the MCP server to be an optional part of the normal build, so that upstream features keep working and the feature can be turned off.",
+              "acceptance": [
+                "upstream builds and its unit tests pass before any change (baseline recorded)",
+                "-DENABLE_MCP=ON/OFF both build",
+                "libsoup-3, nlohmann_json and nanosvg are resolved, with fallbacks where sensible"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T0.2.1",
+              "story": "US-0.2",
+              "title": "Baseline build & tests",
+              "details": "Build the unmodified fork and run test-units; record the results in docs/mcp/BASELINE.md.",
+              "commit": "mcp: record upstream baseline build and test results"
+            },
+            {
+              "id": "T0.2.2",
+              "story": "US-0.2",
+              "title": "ENABLE_MCP & dependencies",
+              "details": "CMake option, pkg-config libsoup-3.0, nlohmann_json (system or FetchContent), nanosvg via FetchContent, ENABLE_MCP in config-features.h.",
+              "commit": "mcp: add ENABLE_MCP build option and dependencies"
+            },
+            {
+              "id": "T0.2.3",
+              "story": "US-0.2",
+              "title": "Module skeleton & lifecycle",
+              "details": "src/core/mcp and src/core/api directories; McpServer is owned by Control and started and stopped with the application. Bump 0.0.2.",
+              "commit": "mcp: add MCP module skeleton wired into Control lifecycle"
+            }
+          ]
+        },
+        {
+          "id": "S0.3",
+          "title": "Protocol & transport",
+          "version": "0.0.3",
+          "stories": [
+            {
+              "id": "US-0.3",
+              "text": "As an agent (any MCP client), I want to connect to the running app, initialize a session and list and call tools, so that I can use xournalai as a tool.",
+              "acceptance": [
+                "initialize, ping, tools/list and tools/call follow the MCP spec (protocol 2025-06-18, with 2025-03-26 accepted)",
+                "Streamable HTTP on 127.0.0.1 with a bearer token and an Origin check",
+                "the stdio bridge works for clients that only launch stdio servers",
+                "protocol unit tests pass"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T0.3.1",
+              "story": "US-0.3",
+              "title": "JSON-RPC/MCP protocol core",
+              "details": "McpProtocol (initialize, ping, tools/list, tools/call, prompts, resources, error codes), ToolRegistry with flat schemas and a schema-portability lint; unit tests.",
+              "commit": "mcp: implement JSON-RPC 2.0 / MCP protocol core and tool registry"
+            },
+            {
+              "id": "T0.3.2",
+              "story": "US-0.3",
+              "title": "HTTP transport",
+              "details": "SoupServer on the GLib main loop: POST /mcp, GET /mcp (SSE), DELETE session, Mcp-Session-Id, Origin check, bearer auth, paused responses.",
+              "commit": "mcp: add Streamable HTTP transport on libsoup"
+            },
+            {
+              "id": "T0.3.3",
+              "story": "US-0.3",
+              "title": "Config, token, CLI flags",
+              "details": "~/.config/xournalpp/mcp.json (enabled, port, token, permission tiers), token generation, --mcp, --mcp-port, --no-mcp flags.",
+              "commit": "mcp: add configuration file, token and command line flags"
+            },
+            {
+              "id": "T0.3.4",
+              "story": "US-0.3",
+              "title": "stdio bridge",
+              "details": "xournalpp --mcp-stdio proxies stdio JSON-RPC to the running instance (and starts the app if it isn't running). Bump 0.0.3.",
+              "commit": "mcp: add stdio bridge mode for stdio-only clients"
+            }
+          ]
+        },
+        {
+          "id": "S0.4",
+          "title": "First tools, spikes & release",
+          "version": "0.1.0",
+          "stories": [
+            {
+              "id": "US-0.4",
+              "text": "As an agent, I want to query application status and document info; as the owner, I want the risky technical questions answered early.",
+              "acceptance": [
+                "app_status and doc_info work from a real MCP client",
+                "an integration test drives the app under xvfb",
+                "a spike report covers synthetic pen input, nanosvg flattening and highlighter pressure"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T0.4.1",
+              "story": "US-0.4",
+              "title": "Tool runtime helpers",
+              "details": "Exception barrier, argument validation helpers, result builders (text, json, image + file path), an export folder.",
+              "commit": "mcp: add tool runtime helpers and error barrier"
+            },
+            {
+              "id": "T0.4.2",
+              "story": "US-0.4",
+              "title": "app_status & doc_info",
+              "details": "Version, capabilities, permissions, document summary, current page, layer and tool.",
+              "commit": "mcp: add app_status and doc_info tools"
+            },
+            {
+              "id": "T0.4.3",
+              "story": "US-0.4",
+              "title": "Integration harness & client docs",
+              "details": "test/mcp_integration (Python, stdlib HTTP client, xvfb-run) plus docs/mcp/CLIENTS.md (Claude Code, Gemini CLI, OpenCode, Codex, Cursor, generic).",
+              "commit": "mcp: add integration test harness and client setup docs"
+            },
+            {
+              "id": "T0.4.4",
+              "story": "US-0.4",
+              "title": "Technical spikes",
+              "details": "Synthetic pen events through InputContext, nanosvg to strokes, highlighter and pressure behaviour; findings in docs/mcp/SPIKES.md.",
+              "commit": "mcp: document technical spikes (pen input, SVG, pressure)"
+            },
+            {
+              "id": "T0.4.5",
+              "story": "US-0.4",
+              "title": "Release 0.1.0",
+              "details": "CHANGELOG, version 0.1.0, tag ai-v0.1.0.",
+              "commit": "mcp: release 0.1.0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "E1",
+      "title": "Files & Understanding",
+      "release": "0.2.0",
+      "goal": "The agent can open files, read and see content in detail, and export it.",
+      "stages": [
+        {
+          "id": "S1.1",
+          "title": "Model access",
+          "version": "0.1.1",
+          "stories": [
+            {
+              "id": "US-1.1",
+              "text": "As an agent, I want stable ids and structured access to pages, layers and elements, so that I can reason about and refer to content precisely.",
+              "acceptance": [
+                "element ids stay stable across calls and across undo/redo",
+                "page_elements supports bbox, simplified and full detail levels, with pagination",
+                "pdf_text returns the text of a background PDF page, optionally with positions"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T1.1.1",
+              "story": "US-1.1",
+              "title": "ElementIdRegistry",
+              "details": "Stable session ids for elements and pages, invalidated on deletion; unit tests.",
+              "commit": "mcp: add stable element and page id registry"
+            },
+            {
+              "id": "T1.1.2",
+              "story": "US-1.1",
+              "title": "DocumentApi snapshots",
+              "details": "api/DocumentApi: document, page, layer and element snapshots; RDP simplification; JSON mapping.",
+              "commit": "mcp: add DocumentApi with element snapshots and simplification"
+            },
+            {
+              "id": "T1.1.3",
+              "story": "US-1.1",
+              "title": "page_elements & pdf_text",
+              "details": "Tools with filters (page, layer, region, detail, tolerance) and pagination. Bump 0.1.1.",
+              "commit": "mcp: add page_elements and pdf_text tools"
+            }
+          ]
+        },
+        {
+          "id": "S1.2",
+          "title": "Rendering & layout understanding",
+          "version": "0.1.2",
+          "stories": [
+            {
+              "id": "US-1.2",
+              "text": "As an agent, I want renders of pages, regions and content blocks plus a layout analysis, so that I can read handwriting and interpret diagrams.",
+              "acceptance": [
+                "page_render returns PNG image content and a file path, with dpi or max size, grid, highlight and layer options",
+                "layout_analyze returns blocks with kinds, reading order and connectors",
+                "blocks_render returns tight high-dpi crops",
+                "shapes_recognize uses the built-in ShapeRecognizer",
+                "guide and the prompts give summarize, extract_text and explain_figure recipes"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T1.2.1",
+              "story": "US-1.2",
+              "title": "RenderApi & page_render",
+              "details": "Cairo image surface via DocumentView, PNG encoding, grid overlay, element highlighting, pixel/point scale metadata.",
+              "commit": "mcp: add RenderApi and page_render tool"
+            },
+            {
+              "id": "T1.2.2",
+              "story": "US-1.2",
+              "title": "layout_analyze",
+              "details": "Stroke clustering, block classification, reading order and connector detection; unit tests.",
+              "commit": "mcp: add layout analysis of pages into content blocks"
+            },
+            {
+              "id": "T1.2.3",
+              "story": "US-1.2",
+              "title": "blocks_render & shapes_recognize",
+              "details": "Crops per block; ShapeRecognizer applied to given strokes.",
+              "commit": "mcp: add blocks_render and shapes_recognize tools"
+            },
+            {
+              "id": "T1.2.4",
+              "story": "US-1.2",
+              "title": "guide tool & prompts",
+              "details": "Recipes and conventions (coordinates, pressure, anchors) as the guide tool and as MCP prompts. Bump 0.1.2.",
+              "commit": "mcp: add guide tool and understanding prompts"
+            }
+          ]
+        },
+        {
+          "id": "S1.3",
+          "title": "Files & export",
+          "version": "0.2.0",
+          "stories": [
+            {
+              "id": "US-1.3",
+              "text": "As an agent, I want to open, create, save and close documents and export content in standard and lossless formats, so that I can work with my notes end to end.",
+              "acceptance": [
+                "file_open supports open, annotate_pdf, image_as_page and template modes, with an on_unsaved policy",
+                "export supports pdf, png, svg, xopp and xjson, for a document, page range, region, layers or selection, delivered as a path or inline",
+                "xjson is lossless (widths, styles, text, images, LaTeX source)"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T1.3.1",
+              "story": "US-1.3",
+              "title": "file_* tools",
+              "details": "file_open, file_new, file_save, file_save_as, file_close, file_recent, file_info.",
+              "commit": "mcp: add file management tools"
+            },
+            {
+              "id": "T1.3.2",
+              "story": "US-1.3",
+              "title": "xjson format",
+              "details": "Serializer and parser for the lossless element interchange format; unit tests.",
+              "commit": "mcp: add xjson lossless element interchange format"
+            },
+            {
+              "id": "T1.3.3",
+              "story": "US-1.3",
+              "title": "export tool",
+              "details": "pdf, png, svg, xopp and xjson; scopes; path or inline delivery.",
+              "commit": "mcp: add export tool"
+            },
+            {
+              "id": "T1.3.4",
+              "story": "US-1.3",
+              "title": "E1 integration & release 0.2.0",
+              "details": "Integration scenario for epoch 1, CHANGELOG, tag.",
+              "commit": "mcp: release 0.2.0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "E2",
+      "title": "Drawing",
+      "release": "0.3.0",
+      "goal": "The agent draws with stylus-like pressure, either by simulating a pen or by creating objects directly, and can import content.",
+      "stages": [
+        {
+          "id": "S2.1",
+          "title": "Pressure model & direct engine",
+          "version": "0.2.1",
+          "stories": [
+            {
+              "id": "US-2.1",
+              "text": "As the owner, I want agent strokes to vary in width like real stylus strokes, so that AI drawing looks hand-made and expressive.",
+              "acceptance": [
+                "normalised pressure maps exactly like hardware input (minimum pressure, multiplier, tool width)",
+                "profiles ink, brush, pencil, calligraphy, marker and constant exist, with speed-awareness and resampling",
+                "unit tests pass"
+              ]
+            },
+            {
+              "id": "US-2.2",
+              "text": "As an agent, I want to create strokes, shapes, SVG drawings, text, LaTeX, images and links directly, so that I can build precise content fast.",
+              "acceptance": [
+                "each call is one undo step",
+                "content goes to the AI layer by default",
+                "elements are attributed to the agent",
+                "placement anchors and find_free_space work"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T2.1.1",
+              "story": "US-2.1",
+              "title": "PressureModel",
+              "details": "Hardware-equivalent mapping, profiles, speed-awareness, resampling, jitter; unit tests.",
+              "commit": "mcp: add stylus-like pressure model"
+            },
+            {
+              "id": "T2.1.2",
+              "story": "US-2.2",
+              "title": "DrawApi core",
+              "details": "Target layer resolution (AI layer), attribution, grouped undo, animated insertion.",
+              "commit": "mcp: add DrawApi core with AI layer, attribution and undo"
+            },
+            {
+              "id": "T2.1.3",
+              "story": "US-2.2",
+              "title": "create_strokes & create_shapes",
+              "details": "Geometry generators for line, arrow, rectangle, ellipse, polygon, bezier, arc and coordinate system.",
+              "commit": "mcp: add create_strokes and create_shapes tools"
+            },
+            {
+              "id": "T2.1.4",
+              "story": "US-2.2",
+              "title": "create_text/latex/image/link",
+              "details": "Text elements, LaTeX via the existing pipeline, image elements, links.",
+              "commit": "mcp: add text, LaTeX, image and link creation tools"
+            },
+            {
+              "id": "T2.1.5",
+              "story": "US-2.2",
+              "title": "create_from_svg",
+              "details": "nanosvg flattening into strokes, <text> pre-pass, fit modes, warnings.",
+              "commit": "mcp: add SVG to editable strokes conversion"
+            },
+            {
+              "id": "T2.1.6",
+              "story": "US-2.2",
+              "title": "Placement helpers",
+              "details": "find_free_space, relative anchors, page new or current. Bump 0.2.1.",
+              "commit": "mcp: add placement helpers and anchors"
+            }
+          ]
+        },
+        {
+          "id": "S2.2",
+          "title": "Pen engine",
+          "version": "0.2.2",
+          "stories": [
+            {
+              "id": "US-2.3",
+              "text": "As the owner, I want the agent to draw through the same pen pipeline as my stylus, so that its strokes, erasing and selecting behave exactly like mine and I can watch it draw.",
+              "acceptance": [
+                "pen_draw replays trajectories with pressure and timing through the input handlers",
+                "pen_draw works with pen, highlighter, eraser, lasso/rect selection and the shape tools",
+                "my tool state is restored afterwards",
+                "replay waits while I'm mid-stroke"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T2.2.1",
+              "story": "US-2.3",
+              "title": "SyntheticPen",
+              "details": "Synthetic pen-class InputEvents fed to the input handlers; page/view coordinate mapping; tool save and restore; collision queue.",
+              "commit": "mcp: add synthetic pen input engine"
+            },
+            {
+              "id": "T2.2.2",
+              "story": "US-2.3",
+              "title": "pen_draw tool",
+              "details": "Tool selection, speed modes, results with created, erased and selected ids. Bump 0.2.2.",
+              "commit": "mcp: add pen_draw tool"
+            }
+          ]
+        },
+        {
+          "id": "S2.3",
+          "title": "Drafts, editing & import",
+          "version": "0.3.0",
+          "stories": [
+            {
+              "id": "US-2.4",
+              "text": "As an agent, I want drafts, editing tools and import, so that I can iterate on a drawing and bring external content in.",
+              "acceptance": [
+                "draft begin, render, commit and discard work",
+                "elements can be selected, moved, scaled, rotated, restyled, reordered and deleted, with undo, redo and history",
+                "import supports svg, image, xjson, xopp pages and pdf pages",
+                "the xjson round-trip is lossless"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T2.3.1",
+              "story": "US-2.4",
+              "title": "draft tool",
+              "details": "Draft layer lifecycle, render for self-critique, commit as one undo step.",
+              "commit": "mcp: add draft workflow tool"
+            },
+            {
+              "id": "T2.3.2",
+              "story": "US-2.4",
+              "title": "Editing & history tools",
+              "details": "elements_select, elements_edit, elements_delete, undo, redo, history.",
+              "commit": "mcp: add element editing and history tools"
+            },
+            {
+              "id": "T2.3.3",
+              "story": "US-2.4",
+              "title": "import tool",
+              "details": "svg, image, xjson, xopp pages, pdf pages; path or inline sources; placement.",
+              "commit": "mcp: add import tool"
+            },
+            {
+              "id": "T2.3.4",
+              "story": "US-2.4",
+              "title": "E2 integration & release 0.3.0",
+              "details": "Text-to-drawing scenario, xjson round-trip check, CHANGELOG, tag.",
+              "commit": "mcp: release 0.3.0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "E3",
+      "title": "Application control",
+      "release": "0.4.0",
+      "goal": "The agent can control everything in the app, semantically and through the real UI.",
+      "stages": [
+        {
+          "id": "S3.1",
+          "title": "Semantic control",
+          "version": "0.3.1",
+          "stories": [
+            {
+              "id": "US-3.1",
+              "text": "As an agent, I want to run any app action and manage pages, layers, tools, the view and the clipboard, so that I can operate the app reliably.",
+              "acceptance": [
+                "actions_list and action_run cover all actions",
+                "page_manage, layer_manage, tool_get, tool_set, view and clipboard work"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T3.1.1",
+              "story": "US-3.1",
+              "title": "actions_list & action_run",
+              "details": "Via ActionDatabase, with enabled flag, state and parameters.",
+              "commit": "mcp: add actions_list and action_run tools"
+            },
+            {
+              "id": "T3.1.2",
+              "story": "US-3.1",
+              "title": "page_manage & layer_manage",
+              "details": "Insert, delete, move, background, size and goto; layer add, rename, visibility, select, merge, delete and copy.",
+              "commit": "mcp: add page and layer management tools"
+            },
+            {
+              "id": "T3.1.3",
+              "story": "US-3.1",
+              "title": "tool_*, view, clipboard",
+              "details": "Tool state get and set, zoom, scroll, layout, fullscreen, presentation, clipboard. Bump 0.3.1.",
+              "commit": "mcp: add tool, view and clipboard control tools"
+            }
+          ]
+        },
+        {
+          "id": "S3.2",
+          "title": "UI automation",
+          "version": "0.3.2",
+          "stories": [
+            {
+              "id": "US-3.2",
+              "text": "As the owner, I want the agent to operate the real interface — open menus, navigate them, operate dialogs — so that everything I can do, the agent can do.",
+              "acceptance": [
+                "ui_menu_tree and a visible ui_menu_select work",
+                "ui_windows, ui_inspect and ui_screenshot work",
+                "ui_interact, ui_keys, ui_file_chooser and ui_wait_for_window work"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T3.2.1",
+              "story": "US-3.2",
+              "title": "Widget registry & inspection",
+              "details": "Stable widget ids, ui_windows, ui_inspect, ui_screenshot.",
+              "commit": "mcp: add UI inspection tools"
+            },
+            {
+              "id": "T3.2.2",
+              "story": "US-3.2",
+              "title": "Menu automation",
+              "details": "ui_menu_tree from GMenuModel, ui_menu_select with visible navigation.",
+              "commit": "mcp: add menu tree and visible menu navigation"
+            },
+            {
+              "id": "T3.2.3",
+              "story": "US-3.2",
+              "title": "Widget interaction",
+              "details": "ui_interact, ui_keys, ui_file_chooser, ui_wait_for_window. Bump 0.3.2.",
+              "commit": "mcp: add widget interaction, keys and file chooser automation"
+            }
+          ]
+        },
+        {
+          "id": "S3.3",
+          "title": "Safety & release",
+          "version": "0.4.0",
+          "stories": [
+            {
+              "id": "US-3.3",
+              "text": "As the owner, I want permission tiers and automatic backups, so that an agent can't destroy my work.",
+              "acceptance": [
+                "calls outside the granted tiers return an explanatory error",
+                "a backup is taken before destructive or bulk operations"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T3.3.1",
+              "story": "US-3.3",
+              "title": "Permission tiers & backups",
+              "details": "read, draw, ui and files tiers; backup snapshots before risky operations.",
+              "commit": "mcp: add permission tiers and safety backups"
+            },
+            {
+              "id": "T3.3.2",
+              "story": "US-3.3",
+              "title": "E3 integration & release 0.4.0",
+              "details": "Menu and dialog scenario, CHANGELOG, tag.",
+              "commit": "mcp: release 0.4.0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "E4",
+      "title": "Co-creation",
+      "release": "0.5.0",
+      "goal": "I draw, the agent watches, reacts and adds to my work in real time.",
+      "stages": [
+        {
+          "id": "S4.1",
+          "title": "Events",
+          "version": "0.4.1",
+          "stories": [
+            {
+              "id": "US-4.1",
+              "text": "As an agent, I want to know what the user changes and when they pause, so that I can react at the right moment.",
+              "acceptance": [
+                "changes_get returns an ordered event log",
+                "wait_for_user returns after the user draws and pauses, with a render of the region",
+                "resource subscriptions push updates to clients that support them"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T4.1.1",
+              "story": "US-4.1",
+              "title": "EventHub & changes_get",
+              "details": "Hooks in undo/redo and the document listener, in-progress stroke state, cursor-based log.",
+              "commit": "mcp: add EventHub and changes_get tool"
+            },
+            {
+              "id": "T4.1.2",
+              "story": "US-4.1",
+              "title": "wait_for_user",
+              "details": "Paused HTTP responses resumed on idle or timeout; region filter.",
+              "commit": "mcp: add wait_for_user tool"
+            },
+            {
+              "id": "T4.1.3",
+              "story": "US-4.1",
+              "title": "Resources & push",
+              "details": "xournal:// resources, subscribe, SSE notifications. Bump 0.4.1.",
+              "commit": "mcp: add resources with subscriptions and SSE notifications"
+            }
+          ]
+        },
+        {
+          "id": "S4.2",
+          "title": "Presence & in-app UI",
+          "version": "0.5.0",
+          "stories": [
+            {
+              "id": "US-4.2",
+              "text": "As the owner, I want to see when and where the agent acts, stop it at once and configure it, so that co-creation feels safe and natural.",
+              "acceptance": [
+                "view get returns the visible area, pen position and selection",
+                "show_message shows a callout on the canvas",
+                "the match_user profile works",
+                "a status indicator, a Stop agent action and highlights exist",
+                "MCP settings are editable in the app"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T4.2.1",
+              "story": "US-4.2",
+              "title": "Presence tools",
+              "details": "view get (visible area, pen position, selection), show_message callouts.",
+              "commit": "mcp: add presence tools"
+            },
+            {
+              "id": "T4.2.2",
+              "story": "US-4.2",
+              "title": "match_user profile",
+              "details": "Derive the pressure and width profile from the user's recent strokes.",
+              "commit": "mcp: add match_user pressure profile"
+            },
+            {
+              "id": "T4.2.3",
+              "story": "US-4.2",
+              "title": "Status, Stop & highlight",
+              "details": "Status indicator, Stop agent action and shortcut, highlight of agent additions, AI layer accept and clear.",
+              "commit": "mcp: add agent status indicator, stop action and highlights"
+            },
+            {
+              "id": "T4.2.4",
+              "story": "US-4.2",
+              "title": "Settings page",
+              "details": "MCP page in Settings: enable, port, token copy, tiers, defaults.",
+              "commit": "mcp: add MCP settings page"
+            },
+            {
+              "id": "T4.2.5",
+              "story": "US-4.2",
+              "title": "E4 integration & release 0.5.0",
+              "details": "Co-creation scenario, CHANGELOG, tag.",
+              "commit": "mcp: release 0.5.0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "E5",
+      "title": "Polish",
+      "release": "1.0.0",
+      "goal": "Complete, documented, verified coverage across several agents.",
+      "stages": [
+        {
+          "id": "S5.1",
+          "title": "Memory, performance, docs & 1.0",
+          "version": "1.0.0",
+          "stories": [
+            {
+              "id": "US-5.1",
+              "text": "As the owner, I want persistent AI notes, good performance and full documentation, so that the connector is dependable day to day.",
+              "acceptance": [
+                "notes are stored in .xopp",
+                "renders are cached",
+                "TOOLS.md, CLIENTS.md and COVERAGE.md are complete",
+                "a client matrix has been run"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T5.1.1",
+              "story": "US-5.1",
+              "title": "Notes memory",
+              "details": "notes tool storing transcripts, summaries and meanings in the document.",
+              "commit": "mcp: add persistent notes memory"
+            },
+            {
+              "id": "T5.1.2",
+              "story": "US-5.1",
+              "title": "Performance",
+              "details": "Render cache, payload limits, pagination review.",
+              "commit": "mcp: improve performance of rendering and large documents"
+            },
+            {
+              "id": "T5.1.3",
+              "story": "US-5.1",
+              "title": "Reference docs & coverage",
+              "details": "TOOLS.md generated from the registry; COVERAGE.md mapping actions, menus and dialogs.",
+              "commit": "mcp: add tool reference and coverage documentation"
+            },
+            {
+              "id": "T5.1.4",
+              "story": "US-5.1",
+              "title": "Release 1.0.0",
+              "details": "Client matrix results, CHANGELOG, tag.",
+              "commit": "mcp: release 1.0.0"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
