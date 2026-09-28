@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **0.1.2**
+Current version: **0.2.0**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -123,8 +123,8 @@ The agent can open files, read and see content in detail, and export it.
 |---|---|---|---|---|
 | T1.3.1 | US-1.3 | **file_* tools** — file_open, file_new, file_save, file_save_as, file_close, file_recent, file_info. | `mcp: add file management tools (T1.3.1)` | ✅ done `bf976aa1b` |
 | T1.3.2 | US-1.3 | **xjson format** — Serializer and parser for the lossless element interchange format; unit tests. | `mcp: add xjson lossless element interchange format (T1.3.2)` | ✅ done `ee49fc428` |
-| T1.3.3 | US-1.3 | **export tool** — pdf, png, svg, xopp and xjson; scopes; path or inline delivery. | `mcp: add export tool (T1.3.3)` | ✅ done |
-| T1.3.4 | US-1.3 | **E1 integration & release 0.2.0** — Integration scenario for epoch 1, CHANGELOG, tag. | `mcp: release 0.2.0 (T1.3.4)` | ⬜ todo |
+| T1.3.3 | US-1.3 | **export tool** — pdf, png, svg, xopp and xjson; scopes; path or inline delivery. | `mcp: add export tool (T1.3.3)` | ✅ done `ed8c0466a` |
+| T1.3.4 | US-1.3 | **E1 integration & release 0.2.0** — Integration scenario for epoch 1, CHANGELOG, tag. | `mcp: release 0.2.0 (T1.3.4)` | ✅ done |
 
 ## E2 — Drawing (release 0.3.0)
 

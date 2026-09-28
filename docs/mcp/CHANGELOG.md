@@ -6,6 +6,20 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+## 0.2.0 — Files & Understanding (epoch E1)
+Agents can open and save documents, read and see their content in detail, and export it.
+- File tools: `file_info`, `file_open` (.xopp/.xoj, PDF to annotate, PNG, .xopt; `page`; `on_unsaved` =
+  fail|save|discard), `file_new`, `file_close`, `file_save`, `file_save_as` (overwrite guard), `file_recent`.
+  No dialogs are involved; discarding changes and overwriting files need the `destructive` permission.
+- **xjson**: lossless JSON of elements (strokes with per-point widths, text, LaTeX with the compiled PDF, images,
+  links; exact transforms), and lenient for hand-written input.
+- `export`: pdf (the app's exporter; page and layer ranges), png (dpi, region), svg (vector, region), xopp (a copy)
+  and xjson (pages, region, layers or element ids); written to a file or returned inline.
+- `RenderApi` can also produce SVG. `whenReady()` helper for state the app updates asynchronously.
+- Acceptance: an agent-style walk through "understand my page" on the handwriting benchmark (layout → line crops →
+  overview → export); line crops read correctly as "This is a dumb text, written many times...".
+- Verified: unit tests, 31/31 integration scenarios; builds with `-DENABLE_MCP=OFF`.
+
 ### 0.1.2 — Rendering & layout understanding
 - `page_render`: a PNG of a page or region (dpi and max size, background toggle, layer filter, labelled coordinate
   grid, element highlights), returned inline and saved to a file, with pixel-to-point mapping metadata.
