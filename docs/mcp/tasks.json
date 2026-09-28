@@ -481,7 +481,10 @@
               "story": "US-2.2",
               "title": "create_strokes & create_shapes",
               "details": "Geometry generators for line, arrow, rectangle, ellipse, polygon, bezier, arc and coordinate system.",
-              "commit": "mcp: add create_strokes and create_shapes tools"
+              "commit": "mcp: add create_strokes and create_shapes tools",
+              "status": "done",
+              "started": "2026-09-28T23:31:49+01:00",
+              "finished": "2026-09-28T23:35:57+01:00"
             },
             {
               "id": "T2.1.4",
