@@ -21,6 +21,7 @@ void registerAll(McpServer& server) {
     registerActionTools(server);
     registerStructureTools(server);
     registerControlTools(server);
+    registerUiTools(server);
 }
 
 }  // namespace xoj::mcp::tools

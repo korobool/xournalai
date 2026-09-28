@@ -692,7 +692,10 @@
               "story": "US-3.2",
               "title": "Widget registry & inspection",
               "details": "Stable widget ids, ui_windows, ui_inspect, ui_screenshot.",
-              "commit": "mcp: add UI inspection tools"
+              "commit": "mcp: add UI inspection tools",
+              "status": "done",
+              "started": "2026-09-29T00:16:26+01:00",
+              "finished": "2026-09-29T00:20:19+01:00"
             },
             {
               "id": "T3.2.2",

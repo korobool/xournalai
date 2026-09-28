@@ -20,7 +20,9 @@ import urllib.error
 import urllib.request
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-BINARY = ROOT / "build" / "xournalpp"
+# The installed binary finds its UI resources (toolbars, page templates); fall back to the build tree
+_INSTALLED = ROOT / "build" / "install" / "bin" / "xournalpp"
+BINARY = _INSTALLED if _INSTALLED.exists() else ROOT / "build" / "xournalpp"
 
 
 def free_port():

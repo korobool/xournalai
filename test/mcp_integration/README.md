@@ -12,3 +12,10 @@ python3 test/mcp_integration/run.py e1 -k render
 - `xoai.py` contains `App` (launcher) and `Mcp` (a minimal Streamable HTTP client).
 - A module can set `APP_ARGS = ["file.xopp"]` to start the app with arguments.
 - Results are written to `build/integration.log`.
+
+The harness runs `build/install/bin/xournalpp` when it exists (installed app with its UI resources; otherwise the
+uninstalled binary shows "missing toolbar.ini" error dialogs). Build with:
+
+```sh
+cmake -S . -B build -DCMAKE_INSTALL_PREFIX=$PWD/build/install && cmake --build build --target install
+```

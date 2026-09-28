@@ -199,7 +199,7 @@ The agent can control everything in the app, semantically and through the real U
 |---|---|---|---|---|
 | T3.1.1 | US-3.1 | **actions_list & action_run** — Via ActionDatabase, with enabled flag, state and parameters. | `mcp: add actions_list and action_run tools (T3.1.1)` | ✅ done `2680f8801` |
 | T3.1.2 | US-3.1 | **page_manage & layer_manage** — Insert, delete, move, background, size and goto; layer add, rename, visibility, select, merge, delete and copy. | `mcp: add page and layer management tools (T3.1.2)` | ✅ done `e6c242f3e` |
-| T3.1.3 | US-3.1 | **tool_*, view, clipboard** — Tool state get and set, zoom, scroll, layout, fullscreen, presentation, clipboard. Bump 0.3.1. | `mcp: add tool, view and clipboard control tools (T3.1.3)` | ✅ done |
+| T3.1.3 | US-3.1 | **tool_*, view, clipboard** — Tool state get and set, zoom, scroll, layout, fullscreen, presentation, clipboard. Bump 0.3.1. | `mcp: add tool, view and clipboard control tools (T3.1.3)` | ✅ done `dc3e14c67` |
 
 ### S3.2 — UI automation → v0.3.2
 
@@ -211,7 +211,7 @@ The agent can control everything in the app, semantically and through the real U
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T3.2.1 | US-3.2 | **Widget registry & inspection** — Stable widget ids, ui_windows, ui_inspect, ui_screenshot. | `mcp: add UI inspection tools (T3.2.1)` | ⬜ todo |
+| T3.2.1 | US-3.2 | **Widget registry & inspection** — Stable widget ids, ui_windows, ui_inspect, ui_screenshot. | `mcp: add UI inspection tools (T3.2.1)` | ✅ done |
 | T3.2.2 | US-3.2 | **Menu automation** — ui_menu_tree from GMenuModel, ui_menu_select with visible navigation. | `mcp: add menu tree and visible menu navigation (T3.2.2)` | ⬜ todo |
 | T3.2.3 | US-3.2 | **Widget interaction** — ui_interact, ui_keys, ui_file_chooser, ui_wait_for_window. Bump 0.3.2. | `mcp: add widget interaction, keys and file chooser automation (T3.2.3)` | ⬜ todo |
 
