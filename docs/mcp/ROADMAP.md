@@ -243,7 +243,7 @@ I draw, the agent watches, reacts and adds to my work in real time.
 |---|---|---|---|---|
 | T4.1.1 | US-4.1 | **EventHub & changes_get** — Hooks in undo/redo and the document listener, in-progress stroke state, cursor-based log. | `mcp: add EventHub and changes_get tool (T4.1.1)` | ✅ done `0778f90a9` |
 | T4.1.2 | US-4.1 | **wait_for_user** — Paused HTTP responses resumed on idle or timeout; region filter. | `mcp: add wait_for_user tool (T4.1.2)` | ✅ done `4d0569c56` |
-| T4.1.3 | US-4.1 | **Resources & push** — xournal:// resources, subscribe, SSE notifications. Bump 0.4.1. | `mcp: add resources with subscriptions and SSE notifications (T4.1.3)` | ✅ done |
+| T4.1.3 | US-4.1 | **Resources & push** — xournal:// resources, subscribe, SSE notifications. Bump 0.4.1. | `mcp: add resources with subscriptions and SSE notifications (T4.1.3)` | ✅ done `64a5269e9` |
 
 ### S4.2 — Presence & in-app UI → v0.5.0
 
@@ -257,7 +257,7 @@ I draw, the agent watches, reacts and adds to my work in real time.
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T4.2.1 | US-4.2 | **Presence tools** — view get (visible area, pen position, selection), show_message callouts. | `mcp: add presence tools (T4.2.1)` | ⬜ todo |
+| T4.2.1 | US-4.2 | **Presence tools** — view get (visible area, pen position, selection), show_message callouts. | `mcp: add presence tools (T4.2.1)` | ✅ done |
 | T4.2.2 | US-4.2 | **match_user profile** — Derive the pressure and width profile from the user's recent strokes. | `mcp: add match_user pressure profile (T4.2.2)` | ⬜ todo |
 | T4.2.3 | US-4.2 | **Status, Stop & highlight** — Status indicator, Stop agent action and shortcut, highlight of agent additions, AI layer accept and clear. | `mcp: add agent status indicator, stop action and highlights (T4.2.3)` | ⬜ todo |
 | T4.2.4 | US-4.2 | **Settings page** — MCP page in Settings: enable, port, token copy, tiers, defaults. | `mcp: add MCP settings page (T4.2.4)` | ⬜ todo |

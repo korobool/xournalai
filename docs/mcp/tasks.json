@@ -835,7 +835,10 @@
               "story": "US-4.2",
               "title": "Presence tools",
               "details": "view get (visible area, pen position, selection), show_message callouts.",
-              "commit": "mcp: add presence tools"
+              "commit": "mcp: add presence tools",
+              "status": "done",
+              "started": "2026-09-29T00:43:45+01:00",
+              "finished": "2026-09-29T00:46:14+01:00"
             },
             {
               "id": "T4.2.2",

@@ -4,16 +4,21 @@
 
 #include <gtk/gtk.h>
 
-#include "api/EditApi.h"               // for EditApi
-#include "api/ElementIds.h"            // for ElementIds
-#include "control/Control.h"           // for Control
-#include "control/ScrollHandler.h"     // for ScrollHandler
-#include "control/Tool.h"              // for Tool
-#include "control/ToolEnums.h"         // for toolTypeToString
-#include "control/ToolHandler.h"       // for ToolHandler
-#include "control/zoom/ZoomControl.h"  // for ZoomControl
-#include "gui/MainWindow.h"            // for MainWindow
-#include "gui/XournalView.h"           // for XournalView
+#include "api/EditApi.h"                  // for EditApi
+#include "api/ElementIds.h"               // for ElementIds
+#include "api/Geometry.h"                 // for roundTo
+#include "control/Control.h"              // for Control
+#include "control/ScrollHandler.h"        // for ScrollHandler
+#include "control/Tool.h"                 // for Tool
+#include "control/ToolEnums.h"            // for toolTypeToString
+#include "control/ToolHandler.h"          // for ToolHandler
+#include "control/tools/EditSelection.h"  // for EditSelection
+#include "control/zoom/ZoomControl.h"     // for ZoomControl
+#include "gui/Layout.h"                   // for Layout
+#include "gui/MainWindow.h"               // for MainWindow
+#include "gui/PageView.h"                 // for XojPageView
+#include "gui/XournalView.h"              // for XournalView
+#include "gui/widgets/XournalWidget.h"    // for GtkXournal
 #include "mcp/ElementJson.h"
 #include "mcp/McpServer.h"
 #include "mcp/Schema.h"
@@ -73,6 +78,50 @@ void setActionState(Control* ctrl, const char* name, bool value) {
     g_action_group_change_action_state(win(ctrl), name, g_variant_new_boolean(value));
 }
 
+/// Pointer position over the drawing area in page coordinates (if it is over a page)
+json pointerJson(Control* ctrl) {
+    XournalView* xv = ctrl->getWindow()->getXournal();
+    GtkWidget* widget = xv->getWidget();
+    GdkWindow* win = gtk_widget_get_window(widget);
+    GdkDevice* pointer = gdk_seat_get_pointer(gdk_display_get_default_seat(gdk_display_get_default()));
+    if (!win || !pointer) {
+        return nullptr;
+    }
+    double wx = 0, wy = 0;
+    gdk_window_get_device_position_double(win, pointer, &wx, &wy, nullptr);
+    GtkXournal* xw = GTK_XOURNAL(widget);
+    const double lx = wx + gtk_adjustment_get_value(xw->hadjustment);
+    const double ly = wy + gtk_adjustment_get_value(xw->vadjustment);
+    XojPageView* view = xw->layout->getPageViewAt(static_cast<int>(lx), static_cast<int>(ly));
+    if (!view) {
+        return nullptr;
+    }
+    const auto pos = view->getPixelPosition();
+    const double zoom = ctrl->getZoomControl()->getZoom();
+    size_t index = 0;
+    const auto& views = xv->getViewPages();
+    for (size_t i = 0; i < views.size(); i++) {
+        if (views[i].get() == view) {
+            index = i;
+        }
+    }
+    return {{"page", index + 1}, {"x", api::roundTo((lx - pos.x) / zoom)}, {"y", api::roundTo((ly - pos.y) / zoom)}};
+}
+
+json selectionJson(Control* ctrl) {
+    EditSelection* sel = ctrl->getWindow()->getXournal()->getSelection();
+    if (!sel) {
+        return nullptr;
+    }
+    json ids = json::array();
+    for (const Element* e: sel->getElementsView()) {
+        ids.push_back(api::ElementIds::get().idOf(e));
+    }
+    return {{"count", ids.size()},
+            {"ids", ids},
+            {"bbox", bboxJson(sel->getXOnView(), sel->getYOnView(), sel->getWidth(), sel->getHeight())}};
+}
+
 json viewJson(Control* ctrl) {
     const size_t page = ctrl->getCurrentPageNo();
     json out = {{"current_page", page + 1},
@@ -84,6 +133,9 @@ json viewJson(Control* ctrl) {
     if (rect) {
         out["visible_region"] = bboxJson(rect->x, rect->y, rect->width, rect->height);
     }
+    out["pointer"] = pointerJson(ctrl);
+    out["selection"] = selectionJson(ctrl);
+    out["user_tool"] = std::string(toolTypeToString(ctrl->getToolHandler()->getToolType()));
     return out;
 }
 
