@@ -287,7 +287,10 @@
               "story": "US-1.1",
               "title": "DocumentApi snapshots",
               "details": "api/DocumentApi: document, page, layer and element snapshots; RDP simplification; JSON mapping.",
-              "commit": "mcp: add DocumentApi with element snapshots and simplification"
+              "commit": "mcp: add DocumentApi with element snapshots and simplification",
+              "status": "done",
+              "started": "2026-09-28T23:02:55+01:00",
+              "finished": "2026-09-28T23:05:12+01:00"
             },
             {
               "id": "T1.1.3",

@@ -3,6 +3,7 @@
 #include <algorithm>  // for find
 #include <chrono>     // for steady_clock
 #include <memory>     // for make_shared
+#include <stdexcept>  // for invalid_argument
 
 namespace xoj::mcp {
 
@@ -186,6 +187,8 @@ void McpProtocol::callTool(const json& id, const json& params, Reply reply) {
             respond(tool->handler(args));
         }
     } catch (const ToolError& e) {
+        respond(ToolResult::error(e.what()));
+    } catch (const std::invalid_argument& e) {  // thrown by the typed services in src/core/api
         respond(ToolResult::error(e.what()));
     } catch (const json::exception& e) {
         respond(ToolResult::error(std::string("Invalid argument: ") + e.what()));
