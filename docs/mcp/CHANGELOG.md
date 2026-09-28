@@ -6,6 +6,16 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+### 0.4.1 — Events
+- `EventHub`: every undoable change is diffed per page (added, removed or changed elements, with ids and area),
+  plus page inserts/deletes and document replacements. Each change is attributed to the user or the agent; only
+  document-changing tool calls count as agent work.
+- `changes_get` (cursor-based log, origin filter, user_drawing flag) and `wait_for_user` (returns after the user
+  changed something and paused; changes, area, image, current page; region/page filters; timeout).
+- Resources `xournal://document`, `xournal://changes`, `xournal://page/{page}`, `xournal://page/{page}/image`,
+  with subscriptions pushed as `notifications/resources/updated` over SSE, also through the stdio bridge.
+- Test harness: real X mouse input for "user" strokes (xdotool, isolated to the Xvfb display).
+
 ## 0.4.0 — Application control (epoch E3)
 Agents control the whole application, semantically and through the real interface.
 - Permission tiers: the destructive tier also guards UI clicks such as Discard / Don't save / Quit.

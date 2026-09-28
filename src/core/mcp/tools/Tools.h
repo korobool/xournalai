@@ -38,5 +38,8 @@ void registerUiTools(McpServer& server);
 void registerMenuTools(McpServer& server);
 void registerInteractTools(McpServer& server);
 void registerEventTools(McpServer& server);
+void registerResources(McpServer& server);
+/// Connects document events to resource-update notifications (after the server started)
+void wireResourceNotifications(McpServer& server);
 
 }  // namespace xoj::mcp::tools

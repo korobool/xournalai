@@ -102,6 +102,7 @@ void McpServer::start() {
         return;
     }
     g_message("MCP server listening on http://127.0.0.1:%u/mcp", options.port);
+    tools::wireResourceNotifications(*this);
 }
 
 void McpServer::stop() {

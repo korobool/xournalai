@@ -221,6 +221,29 @@ class Mcp:
         assert result.get("isError"), f"{tool} was expected to fail but returned {result}"
         return " ".join(c.get("text", "") for c in result["content"])
 
+    def open_stream(self, timeout=10):
+        """Opens the server-sent event stream; returns a function that yields the next JSON message or None."""
+        import http.client
+        host, port = self.url.split("//")[1].split("/")[0].split(":")
+        conn = http.client.HTTPConnection(host, int(port), timeout=timeout)
+        conn.request("GET", "/mcp", headers={"Accept": "text/event-stream", "Mcp-Session-Id": self.session,
+                                             "Authorization": f"Bearer {self.token}"})
+        resp = conn.getresponse()
+        assert resp.status == 200, resp.status
+
+        def next_message():
+            try:
+                while True:
+                    line = resp.fp.readline().decode()
+                    if not line:
+                        return None
+                    if line.startswith("data:"):
+                        return json.loads(line[5:].strip())
+            except (TimeoutError, OSError):
+                return None
+
+        return next_message
+
     @staticmethod
     def images(result):
         return [base64.b64decode(c["data"]) for c in result["content"] if c["type"] == "image"]
