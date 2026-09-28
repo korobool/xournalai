@@ -124,7 +124,7 @@ The agent can open files, read and see content in detail, and export it.
 | T1.3.1 | US-1.3 | **file_* tools** — file_open, file_new, file_save, file_save_as, file_close, file_recent, file_info. | `mcp: add file management tools (T1.3.1)` | ✅ done `bf976aa1b` |
 | T1.3.2 | US-1.3 | **xjson format** — Serializer and parser for the lossless element interchange format; unit tests. | `mcp: add xjson lossless element interchange format (T1.3.2)` | ✅ done `ee49fc428` |
 | T1.3.3 | US-1.3 | **export tool** — pdf, png, svg, xopp and xjson; scopes; path or inline delivery. | `mcp: add export tool (T1.3.3)` | ✅ done `ed8c0466a` |
-| T1.3.4 | US-1.3 | **E1 integration & release 0.2.0** — Integration scenario for epoch 1, CHANGELOG, tag. | `mcp: release 0.2.0 (T1.3.4)` | ✅ done |
+| T1.3.4 | US-1.3 | **E1 integration & release 0.2.0** — Integration scenario for epoch 1, CHANGELOG, tag. | `mcp: release 0.2.0 (T1.3.4)` | ✅ done `c7e0161e9` |
 
 ## E2 — Drawing (release 0.3.0)
 
@@ -147,7 +147,7 @@ The agent draws with stylus-like pressure, either by simulating a pen or by crea
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T2.1.1 | US-2.1 | **PressureModel** — Hardware-equivalent mapping, profiles, speed-awareness, resampling, jitter; unit tests. | `mcp: add stylus-like pressure model (T2.1.1)` | ⬜ todo |
+| T2.1.1 | US-2.1 | **PressureModel** — Hardware-equivalent mapping, profiles, speed-awareness, resampling, jitter; unit tests. | `mcp: add stylus-like pressure model (T2.1.1)` | ✅ done |
 | T2.1.2 | US-2.2 | **DrawApi core** — Target layer resolution (AI layer), attribution, grouped undo, animated insertion. | `mcp: add DrawApi core with AI layer, attribution and undo (T2.1.2)` | ⬜ todo |
 | T2.1.3 | US-2.2 | **create_strokes & create_shapes** — Geometry generators for line, arrow, rectangle, ellipse, polygon, bezier, arc and coordinate system. | `mcp: add create_strokes and create_shapes tools (T2.1.3)` | ⬜ todo |
 | T2.1.4 | US-2.2 | **create_text/latex/image/link** — Text elements, LaTeX via the existing pipeline, image elements, links. | `mcp: add text, LaTeX, image and link creation tools (T2.1.4)` | ⬜ todo |

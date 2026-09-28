@@ -461,7 +461,10 @@
               "story": "US-2.1",
               "title": "PressureModel",
               "details": "Hardware-equivalent mapping, profiles, speed-awareness, resampling, jitter; unit tests.",
-              "commit": "mcp: add stylus-like pressure model"
+              "commit": "mcp: add stylus-like pressure model",
+              "status": "done",
+              "started": "2026-09-28T23:27:42+01:00",
+              "finished": "2026-09-28T23:29:25+01:00"
             },
             {
               "id": "T2.1.2",
