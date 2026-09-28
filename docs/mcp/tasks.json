@@ -702,7 +702,10 @@
               "story": "US-3.2",
               "title": "Menu automation",
               "details": "ui_menu_tree from GMenuModel, ui_menu_select with visible navigation.",
-              "commit": "mcp: add menu tree and visible menu navigation"
+              "commit": "mcp: add menu tree and visible menu navigation",
+              "status": "done",
+              "started": "2026-09-29T00:20:19+01:00",
+              "finished": "2026-09-29T00:22:39+01:00"
             },
             {
               "id": "T3.2.3",

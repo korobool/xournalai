@@ -286,6 +286,47 @@ std::string widgetText(GtkWidget* w) {
     return {};
 }
 
+GtkWidget* findDescendant(GtkWidget* root, GType type) {
+    if (G_TYPE_CHECK_INSTANCE_TYPE(root, type)) {
+        return root;
+    }
+    if (!GTK_IS_CONTAINER(root)) {
+        return nullptr;
+    }
+    struct Ctx {
+        GType type;
+        GtkWidget* found;
+    } ctx{type, nullptr};
+    gtk_container_forall(
+            GTK_CONTAINER(root),
+            [](GtkWidget* child, gpointer data) {
+                auto* c = static_cast<Ctx*>(data);
+                if (!c->found) {
+                    c->found = findDescendant(child, c->type);
+                }
+            },
+            &ctx);
+    return ctx.found;
+}
+
+GtkWidget* findMenuItem(GtkWidget* menuShell, const std::string& label) {
+    auto lower = [](std::string s) {
+        std::transform(s.begin(), s.end(), s.begin(), ::tolower);
+        return s;
+    };
+    const std::string want = lower(label);
+    GList* children = gtk_container_get_children(GTK_CONTAINER(menuShell));
+    GtkWidget* found = nullptr;
+    for (GList* l = children; l && !found; l = l->next) {
+        auto* item = GTK_WIDGET(l->data);
+        if (GTK_IS_MENU_ITEM(item) && lower(widgetText(item)) == want) {
+            found = item;
+        }
+    }
+    g_list_free(children);
+    return found;
+}
+
 std::vector<WindowInfo> windows(GtkWidget* mainWindow) {
     std::vector<WindowInfo> out;
     GList* tops = gtk_window_list_toplevels();

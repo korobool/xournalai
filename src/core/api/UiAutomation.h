@@ -60,4 +60,10 @@ std::string screenshot(GtkWidget* widget);
 /// Text shown by a widget (label text, button label, ...)
 std::string widgetText(GtkWidget* w);
 
+/// First descendant of `root` (depth-first, including internal children) of the given GType, or nullptr
+GtkWidget* findDescendant(GtkWidget* root, GType type);
+
+/// Menu item of a menu shell whose label equals `label` (mnemonics ignored, case-insensitive), or nullptr
+GtkWidget* findMenuItem(GtkWidget* menuShell, const std::string& label);
+
 }  // namespace xoj::api::ui

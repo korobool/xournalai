@@ -35,5 +35,6 @@ void registerActionTools(McpServer& server);
 void registerStructureTools(McpServer& server);
 void registerControlTools(McpServer& server);
 void registerUiTools(McpServer& server);
+void registerMenuTools(McpServer& server);
 
 }  // namespace xoj::mcp::tools
