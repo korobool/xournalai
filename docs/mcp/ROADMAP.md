@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **0.0.1**
+Current version: **0.0.2**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -41,8 +41,8 @@ Any MCP agent can connect to a running xournalai (over HTTP or the stdio bridge)
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
 | T0.2.1 | US-0.2 | **Baseline build & tests** — Build the unmodified fork and run test-units; record the results in docs/mcp/BASELINE.md. | `mcp: record upstream baseline build and test results (T0.2.1)` | ✅ done `49a6458f6` |
-| T0.2.2 | US-0.2 | **ENABLE_MCP & dependencies** — CMake option, pkg-config libsoup-3.0, nlohmann_json (system or FetchContent), nanosvg via FetchContent, ENABLE_MCP in config-features.h. | `mcp: add ENABLE_MCP build option and dependencies (T0.2.2)` | ✅ done |
-| T0.2.3 | US-0.2 | **Module skeleton & lifecycle** — src/core/mcp and src/core/api directories; McpServer is owned by Control and started and stopped with the application. Bump 0.0.2. | `mcp: add MCP module skeleton wired into Control lifecycle (T0.2.3)` | ⬜ todo |
+| T0.2.2 | US-0.2 | **ENABLE_MCP & dependencies** — CMake option, pkg-config libsoup-3.0, nlohmann_json (system or FetchContent), nanosvg via FetchContent, ENABLE_MCP in config-features.h. | `mcp: add ENABLE_MCP build option and dependencies (T0.2.2)` | ✅ done `6d70348ee` |
+| T0.2.3 | US-0.2 | **Module skeleton & lifecycle** — src/core/mcp and src/core/api directories; McpServer is owned by Control and started and stopped with the application. Bump 0.0.2. | `mcp: add MCP module skeleton wired into Control lifecycle (T0.2.3)` | ✅ done |
 
 ### S0.3 — Protocol & transport → v0.0.3
 

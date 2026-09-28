@@ -72,6 +72,9 @@ class XojPdfRectangle;
 class Callback;
 class ActionDatabase;
 class NavigationHistory;
+namespace xoj::mcp {
+class McpServer;
+}
 
 class Control:
         public ToolListener,
@@ -370,6 +373,9 @@ public:
 public:
     void registerPluginToolButtons(ToolMenuHandler* toolMenuHandler);
     inline ActionDatabase* getActionDatabase() const { return actionDB.get(); }
+
+    /// The embedded MCP server, or nullptr if built without ENABLE_MCP
+    xoj::mcp::McpServer* getMcpServer() const { return mcpServer; }
     void loadPaletteFromSettings();
 
 protected:
@@ -564,6 +570,9 @@ private:
      * Manage all Xournal++ plugins
      */
     PluginController* pluginController;
+
+    /// Embedded MCP server (xournalai). Raw pointer so the header doesn't depend on ENABLE_MCP.
+    xoj::mcp::McpServer* mcpServer = nullptr;
 
     std::unique_ptr<ActionDatabase> actionDB;
     template <Action a>

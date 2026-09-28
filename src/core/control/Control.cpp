@@ -117,6 +117,10 @@
 #include "PrintHandler.h"                    // for print
 #include "UndoRedoController.h"              // for Undo...
 #include "config-dev.h"                      // for SETT...
+#include "config-features.h"                 // for ENABLE_MCP
+#ifdef ENABLE_MCP
+#include "mcp/McpServer.h"                   // for McpServer
+#endif
 #include "config.h"                          // for PROJ...
 
 using std::string;
@@ -177,6 +181,10 @@ Control::Control(GApplication* gtkApp, GladeSearchpath* gladeSearchPath, bool di
 }
 
 Control::~Control() {
+#ifdef ENABLE_MCP
+    delete this->mcpServer;  // stop serving agents before anything is torn down
+    this->mcpServer = nullptr;
+#endif
     g_source_remove(this->changeTimout);
     this->enableAutosave(false);
 
@@ -322,6 +330,11 @@ void Control::initWindow(MainWindow* win) {
     this->clipboardHandler = new ClipboardHandler(this, win->getXournal()->getWidget());
 
     this->enableAutosave(settings->isAutosaveEnabled());
+
+#ifdef ENABLE_MCP
+    this->mcpServer = new xoj::mcp::McpServer(this);
+    this->mcpServer->start();
+#endif
 }
 
 auto Control::autosaveCallback(Control* control) -> bool {
