@@ -540,7 +540,10 @@
               "story": "US-2.3",
               "title": "SyntheticPen",
               "details": "Synthetic pen-class InputEvents fed to the input handlers; page/view coordinate mapping; tool save and restore; collision queue.",
-              "commit": "mcp: add synthetic pen input engine"
+              "commit": "mcp: add synthetic pen input engine",
+              "status": "done",
+              "started": "2026-09-28T23:49:28+01:00",
+              "finished": "2026-09-28T23:55:15+01:00"
             },
             {
               "id": "T2.2.2",

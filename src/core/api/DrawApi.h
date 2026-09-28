@@ -13,7 +13,9 @@
 #include <string>      // for string
 #include <vector>      // for vector
 
-#include "model/Element.h"  // for ElementPtr
+#include "model/Element.h"    // for ElementPtr
+#include "model/PageRef.h"    // for PageRef
+#include "undo/UndoAction.h"  // for UndoAction
 
 #include "Pressure.h"  // for PressureSettings
 
@@ -43,6 +45,15 @@ struct AnimationOptions {
     double maxSeconds = 6.0;  ///< the whole animation never takes longer than this
 };
 
+/// A resolved target layer
+struct LayerChoice {
+    Layer* layer = nullptr;
+    size_t index = 0;  ///< 1-based
+    std::string name;
+    bool created = false;
+    std::unique_ptr<UndoAction> undo;  ///< InsertLayerUndoAction if the layer was created (caller registers it)
+};
+
 /// Inserts elements for agents. All functions must run on the main thread.
 class DrawApi {
 public:
@@ -55,6 +66,12 @@ public:
      */
     void insert(const DrawTarget& target, std::vector<ElementPtr> elements, const AnimationOptions& animation,
                 std::function<void(const DrawResult&)> done);
+
+    /**
+     * @brief Finds the layer named by `wanted` ("AI", "current", a name or "#<n>") on `page`, creating a named layer
+     * on top if allowed. The user's selected layer is kept. Throws std::invalid_argument for bad targets.
+     */
+    LayerChoice resolveLayer(const PageRef& page, const std::string& wanted, bool create);
 
     /// The user's pressure settings (minimum pressure, multiplier, pressure sensitivity)
     PressureSettings pressureSettings() const;

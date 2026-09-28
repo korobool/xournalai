@@ -101,6 +101,8 @@ public:
 
     bool isSelected() const;
     inline bool isVisible() const { return visible; }
+    /// True while a pen/mouse/touch input sequence (stroke, selection, ...) is in progress on this page
+    inline bool hasActiveInput() const { return inputHandler != nullptr; }
 
     void endText();
 

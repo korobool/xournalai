@@ -87,6 +87,53 @@ gboolean animationTick(gpointer data) {
 
 }  // namespace
 
+LayerChoice DrawApi::resolveLayer(const PageRef& page, const std::string& wanted, bool create) {
+    Document* doc = control->getDocument();
+    LayerChoice out;
+    {
+        std::unique_lock lock(*doc);
+        auto& layers = page->getLayers();
+        if (wanted == "current") {
+            out.index = std::max<size_t>(page->getSelectedLayerId(), 1);
+            out.layer = layers[out.index - 1];
+        } else if (!wanted.empty() && wanted[0] == '#') {
+            size_t n = 0;
+            try {
+                n = std::stoul(wanted.substr(1));
+            } catch (const std::exception&) {}
+            if (n < 1 || n > layers.size()) {
+                throw std::invalid_argument("Layer " + wanted + " does not exist (page has " +
+                                            std::to_string(layers.size()) + " layers)");
+            }
+            out.index = n;
+            out.layer = layers[n - 1];
+        } else {
+            for (size_t i = 0; i < layers.size(); i++) {
+                if (layers[i]->hasName() && layers[i]->getName() == wanted) {
+                    out.layer = layers[i];
+                    out.index = i + 1;
+                }
+            }
+            if (!out.layer && !create) {
+                throw std::invalid_argument("No layer named '" + wanted + "' on this page");
+            }
+        }
+    }
+    if (!out.layer) {
+        const auto selected = page->getSelectedLayerId();
+        out.layer = new Layer();
+        out.layer->setName(wanted);
+        const auto position = static_cast<Layer::Index>(page->getLayerCount());  // on top
+        control->getLayerController()->insertLayer(page, out.layer, position);   // locks the document itself
+        page->setSelectedLayerId(selected);                                      // keep the user's layer selected
+        out.index = page->getLayerCount();
+        out.created = true;
+        out.undo = std::make_unique<InsertLayerUndoAction>(control->getLayerController(), page, out.layer, position);
+    }
+    out.name = layerName(out.layer, out.index);
+    return out;
+}
+
 std::string DrawApi::nextOperation() {
     static std::atomic<unsigned> counter{0};
     return "op" + std::to_string(++counter);
@@ -118,52 +165,12 @@ void DrawApi::insert(const DrawTarget& target, std::vector<ElementPtr> elements,
     result.page = target.page;
     auto group = std::make_unique<GroupUndoAction>();
 
-    // Resolve (or create) the layer
-    Layer* layer = nullptr;
-    size_t layerIndex = 0;
-    std::string wanted = target.layer.empty() ? "AI" : target.layer;
-    {
-        std::unique_lock lock(*doc);
-        auto& layers = page->getLayers();
-        if (wanted == "current") {
-            layerIndex = std::max<size_t>(page->getSelectedLayerId(), 1);
-            layer = page->getSelectedLayer();
-        } else if (wanted[0] == '#') {
-            size_t n = 0;
-            try {
-                n = std::stoul(wanted.substr(1));
-            } catch (const std::exception&) {}
-            if (n < 1 || n > layers.size()) {
-                throw std::invalid_argument("Layer " + wanted + " does not exist (page has " +
-                                            std::to_string(layers.size()) + " layers)");
-            }
-            layerIndex = n;
-            layer = layers[n - 1];
-        } else {
-            for (size_t i = 0; i < layers.size(); i++) {
-                if (layers[i]->hasName() && layers[i]->getName() == wanted) {
-                    layer = layers[i];
-                    layerIndex = i + 1;
-                }
-            }
-            if (!layer) {
-                if (!target.createLayer) {
-                    throw std::invalid_argument("No layer named '" + wanted + "' on page " +
-                                                std::to_string(target.page + 1));
-                }
-                result.layerCreated = true;
-            }
-        }
-    }
-    if (result.layerCreated) {
-        const auto selected = page->getSelectedLayerId();
-        layer = new Layer();
-        layer->setName(wanted);
-        const auto position = static_cast<Layer::Index>(page->getLayerCount());  // on top
-        control->getLayerController()->insertLayer(page, layer, position);       // locks the document itself
-        page->setSelectedLayerId(selected);                                      // keep the user's layer selected
-        layerIndex = page->getLayerCount();
-        group->addAction(std::make_unique<InsertLayerUndoAction>(control->getLayerController(), page, layer, position));
+    LayerChoice choice = resolveLayer(page, target.layer.empty() ? "AI" : target.layer, target.createLayer);
+    Layer* layer = choice.layer;
+    const size_t layerIndex = choice.index;
+    result.layerCreated = choice.created;
+    if (choice.undo) {
+        group->addAction(std::move(choice.undo));
     }
     result.layer = layerIndex;
     result.layerName = layerName(layer, layerIndex);
