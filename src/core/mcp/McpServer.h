@@ -45,6 +45,9 @@ public:
     McpHttpServer* getHttpServer() const { return http.get(); }
     const McpConfig& getConfig() const { return config; }
 
+    /// Saves a safety copy of the document if backups are enabled; returns its path (empty if none was made)
+    std::string backup(const std::string& reason) const;
+
     /// Throws ToolError if `tier` is not granted (for tools whose risk depends on their arguments)
     void requireTier(Tier tier, const std::string& what) const;
 

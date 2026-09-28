@@ -2,6 +2,7 @@
 
 #include <glib.h>  // for g_message
 
+#include "api/Backup.h"
 #include "tools/Tools.h"
 
 #include "McpHttpServer.h"
@@ -38,6 +39,14 @@ void McpServer::requireTier(Tier tier, const std::string& what) const {
 }
 
 McpServer::~McpServer() { stop(); }
+
+std::string McpServer::backup(const std::string& reason) const {
+    if (!config.backups) {
+        return {};
+    }
+    auto file = api::backupDocument(control, config.backupDir, reason);
+    return file ? toUtf8(*file) : std::string();
+}
 
 std::string McpServer::instructions() {
     return "xournalai is a running Xournal++ note-taking app (handwriting, drawings, PDF annotation). "

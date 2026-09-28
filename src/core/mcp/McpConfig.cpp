@@ -14,6 +14,7 @@ namespace xoj::mcp {
 
 McpConfig::McpConfig(): tiers{Tier::Read, Tier::Draw, Tier::Ui, Tier::Files} {
     exportDir = fs::path(g_get_user_data_dir()) / "xournalpp" / "mcp-exports";
+    backupDir = fs::path(g_get_user_data_dir()) / "xournalpp" / "mcp-backups";
 }
 
 McpConfig::Overrides& McpConfig::overrides() {
@@ -49,6 +50,11 @@ McpConfig McpConfig::load() {
             cfg.token = j.value("token", "");
             cfg.defaultLayer = j.value("default_layer", cfg.defaultLayer);
             cfg.animate = j.value("animate", cfg.animate);
+            cfg.backups = j.value("backups", cfg.backups);
+            if (j.contains("backup_dir") && j["backup_dir"].is_string() &&
+                !j["backup_dir"].get<std::string>().empty()) {
+                cfg.backupDir = pathFromUtf8(j["backup_dir"].get<std::string>());
+            }
             if (j.contains("export_dir") && j["export_dir"].is_string() &&
                 !j["export_dir"].get<std::string>().empty()) {
                 cfg.exportDir = pathFromUtf8(j["export_dir"].get<std::string>());
@@ -95,6 +101,8 @@ void McpConfig::save() const {
               {"default_layer", defaultLayer},
               {"animate", animate},
               {"export_dir", toUtf8(exportDir)},
+              {"backups", backups},
+              {"backup_dir", toUtf8(backupDir)},
               {"_help",
                {{"url", url()},
                 {"header", "Authorization: Bearer " + token},

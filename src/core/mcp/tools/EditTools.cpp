@@ -176,14 +176,21 @@ void registerEditTools(McpServer& server) {
                       "with undo).";
     del.inputSchema = targetSchema({});
     del.tier = Tier::Draw;
-    del.handler = [ctrl](const json& j) {
+    del.handler = [ctrl, srv = &server](const json& j) {
         requireDocument(ctrl);
         Args args(j);
         args.rejectUnknown({"element_ids", "operation"});
         api::EditApi edit(ctrl);
         auto g = edit.resolve(idsFrom(args));
-        const size_t n = edit.remove(g);
-        return ToolResult::structured({{"deleted", n}, {"page", g.pageIndex + 1}});
+        json out = json::object();
+        if (g.all.size() >= 20) {  // bulk deletion: keep a safety copy
+            if (auto b = srv->backup("before-delete"); !b.empty()) {
+                out["backup"] = b;
+            }
+        }
+        out["deleted"] = edit.remove(g);
+        out["page"] = g.pageIndex + 1;
+        return ToolResult::structured(std::move(out));
     };
     server.getRegistry().addTool(std::move(del));
 

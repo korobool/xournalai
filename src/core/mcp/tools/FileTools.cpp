@@ -54,7 +54,9 @@ void handleUnsaved(McpServer* srv, Control* ctrl, const std::string& policy, con
     }
     if (policy == "discard") {
         srv->requireTier(Tier::Destructive, "discarding unsaved changes");
-        ctrl->resetSavedStatus();
+        srv->backup("before-discard");
+        // Not Control::resetSavedStatus(): it adds the (possibly empty) path to the recent files
+        ctrl->getUndoRedoHandler()->documentSaved();
         next();
     } else if (policy == "save") {
         std::shared_lock lock(*ctrl->getDocument());

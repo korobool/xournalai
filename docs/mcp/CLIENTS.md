@@ -82,6 +82,7 @@ args = ["--mcp-stdio"]
 | `mcp.json` | `default_layer` | Where agent drawings go: `"AI"` (default), `"current"` or a layer name |
 | `mcp.json` | `animate` | Animate agent drawing by default |
 | `mcp.json` | `export_dir` | Folder for renders and exports when no path is given |
+| `mcp.json` | `backups` / `backup_dir` | Save a copy of the document before risky agent operations (discarding changes, deleting pages or layers, deleting 20+ elements); the newest 30 are kept |
 | command line | `--mcp` / `--no-mcp` | Force the server on or off for this session |
 | command line | `--mcp-port=N` | Port for this session. The stdio bridge uses the same flag to find the app |
 

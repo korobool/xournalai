@@ -92,7 +92,7 @@ void registerStructureTools(McpServer& server) {
                                        {"height", schema::number("size: height in points")}},
                                       {"op"});
     page.tier = Tier::Ui;
-    page.handler = [ctrl, formats](const json& j) {
+    page.handler = [ctrl, formats, srv = &server](const json& j) {
         requireDocument(ctrl);
         Args args(j);
         args.rejectUnknown({"op", "page", "to", "background", "color", "width", "height"});
@@ -129,9 +129,14 @@ void registerStructureTools(McpServer& server) {
             return ToolResult::structured(pageState(ctrl, index));
         }
         if (op == "delete") {
+            const std::string backup = srv->backup("before-delete-page");
             gotoPage(ctrl, index);
             runWinAction(ctrl, "delete-page");
-            return ToolResult::structured({{"deleted_page", index + 1}, {"page_count", pageCount(ctrl)}});
+            json out = {{"deleted_page", index + 1}, {"page_count", pageCount(ctrl)}};
+            if (!backup.empty()) {
+                out["backup"] = backup;
+            }
+            return ToolResult::structured(std::move(out));
         }
         if (op == "duplicate") {
             gotoPage(ctrl, index);
@@ -188,7 +193,7 @@ void registerStructureTools(McpServer& server) {
              {"name", schema::string("add/rename: the (new) name")}},
             {"op"});
     layer.tier = Tier::Ui;
-    layer.handler = [ctrl](const json& j) {
+    layer.handler = [ctrl, srv = &server](const json& j) {
         requireDocument(ctrl);
         Args args(j);
         args.rejectUnknown({"op", "page", "layer", "name"});
@@ -221,6 +226,7 @@ void registerStructureTools(McpServer& server) {
             if (p->getLayerCount() <= 1) {
                 throw ToolError("A page needs at least one layer");
             }
+            srv->backup("before-delete-layer");
             lc->deleteCurrentLayer();
         } else if (op == "copy") {
             lc->copyCurrentLayer();

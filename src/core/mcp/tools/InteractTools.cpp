@@ -227,7 +227,7 @@ void registerInteractTools(McpServer& server) {
              {"value", schema::string("set_value/select_row: the value (text, number or true/false)")}},
             {"op", "target"});
     interact.tier = Tier::Ui;
-    interact.asyncHandler = [ctrl](const json& j, Responder respond) {
+    interact.asyncHandler = [ctrl, srv = &server](const json& j, Responder respond) {
         requireDocument(ctrl);
         Args args(j);
         args.rejectUnknown({"op", "target", "value"});
@@ -238,6 +238,13 @@ void registerInteractTools(McpServer& server) {
             throw ToolError("The widget is disabled");
         }
         if (op == "click") {
+            static const std::vector<std::string> destructive = {
+                    "discard", "don't save", "do not save", "close without saving", "quit", "discard changes"};
+            const std::string label = lower(api::ui::widgetText(w));
+            if (std::find(destructive.begin(), destructive.end(), label) != destructive.end()) {
+                srv->requireTier(Tier::Destructive, "clicking '" + api::ui::widgetText(w) + "'");
+                srv->backup("before-ui-discard");
+            }
             click(w);
         } else if (op == "set_value") {
             setValue(w, args.raw("value"));

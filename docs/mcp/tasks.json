@@ -739,7 +739,10 @@
               "story": "US-3.3",
               "title": "Permission tiers & backups",
               "details": "read, draw, ui and files tiers; backup snapshots before risky operations.",
-              "commit": "mcp: add permission tiers and safety backups"
+              "commit": "mcp: add permission tiers and safety backups",
+              "status": "done",
+              "started": "2026-09-29T00:27:25+01:00",
+              "finished": "2026-09-29T00:30:09+01:00"
             },
             {
               "id": "T3.3.2",
