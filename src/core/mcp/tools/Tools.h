@@ -30,5 +30,6 @@ void registerPlacementTools(McpServer& server);
 void registerPenTools(McpServer& server);
 void registerDraftTools(McpServer& server);
 void registerEditTools(McpServer& server);
+void registerImportTools(McpServer& server);
 
 }  // namespace xoj::mcp::tools
