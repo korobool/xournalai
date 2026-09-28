@@ -6,6 +6,17 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+## 0.4.0 — Application control (epoch E3)
+Agents control the whole application, semantically and through the real interface.
+- Permission tiers: the destructive tier also guards UI clicks such as Discard / Don't save / Quit.
+- Safety backups (`mcp.json` `backups`, `backup_dir`): a copy of the document is saved before discarding changes,
+  deleting pages or layers and deleting 20+ elements; the newest 30 are kept.
+- Guide topics `control` and `ui`.
+- Fixed: discarding changes on an untitled document failed (empty path added to recent files).
+- Acceptance (the E3 milestone): the Go-to-Page dialog operated through its widgets; File/Open through the menu
+  handling the unsaved-changes prompt and the file chooser; File/Save As through the file chooser; menus visibly
+  navigated; keyboard shortcuts. 83/83 integration scenarios, 175/175 unit tests; the MCP-off build is also verified.
+
 ### 0.3.2 — UI automation
 - `ui_windows`, `ui_inspect` (widget tree with stable ids, role, label, glade name, value, enabled, bbox; filter),
   `ui_screenshot`.

@@ -19,11 +19,12 @@ const std::map<std::string, std::string>& topics() {
              "xournalai = Xournal++ with an embedded MCP server. You are connected to the user's running app; "
              "what you change appears on their screen immediately.\n"
              "Start with app_status and doc_info. Topics: coordinates, ids, understanding, summarize, "
-             "extract_text, explain_figure, drawing, pressure, drafts, draw, pen, permissions.\n"
+             "extract_text, explain_figure, drawing, pressure, drafts, draw, pen, control, ui, permissions.\n"
              "Read tools: page_elements (structure), page_render (see a page), layout_analyze (blocks), "
              "blocks_render (readable crops), pdf_text (PDF background text), shapes_recognize (sketched shapes).\n"
              "Draw: create_* tools, pen_draw, draft, find_free_space; edit: elements_edit/delete/select, undo, "
-             "redo, history. Files: file_*, export, import."},
+             "redo, history. Files: file_*, export, import. App: action_run, page_manage, layer_manage, tool_set, "
+             "view, clipboard, ui_* (menus, dialogs, keys)."},
             {"coordinates",
              "Units are page points (1/72 inch). Origin = top-left corner of each page, x to the right, y down. "
              "An A4 page is about 595 x 842 points. Pages and layers are numbered from 1 (layer 1 is the bottom "
@@ -88,6 +89,19 @@ const std::map<std::string, std::string>& topics() {
                     "ellipse/arrow/double_arrow/axes (drag from start to end). speed 1 = hand speed (visible), 0 = "
                     "instant. The user's tool settings are restored; a selection stays active. It waits while the user "
                     "is drawing. It cannot draw into drafts."},
+            {"control",
+             "Controlling the app. Prefer semantic tools: file_* (open/save), page_manage, layer_manage, tool_set, "
+             "view, clipboard, export/import. action_run runs ANY menu/toolbar action by name (actions_list shows "
+             "all with menu labels and states). Only if you need the literal interface use the ui_* tools (see "
+             "topic ui)."},
+            {"ui",
+             "Operating the real interface: ui_menu_tree / ui_menu_select(path, visible=true) choose menu entries "
+             "the way a user does. When a dialog opens: ui_wait_for_window(kind=\"dialog\" or title=...), "
+             "ui_inspect(target=its id) to see the widgets (ids, labels, glade names, values), ui_interact to "
+             "set values and click buttons, ui_screenshot to look at it. File dialogs: ui_file_chooser(path). "
+             "Keyboard: ui_keys(shortcut=\"<Ctrl>z\") or type text. Opening a file or creating a new one while the "
+             "document has unsaved changes first shows a Save As / Discard / Cancel prompt; Discard needs the "
+             "'destructive' permission."},
             {"permissions",
              "Tools belong to tiers: read, draw, ui, files, destructive. The user grants tiers in "
              "~/.config/xournalpp/mcp.json; app_status shows them. A denied call returns an error explaining "

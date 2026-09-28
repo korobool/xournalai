@@ -22,9 +22,13 @@ def test_run_actions(app):
     assert c.call("doc_info")["page_count"] == pages
     r = c.call("action_run", action="win.zoom", state=1.5)
     assert abs(r["state"] - 1.5) < 0.01
-    layers = len(c.call("doc_info")["pages"][0]["layers"])
+    def current_layers():
+        info = c.call("doc_info")
+        return len(info["pages"][info["current_page"] - 1]["layers"])
+
+    layers = current_layers()
     c.call("action_run", action="layer-new-above-current")
-    assert len(c.call("doc_info")["pages"][0]["layers"]) == layers + 1
+    assert current_layers() == layers + 1
 
 
 def test_state_and_errors(app):

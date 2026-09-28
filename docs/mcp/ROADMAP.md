@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **0.3.2**
+Current version: **0.4.0**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -224,8 +224,8 @@ The agent can control everything in the app, semantically and through the real U
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T3.3.1 | US-3.3 | **Permission tiers & backups** — read, draw, ui and files tiers; backup snapshots before risky operations. | `mcp: add permission tiers and safety backups (T3.3.1)` | ✅ done |
-| T3.3.2 | US-3.3 | **E3 integration & release 0.4.0** — Menu and dialog scenario, CHANGELOG, tag. | `mcp: release 0.4.0 (T3.3.2)` | ⬜ todo |
+| T3.3.1 | US-3.3 | **Permission tiers & backups** — read, draw, ui and files tiers; backup snapshots before risky operations. | `mcp: add permission tiers and safety backups (T3.3.1)` | ✅ done `eb0db8608` |
+| T3.3.2 | US-3.3 | **E3 integration & release 0.4.0** — Menu and dialog scenario, CHANGELOG, tag. | `mcp: release 0.4.0 (T3.3.2)` | ✅ done |
 
 ## E4 — Co-creation (release 0.5.0)
 
