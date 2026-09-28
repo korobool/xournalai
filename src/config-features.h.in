@@ -21,6 +21,8 @@
 
 #cmakedefine ENABLE_AUDIO
 
+#cmakedefine ENABLE_MCP
+
 #cmakedefine01 ENABLE_FLOAT_FROM_CHARS
 
 /* --- Testing features --- */

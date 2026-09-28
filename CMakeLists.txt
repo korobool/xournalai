@@ -198,6 +198,25 @@ else ()
     message(STATUS "Disable Xournal++ Plugins")
 endif ()
 
+option(ENABLE_MCP "Embedded MCP server that lets AI agents use the application (xournalai)" ON)
+if (ENABLE_MCP)
+    message(STATUS "Enable embedded MCP server")
+    pkg_check_modules(Libsoup3 REQUIRED IMPORTED_TARGET "libsoup-3.0 >= 3.0")
+    find_package(nlohmann_json 3.10 QUIET)
+    if (NOT nlohmann_json_FOUND)
+        message(STATUS "nlohmann_json not found, downloading it")
+        include(FetchContent)
+        FetchContent_Declare(nlohmann_json URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
+        FetchContent_MakeAvailable(nlohmann_json)
+    endif ()
+    # nanosvg is vendored (single header, zlib license), see third_party/nanosvg/COMMIT
+    add_library(nanosvg INTERFACE)
+    target_include_directories(nanosvg SYSTEM INTERFACE "${PROJECT_SOURCE_DIR}/third_party/nanosvg")
+    add_library(xoj::nanosvg ALIAS nanosvg)
+else ()
+    message(STATUS "Disable embedded MCP server")
+endif ()
+
 option(ENABLE_GTK_SOURCEVIEW "Enable syntax highlighting in TeX editor" ON)
 if (ENABLE_GTK_SOURCEVIEW)
     pkg_check_modules(GtkSourceView REQUIRED IMPORTED_TARGET "gtksourceview-4 >= 4.0.0")
@@ -270,6 +289,9 @@ target_link_libraries(external_modules INTERFACE
         $<$<TARGET_EXISTS:Lua::lua>:Lua::lua>
         $<$<TARGET_EXISTS:PkgConfig::GtkSourceView>:PkgConfig::GtkSourceView>
         $<$<TARGET_EXISTS:PkgConfig::ExternalAudioModules>:PkgConfig::ExternalAudioModules>
+        $<$<TARGET_EXISTS:PkgConfig::Libsoup3>:PkgConfig::Libsoup3>
+        $<$<TARGET_EXISTS:nlohmann_json::nlohmann_json>:nlohmann_json::nlohmann_json>
+        $<$<TARGET_EXISTS:xoj::nanosvg>:xoj::nanosvg>
         $<$<TARGET_EXISTS:X11::Xi>:X11::Xi>
         $<$<TARGET_EXISTS:X11::X11>:X11::X11>
         $<$<TARGET_EXISTS:cpptrace::cpptrace>:cpptrace::cpptrace>
@@ -437,6 +459,7 @@ message("
 Configuration:
     Compiler:                   ${CMAKE_CXX_COMPILER}
     X11 support enabled:        ${X11_FOUND}
+    MCP server enabled:         ${ENABLE_MCP}
     GTEST enabled:              ${ENABLE_GTEST}
     GCOV enabled:               ${DEV_ENABLE_GCOV}
     Profiling enabled:          ${ENABLE_PROFILING}

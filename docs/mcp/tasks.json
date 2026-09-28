@@ -104,7 +104,10 @@
               "story": "US-0.2",
               "title": "ENABLE_MCP & dependencies",
               "details": "CMake option, pkg-config libsoup-3.0, nlohmann_json (system or FetchContent), nanosvg via FetchContent, ENABLE_MCP in config-features.h.",
-              "commit": "mcp: add ENABLE_MCP build option and dependencies"
+              "commit": "mcp: add ENABLE_MCP build option and dependencies",
+              "status": "done",
+              "started": "2026-09-28T22:13:28+01:00",
+              "finished": "2026-09-28T22:13:48+01:00"
             },
             {
               "id": "T0.2.3",
