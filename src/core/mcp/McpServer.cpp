@@ -25,14 +25,22 @@ McpServer::McpServer(Control* control): control(control) {
         }
         return permissionMessage(tool.tier, "tool '" + tool.name + "'");
     });
-    protocol->setCallStarted([this](const std::string&) {
+    // Changes made while a (non read-only) tool runs belong to the agent. Read-only tools such as wait_for_user
+    // may run for minutes while the user draws, so they don't count.
+    auto mutating = [this](const std::string& name) {
+        const ToolSpec* t = registry.findTool(name);
+        return t && !t->readOnly;
+    };
+    protocol->setCallStarted([this, mutating](const std::string& name) {
         if (events) {
             events->flush();  // earlier changes (by the user or a previous call) keep their attribution
-            events->beginAgentWork();
+            if (mutating(name)) {
+                events->beginAgentWork();
+            }
         }
     });
-    protocol->setCallObserver([this](const std::string&, bool, double) {
-        if (events) {
+    protocol->setCallObserver([this, mutating](const std::string& name, bool, double) {
+        if (events && mutating(name)) {
             events->endAgentWork();
         }
     });
@@ -50,7 +58,10 @@ void McpServer::requireTier(Tier tier, const std::string& what) const {
     }
 }
 
-McpServer::~McpServer() { stop(); }
+McpServer::~McpServer() {
+    *alive = false;
+    stop();
+}
 
 std::string McpServer::backup(const std::string& reason) const {
     if (!config.backups) {

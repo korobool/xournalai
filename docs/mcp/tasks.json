@@ -795,7 +795,10 @@
               "story": "US-4.1",
               "title": "wait_for_user",
               "details": "Paused HTTP responses resumed on idle or timeout; region filter.",
-              "commit": "mcp: add wait_for_user tool"
+              "commit": "mcp: add wait_for_user tool",
+              "status": "done",
+              "started": "2026-09-29T00:38:42+01:00",
+              "finished": "2026-09-29T00:41:52+01:00"
             },
             {
               "id": "T4.1.3",

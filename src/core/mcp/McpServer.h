@@ -54,6 +54,9 @@ public:
     api::EventHub* getEvents() const { return events.get(); }
     const McpConfig& getConfig() const { return config; }
 
+    /// False once the server is destroyed; long-running tool calls check it before touching the server
+    std::shared_ptr<bool> aliveToken() const { return alive; }
+
     /// Saves a safety copy of the document if backups are enabled; returns its path (empty if none was made)
     std::string backup(const std::string& reason) const;
 
@@ -73,6 +76,7 @@ private:
     std::unique_ptr<McpProtocol> protocol;
     std::unique_ptr<McpHttpServer> http;
     std::unique_ptr<api::EventHub> events;
+    std::shared_ptr<bool> alive = std::make_shared<bool>(true);
 };
 
 }  // namespace xoj::mcp
