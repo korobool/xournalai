@@ -395,7 +395,10 @@
               "story": "US-1.3",
               "title": "xjson format",
               "details": "Serializer and parser for the lossless element interchange format; unit tests.",
-              "commit": "mcp: add xjson lossless element interchange format"
+              "commit": "mcp: add xjson lossless element interchange format",
+              "status": "done",
+              "started": "2026-09-28T23:21:50+01:00",
+              "finished": "2026-09-28T23:24:13+01:00"
             },
             {
               "id": "T1.3.3",
