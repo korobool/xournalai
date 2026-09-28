@@ -28,7 +28,7 @@ project(xournalpp
 # according to https://cmake.org/cmake/help/latest/command/project.html we must fix the suffix:
 # And https://gitlab.kitware.com/cmake/cmake/-/issues/16716 is still open:
 # xournalai fork version (semantic, independent of upstream). Bumped by `tools/monitor/track.py version <x.y.z>`.
-set(XOURNALAI_VERSION "0.0.3")
+set(XOURNALAI_VERSION "0.1.0")
 set(VERSION_SUFFIX "+ai.${XOURNALAI_VERSION}")
 set(PROJECT_VERSION "${PROJECT_VERSION}${VERSION_SUFFIX}")
 set(xournalpp_VERSION ${PROJECT_VERSION})

@@ -6,6 +6,19 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+## 0.1.0 — Foundations (epoch E0)
+Any MCP agent can now connect to a running xournalai and call its first tools.
+- Tools: `app_status` (version, connection, permissions, document and active tool) and `doc_info` (pages, sizes,
+  backgrounds, layers and element counts, paginated).
+- Tool runtime: forgiving typed arguments (numbers and booleans are also accepted as strings; typos in argument
+  names are reported), color parsing (hex, rgb(), CSS names), PNG and base64 helpers, and an export folder.
+- End-to-end test harness `test/mcp_integration` (stdlib Python client, headless app, isolated config) and
+  per-client setup guide `docs/mcp/CLIENTS.md` (Claude Code, Gemini CLI, OpenCode, Codex, Cursor, generic).
+- Spikes (`docs/mcp/SPIKES.md`): synthetic pen events go through the real stylus pipeline with hardware-identical
+  pressure; nanosvg is suitable for SVG → strokes; the highlighter never uses pressure.
+  `InputContext::handleSynthetic()` hook added.
+- Verified: 136/136 unit and GTK tests, 6/6 integration scenarios; also builds with `-DENABLE_MCP=OFF`.
+
 ### 0.0.3 — Protocol & transport
 - JSON-RPC 2.0 / MCP protocol core (protocol versions 2025-06-18, 2025-03-26 and 2024-11-05): initialize, ping,
   tools, prompts, resources (with subscriptions) and logging. A tool registry that enforces portable schemas; an
