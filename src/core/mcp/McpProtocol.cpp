@@ -179,6 +179,9 @@ void McpProtocol::callTool(const json& id, const json& params, Reply reply) {
         reply(rpc::resultResponse(id, result.toJson()));
     };
 
+    if (callStarted) {
+        callStarted(name);
+    }
     // Error barrier: nothing a tool throws may escape into the GTK main loop
     try {
         if (tool->asyncHandler) {

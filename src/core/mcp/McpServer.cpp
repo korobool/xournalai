@@ -3,6 +3,7 @@
 #include <glib.h>  // for g_message
 
 #include "api/Backup.h"
+#include "api/EventHub.h"
 #include "tools/Tools.h"
 
 #include "McpHttpServer.h"
@@ -23,6 +24,17 @@ McpServer::McpServer(Control* control): control(control) {
             return std::nullopt;
         }
         return permissionMessage(tool.tier, "tool '" + tool.name + "'");
+    });
+    protocol->setCallStarted([this](const std::string&) {
+        if (events) {
+            events->flush();  // earlier changes (by the user or a previous call) keep their attribution
+            events->beginAgentWork();
+        }
+    });
+    protocol->setCallObserver([this](const std::string&, bool, double) {
+        if (events) {
+            events->endAgentWork();
+        }
     });
 }
 
@@ -61,6 +73,9 @@ void McpServer::start() {
         return;
     }
     config = McpConfig::load();
+    if (!events) {
+        events = std::make_unique<api::EventHub>(control);
+    }
     if (!config.enabled) {
         g_message("MCP server disabled (see %s)", toUtf8(McpConfig::path()).c_str());
         return;
@@ -79,6 +94,7 @@ void McpServer::start() {
 }
 
 void McpServer::stop() {
+    events.reset();
     if (http) {
         http->stop();
         http.reset();

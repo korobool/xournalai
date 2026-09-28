@@ -62,6 +62,8 @@ public:
 
     void setPermissionCheck(PermissionCheck check) { permissionCheck = std::move(check); }
     void setCallObserver(CallObserver observer) { callObserver = std::move(observer); }
+    /// Called right before a tool handler runs (paired with the call observer when it finishes)
+    void setCallStarted(std::function<void(const std::string& tool)> started) { callStarted = std::move(started); }
 
     /**
      * @brief Handles one incoming JSON-RPC message.
@@ -83,6 +85,7 @@ private:
     const Registry& registry;
     PermissionCheck permissionCheck;
     CallObserver callObserver;
+    std::function<void(const std::string& tool)> callStarted;
 };
 
 }  // namespace xoj::mcp

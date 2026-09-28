@@ -785,7 +785,10 @@
               "story": "US-4.1",
               "title": "EventHub & changes_get",
               "details": "Hooks in undo/redo and the document listener, in-progress stroke state, cursor-based log.",
-              "commit": "mcp: add EventHub and changes_get tool"
+              "commit": "mcp: add EventHub and changes_get tool",
+              "status": "done",
+              "started": "2026-09-29T00:31:23+01:00",
+              "finished": "2026-09-29T00:38:42+01:00"
             },
             {
               "id": "T4.1.2",

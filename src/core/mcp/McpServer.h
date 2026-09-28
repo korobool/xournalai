@@ -20,6 +20,13 @@ namespace xoj::mcp {
 
 class McpProtocol;
 class McpHttpServer;
+}  // namespace xoj::mcp
+
+namespace xoj::api {
+class EventHub;
+}
+
+namespace xoj::mcp {
 
 /**
  * @brief Owner of the embedded MCP server (transport, protocol, tool registry).
@@ -43,6 +50,8 @@ public:
     Control* getControl() const { return control; }
     Registry& getRegistry() { return registry; }
     McpHttpServer* getHttpServer() const { return http.get(); }
+    /// Document change log (created when the server starts)
+    api::EventHub* getEvents() const { return events.get(); }
     const McpConfig& getConfig() const { return config; }
 
     /// Saves a safety copy of the document if backups are enabled; returns its path (empty if none was made)
@@ -63,6 +72,7 @@ private:
     McpConfig config;
     std::unique_ptr<McpProtocol> protocol;
     std::unique_ptr<McpHttpServer> http;
+    std::unique_ptr<api::EventHub> events;
 };
 
 }  // namespace xoj::mcp

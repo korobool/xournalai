@@ -214,6 +214,10 @@ void UndoRedoHandler::fireUpdateUndoRedoButtons(const std::vector<PageRef>& page
 
 void UndoRedoHandler::addUndoRedoListener(UndoRedoListener* listener) { this->listener.emplace_back(listener); }
 
+void UndoRedoHandler::removeUndoRedoListener(UndoRedoListener* listener) {
+    this->listener.erase(std::remove(this->listener.begin(), this->listener.end(), listener), this->listener.end());
+}
+
 auto UndoRedoHandler::isChanged() -> bool {
     if (this->undoList.empty()) {
         return this->savedUndo;

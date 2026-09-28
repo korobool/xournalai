@@ -37,5 +37,6 @@ void registerControlTools(McpServer& server);
 void registerUiTools(McpServer& server);
 void registerMenuTools(McpServer& server);
 void registerInteractTools(McpServer& server);
+void registerEventTools(McpServer& server);
 
 }  // namespace xoj::mcp::tools

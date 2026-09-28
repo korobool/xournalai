@@ -96,6 +96,56 @@ class App:
         if getattr(self, "log", None):
             self.log.close()
 
+    @property
+    def display(self):
+        """DISPLAY of the app's own Xvfb server, read from the xournalpp binary's environment.
+
+        Never returns the desktop's DISPLAY: simulated input must not reach the user's real screen."""
+        if getattr(self, "_display", None):
+            return self._display
+        out = subprocess.run(["pgrep", "-g", str(self.proc.pid)], capture_output=True, text=True)
+        for pid in out.stdout.split():
+            try:
+                exe = os.readlink(f"/proc/{pid}/exe")
+                env = open(f"/proc/{pid}/environ", "rb").read().split(b"\0")
+            except OSError:
+                continue
+            if not exe.endswith("/xournalpp"):
+                continue  # skip the xvfb-run shell: it still has the desktop's DISPLAY
+            values = dict(kv.split(b"=", 1) for kv in env if b"=" in kv)
+            display = values.get(b"DISPLAY", b"").decode()
+            if display:
+                if display == os.environ.get("DISPLAY"):
+                    raise RuntimeError(f"refusing to use the desktop display {display} for simulated input")
+                self._display = display
+                self._xauthority = values.get(b"XAUTHORITY", b"").decode()
+                return display
+        raise RuntimeError("DISPLAY of the app's Xvfb not found")
+
+    def user_drag(self, points, step_delay=0.01):
+        """Draws like a human: real X mouse events (xdotool) through screen points [(x, y), ...]."""
+        display = self.display
+        assert display != os.environ.get("DISPLAY"), "simulated input must never reach the real desktop"
+        env = dict(os.environ, DISPLAY=display)
+        if self._xauthority:
+            env["XAUTHORITY"] = self._xauthority
+
+        def xdo(*a):
+            subprocess.run(["xdotool", *map(str, a)], env=env, check=True)
+
+        xdo("mousemove", points[0][0], points[0][1])
+        xdo("mousedown", 1)
+        for x, y in points[1:]:
+            xdo("mousemove", x, y)
+            time.sleep(step_delay)
+        xdo("mouseup", 1)
+
+    def canvas_center(self, client):
+        """Screen coordinates of the middle of the drawing area."""
+        w = [x for x in client.call("ui_inspect", max_depth=40, all=True)["widgets"] if x["type"] == "GtkXournal"][0]
+        x, y, width, height = w["bbox"]
+        return x + width // 2, y + height // 2
+
     def client(self, **kw):
         return Mcp(f"http://127.0.0.1:{self.port}/mcp", self.token, **kw)
 
