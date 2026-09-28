@@ -327,7 +327,10 @@
               "story": "US-1.2",
               "title": "RenderApi & page_render",
               "details": "Cairo image surface via DocumentView, PNG encoding, grid overlay, element highlighting, pixel/point scale metadata.",
-              "commit": "mcp: add RenderApi and page_render tool"
+              "commit": "mcp: add RenderApi and page_render tool",
+              "status": "done",
+              "started": "2026-09-28T23:07:26+01:00",
+              "finished": "2026-09-28T23:10:09+01:00"
             },
             {
               "id": "T1.2.2",

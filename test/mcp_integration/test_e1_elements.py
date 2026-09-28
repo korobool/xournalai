@@ -46,3 +46,37 @@ def test_errors_are_helpful(app):
     assert "does not exist" in c.call_error("page_elements", page=999)
     assert "must be one of" in c.call_error("page_elements", detail="everything")
     assert "no PDF background" in c.call_error("pdf_text", page=1)
+
+
+def png_size(data):
+    assert data[:8] == b"\x89PNG\r\n\x1a\n"
+    return int.from_bytes(data[16:20], "big"), int.from_bytes(data[20:24], "big")
+
+
+def test_page_render_whole_page_and_file(app):
+    c = app.client()
+    r = c.call_raw("page_render", page=1, max_px=800)
+    meta = r["structuredContent"]
+    w, h = png_size(xoai.Mcp.images(r)[0])
+    assert (w, h) == (meta["width_px"], meta["height_px"]) and max(w, h) <= 800
+    assert meta["region"][0] == 0 and meta["px_per_pt"] > 0
+    with open(meta["file"], "rb") as f:
+        assert png_size(f.read()) == (w, h)
+
+
+def test_page_render_region_grid_highlight(app):
+    c = app.client()
+    e = c.call("page_elements", page=1, detail="bbox", limit=1)["elements"][0]
+    r = c.call_raw("page_render", page=1, region=[40, 40, 300, 150], dpi=144, grid=True, highlight=[e["id"]],
+                   save=False)
+    meta = r["structuredContent"]
+    assert meta["region"] == [40, 40, 300, 150] and abs(meta["px_per_pt"] - 2.0) < 0.01
+    assert png_size(xoai.Mcp.images(r)[0]) == (600, 300)
+    assert "file" not in meta
+
+
+def test_page_render_errors(app):
+    c = app.client()
+    assert "outside the page" in c.call_error("page_render", region=[5000, 5000, 10, 10])
+    assert "does not exist" in c.call_error("page_render", layers=[9])
+    assert "Unknown element id" in c.call_error("page_render", highlight=["e999999"])

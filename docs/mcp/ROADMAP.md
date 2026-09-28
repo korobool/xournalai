@@ -92,7 +92,7 @@ The agent can open files, read and see content in detail, and export it.
 |---|---|---|---|---|
 | T1.1.1 | US-1.1 | **ElementIdRegistry** — Stable session ids for elements and pages, invalidated on deletion; unit tests. | `mcp: add stable element and page id registry (T1.1.1)` | ✅ done `808dfc70b` |
 | T1.1.2 | US-1.1 | **DocumentApi snapshots** — api/DocumentApi: document, page, layer and element snapshots; RDP simplification; JSON mapping. | `mcp: add DocumentApi with element snapshots and simplification (T1.1.2)` | ✅ done `f23417b1e` |
-| T1.1.3 | US-1.1 | **page_elements & pdf_text** — Tools with filters (page, layer, region, detail, tolerance) and pagination. Bump 0.1.1. | `mcp: add page_elements and pdf_text tools (T1.1.3)` | ✅ done |
+| T1.1.3 | US-1.1 | **page_elements & pdf_text** — Tools with filters (page, layer, region, detail, tolerance) and pagination. Bump 0.1.1. | `mcp: add page_elements and pdf_text tools (T1.1.3)` | ✅ done `a17e1597c` |
 
 ### S1.2 — Rendering & layout understanding → v0.1.2
 
@@ -106,7 +106,7 @@ The agent can open files, read and see content in detail, and export it.
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T1.2.1 | US-1.2 | **RenderApi & page_render** — Cairo image surface via DocumentView, PNG encoding, grid overlay, element highlighting, pixel/point scale metadata. | `mcp: add RenderApi and page_render tool (T1.2.1)` | ⬜ todo |
+| T1.2.1 | US-1.2 | **RenderApi & page_render** — Cairo image surface via DocumentView, PNG encoding, grid overlay, element highlighting, pixel/point scale metadata. | `mcp: add RenderApi and page_render tool (T1.2.1)` | ✅ done |
 | T1.2.2 | US-1.2 | **layout_analyze** — Stroke clustering, block classification, reading order and connector detection; unit tests. | `mcp: add layout analysis of pages into content blocks (T1.2.2)` | ⬜ todo |
 | T1.2.3 | US-1.2 | **blocks_render & shapes_recognize** — Crops per block; ShapeRecognizer applied to given strokes. | `mcp: add blocks_render and shapes_recognize tools (T1.2.3)` | ⬜ todo |
 | T1.2.4 | US-1.2 | **guide tool & prompts** — Recipes and conventions (coordinates, pressure, anchors) as the guide tool and as MCP prompts. Bump 0.1.2. | `mcp: add guide tool and understanding prompts (T1.2.4)` | ⬜ todo |
