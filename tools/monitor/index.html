@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>xournalai build board</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect x=%221%22 y=%221%22 width=%224%22 height=%2214%22 rx=%221%22 fill=%22%230f766e%22/%3E%3Crect x=%226%22 y=%221%22 width=%224%22 height=%229%22 rx=%221%22 fill=%22%23b45309%22/%3E%3Crect x=%2211%22 y=%221%22 width=%224%22 height=%2211%22 rx=%221%22 fill=%22%2315803d%22/%3E%3C/svg%3E">
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --panel-2: #f0f2f5; --line: #dfe3e8; --text: #1b1f24; --muted: #5f6b7a;
+  --accent: #0f766e; --accent-soft: #d8f0ed; --todo: #8a94a3; --doing: #b45309; --doing-soft: #fdf0dc;
+  --review: #6d28d9; --review-soft: #ede5fb; --done: #15803d; --done-soft: #dcf2e3; --blocked: #b91c1c;
+  --blocked-soft: #fbe1e1; --shadow: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1116; --panel: #161b22; --panel-2: #1c222b; --line: #2a313c; --text: #e6edf3; --muted: #8b96a5;
+    --accent: #2dd4bf; --accent-soft: #123a36; --todo: #6e7a8a; --doing: #f59e0b; --doing-soft: #3a2a10;
+    --review: #a78bfa; --review-soft: #2a2145; --done: #4ade80; --done-soft: #12301d; --blocked: #f87171;
+    --blocked-soft: #3a1717; --shadow: 0 1px 2px rgba(0,0,0,.4);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1116; --panel: #161b22; --panel-2: #1c222b; --line: #2a313c; --text: #e6edf3; --muted: #8b96a5;
+  --accent: #2dd4bf; --accent-soft: #123a36; --todo: #6e7a8a; --doing: #f59e0b; --doing-soft: #3a2a10;
+  --review: #a78bfa; --review-soft: #2a2145; --done: #4ade80; --done-soft: #12301d; --blocked: #f87171;
+  --blocked-soft: #3a1717; --shadow: 0 1px 2px rgba(0,0,0,.4);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+header { position: sticky; top: 0; z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line);
+  padding: 12px 20px; display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
+h1 { font-size: 16px; margin: 0; font-weight: 650; letter-spacing: -.01em; }
+h1 small { color: var(--muted); font-weight: 500; margin-left: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px;
+  background: var(--panel-2); border: 1px solid var(--line); font-size: 12px; white-space: nowrap; }
+.chip b { font-weight: 650; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--todo); flex: none; }
+.dot.ok { background: var(--done); } .dot.fail { background: var(--blocked); }
+.dot.running { background: var(--doing); animation: pulse 1.2s infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+.grow { flex: 1; }
+.overall { min-width: 220px; display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }
+.bar { flex: 1; height: 8px; border-radius: 99px; background: var(--panel-2); overflow: hidden; border: 1px solid var(--line); }
+.bar > i { display: block; height: 100%; background: var(--accent); transition: width .6s; }
+button.icon { background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 8px;
+  padding: 4px 8px; cursor: pointer; font: inherit; font-size: 12px; }
+button.icon:hover { color: var(--text); }
+
+.epochs { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; padding: 14px 20px 0; }
+.epoch { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+  cursor: pointer; box-shadow: var(--shadow); transition: border-color .2s; }
+.epoch.sel { border-color: var(--accent); outline: 2px solid var(--accent-soft); }
+.epoch .t { display: flex; justify-content: space-between; gap: 6px; font-size: 12px; color: var(--muted); }
+.epoch .n { font-weight: 650; margin: 2px 0 8px; font-size: 13.5px; }
+.stages { display: flex; gap: 4px; margin-top: 8px; }
+.stages span { flex: 1; height: 5px; border-radius: 3px; background: var(--panel-2); position: relative; overflow: hidden; }
+.stages span i { position: absolute; inset: 0; background: var(--done); transform-origin: left; }
+
+main { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; padding: 14px 20px 24px; }
+.board { display: grid; grid-template-columns: repeat(4, minmax(180px, 1fr)); gap: 12px; align-items: start; }
+.col { background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px; min-height: 120px; }
+.col h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 2px 4px 10px;
+  display: flex; justify-content: space-between; }
+.col[data-s="doing"] h2 { color: var(--doing); } .col[data-s="review"] h2 { color: var(--review); }
+.col[data-s="done"] h2 { color: var(--done); }
+.cards { display: flex; flex-direction: column; gap: 8px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--todo);
+  border-radius: 8px; padding: 8px 10px; cursor: pointer; box-shadow: var(--shadow); }
+.card:hover { border-color: var(--accent); }
+.card[data-s="doing"] { border-left-color: var(--doing); background: linear-gradient(0deg, var(--panel), var(--panel)) padding-box; }
+.card[data-s="review"] { border-left-color: var(--review); }
+.card[data-s="done"] { border-left-color: var(--done); }
+.card[data-s="blocked"] { border-left-color: var(--blocked); background: var(--blocked-soft); }
+.card .id { font: 11.5px var(--mono); color: var(--muted); display: flex; justify-content: space-between; gap: 6px; }
+.card .ti { font-weight: 600; margin-top: 2px; }
+.card .meta { font-size: 11.5px; color: var(--muted); margin-top: 4px; display: flex; gap: 8px; flex-wrap: wrap; }
+.card.flash { animation: flash 1.6s ease-out; }
+@keyframes flash { 0% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: var(--shadow); } }
+.col[data-s="doing"] .card { background: var(--doing-soft); }
+.more { font-size: 12px; color: var(--muted); text-align: center; padding: 4px; cursor: pointer; }
+
+aside { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+.panel h3 { margin: 0; padding: 10px 12px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--muted); border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
+.now { padding: 12px; }
+.now .big { font-size: 15px; font-weight: 650; margin: 2px 0 4px; }
+.now .sub { color: var(--muted); font-size: 12.5px; }
+.feed { max-height: 330px; overflow: auto; font-size: 12.5px; }
+.feed div { padding: 6px 12px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 58px 1fr; gap: 8px; }
+.feed time { color: var(--muted); font: 11.5px var(--mono); }
+.feed .k-status { color: var(--accent); } .feed .k-build, .feed .k-test { color: var(--review); }
+.commits { max-height: 300px; overflow: auto; font-size: 12.5px; }
+.commits div { padding: 6px 12px; border-bottom: 1px solid var(--line); }
+.commits code { font: 11.5px var(--mono); color: var(--accent); margin-right: 6px; }
+.commits .st { color: var(--muted); font-size: 11.5px; }
+.tabs { display: flex; gap: 4px; }
+.tabs button { background: none; border: 0; color: var(--muted); font: inherit; font-size: 11px; cursor: pointer;
+  padding: 2px 6px; border-radius: 6px; text-transform: none; letter-spacing: 0; }
+.tabs button.on { background: var(--accent-soft); color: var(--text); }
+pre.log { margin: 0; padding: 10px 12px; max-height: 260px; overflow: auto; font: 11px/1.45 var(--mono);
+  background: var(--panel-2); white-space: pre-wrap; word-break: break-all; }
+
+dialog { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); color: var(--text);
+  padding: 0; width: min(640px, calc(100vw - 32px)); box-shadow: 0 20px 50px rgba(0,0,0,.3); }
+dialog::backdrop { background: rgba(10,14,20,.45); }
+.dlg { padding: 18px 20px; }
+.dlg h4 { margin: 0 0 4px; font-size: 17px; }
+.dlg .k { font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 14px 0 4px; }
+.dlg code { font: 12.5px var(--mono); background: var(--panel-2); padding: 2px 6px; border-radius: 5px; }
+.dlg ul { margin: 4px 0; padding-left: 18px; }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 11.5px; font-weight: 600;
+  background: var(--panel-2); border: 1px solid var(--line); }
+.empty { color: var(--muted); font-size: 12px; padding: 8px 4px; text-align: center; }
+.err { color: var(--blocked); padding: 8px 20px; font-size: 13px; }
+
+@media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
+@media (max-width: 760px) {
+  header, .epochs, main { padding-left: 16px; padding-right: 16px; }
+  .board { grid-template-columns: 1fr; }
+  .overall { min-width: 0; width: 100%; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>xournalai <small>MCP build board</small></h1>
+  <div class="chips" id="chips"></div>
+  <div class="grow"></div>
+  <div class="overall"><span id="pct">0%</span><div class="bar"><i id="pbar" style="width:0"></i></div><span id="cnt"></span></div>
+  <button class="icon" id="theme" title="Toggle theme">◐</button>
+</header>
+<div id="err" class="err" hidden></div>
+<section class="epochs" id="epochs"></section>
+<main>
+  <section class="board" id="board"></section>
+  <aside>
+    <div class="panel"><h3>Now <span id="updated"></span></h3><div class="now" id="now"></div></div>
+    <div class="panel"><h3>Activity</h3><div class="feed" id="feed"></div></div>
+    <div class="panel"><h3>Commits <span id="ccount"></span></h3><div class="commits" id="commits"></div></div>
+    <div class="panel"><h3>Logs <span class="tabs" id="logtabs"></span></h3><pre class="log" id="log">—</pre></div>
+  </aside>
+</main>
+<dialog id="dlg"><div class="dlg" id="dlgbody"></div></dialog>
+
+<script>
+const COLS = [["todo", "To do"], ["doing", "In progress"], ["review", "Verifying"], ["done", "Done"]];
+let selEpoch = localGet("epoch") || "all", logTab = localGet("logtab") || null, last = {}, data = null, showAllDone = false;
+
+function localGet(k) { try { return localStorage.getItem("xai-" + k); } catch { return null; } }
+function localSet(k, v) { try { localStorage.setItem("xai-" + k, v); } catch {} }
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const $ = id => document.getElementById(id);
+const fmtTime = iso => iso ? new Date(iso).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"}) : "";
+function dur(a, b) {
+  if (!a) return ""; const ms = (b ? new Date(b) : new Date()) - new Date(a);
+  const m = Math.round(ms / 60000); return m < 60 ? m + "m" : Math.floor(m / 60) + "h" + String(m % 60).padStart(2, "0");
+}
+
+(function theme() {
+  const saved = localGet("theme"); if (saved) document.documentElement.dataset.theme = saved;
+  $("theme").onclick = () => {
+    const dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === "dark"
+      : matchMedia("(prefers-color-scheme: dark)").matches;
+    const next = dark ? "light" : "dark"; document.documentElement.dataset.theme = next; localSet("theme", next);
+  };
+})();
+
+function flatten(t) {
+  const out = [];
+  for (const e of t.epochs) for (const s of e.stages) {
+    const stories = Object.fromEntries(s.stories.map(x => [x.id, x]));
+    for (const k of s.tasks) out.push({...k, status: k.status || "todo", epoch: e, stage: s, storyObj: stories[k.story]});
+  }
+  return out;
+}
+
+function render(st) {
+  data = st;
+  const tasks = flatten(st.tasks), commitsByTask = {};
+  for (const c of st.commits) if (c.task && !commitsByTask[c.task]) commitsByTask[c.task] = c;
+  const done = tasks.filter(t => t.status === "done").length;
+  const pct = Math.round(100 * done / tasks.length);
+  $("pct").textContent = pct + "%"; $("pbar").style.width = pct + "%"; $("cnt").textContent = `${done}/${tasks.length} tasks`;
+
+  const s = st.status || {}, dot = x => `<span class="dot ${x ? esc(x.status) : ""}"></span>`;
+  const title = x => x ? esc(`${x.status} · ${fmtTime(x.time)}${x.detail ? " · " + x.detail : ""}`) : "no data";
+  $("chips").innerHTML =
+    `<span class="chip">version <b>${esc(st.tasks.meta.version)}</b></span>` +
+    `<span class="chip">⎇ <b>${esc(st.git.branch)}</b> <code>${esc(st.git.head)}</code></span>` +
+    `<span class="chip" title="${title(s.build)}">${dot(s.build)} build</span>` +
+    `<span class="chip" title="${title(s.test)}">${dot(s.test)} tests</span>` +
+    (st.git.dirty.length ? `<span class="chip" title="${esc(st.git.dirty.join("\n"))}">✎ ${st.git.dirty.length} uncommitted</span>` : "") +
+    (st.git.tags.length ? `<span class="chip">🏷 ${esc(st.git.tags[st.git.tags.length - 1])}</span>` : "");
+
+  // Epoch cards
+  $("epochs").innerHTML = [{id: "all", title: "All epochs", release: "", stages: []}, ...st.tasks.epochs].map(e => {
+    const et = e.id === "all" ? tasks : tasks.filter(t => t.epoch.id === e.id);
+    const d = et.filter(t => t.status === "done").length, active = et.some(t => t.status === "doing" || t.status === "review");
+    const stages = (e.stages || []).map(sg => {
+      const tt = sg.tasks.length, dd = sg.tasks.filter(t => (t.status || "todo") === "done").length;
+      return `<span title="${esc(sg.id + " " + sg.title + " → v" + sg.version)}"><i style="transform:scaleX(${tt ? dd / tt : 0})"></i></span>`;
+    }).join("");
+    return `<div class="epoch ${selEpoch === e.id ? "sel" : ""}" data-e="${e.id}">
+      <div class="t"><span>${e.id === "all" ? "overview" : esc(e.id)}${active ? " · <b style='color:var(--doing)'>active</b>" : ""}</span><span>${e.release ? "→ v" + esc(e.release) : ""}</span></div>
+      <div class="n">${esc(e.title)}</div>
+      <div class="bar"><i style="width:${et.length ? 100 * d / et.length : 0}%"></i></div>
+      <div class="t" style="margin-top:6px"><span>${d}/${et.length} done</span></div>
+      ${stages ? `<div class="stages">${stages}</div>` : ""}</div>`;
+  }).join("");
+  document.querySelectorAll(".epoch").forEach(el => el.onclick = () => { selEpoch = el.dataset.e; localSet("epoch", selEpoch); render(data); });
+
+  // Board
+  const visible = tasks.filter(t => selEpoch === "all" || t.epoch.id === selEpoch);
+  const hasBlocked = visible.some(t => t.status === "blocked");
+  const cols = hasBlocked ? [...COLS, ["blocked", "Blocked"]] : COLS;
+  $("board").style.gridTemplateColumns = `repeat(${cols.length}, minmax(170px, 1fr))`;
+  if (matchMedia("(max-width: 760px)").matches) $("board").style.gridTemplateColumns = "1fr";
+  $("board").innerHTML = cols.map(([key, label]) => {
+    let items = visible.filter(t => t.status === key);
+    if (key === "done") items = items.slice().reverse();
+    const limit = key === "done" && !showAllDone ? 12 : key === "todo" && selEpoch === "all" ? 14 : Infinity;
+    const shown = items.slice(0, limit);
+    return `<div class="col" data-s="${key}"><h2><span>${label}</span><span>${items.length}</span></h2><div class="cards">` +
+      (shown.map(t => card(t, commitsByTask[t.id])).join("") || `<div class="empty">—</div>`) +
+      (items.length > shown.length ? `<div class="more" data-more="${key}">+ ${items.length - shown.length} more</div>` : "") +
+      `</div></div>`;
+  }).join("");
+  document.querySelectorAll(".card").forEach(el => el.onclick = () => openTask(el.dataset.id));
+  document.querySelectorAll("[data-more]").forEach(el => el.onclick = () => {
+    if (el.dataset.more === "done") showAllDone = true; else { selEpoch = tasks.find(t => t.status === "todo")?.epoch.id || "all"; }
+    render(data);
+  });
+  for (const t of tasks) {
+    if (last[t.id] && last[t.id] !== t.status) document.querySelector(`.card[data-id="${t.id}"]`)?.classList.add("flash");
+    last[t.id] = t.status;
+  }
+
+  // Now panel
+  const cur = tasks.find(t => t.status === "doing") || tasks.find(t => t.status === "review");
+  const nxt = tasks.find(t => t.status === "todo");
+  $("now").innerHTML = cur
+    ? `<span class="pill" style="color:var(--${cur.status})">${cur.status === "doing" ? "in progress" : "verifying"} · ${dur(cur.started)}</span>
+       <div class="big">${esc(cur.id)} — ${esc(cur.title)}</div><div class="sub">${esc(cur.details)}</div>
+       <div class="sub" style="margin-top:6px">${esc(cur.epoch.id)} ${esc(cur.epoch.title)} › ${esc(cur.stage.id)} ${esc(cur.stage.title)}</div>`
+    : `<div class="sub">No task in progress.</div>${nxt ? `<div class="big">Next: ${esc(nxt.id)} — ${esc(nxt.title)}</div>` : `<div class="big">All tasks done 🎉</div>`}`;
+  $("updated").textContent = "updated " + new Date().toLocaleTimeString();
+
+  // Activity
+  $("feed").innerHTML = st.activity.slice().reverse().slice(0, 120).map(a =>
+    `<div><time>${fmtTime(a.time)}</time><span class="k-${esc(a.kind)}">${esc(a.message)}</span></div>`).join("") || `<div class="empty">No activity yet</div>`;
+
+  // Commits (only this branch's task commits + recent others)
+  $("ccount").textContent = st.commits.filter(c => c.task).length + " task commits";
+  $("commits").innerHTML = st.commits.slice(0, 40).map(c =>
+    `<div><code>${esc(c.sha)}</code>${esc(c.subject)}<div class="st">${esc(new Date(c.date).toLocaleString())}${c.stat ? " · " + esc(c.stat) : ""}</div></div>`).join("");
+
+  // Logs
+  const names = Object.keys(st.logs).sort((a, b) => st.logs[b].mtime - st.logs[a].mtime);
+  if (!logTab || !st.logs[logTab]) logTab = names[0];
+  $("logtabs").innerHTML = names.map(n => `<button class="${n === logTab ? "on" : ""}" data-log="${n}">${n}</button>`).join("");
+  document.querySelectorAll("[data-log]").forEach(b => b.onclick = () => { logTab = b.dataset.log; localSet("logtab", logTab); render(data); });
+  const logEl = $("log"), atBottom = logEl.scrollTop + logEl.clientHeight >= logEl.scrollHeight - 8;
+  logEl.textContent = logTab ? st.logs[logTab].tail.join("") || "(empty)" : "No logs yet";
+  if (atBottom) logEl.scrollTop = logEl.scrollHeight;
+}
+
+function card(t, c) {
+  const meta = [`${t.epoch.id} › ${t.stage.id}`, t.story];
+  if (t.status === "doing" || t.status === "review") meta.push("⏱ " + dur(t.started));
+  if (t.status === "done" && t.started) meta.push("⏱ " + dur(t.started, t.finished));
+  return `<div class="card" data-id="${esc(t.id)}" data-s="${esc(t.status)}">
+    <div class="id"><span>${esc(t.id)}</span>${c ? `<span>${esc(c.sha)}</span>` : ""}</div>
+    <div class="ti">${esc(t.title)}</div>
+    <div class="meta">${meta.map(esc).join(" · ")}</div></div>`;
+}
+
+function openTask(id) {
+  const t = flatten(data.tasks).find(x => x.id === id), c = data.commits.find(x => x.task === id);
+  const s = t.storyObj;
+  $("dlgbody").innerHTML = `
+    <div class="id" style="font:12px var(--mono);color:var(--muted)">${esc(t.id)} · ${esc(t.epoch.id)} ${esc(t.epoch.title)} › ${esc(t.stage.id)} ${esc(t.stage.title)} (→ v${esc(t.stage.version)})</div>
+    <h4>${esc(t.title)}</h4><span class="pill">${esc(t.status)}</span>
+    <div class="k">Details</div><div>${esc(t.details)}</div>
+    <div class="k">Planned commit</div><code>${esc(t.commit)} (${esc(t.id)})</code>
+    ${c ? `<div class="k">Commit</div><code>${esc(c.sha)}</code> ${esc(c.subject)}<div style="color:var(--muted);font-size:12px">${esc(c.stat || "")}</div>` : ""}
+    ${t.note ? `<div class="k">Note</div><div>${esc(t.note)}</div>` : ""}
+    ${t.started ? `<div class="k">Timing</div><div>started ${esc(new Date(t.started).toLocaleString())}${t.finished ? ", finished " + esc(new Date(t.finished).toLocaleString()) + " (" + dur(t.started, t.finished) + ")" : ""}</div>` : ""}
+    ${s ? `<div class="k">User story ${esc(s.id)}</div><div>${esc(s.text)}</div><div class="k">Acceptance</div><ul>${s.acceptance.map(a => `<li>${esc(a)}</li>`).join("")}</ul>` : ""}
+    <div style="text-align:right;margin-top:14px"><button class="icon" onclick="document.getElementById('dlg').close()">Close</button></div>`;
+  $("dlg").showModal();
+}
+$("dlg").addEventListener("click", e => { if (e.target === $("dlg")) $("dlg").close(); });
+
+async function poll() {
+  try {
+    const r = await fetch("/api/state", {cache: "no-store"});
+    const st = await r.json();
+    if (st.error) throw new Error(st.error);
+    $("err").hidden = true; render(st);
+  } catch (e) { $("err").hidden = false; $("err").textContent = "Monitor server not reachable: " + e.message; }
+}
+poll(); setInterval(poll, 2500);
+</script>
+</body>
+</html>

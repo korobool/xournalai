@@ -56,7 +56,10 @@
               "story": "US-0.1",
               "title": "Kanban monitor",
               "details": "tools/monitor: stdlib Python server + standalone HTML board; track.py CLI for status, activity, build and test updates.",
-              "commit": "mcp: add browser-based Kanban progress monitor"
+              "commit": "mcp: add browser-based Kanban progress monitor",
+              "status": "done",
+              "started": "2026-09-28T22:03:51+01:00",
+              "finished": "2026-09-28T22:04:29+01:00"
             },
             {
               "id": "T0.1.3",
