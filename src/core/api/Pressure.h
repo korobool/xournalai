@@ -60,6 +60,20 @@ std::vector<double> profilePressures(const std::vector<Point>& points, const Pre
 void applyPressures(std::vector<Point>& points, const std::vector<double>& pressures, double toolWidth,
                     const PressureSettings& settings);
 
+/// A pen style learned from the user's own strokes
+struct LearnedStyle {
+    PressureProfile profile;     ///< preset "ink" with base/min/tapers/variation fitted to the strokes
+    double width = 1.41;         ///< median tool width of the strokes
+    std::vector<double> sample;  ///< diagnostic: normalized pressure along a typical stroke (20 values)
+    size_t strokes = 0;          ///< how many strokes were analyzed
+};
+
+/**
+ * @brief Fits a pressure profile to strokes with pressure. Each stroke is given as its points (z = width at the
+ * point, as stored) and its tool width. Returns std::nullopt if there are no usable strokes.
+ */
+std::optional<LearnedStyle> learnStyle(const std::vector<std::pair<std::vector<Point>, double>>& strokes);
+
 /// Adds a small, smooth, reproducible tremor (amplitude in points) to x/y, keeping the end points fixed
 void addTremor(std::vector<Point>& points, double amplitude, unsigned seed);
 

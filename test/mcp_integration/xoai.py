@@ -251,9 +251,9 @@ class Mcp:
 
 # ---- test documents ---------------------------------------------------------------------------------------------
 
-def stroke(points, color="#000000ff", width=1.41, tool="pen"):
-    """A stroke for make_xopp: points are (x, y) tuples."""
-    return {"points": points, "color": color, "width": width, "tool": tool}
+def stroke(points, color="#000000ff", width=1.41, tool="pen", widths=None):
+    """A stroke for make_xopp: points are (x, y) tuples; `widths` gives per-point widths (stylus pressure)."""
+    return {"points": points, "color": color, "width": width, "tool": tool, "widths": widths}
 
 
 def wobbly(points, amount=0.6, seed=1, step=2.0):
@@ -293,7 +293,10 @@ def make_xopp(path, pages):
                      'style="plain"/><layer>')
         for s in strokes:
             coords = " ".join(f"{x:.2f} {y:.2f}" for x, y in s["points"])
-            parts.append(f'<stroke tool="{s["tool"]}" color="{s["color"]}" width="{s["width"]}">{coords}</stroke>')
+            width = str(s["width"])
+            if s.get("widths"):  # file format: base width followed by one width per point (after the first)
+                width += " " + " ".join(f"{w:.3f}" for w in s["widths"][:-1])
+            parts.append(f'<stroke tool="{s["tool"]}" color="{s["color"]}" width="{width}">{coords}</stroke>')
         parts.append("</layer></page>")
     parts.append("</xournal>")
     with gzip.open(path, "wt") as f:

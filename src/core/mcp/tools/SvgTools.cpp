@@ -33,8 +33,9 @@ void registerSvgTools(McpServer& server) {
             {"x", schema::number("Without target: page x of the SVG origin (default 0)")},
             {"y", schema::number("Without target: page y of the SVG origin (default 0)")},
             {"scale", schema::number("Without target: SVG units per page point (default 1)")},
-            {"profile", schema::enumeration("Optional pressure profile for a hand-drawn look (default none)",
-                                            {"none", "constant", "ink", "brush", "pencil", "calligraphy", "marker"})},
+            {"profile", schema::enumeration(
+                                "Optional pressure profile for a hand-drawn look (default none)",
+                                {"none", "constant", "ink", "brush", "pencil", "calligraphy", "marker", "match_user"})},
             {"tremor", schema::number("Hand tremor amplitude in points (default 0)")},
             {"color", schema::string("Draw everything in this color instead of the SVG colors")}};
     addTargetSchema(props);
@@ -49,7 +50,8 @@ void registerSvgTools(McpServer& server) {
             "first color. One undo step, \"AI\" layer by default; returns ids and warnings.";
     svg.inputSchema = schema::object(std::move(props));
     svg.tier = Tier::Draw;
-    svg.asyncHandler = [ctrl, srv](const json& j, Responder respond) {
+    svg.asyncHandler = [ctrl, srv](const json& jIn, Responder respond) {
+        const json j = resolveMatchUser(ctrl, jIn);
         requireDocument(ctrl);
         Args args(j);
         args.rejectUnknown({"svg", "path", "target", "fit", "x", "y", "scale", "profile", "tremor", "color", "page",

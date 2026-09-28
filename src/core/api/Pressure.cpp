@@ -5,6 +5,8 @@
 #include <random>     // for mt19937
 #include <stdexcept>  // for invalid_argument
 
+#include "Geometry.h"  // for roundTo
+
 namespace xoj::api {
 
 namespace {
@@ -176,6 +178,92 @@ void applyPressures(std::vector<Point>& points, const std::vector<double>& press
     for (size_t i = 0; i < points.size(); i++) {
         points[i].z = hardwareWidth(pressures[i], toolWidth, settings);
     }
+}
+
+std::optional<LearnedStyle> learnStyle(const std::vector<std::pair<std::vector<Point>, double>>& strokes) {
+    std::vector<double> bases, mins, tapersIn, tapersOut, variations, widths;
+    std::vector<double> sample(20, 0.0);
+    size_t used = 0;
+    for (const auto& [pts, width]: strokes) {
+        if (pts.size() < 8 || width <= 0 || pts.front().z <= 0) {
+            continue;
+        }
+        std::vector<double> s(pts.size(), 0.0), p(pts.size());
+        for (size_t i = 0; i < pts.size(); i++) {
+            p[i] = std::clamp(pts[i].z / width, 0.0, 1.5);
+            if (i > 0) {
+                s[i] = s[i - 1] + std::hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+            }
+        }
+        const double len = s.back();
+        if (len < 5) {
+            continue;
+        }
+        // Middle 60% gives the base level and the variation
+        std::vector<double> mid;
+        for (size_t i = 0; i < p.size(); i++) {
+            if (s[i] >= 0.2 * len && s[i] <= 0.8 * len) {
+                mid.push_back(p[i]);
+            }
+        }
+        if (mid.size() < 3) {
+            continue;
+        }
+        std::vector<double> sorted = mid;
+        std::sort(sorted.begin(), sorted.end());
+        const double base = sorted[sorted.size() / 2];
+        double var = 0;
+        for (double v: mid) {
+            var += (v - base) * (v - base);
+        }
+        const double start = p.front(), end = p.back();
+        // Taper: distance until the pressure reaches 80% of the way from the end value to the base
+        auto taper = [&](bool fromStart) {
+            const double endValue = fromStart ? start : end;
+            const double threshold = endValue + 0.8 * (base - endValue);
+            for (size_t k = 0; k < p.size(); k++) {
+                const size_t i = fromStart ? k : p.size() - 1 - k;
+                if ((base >= endValue && p[i] >= threshold) || (base < endValue && p[i] <= threshold)) {
+                    // The taper follows smoothstep, which reaches 80% at t = 0.7135 of the taper length
+                    return (fromStart ? s[i] : len - s[i]) / 0.7135;
+                }
+            }
+            return 0.0;
+        };
+        bases.push_back(base);
+        mins.push_back(std::min(start, end));
+        tapersIn.push_back(taper(true));
+        tapersOut.push_back(taper(false));
+        variations.push_back(std::sqrt(var / static_cast<double>(mid.size())) / std::max(base, 1e-6));
+        widths.push_back(width);
+        for (size_t k = 0; k < sample.size(); k++) {  // resampled pressure curve (averaged over strokes)
+            const double target = len * static_cast<double>(k) / static_cast<double>(sample.size() - 1);
+            size_t i = static_cast<size_t>(std::lower_bound(s.begin(), s.end(), target) - s.begin());
+            sample[k] += p[std::min(i, p.size() - 1)];
+        }
+        used++;
+    }
+    if (used == 0) {
+        return std::nullopt;
+    }
+    auto median = [](std::vector<double> v) {
+        std::sort(v.begin(), v.end());
+        return v[v.size() / 2];
+    };
+    LearnedStyle out;
+    out.strokes = used;
+    out.width = median(widths);
+    out.profile.preset = "ink";
+    out.profile.base = std::clamp(median(bases), 0.05, 1.0);
+    out.profile.min = std::clamp(median(mins), 0.02, *out.profile.base);
+    out.profile.taperIn = median(tapersIn);
+    out.profile.taperOut = median(tapersOut);
+    out.profile.variation = std::clamp(median(variations), 0.0, 0.5);
+    for (auto& v: sample) {
+        v = roundTo(v / static_cast<double>(used), 3);
+    }
+    out.sample = sample;
+    return out;
 }
 
 void addTremor(std::vector<Point>& points, double amplitude, unsigned seed) {

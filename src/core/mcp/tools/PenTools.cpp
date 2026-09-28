@@ -75,8 +75,9 @@ void registerPenTools(McpServer& server) {
                                       schema::object(strokeItem, {"points"}, "One pen stroke"))},
             {"color", schema::string("Tool color for this drawing (the user's setting is restored afterwards)")},
             {"size", schema::enumeration("Tool size", sizeNames)},
-            {"profile", schema::enumeration("Pressure profile when no pressure is given (default ink)",
-                                            {"constant", "ink", "brush", "pencil", "calligraphy", "marker"})},
+            {"profile",
+             schema::enumeration("Pressure profile when no pressure is given (default ink)",
+                                 {"constant", "ink", "brush", "pencil", "calligraphy", "marker", "match_user"})},
             {"page", schema::integer("Page (1-based); default: current page")},
             {"layer", schema::string("Layer to act on: default \"AI\" for drawing tools, \"current\" for eraser and "
                                      "selection; or a name / \"#<n>\"")},
@@ -96,10 +97,12 @@ void registerPenTools(McpServer& server) {
             "prefer create_strokes/create_shapes.";
     pen.inputSchema = schema::object(std::move(props), {"strokes"});
     pen.tier = Tier::Draw;
-    pen.asyncHandler = [ctrl, srv](const json& j, Responder respond) {
+    pen.asyncHandler = [ctrl, srv](const json& jIn, Responder respond) {
+        const json j = resolveMatchUser(ctrl, jIn);
         requireDocument(ctrl);
         Args args(j);
-        args.rejectUnknown({"tool", "strokes", "color", "size", "profile", "page", "layer", "speed"});
+        args.rejectUnknown(
+                {"tool", "strokes", "color", "size", "profile", "profile_options", "width", "page", "layer", "speed"});
         api::PenJob job;
         const std::string toolName = args.str("tool", "pen");
         auto t = penTools().find(toolName);
@@ -124,6 +127,17 @@ void registerPenTools(McpServer& server) {
         job.speed = args.number("speed", 1, 0, 50);
         api::PressureProfile profile;
         profile.preset = args.str("profile", "ink");
+        if (args.has("profile_options")) {
+            const json& o = args.raw("profile_options");
+            auto opt = [&](const char* k) {
+                return o.contains(k) ? std::optional<double>(Args::toNumber(o[k], k)) : std::nullopt;
+            };
+            profile.base = opt("base");
+            profile.min = opt("min");
+            profile.taperIn = opt("taper_in");
+            profile.taperOut = opt("taper_out");
+            profile.variation = opt("variation");
+        }
         try {
             profile.validate();
         } catch (const std::invalid_argument& e) {

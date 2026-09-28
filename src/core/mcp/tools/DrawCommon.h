@@ -67,6 +67,15 @@ std::unique_ptr<Stroke> buildStroke(std::vector<Point> points, const StrokeStyle
 void insertAndRespond(McpServer& server, const Args& args, std::vector<ElementPtr> elements, Responder respond,
                       json extra = json::object());
 
+/**
+ * @brief If args["profile"] == "match_user", replaces it with a pressure profile learned from the user's own recent
+ * pen strokes and fills in their width and color (unless given). Returns the (possibly rewritten) arguments.
+ */
+json resolveMatchUser(Control* ctrl, const json& args);
+
+/// The learned style as JSON (for the user_style tool); throws ToolError if the user has no pen strokes yet
+json learnedUserStyle(Control* ctrl);
+
 /// JSON summary of an insertion
 json drawResultJson(const api::DrawResult& r);
 

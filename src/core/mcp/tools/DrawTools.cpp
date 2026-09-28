@@ -87,7 +87,8 @@ void registerDrawTools(McpServer& server) {
             "one undo step. Returns ids of the created strokes.";
     strokes.inputSchema = schema::object(std::move(props), {"strokes"});
     strokes.tier = Tier::Draw;
-    strokes.asyncHandler = [ctrl, srv](const json& j, Responder respond) {
+    strokes.asyncHandler = [ctrl, srv](const json& jIn, Responder respond) {
+        const json j = resolveMatchUser(ctrl, jIn);
         requireDocument(ctrl);
         Args args(j);
         args.rejectUnknown({"strokes", "color", "width", "tool", "line_style", "fill_opacity", "profile",
@@ -174,7 +175,8 @@ void registerDrawTools(McpServer& server) {
             "layer by default; one undo step.";
     shapesTool.inputSchema = schema::object(std::move(shapeProps), {"shapes"});
     shapesTool.tier = Tier::Draw;
-    shapesTool.asyncHandler = [ctrl, srv](const json& j, Responder respond) {
+    shapesTool.asyncHandler = [ctrl, srv](const json& jIn, Responder respond) {
+        const json j = resolveMatchUser(ctrl, jIn);
         requireDocument(ctrl);
         Args args(j);
         args.rejectUnknown({"shapes", "hand_drawn", "color", "width", "tool", "line_style", "fill_opacity", "profile",

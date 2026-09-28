@@ -845,7 +845,10 @@
               "story": "US-4.2",
               "title": "match_user profile",
               "details": "Derive the pressure and width profile from the user's recent strokes.",
-              "commit": "mcp: add match_user pressure profile"
+              "commit": "mcp: add match_user pressure profile",
+              "status": "done",
+              "started": "2026-09-29T00:46:14+01:00",
+              "finished": "2026-09-29T00:49:07+01:00"
             },
             {
               "id": "T4.2.3",

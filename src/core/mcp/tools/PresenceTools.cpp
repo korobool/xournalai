@@ -11,6 +11,7 @@
 #include "mcp/McpServer.h"
 #include "mcp/Schema.h"
 
+#include "DrawCommon.h"
 #include "ToolUtil.h"
 #include "Tools.h"
 
@@ -90,6 +91,21 @@ void registerPresenceTools(McpServer& server) {
         return ToolResult::structured({{"shown", true}, {"page", page + 1}});
     };
     server.getRegistry().addTool(std::move(msg));
+
+    ToolSpec style;
+    style.name = "user_style";
+    style.title = "The user's pen style";
+    style.description =
+            "Learns how the user writes with the stylus from their own recent strokes: width, color and pressure "
+            "profile (base level, ends, taper lengths, variation) plus a typical pressure curve. Drawing tools "
+            "accept profile=\"match_user\" to draw additions in this style.";
+    style.inputSchema = schema::object({});
+    style.readOnly = true;
+    style.handler = [ctrl](const json&) {
+        requireDocument(ctrl);
+        return ToolResult::structured(learnedUserStyle(ctrl));
+    };
+    server.getRegistry().addTool(std::move(style));
 }
 
 }  // namespace xoj::mcp::tools

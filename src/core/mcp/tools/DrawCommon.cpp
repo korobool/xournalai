@@ -1,6 +1,7 @@
 #include "DrawCommon.h"
 
-#include <cmath>  // for lround
+#include <cmath>         // for lround
+#include <shared_mutex>  // for shared_lock
 
 #include "api/ElementIds.h"       // for ElementIds
 #include "api/Geometry.h"         // for roundTo
@@ -9,7 +10,10 @@
 #include "control/ToolHandler.h"  // for ToolHandler
 #include "mcp/ElementJson.h"
 #include "mcp/McpServer.h"
+#include "model/Document.h"     // for Document
+#include "model/Layer.h"        // for Layer
 #include "model/StrokeStyle.h"  // for parseStyle
+#include "model/XojPage.h"      // for XojPage
 
 #include "ToolUtil.h"
 
@@ -231,6 +235,90 @@ std::unique_ptr<Stroke> buildStroke(std::vector<Point> points, const StrokeStyle
     }
     s->setPointVector(std::move(points));
     return s;
+}
+
+namespace {
+struct UserSample {
+    std::optional<api::LearnedStyle> style;
+    std::optional<Color> color;
+};
+
+UserSample sampleUserStrokes(Control* ctrl) {
+    std::vector<std::pair<std::vector<Point>, double>> strokes;
+    std::optional<Color> color;
+    Document* doc = ctrl->getDocument();
+    std::shared_lock lock(*doc);
+    const size_t current = ctrl->getCurrentPageNo();
+    std::vector<size_t> order = {current};
+    for (size_t i = 0; i < doc->getPageCount(); i++) {
+        if (i != current) {
+            order.push_back(i);
+        }
+    }
+    for (size_t pi: order) {
+        PageRef page = doc->getPage(pi);
+        for (const Layer* l: page->getLayersView()) {
+            for (const Element* e: l->getElementsView()) {
+                if (e->getType() != ELEMENT_STROKE || api::ElementIds::get().origin(e)) {
+                    continue;  // only the user's own strokes
+                }
+                const auto* st = static_cast<const Stroke*>(e);
+                if (st->getToolType() != StrokeTool::PEN || !st->hasPressure()) {
+                    continue;
+                }
+                strokes.emplace_back(st->getPointVector(), st->getWidth());
+                color = st->getColor();
+            }
+        }
+        if (strokes.size() >= 40) {
+            break;
+        }
+    }
+    if (strokes.size() > 60) {
+        strokes.erase(strokes.begin(), strokes.end() - 60);  // the most recent ones
+    }
+    return {api::learnStyle(strokes), color};
+}
+}  // namespace
+
+json learnedUserStyle(Control* ctrl) {
+    auto sample = sampleUserStrokes(ctrl);
+    if (!sample.style) {
+        throw ToolError("No pen strokes with pressure from the user yet: draw a few strokes with the stylus, or "
+                        "use another profile");
+    }
+    const auto& p = sample.style->profile;
+    json out = {{"strokes_analyzed", sample.style->strokes},
+                {"width", api::roundTo(sample.style->width)},
+                {"profile", "ink"},
+                {"profile_options",
+                 {{"base", api::roundTo(*p.base, 3)},
+                  {"min", api::roundTo(*p.min, 3)},
+                  {"taper_in", api::roundTo(*p.taperIn)},
+                  {"taper_out", api::roundTo(*p.taperOut)},
+                  {"variation", api::roundTo(*p.variation, 3)}}},
+                {"pressure_curve", sample.style->sample}};
+    if (sample.color) {
+        out["color"] = colorToHex(*sample.color);
+    }
+    return out;
+}
+
+json resolveMatchUser(Control* ctrl, const json& args) {
+    if (!args.is_object() || args.value("profile", "") != "match_user") {
+        return args;
+    }
+    const json learned = learnedUserStyle(ctrl);
+    json out = args;
+    out["profile"] = "ink";
+    out["profile_options"] = learned["profile_options"];
+    if (!out.contains("width")) {
+        out["width"] = learned["width"];
+    }
+    if (!out.contains("color") && learned.contains("color")) {
+        out["color"] = learned["color"];
+    }
+    return out;
 }
 
 json drawResultJson(const api::DrawResult& r) {

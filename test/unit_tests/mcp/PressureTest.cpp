@@ -133,4 +133,30 @@ TEST(Pressure, tremorKeepsEndsAndStaysSmall) {
     EXPECT_LE(maxDev, 0.5 + 1e-9);
 }
 
+TEST(Pressure, learnsStyleFromStrokes) {
+    // Synthetic "user" strokes made with a known profile must be recognized
+    PressureProfile truth;
+    truth.base = 0.6;
+    truth.min = 0.2;
+    truth.taperIn = 10;
+    truth.taperOut = 15;
+    truth.variation = 0;
+    std::vector<std::pair<std::vector<Point>, double>> strokes;
+    for (int k = 0; k < 5; k++) {
+        auto pts = resample(line(0, k * 20.0, 200, k * 20.0), 1.0);
+        applyPressures(pts, profilePressures(pts, truth), 2.0, PressureSettings{0.01, 1.0, true});
+        strokes.emplace_back(pts, 2.0);
+    }
+    auto learned = learnStyle(strokes);
+    ASSERT_TRUE(learned.has_value());
+    EXPECT_EQ(learned->strokes, 5u);
+    EXPECT_DOUBLE_EQ(learned->width, 2.0);
+    EXPECT_NEAR(*learned->profile.base, 0.6, 0.02);
+    EXPECT_NEAR(*learned->profile.min, 0.2, 0.02);
+    EXPECT_NEAR(*learned->profile.taperIn, 10, 3);
+    EXPECT_NEAR(*learned->profile.taperOut, 15, 3);
+    EXPECT_EQ(learned->sample.size(), 20u);
+    EXPECT_FALSE(learnStyle({}).has_value());
+}
+
 #endif  // ENABLE_MCP
