@@ -211,7 +211,10 @@
               "story": "US-0.4",
               "title": "app_status & doc_info",
               "details": "Version, capabilities, permissions, document summary, current page, layer and tool.",
-              "commit": "mcp: add app_status and doc_info tools"
+              "commit": "mcp: add app_status and doc_info tools",
+              "status": "done",
+              "started": "2026-09-28T22:35:11+01:00",
+              "finished": "2026-09-28T22:38:33+01:00"
             },
             {
               "id": "T0.4.3",
