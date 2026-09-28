@@ -74,7 +74,10 @@ void Image::setImage(std::string&& data) {
     if (!this->format) {
         this->format = gdk_pixbuf_loader_get_format(loader.get());
     }
-    xoj_assert_message(this->format != nullptr, "could not parse the image format!");
+    if (!this->format) {
+        g_warning("Image::setImage(): could not determine the image format");
+        return;
+    }
 
     // the format is owned by the pixbuf, so create a copy
     this->format = gdk_pixbuf_format_copy(this->format);
@@ -139,7 +142,7 @@ auto Image::renderBuffer() const -> std::optional<std::string> {
     if (!success) {
         if (err != nullptr) {
             std::string msg = std::string(_("Failed to load image")) + "\n" + _("Error: ") + err->message;
-            g_free(err);
+            g_error_free(err);
             return msg;
         } else {
             return std::string(_("Failed to load image")) + "\n" + _("Unrecoverable error");
@@ -149,7 +152,7 @@ auto Image::renderBuffer() const -> std::optional<std::string> {
     if (!success) {
         if (err != nullptr) {
             std::string msg = std::string(_("Failed to close image stream")) + "\n" + _("Error: ") + err->message;
-            g_free(err);
+            g_error_free(err);
             return msg;
         } else {
             return std::string(_("Failed to close image stream")) + "\n" + _("Unrecoverable error");

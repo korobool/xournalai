@@ -491,7 +491,10 @@
               "story": "US-2.2",
               "title": "create_text/latex/image/link",
               "details": "Text elements, LaTeX via the existing pipeline, image elements, links.",
-              "commit": "mcp: add text, LaTeX, image and link creation tools"
+              "commit": "mcp: add text, LaTeX, image and link creation tools",
+              "status": "done",
+              "started": "2026-09-28T23:35:57+01:00",
+              "finished": "2026-09-28T23:44:05+01:00"
             },
             {
               "id": "T2.1.5",

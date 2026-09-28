@@ -24,5 +24,6 @@ void registerGuideTools(McpServer& server);
 void registerFileTools(McpServer& server);
 void registerExportTools(McpServer& server);
 void registerDrawTools(McpServer& server);
+void registerContentTools(McpServer& server);
 
 }  // namespace xoj::mcp::tools
