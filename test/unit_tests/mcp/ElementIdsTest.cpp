@@ -48,4 +48,17 @@ TEST(ElementIds, parse) {
     EXPECT_EQ(ElementIds::get().lookup("e999999999"), nullptr);
 }
 
+TEST(ElementIds, attributionFollowsElementLifetime) {
+    auto& ids = ElementIds::get();
+    auto a = std::make_unique<Stroke>();
+    auto b = std::make_unique<Stroke>();
+    ids.setOrigin(a.get(), "op900");
+    ids.setOrigin(b.get(), "op900");
+    EXPECT_EQ(ids.origin(a.get()), "op900");
+    EXPECT_EQ(ids.elementsOfOperation("op900").size(), 2u);
+    b.reset();
+    EXPECT_EQ(ids.elementsOfOperation("op900").size(), 1u);
+    EXPECT_FALSE(ids.origin(reinterpret_cast<const Element*>(&ids)).has_value());
+}
+
 #endif  // ENABLE_MCP

@@ -13,6 +13,7 @@
 #include <optional>       // for optional
 #include <string>         // for string
 #include <unordered_map>  // for unordered_map
+#include <vector>         // for vector
 
 class Element;
 
@@ -40,6 +41,12 @@ public:
     /// Number of live ids (for tests and diagnostics)
     size_t size() const;
 
+    /// Attribution: remembers which agent operation created an element (e.g. "op7"); cleared on destruction
+    void setOrigin(const Element* e, const std::string& operation);
+    std::optional<std::string> origin(const Element* e) const;
+    /// All live elements created by `operation`
+    std::vector<const Element*> elementsOfOperation(const std::string& operation) const;
+
     /// Parses "e42" / "42" into 42; returns std::nullopt for malformed ids
     static std::optional<uint64_t> parse(const std::string& id);
 
@@ -50,6 +57,7 @@ private:
     mutable std::mutex mutex;
     std::unordered_map<const Element*, uint64_t> byElement;
     std::unordered_map<uint64_t, const Element*> byId;
+    std::unordered_map<const Element*, std::string> origins;
     uint64_t next = 1;
 };
 

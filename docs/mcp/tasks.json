@@ -471,7 +471,10 @@
               "story": "US-2.2",
               "title": "DrawApi core",
               "details": "Target layer resolution (AI layer), attribution, grouped undo, animated insertion.",
-              "commit": "mcp: add DrawApi core with AI layer, attribution and undo"
+              "commit": "mcp: add DrawApi core with AI layer, attribution and undo",
+              "status": "done",
+              "started": "2026-09-28T23:29:25+01:00",
+              "finished": "2026-09-28T23:31:49+01:00"
             },
             {
               "id": "T2.1.3",

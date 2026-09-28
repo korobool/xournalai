@@ -18,6 +18,7 @@ ElementIds& ElementIds::get() {
 void ElementIds::onElementDestroyed(const Element* e) {
     ElementIds& self = get();
     std::lock_guard lock(self.mutex);
+    self.origins.erase(e);
     if (auto it = self.byElement.find(e); it != self.byElement.end()) {
         self.byId.erase(it->second);
         self.byElement.erase(it);
@@ -55,6 +56,30 @@ const Element* ElementIds::lookup(const std::string& id) const {
 size_t ElementIds::size() const {
     std::lock_guard lock(mutex);
     return byElement.size();
+}
+
+void ElementIds::setOrigin(const Element* e, const std::string& operation) {
+    std::lock_guard lock(mutex);
+    origins[e] = operation;
+}
+
+std::optional<std::string> ElementIds::origin(const Element* e) const {
+    std::lock_guard lock(mutex);
+    if (auto it = origins.find(e); it != origins.end()) {
+        return it->second;
+    }
+    return std::nullopt;
+}
+
+std::vector<const Element*> ElementIds::elementsOfOperation(const std::string& operation) const {
+    std::lock_guard lock(mutex);
+    std::vector<const Element*> out;
+    for (const auto& [e, op]: origins) {
+        if (op == operation) {
+            out.push_back(e);
+        }
+    }
+    return out;
 }
 
 std::optional<uint64_t> ElementIds::parse(const std::string& id) {
