@@ -6,6 +6,15 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+### 0.1.1 — Model access
+- Stable element ids (`e42`) for the whole session. They survive moves, restyling and undo/redo, and are retired when
+  the element object is destroyed (via a new `Element` destruction observer).
+- `src/core/api`: `DocumentApi` (locate elements, list page content by layer and region) and `Geometry`
+  (Ramer–Douglas–Peucker simplification that keeps pressure).
+- Tools: `page_elements` (bbox, simplified or full detail; region, layer and type filters; pagination) and
+  `pdf_text` (text of the PDF background, optionally per line with bboxes, or restricted to a region).
+- Page background types are reported as `pdf`/`image` (not the internal `:pdf`/`:image`).
+
 ## 0.1.0 — Foundations (epoch E0)
 Any MCP agent can now connect to a running xournalai and call its first tools.
 - Tools: `app_status` (version, connection, permissions, document and active tool) and `doc_info` (pages, sizes,

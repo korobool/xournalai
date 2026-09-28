@@ -8,14 +8,16 @@
 
 #pragma once
 
-#include <cstddef>  // for size_t
-#include <string>   // for string
+#include <cstddef>   // for size_t
+#include <optional>  // for optional
+#include <string>    // for string
 
 #include "mcp/Args.h"
 #include "mcp/Json.h"
 #include "mcp/Registry.h"
-#include "model/PageRef.h"  // for PageRef
-#include "util/Color.h"     // for Color
+#include "model/PageRef.h"   // for PageRef
+#include "util/Color.h"      // for Color
+#include "util/Rectangle.h"  // for Rectangle
 
 class Control;
 class Layer;
@@ -39,6 +41,9 @@ std::string layerDisplayName(const Layer* layer, size_t index);
 
 /// Compact page summary: size, background, layers, element counts
 json pageSummary(const PageRef& page, size_t index);
+
+/// Reads an optional [x, y, width, height] argument (page points)
+std::optional<xoj::util::Rectangle<double>> parseRegion(const Args& args, const std::string& key = "region");
 
 /// Throws ToolError unless a main window and document exist
 void requireDocument(Control* ctrl);

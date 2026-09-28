@@ -120,8 +120,11 @@ json pageSummary(const PageRef& page, size_t index) {
     const PageType bg = page->getBackgroundType();
     Color bgColor = page->getBackgroundColor();
     bgColor.alpha = 0xff;  // background colors are stored without alpha
-    json background = {{"type", PageTypeHandler::getStringForPageTypeFormat(bg.format)},
-                       {"color", colorToHex(bgColor)}};
+    std::string type = PageTypeHandler::getStringForPageTypeFormat(bg.format);
+    if (!type.empty() && type[0] == ':') {  // special formats are ":pdf" and ":image" internally
+        type.erase(0, 1);
+    }
+    json background = {{"type", type}, {"color", colorToHex(bgColor)}};
     if (!bg.config.empty()) {
         background["config"] = bg.config;
     }

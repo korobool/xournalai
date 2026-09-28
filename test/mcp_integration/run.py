@@ -60,7 +60,9 @@ def main():
                     failed += 1
                     out(f"  FAIL {name}")
                     out("    " + traceback.format_exc().replace("\n", "\n    "))
-                    out("    app log tail:\n" + app.read_log()[-1500:])
+                    noise = ("ALSA lib", "No device found", "Probably this is the reason", "xopp-WARNING")
+                    tail = [l for l in app.read_log().splitlines() if l.strip() and not l.startswith(noise)]
+                    out("    app log tail:\n      " + "\n      ".join(tail[-15:]))
     out(f"\n{passed} passed, {failed} failed")
     return 1 if failed else 0
 

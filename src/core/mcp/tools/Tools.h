@@ -17,5 +17,6 @@ namespace xoj::mcp::tools {
 void registerAll(McpServer& server);
 
 void registerStatusTools(McpServer& server);
+void registerReadTools(McpServer& server);
 
 }  // namespace xoj::mcp::tools
