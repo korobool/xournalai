@@ -855,14 +855,19 @@
               "story": "US-4.2",
               "title": "Status, Stop & highlight",
               "details": "Status indicator, Stop agent action and shortcut, highlight of agent additions, AI layer accept and clear.",
-              "commit": "mcp: add agent status indicator, stop action and highlights"
+              "commit": "mcp: add agent status indicator, stop action and highlights",
+              "status": "done",
+              "started": "2026-09-29T00:49:07+01:00",
+              "finished": "2026-09-29T00:55:51+01:00"
             },
             {
               "id": "T4.2.4",
               "story": "US-4.2",
               "title": "Settings page",
               "details": "MCP page in Settings: enable, port, token copy, tiers, defaults.",
-              "commit": "mcp: add MCP settings page"
+              "commit": "mcp: add MCP settings page",
+              "status": "doing",
+              "started": "2026-09-29T00:55:51+01:00"
             },
             {
               "id": "T4.2.5",
