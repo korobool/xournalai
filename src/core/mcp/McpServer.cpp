@@ -2,6 +2,8 @@
 
 #include <glib.h>  // for g_message
 
+#include "tools/Tools.h"
+
 #include "McpHttpServer.h"
 #include "McpProtocol.h"
 #include "PathText.h"
@@ -43,7 +45,7 @@ std::string McpServer::instructions() {
            "from 1. Call the 'guide' tool for conventions and step-by-step recipes.";
 }
 
-void McpServer::registerTools() {}
+void McpServer::registerTools() { tools::registerAll(*this); }
 
 void McpServer::start() {
     if (http && http->isListening()) {

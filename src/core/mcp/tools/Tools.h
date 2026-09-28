@@ -1,0 +1,19 @@
+/*
+ * Xournal++ (xournalai)
+ *
+ * Registration of all MCP tools, prompts and resources. Each group lives in its own file in this directory.
+ *
+ * @license GNU GPLv2 or later
+ */
+
+#pragma once
+
+namespace xoj::mcp {
+class McpServer;
+}
+
+namespace xoj::mcp::tools {
+
+void registerAll(McpServer& server);
+
+}  // namespace xoj::mcp::tools

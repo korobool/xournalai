@@ -58,7 +58,7 @@ Any MCP agent can connect to a running xournalai (over HTTP or the stdio bridge)
 | T0.3.1 | US-0.3 | **JSON-RPC/MCP protocol core** — McpProtocol (initialize, ping, tools/list, tools/call, prompts, resources, error codes), ToolRegistry with flat schemas and a schema-portability lint; unit tests. | `mcp: implement JSON-RPC 2.0 / MCP protocol core and tool registry (T0.3.1)` | ✅ done `f0ae458d5` |
 | T0.3.2 | US-0.3 | **HTTP transport** — SoupServer on the GLib main loop: POST /mcp, GET /mcp (SSE), DELETE session, Mcp-Session-Id, Origin check, bearer auth, paused responses. | `mcp: add Streamable HTTP transport on libsoup (T0.3.2)` | ✅ done `e6808d60c` |
 | T0.3.3 | US-0.3 | **Config, token, CLI flags** — ~/.config/xournalpp/mcp.json (enabled, port, token, permission tiers), token generation, --mcp, --mcp-port, --no-mcp flags. | `mcp: add configuration file, token and command line flags (T0.3.3)` | ✅ done `e8b688ce4` |
-| T0.3.4 | US-0.3 | **stdio bridge** — xournalpp --mcp-stdio proxies stdio JSON-RPC to the running instance (and starts the app if it isn't running). Bump 0.0.3. | `mcp: add stdio bridge mode for stdio-only clients (T0.3.4)` | ✅ done |
+| T0.3.4 | US-0.3 | **stdio bridge** — xournalpp --mcp-stdio proxies stdio JSON-RPC to the running instance (and starts the app if it isn't running). Bump 0.0.3. | `mcp: add stdio bridge mode for stdio-only clients (T0.3.4)` | ✅ done `87f76ba23` |
 
 ### S0.4 — First tools, spikes & release → v0.1.0
 
@@ -70,7 +70,7 @@ Any MCP agent can connect to a running xournalai (over HTTP or the stdio bridge)
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T0.4.1 | US-0.4 | **Tool runtime helpers** — Exception barrier, argument validation helpers, result builders (text, json, image + file path), an export folder. | `mcp: add tool runtime helpers and error barrier (T0.4.1)` | ⬜ todo |
+| T0.4.1 | US-0.4 | **Tool runtime helpers** — Exception barrier, argument validation helpers, result builders (text, json, image + file path), an export folder. | `mcp: add tool runtime helpers and error barrier (T0.4.1)` | ✅ done |
 | T0.4.2 | US-0.4 | **app_status & doc_info** — Version, capabilities, permissions, document summary, current page, layer and tool. | `mcp: add app_status and doc_info tools (T0.4.2)` | ⬜ todo |
 | T0.4.3 | US-0.4 | **Integration harness & client docs** — test/mcp_integration (Python, stdlib HTTP client, xvfb-run) plus docs/mcp/CLIENTS.md (Claude Code, Gemini CLI, OpenCode, Codex, Cursor, generic). | `mcp: add integration test harness and client setup docs (T0.4.3)` | ⬜ todo |
 | T0.4.4 | US-0.4 | **Technical spikes** — Synthetic pen events through InputContext, nanosvg to strokes, highlighter and pressure behaviour; findings in docs/mcp/SPIKES.md. | `mcp: document technical spikes (pen input, SVG, pressure) (T0.4.4)` | ⬜ todo |

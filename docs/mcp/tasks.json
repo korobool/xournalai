@@ -201,7 +201,10 @@
               "story": "US-0.4",
               "title": "Tool runtime helpers",
               "details": "Exception barrier, argument validation helpers, result builders (text, json, image + file path), an export folder.",
-              "commit": "mcp: add tool runtime helpers and error barrier"
+              "commit": "mcp: add tool runtime helpers and error barrier",
+              "status": "done",
+              "started": "2026-09-28T22:33:29+01:00",
+              "finished": "2026-09-28T22:35:11+01:00"
             },
             {
               "id": "T0.4.2",
