@@ -23,6 +23,9 @@ constexpr auto PROJECT_NAME = "@PROJECT_NAME@";
  */
 constexpr auto PROJECT_VERSION = "@PROJECT_VERSION@";
 
+// Version of the xournalai fork (also reported by the embedded MCP server)
+constexpr auto XOURNALAI_VERSION = "@XOURNALAI_VERSION@";
+
 /**
  * Address where crash reports for this project should be sent
  */

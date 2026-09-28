@@ -12,7 +12,7 @@ Usage:
   track.py log    <message>        append a line to the activity feed
   track.py build  ok|fail|running [detail]
   track.py test   ok|fail|running [detail]
-  track.py version <x.y.z>         set meta.version
+  track.py version <x.y.z>         set the fork version (tasks.json and CMakeLists.txt)
   track.py roadmap                 regenerate docs/mcp/ROADMAP.md from tasks.json
   track.py next                    print the next task that is not done
 """
@@ -151,6 +151,8 @@ def main(argv):
         data = load()
         data["meta"]["version"] = args[0]
         save(data)
+        cmake = ROOT / "CMakeLists.txt"
+        cmake.write_text(re.sub(r'set\(XOURNALAI_VERSION "[^"]*"\)', f'set(XOURNALAI_VERSION "{args[0]}")', cmake.read_text()))
         render_roadmap(data)
         log("version", f"version → {args[0]}")
     elif cmd == "roadmap":
