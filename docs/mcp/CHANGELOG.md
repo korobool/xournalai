@@ -6,6 +6,17 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+### 0.3.1 — Semantic application control
+- `actions_list` / `action_run`: every application action (the win.* and app.* GActions behind menus, toolbar and
+  shortcuts), with menu labels, enabled flag, parameter type and state; parameters and states are converted from
+  JSON (or GVariant text). Quitting needs the `destructive` permission.
+- `page_manage` (insert with background, delete, duplicate, move, background type/color, size, goto) and
+  `layer_manage` (add, rename, show/hide, select, delete, copy, merge_down, move_up/down), both using the app's own
+  undoable operations.
+- `tool_get` / `tool_set` (tool, color, size, drawing type, line style, fill, eraser type), `view` (zoom, fit,
+  100%, scroll to page/region, fullscreen, presentation, sidebar; visible region in page points), `clipboard`
+  (copy/cut elements, paste with new ids, get/set text).
+
 ## 0.3.0 — Drawing (epoch E2)
 Agents draw with stylus-like pressure, either by simulating the pen or by creating objects directly, and iterate
 privately before committing.
