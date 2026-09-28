@@ -28,7 +28,7 @@ Any MCP agent can connect to a running xournalai (over HTTP or the stdio bridge)
 |---|---|---|---|---|
 | T0.1.1 | US-0.1 | **Roadmap & task registry** — docs/mcp/tasks.json is the source of truth; docs/mcp/ROADMAP.md is generated from it. | `mcp: add implementation roadmap and task registry (T0.1.1)` | ✅ done `954f62d94` |
 | T0.1.2 | US-0.1 | **Kanban monitor** — tools/monitor: stdlib Python server + standalone HTML board; track.py CLI for status, activity, build and test updates. | `mcp: add browser-based Kanban progress monitor (T0.1.2)` | ✅ done `63f9fdd21` |
-| T0.1.3 | US-0.1 | **Fork versioning** — XOURNALAI_VERSION in CMake, '+ai.<v>' version suffix, docs/mcp/CHANGELOG.md; bump to 0.0.1. | `mcp: introduce xournalai fork versioning (T0.1.3)` | ✅ done |
+| T0.1.3 | US-0.1 | **Fork versioning** — XOURNALAI_VERSION in CMake, '+ai.<v>' version suffix, docs/mcp/CHANGELOG.md; bump to 0.0.1. | `mcp: introduce xournalai fork versioning (T0.1.3)` | ✅ done `6aa166534` |
 
 ### S0.2 — Build integration → v0.0.2
 
@@ -40,7 +40,7 @@ Any MCP agent can connect to a running xournalai (over HTTP or the stdio bridge)
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T0.2.1 | US-0.2 | **Baseline build & tests** — Build the unmodified fork and run test-units; record the results in docs/mcp/BASELINE.md. | `mcp: record upstream baseline build and test results (T0.2.1)` | ⬜ todo |
+| T0.2.1 | US-0.2 | **Baseline build & tests** — Build the unmodified fork and run test-units; record the results in docs/mcp/BASELINE.md. | `mcp: record upstream baseline build and test results (T0.2.1)` | ✅ done |
 | T0.2.2 | US-0.2 | **ENABLE_MCP & dependencies** — CMake option, pkg-config libsoup-3.0, nlohmann_json (system or FetchContent), nanosvg via FetchContent, ENABLE_MCP in config-features.h. | `mcp: add ENABLE_MCP build option and dependencies (T0.2.2)` | ⬜ todo |
 | T0.2.3 | US-0.2 | **Module skeleton & lifecycle** — src/core/mcp and src/core/api directories; McpServer is owned by Control and started and stopped with the application. Bump 0.0.2. | `mcp: add MCP module skeleton wired into Control lifecycle (T0.2.3)` | ⬜ todo |
 

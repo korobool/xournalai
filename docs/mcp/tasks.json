@@ -94,7 +94,10 @@
               "story": "US-0.2",
               "title": "Baseline build & tests",
               "details": "Build the unmodified fork and run test-units; record the results in docs/mcp/BASELINE.md.",
-              "commit": "mcp: record upstream baseline build and test results"
+              "commit": "mcp: record upstream baseline build and test results",
+              "status": "done",
+              "started": "2026-09-28T22:06:23+01:00",
+              "finished": "2026-09-28T22:13:28+01:00"
             },
             {
               "id": "T0.2.2",
