@@ -221,7 +221,10 @@
               "story": "US-0.4",
               "title": "Integration harness & client docs",
               "details": "test/mcp_integration (Python, stdlib HTTP client, xvfb-run) plus docs/mcp/CLIENTS.md (Claude Code, Gemini CLI, OpenCode, Codex, Cursor, generic).",
-              "commit": "mcp: add integration test harness and client setup docs"
+              "commit": "mcp: add integration test harness and client setup docs",
+              "status": "done",
+              "started": "2026-09-28T22:38:34+01:00",
+              "finished": "2026-09-28T22:39:01+01:00"
             },
             {
               "id": "T0.4.4",
