@@ -589,7 +589,10 @@
               "story": "US-2.4",
               "title": "Editing & history tools",
               "details": "elements_select, elements_edit, elements_delete, undo, redo, history.",
-              "commit": "mcp: add element editing and history tools"
+              "commit": "mcp: add element editing and history tools",
+              "status": "done",
+              "started": "2026-09-28T23:58:01+01:00",
+              "finished": "2026-09-29T00:04:23+01:00"
             },
             {
               "id": "T2.3.3",

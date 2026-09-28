@@ -16,6 +16,7 @@ void registerAll(McpServer& server) {
     registerPlacementTools(server);
     registerPenTools(server);
     registerDraftTools(server);
+    registerEditTools(server);
 }
 
 }  // namespace xoj::mcp::tools

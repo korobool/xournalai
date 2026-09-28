@@ -167,6 +167,15 @@ void UndoRedoHandler::addUndoAction(UndoActionPtr action) {
     printContents();
 }
 
+auto UndoRedoHandler::history(bool redo, size_t max) -> std::vector<std::string> {
+    std::vector<std::string> out;
+    auto& list = redo ? this->redoList : this->undoList;
+    for (auto it = list.rbegin(); it != list.rend() && out.size() < max; ++it) {
+        out.push_back((*it)->getText());
+    }
+    return out;
+}
+
 auto UndoRedoHandler::undoDescription() -> string {
     if (!this->undoList.empty()) {
         UndoAction& a = *this->undoList.back();

@@ -44,6 +44,8 @@ public:
 
     std::string undoDescription();
     std::string redoDescription();
+    /// Descriptions of the most recent undo (or redo) steps, most recent first (xournalai)
+    std::vector<std::string> history(bool redoList, size_t max);
 
     void clearContents();
 
