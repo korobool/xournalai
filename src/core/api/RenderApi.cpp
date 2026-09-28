@@ -5,6 +5,7 @@
 #include <shared_mutex>  // for shared_lock
 #include <stdexcept>     // for invalid_argument
 
+#include <cairo-svg.h>
 #include <cairo.h>
 
 #include "model/Document.h"                   // for Document
@@ -78,6 +79,54 @@ void drawHighlights(cairo_t* cr, const std::vector<Highlight>& highlights, Color
     cairo_restore(cr);
 }
 
+/// The requested region clamped to the page (whole page if none); throws if it lies outside
+xoj::util::Rectangle<double> clampRegion(const ConstPageRef& page, const RenderOptions& o) {
+    const xoj::util::Rectangle<double> full(0, 0, page->getWidth(), page->getHeight());
+    if (!o.region) {
+        return full;
+    }
+    const double x1 = std::max(o.region->x, 0.0);
+    const double y1 = std::max(o.region->y, 0.0);
+    const double x2 = std::min(o.region->x + o.region->width, full.width);
+    const double y2 = std::min(o.region->y + o.region->height, full.height);
+    if (x2 - x1 < 1 || y2 - y1 < 1) {
+        throw std::invalid_argument("The region lies outside the page (page size " +
+                                    std::to_string(static_cast<int>(full.width)) + " x " +
+                                    std::to_string(static_cast<int>(full.height)) + " points)");
+    }
+    return {x1, y1, x2 - x1, y2 - y1};
+}
+
+/// Draws backgrounds and layers of a page (in page coordinates) onto `cr`
+void drawContent(cairo_t* cr, Document* doc, const ConstPageRef& page, const RenderOptions& o) {
+    if (o.background && page->getBackgroundType().isPdfPage()) {
+        if (auto pdfPage = doc->getPdfPage(page->getPdfPageNr())) {
+            pdfPage->render(cr);
+        }
+    }
+
+    xoj::view::BackgroundFlags flags;
+    flags.showPDF = xoj::view::HIDE_PDF_BACKGROUND;  // drawn above
+    flags.showImage = o.background ? xoj::view::SHOW_IMAGE_BACKGROUND : xoj::view::HIDE_IMAGE_BACKGROUND;
+    flags.showRuling = o.background ? xoj::view::SHOW_RULING_BACKGROUND : xoj::view::HIDE_RULING_BACKGROUND;
+    flags.forceBackgroundColor = xoj::view::DONT_FORCE_BACKGROUND_COLOR;
+
+    DocumentView view;
+    if (o.layers) {
+        LayerRangeVector ranges;
+        for (size_t l: *o.layers) {
+            if (l < 1 || l > page->getLayerCount()) {
+                throw std::invalid_argument("Layer " + std::to_string(l) + " does not exist on page " +
+                                            std::to_string(o.page + 1));
+            }
+            ranges.emplace_back(l - 1, l - 1);
+        }
+        view.drawLayersOfPage(ranges, page, cr, true, flags);
+    } else {
+        view.drawPage(page, cr, true, flags);
+    }
+}
+
 }  // namespace
 
 RenderedImage renderPage(Document* doc, const RenderOptions& o) {
@@ -86,20 +135,7 @@ RenderedImage renderPage(Document* doc, const RenderOptions& o) {
         throw std::invalid_argument("Page " + std::to_string(o.page + 1) + " does not exist");
     }
     ConstPageRef page = doc->getPage(o.page);
-    const xoj::util::Rectangle<double> full(0, 0, page->getWidth(), page->getHeight());
-    xoj::util::Rectangle<double> region = full;
-    if (o.region) {
-        const double x1 = std::max(o.region->x, 0.0);
-        const double y1 = std::max(o.region->y, 0.0);
-        const double x2 = std::min(o.region->x + o.region->width, full.width);
-        const double y2 = std::min(o.region->y + o.region->height, full.height);
-        if (x2 - x1 < 1 || y2 - y1 < 1) {
-            throw std::invalid_argument("The region lies outside the page (page size " +
-                                        std::to_string(static_cast<int>(full.width)) + " x " +
-                                        std::to_string(static_cast<int>(full.height)) + " points)");
-        }
-        region = {x1, y1, x2 - x1, y2 - y1};
-    }
+    const xoj::util::Rectangle<double> region = clampRegion(page, o);
     if (o.dpi <= 0 || o.maxPixels < 16) {
         throw std::invalid_argument("dpi must be positive and max_px at least 16");
     }
@@ -119,33 +155,12 @@ RenderedImage renderPage(Document* doc, const RenderOptions& o) {
     cairo_scale(cr, scale, scale);
     cairo_translate(cr, -region.x, -region.y);
 
-    if (o.background && page->getBackgroundType().isPdfPage()) {
-        if (auto pdfPage = doc->getPdfPage(page->getPdfPageNr())) {
-            pdfPage->render(cr);
-        }
-    }
-
-    xoj::view::BackgroundFlags flags;
-    flags.showPDF = xoj::view::HIDE_PDF_BACKGROUND;  // drawn above
-    flags.showImage = o.background ? xoj::view::SHOW_IMAGE_BACKGROUND : xoj::view::HIDE_IMAGE_BACKGROUND;
-    flags.showRuling = o.background ? xoj::view::SHOW_RULING_BACKGROUND : xoj::view::HIDE_RULING_BACKGROUND;
-    flags.forceBackgroundColor = xoj::view::DONT_FORCE_BACKGROUND_COLOR;
-
-    DocumentView view;
-    if (o.layers) {
-        LayerRangeVector ranges;
-        for (size_t l: *o.layers) {
-            if (l < 1 || l > page->getLayerCount()) {
-                cairo_destroy(cr);
-                cairo_surface_destroy(surface);
-                throw std::invalid_argument("Layer " + std::to_string(l) + " does not exist on page " +
-                                            std::to_string(o.page + 1));
-            }
-            ranges.emplace_back(l - 1, l - 1);
-        }
-        view.drawLayersOfPage(ranges, page, cr, true, flags);
-    } else {
-        view.drawPage(page, cr, true, flags);
+    try {
+        drawContent(cr, doc, page, o);
+    } catch (...) {
+        cairo_destroy(cr);
+        cairo_surface_destroy(surface);
+        throw;
     }
 
     if (o.grid) {
@@ -155,6 +170,39 @@ RenderedImage renderPage(Document* doc, const RenderOptions& o) {
 
     cairo_destroy(cr);
     out.png = encodePng(surface);
+    cairo_surface_destroy(surface);
+    return out;
+}
+
+}  // namespace xoj::api
+
+namespace xoj::api {
+
+std::string renderSvg(Document* doc, const RenderOptions& o) {
+    std::shared_lock lock(*doc);
+    if (o.page >= doc->getPageCount()) {
+        throw std::invalid_argument("Page " + std::to_string(o.page + 1) + " does not exist");
+    }
+    ConstPageRef page = doc->getPage(o.page);
+    const auto region = clampRegion(page, o);
+    std::string out;
+    cairo_surface_t* surface = cairo_svg_surface_create_for_stream(
+            [](void* closure, const unsigned char* data, unsigned int length) {
+                static_cast<std::string*>(closure)->append(reinterpret_cast<const char*>(data), length);
+                return CAIRO_STATUS_SUCCESS;
+            },
+            &out, region.width, region.height);
+    cairo_t* cr = cairo_create(surface);
+    cairo_translate(cr, -region.x, -region.y);
+    try {
+        drawContent(cr, doc, page, o);
+    } catch (...) {
+        cairo_destroy(cr);
+        cairo_surface_destroy(surface);
+        throw;
+    }
+    cairo_destroy(cr);
+    cairo_surface_finish(surface);
     cairo_surface_destroy(surface);
     return out;
 }

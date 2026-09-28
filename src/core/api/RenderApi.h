@@ -49,4 +49,7 @@ struct RenderedImage {
 /// Renders a page area. Must be called on the main thread. Throws std::invalid_argument for bad options.
 RenderedImage renderPage(Document* doc, const RenderOptions& options);
 
+/// Renders a page area as a vector SVG document (1 SVG unit = 1 page point). Ignores dpi, grid and highlights.
+std::string renderSvg(Document* doc, const RenderOptions& options);
+
 }  // namespace xoj::api

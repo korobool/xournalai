@@ -405,7 +405,10 @@
               "story": "US-1.3",
               "title": "export tool",
               "details": "pdf, png, svg, xopp and xjson; scopes; path or inline delivery.",
-              "commit": "mcp: add export tool"
+              "commit": "mcp: add export tool",
+              "status": "done",
+              "started": "2026-09-28T23:24:13+01:00",
+              "finished": "2026-09-28T23:26:41+01:00"
             },
             {
               "id": "T1.3.4",
