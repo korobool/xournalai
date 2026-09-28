@@ -66,3 +66,7 @@ Debug
 
 # xournalai progress monitor live state
 tools/monitor/state/
+
+# Python bytecode
+__pycache__/
+*.pyc

@@ -644,7 +644,10 @@
               "story": "US-3.1",
               "title": "actions_list & action_run",
               "details": "Via ActionDatabase, with enabled flag, state and parameters.",
-              "commit": "mcp: add actions_list and action_run tools"
+              "commit": "mcp: add actions_list and action_run tools",
+              "status": "done",
+              "started": "2026-09-29T00:10:00+01:00",
+              "finished": "2026-09-29T00:11:12+01:00"
             },
             {
               "id": "T3.1.2",

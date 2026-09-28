@@ -83,12 +83,11 @@ const std::map<std::string, std::string>& topics() {
              "profile=\"ink\" and tremor≈0.25 for a hand-drawn look), create_shapes for diagrams, create_text / "
              "create_latex for labels and formulas. 5) draft(op=render) and critique: overlaps, alignment, legibility, "
              "colors; fix with elements_edit or redraw. 6) draft(op=commit, animate=true)."},
-            {"pen",
-             "pen_draw(tool, strokes, speed): tools pen, highlighter, recognizer (snaps sketches to shapes), "
-             "eraser, select_lasso (closed loop around items), select_rect (drag a diagonal), shape_line/rect/"
-             "ellipse/arrow/double_arrow/axes (drag from start to end). speed 1 = hand speed (visible), 0 = "
-             "instant. The user's tool settings are restored; a selection stays active. It waits while the user "
-             "is drawing. It cannot draw into drafts."},
+            {"pen", "pen_draw(tool, strokes, speed): tools pen, highlighter, recognizer (snaps sketches to shapes), "
+                    "eraser, select_lasso (closed loop around items), select_rect (drag a diagonal), shape_line/rect/"
+                    "ellipse/arrow/double_arrow/axes (drag from start to end). speed 1 = hand speed (visible), 0 = "
+                    "instant. The user's tool settings are restored; a selection stays active. It waits while the user "
+                    "is drawing. It cannot draw into drafts."},
             {"permissions",
              "Tools belong to tiers: read, draw, ui, files, destructive. The user grants tiers in "
              "~/.config/xournalpp/mcp.json; app_status shows them. A denied call returns an error explaining "
@@ -170,7 +169,7 @@ void registerGuideTools(McpServer& server) {
     addPrompt("draw", "Draw from a description", "Plan and draw a picture or diagram from a text description",
               {{"description", "What to draw", true}, {"page", "Page number (default: current page)", false}},
               "draw the following as a clean, well-composed drawing, following the draw recipe (plan, reserve room, "
-              "draft, render and critique, commit): " );
+              "draft, render and critique, commit): ");
 }
 
 }  // namespace xoj::mcp::tools
