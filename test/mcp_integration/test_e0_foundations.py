@@ -81,6 +81,9 @@ def test_guide_and_prompts(app):
     assert "page points" in c.call("guide", topic="coordinates")
     assert "Unknown" in c.call_error("guide", topic="nope") or "must be" in c.call_error("guide", topic="nope")
     prompts = {p["name"] for p in c.request("prompts/list")["prompts"]}
-    assert {"summarize", "extract_text", "explain_figure"} <= prompts
+    assert {"summarize", "extract_text", "explain_figure", "draw"} <= prompts
+    d = c.request("prompts/get", {"name": "draw", "arguments": {"description": "a red house"}})["messages"][0]
+    assert "a red house" in d["content"]["text"] and "draft" in d["content"]["text"]
+    assert "recipe" in c.call("guide", topic="draw")
     msg = c.request("prompts/get", {"name": "summarize", "arguments": {"page": "2"}})["messages"][0]
     assert "page 2" in msg["content"]["text"]

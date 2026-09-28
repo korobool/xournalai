@@ -6,6 +6,20 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+## 0.3.0 — Drawing (epoch E2)
+Agents draw with stylus-like pressure, either by simulating the pen or by creating objects directly, and iterate
+privately before committing.
+- `draft` (begin/render/commit/discard/list): hidden draft layers without undo noise; a commit is one undo step and
+  can be animated.
+- Editing: `elements_edit` (move, scale, rotate, restyle including per-point width scaling, reorder, to_layer),
+  `elements_delete`, `elements_select` (shows the selection in the app), `undo`, `redo`, `history`. Targets are
+  element ids or the operation id of a drawing call. The app's own undo actions are used, so ids survive undo/redo.
+- `import`: svg, image, xjson (lossless round trip verified), xopp pages, pdf pages (rendered, as new pages).
+- Guide topics drawing, pressure, drafts, draw (text-to-drawing recipe) and pen; MCP prompt `draw`.
+- Fixed a crash from iterating a temporary JSON object in `elements_edit`.
+- Acceptance: text-to-drawing workflow (free space → draft → SVG scene with ink profile → render → animated commit
+  as one undo step) and pen co-drawing/erasing. 64/64 integration scenarios.
+
 ### 0.2.2 — Pen engine
 - `pen_draw`: a simulated stylus replayed through the app's real input pipeline (`InputContext::handleSynthetic`),
   at hand speed, faster, or instantly. Tools: pen, highlighter, `recognizer` (shape recognizer), eraser,
