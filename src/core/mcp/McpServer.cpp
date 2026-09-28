@@ -1,11 +1,10 @@
 #include "McpServer.h"
 
-#include <cstdlib>  // for getenv
-
 #include <glib.h>  // for g_message
 
 #include "McpHttpServer.h"
 #include "McpProtocol.h"
+#include "PathText.h"
 #include "config.h"  // for XOURNALAI_VERSION
 
 namespace xoj::mcp {
@@ -16,6 +15,24 @@ McpServer::McpServer(Control* control): control(control) {
     info.version = XOURNALAI_VERSION;
     info.instructions = instructions();
     protocol = std::make_unique<McpProtocol>(info, registry);
+    protocol->setPermissionCheck([this](const ToolSpec& tool) -> std::optional<std::string> {
+        if (config.allows(tool.tier)) {
+            return std::nullopt;
+        }
+        return permissionMessage(tool.tier, "tool '" + tool.name + "'");
+    });
+}
+
+std::string McpServer::permissionMessage(Tier tier, const std::string& what) {
+    return std::string("Permission denied: ") + what + " needs the '" + tierName(tier) +
+           "' permission. The user can grant it in " + toUtf8(McpConfig::path()) + " (\"permissions\": {\"" +
+           tierName(tier) + "\": true}) and restart xournalai.";
+}
+
+void McpServer::requireTier(Tier tier, const std::string& what) const {
+    if (!config.allows(tier)) {
+        throw ToolError(permissionMessage(tier, what));
+    }
 }
 
 McpServer::~McpServer() { stop(); }
@@ -32,10 +49,14 @@ void McpServer::start() {
     if (http && http->isListening()) {
         return;
     }
-    McpHttpServer::Options options;
-    if (const char* token = std::getenv("XOURNALAI_MCP_TOKEN")) {
-        options.token = token;
+    config = McpConfig::load();
+    if (!config.enabled) {
+        g_message("MCP server disabled (see %s)", toUtf8(McpConfig::path()).c_str());
+        return;
     }
+    McpHttpServer::Options options;
+    options.port = config.port;
+    options.token = config.token;
     http = std::make_unique<McpHttpServer>(*protocol);
     std::string error;
     if (!http->start(options, error)) {

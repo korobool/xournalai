@@ -11,6 +11,7 @@
 #include <memory>  // for unique_ptr
 #include <string>  // for string
 
+#include "McpConfig.h"
 #include "Registry.h"
 
 class Control;
@@ -42,15 +43,21 @@ public:
     Control* getControl() const { return control; }
     Registry& getRegistry() { return registry; }
     McpHttpServer* getHttpServer() const { return http.get(); }
+    const McpConfig& getConfig() const { return config; }
+
+    /// Throws ToolError if `tier` is not granted (for tools whose risk depends on their arguments)
+    void requireTier(Tier tier, const std::string& what) const;
 
     /// Text sent to agents in the initialize response (how to use this server)
     static std::string instructions();
+    static std::string permissionMessage(Tier tier, const std::string& what);
 
 private:
     void registerTools();
 
     Control* control;
     Registry registry;
+    McpConfig config;
     std::unique_ptr<McpProtocol> protocol;
     std::unique_ptr<McpHttpServer> http;
 };

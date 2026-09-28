@@ -18,8 +18,13 @@
 
 namespace xoj::mcp {
 
-/// Permission tier a tool belongs to. Users grant tiers in the MCP configuration.
-enum class Tier { Read, Draw, Ui, Files };
+/**
+ * Permission tier a tool (or a particular use of a tool) belongs to. Users grant tiers in the MCP configuration.
+ *  - Read: inspect and render content          - Draw: create and edit content (always undoable)
+ *  - Ui: menus, dialogs, tools, view            - Files: open, save, export, import
+ *  - Destructive: discard unsaved changes, overwrite existing files, close without saving
+ */
+enum class Tier { Read, Draw, Ui, Files, Destructive };
 const char* tierName(Tier t);
 std::optional<Tier> tierFromName(const std::string& name);
 

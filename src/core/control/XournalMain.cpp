@@ -42,12 +42,16 @@
 #include "util/XojMsgBox.h"                  // for XojMsgBox
 #include "util/i18n.h"                       // for _, FS, _F
 
-#include "Control.h"       // for Control
-#include "ExportHelper.h"  // for exportImg, exportPdf
-#include "config-dev.h"    // for ERRORLOG_DIR
-#include "config-git.h"    // for GIT_BRANCH, GIT_ORIGIN_O...
-#include "config.h"        // for GETTEXT_PACKAGE, ENABLE_NLS
-#include "filesystem.h"    // for path, operator/, exists
+#include "Control.h"          // for Control
+#include "ExportHelper.h"     // for exportImg, exportPdf
+#include "config-dev.h"       // for ERRORLOG_DIR
+#include "config-features.h"  // for ENABLE_MCP
+#include "config-git.h"       // for GIT_BRANCH, GIT_ORIGIN_O...
+#include "config.h"           // for GETTEXT_PACKAGE, ENABLE_NLS
+#include "filesystem.h"       // for path, operator/, exists
+#ifdef ENABLE_MCP
+#include "mcp/McpConfig.h"  // for McpConfig
+#endif
 
 namespace {
 
@@ -298,6 +302,9 @@ struct XournalMainPrivate {
     gboolean progressiveMode = false;
     gboolean disableAudio = false;
     gboolean attachMode = false;
+    gboolean mcpEnable = false;
+    gboolean mcpDisable = false;
+    int mcpPort = -1;
     gchar* exportPdfBackend{};
     std::unique_ptr<GladeSearchpath> gladePath;
     std::unique_ptr<Control> control;
@@ -525,6 +532,15 @@ auto on_handle_local_options(GApplication*, GVariantDict*, XMPtr app_data) -> gi
         return (0);
     }
 
+#ifdef ENABLE_MCP
+    if (app_data->mcpEnable || app_data->mcpDisable) {
+        xoj::mcp::McpConfig::overrides().enabled = app_data->mcpEnable && !app_data->mcpDisable;
+    }
+    if (app_data->mcpPort > 0 && app_data->mcpPort < 65536) {
+        xoj::mcp::McpConfig::overrides().port = static_cast<uint16_t>(app_data->mcpPort);
+    }
+#endif
+
     if (app_data->pdfFilename && app_data->optFilename && *app_data->optFilename) {
         return exec_guarded(
                 [&] {
@@ -628,6 +644,21 @@ auto XournalMain::run(int argc, char** argv) -> int {
                                        _("Save xopp-file with the background PDF specified as FILE"), "XOPPFILE"},
                           GOptionEntry{nullptr}};  // Must be terminated by a nullptr. See gtk doc
     g_application_add_main_option_entries(G_APPLICATION(app), options.data());
+
+#ifdef ENABLE_MCP
+    std::array mcpOptions = {
+            GOptionEntry{"mcp", 0, 0, G_OPTION_ARG_NONE, &app_data.mcpEnable,
+                         _("Enable the embedded MCP server for AI agents in this session"), nullptr},
+            GOptionEntry{"no-mcp", 0, 0, G_OPTION_ARG_NONE, &app_data.mcpDisable,
+                         _("Disable the embedded MCP server in this session"), nullptr},
+            GOptionEntry{"mcp-port", 0, 0, G_OPTION_ARG_INT, &app_data.mcpPort,
+                         _("Port of the embedded MCP server for this session (default: from mcp.json, 7474)"), "PORT"},
+            GOptionEntry{nullptr}};
+    GOptionGroup* mcpGroup =
+            g_option_group_new("mcp", _("AI agent (MCP) options"), _("Display MCP server options"), nullptr, nullptr);
+    g_option_group_add_entries(mcpGroup, mcpOptions.data());
+    g_application_add_option_group(G_APPLICATION(app), mcpGroup);
+#endif
 
     std::string pdfbackendMessage =
             FS(_F("Use the provided backend for PDF exports.\n"

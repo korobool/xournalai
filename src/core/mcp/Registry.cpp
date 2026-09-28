@@ -16,12 +16,14 @@ const char* tierName(Tier t) {
             return "ui";
         case Tier::Files:
             return "files";
+        case Tier::Destructive:
+            return "destructive";
     }
     return "read";
 }
 
 std::optional<Tier> tierFromName(const std::string& name) {
-    for (Tier t: {Tier::Read, Tier::Draw, Tier::Ui, Tier::Files}) {
+    for (Tier t: {Tier::Read, Tier::Draw, Tier::Ui, Tier::Files, Tier::Destructive}) {
         if (name == tierName(t)) {
             return t;
         }

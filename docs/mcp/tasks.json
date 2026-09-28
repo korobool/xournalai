@@ -163,7 +163,10 @@
               "story": "US-0.3",
               "title": "Config, token, CLI flags",
               "details": "~/.config/xournalpp/mcp.json (enabled, port, token, permission tiers), token generation, --mcp, --mcp-port, --no-mcp flags.",
-              "commit": "mcp: add configuration file, token and command line flags"
+              "commit": "mcp: add configuration file, token and command line flags",
+              "status": "done",
+              "started": "2026-09-28T22:26:35+01:00",
+              "finished": "2026-09-28T22:30:31+01:00"
             },
             {
               "id": "T0.3.4",
