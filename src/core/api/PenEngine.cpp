@@ -25,6 +25,7 @@
 #include "model/XojPage.h"                  // for XojPage
 #include "undo/UndoRedoHandler.h"           // for UndoRedoHandler
 
+#include "AgentGate.h"
 #include "Drafts.h"   // for isDraftLayer
 #include "DrawApi.h"  // for resolveLayer
 
@@ -217,6 +218,18 @@ gboolean tick(gpointer data) {
     if (r->job.page >= ctrl->getWindow()->getXournal()->getViewPages().size() ||
         ctrl->getWindow()->getXournal()->getViewFor(r->job.page) == nullptr) {  // document changed meanwhile
         r->result.error = "The document changed while the pen was drawing; stopped";
+        restore(r);
+        r->done(std::move(r->result));
+        delete r;
+        return G_SOURCE_REMOVE;
+    }
+    if (AgentGate::paused()) {  // the user paused the agent: lift the pen and stop
+        if (r->next > 0 && r->next < r->events.size() && r->events[r->next - 1].type != BUTTON_RELEASE_EVENT) {
+            Event up = r->events[r->next - 1];
+            up.type = BUTTON_RELEASE_EVENT;
+            ic->handleSynthetic(makeEvent(ctrl, r->job.page, up));
+        }
+        r->result.error = "The user paused the AI agent; the pen stopped";
         restore(r);
         r->done(std::move(r->result));
         delete r;

@@ -20,6 +20,7 @@ namespace xoj::mcp {
 
 class McpProtocol;
 class McpHttpServer;
+class McpUi;
 }  // namespace xoj::mcp
 
 namespace xoj::api {
@@ -53,6 +54,8 @@ public:
     /// Document change log (created when the server starts)
     api::EventHub* getEvents() const { return events.get(); }
     const McpConfig& getConfig() const { return config; }
+    /// In-app status strip, menu actions and highlights (null before start)
+    McpUi* getUi() const { return ui.get(); }
 
     /// False once the server is destroyed; long-running tool calls check it before touching the server
     std::shared_ptr<bool> aliveToken() const { return alive; }
@@ -76,6 +79,7 @@ private:
     std::unique_ptr<McpProtocol> protocol;
     std::unique_ptr<McpHttpServer> http;
     std::unique_ptr<api::EventHub> events;
+    std::unique_ptr<McpUi> ui;
     std::shared_ptr<bool> alive = std::make_shared<bool>(true);
 };
 

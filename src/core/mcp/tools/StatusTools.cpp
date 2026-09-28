@@ -3,6 +3,7 @@
 #include <algorithm>     // for max, min
 #include <shared_mutex>  // for shared_lock
 
+#include "api/AgentGate.h"
 #include "control/Control.h"      // for Control
 #include "control/ToolEnums.h"    // for toolTypeToString
 #include "control/ToolHandler.h"  // for ToolHandler
@@ -73,6 +74,7 @@ void registerStatusTools(McpServer& server) {
                      {{"url", cfg.url()},
                       {"sessions", srv->getHttpServer() ? srv->getHttpServer()->sessionCount() : 0},
                       {"permissions", permissions},
+                      {"paused_by_user", api::AgentGate::paused()},
                       {"default_layer", cfg.defaultLayer},
                       {"export_dir", toUtf8(cfg.exportDir)}}},
                     {"document", documentSummary(ctrl)},

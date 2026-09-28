@@ -122,16 +122,22 @@ class App:
                 return display
         raise RuntimeError("DISPLAY of the app's Xvfb not found")
 
-    def user_drag(self, points, step_delay=0.01):
-        """Draws like a human: real X mouse events (xdotool) through screen points [(x, y), ...]."""
+    def _xdo(self, *a):
         display = self.display
         assert display != os.environ.get("DISPLAY"), "simulated input must never reach the real desktop"
         env = dict(os.environ, DISPLAY=display)
         if self._xauthority:
             env["XAUTHORITY"] = self._xauthority
+        subprocess.run(["xdotool", *map(str, a)], env=env, check=True)
 
-        def xdo(*a):
-            subprocess.run(["xdotool", *map(str, a)], env=env, check=True)
+    def user_key(self, *keys):
+        """Presses keys like the user (xdotool key names, e.g. "ctrl+alt+Escape") in the app's window."""
+        self._xdo("search", "--sync", "--pid", self.proc.pid, "--onlyvisible", "--class", "xournalpp",
+                  "windowfocus", "--sync", "key", "--clearmodifiers", *keys)
+
+    def user_drag(self, points, step_delay=0.01):
+        """Draws like a human: real X mouse events (xdotool) through screen points [(x, y), ...]."""
+        xdo = self._xdo
 
         xdo("mousemove", points[0][0], points[0][1])
         xdo("mousedown", 1)

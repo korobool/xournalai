@@ -21,6 +21,7 @@
 #include "undo/InsertUndoAction.h"          // for InsertsUndoAction
 #include "undo/UndoRedoHandler.h"           // for UndoRedoHandler
 
+#include "AgentGate.h"
 #include "Drafts.h"
 #include "ElementIds.h"
 
@@ -57,6 +58,9 @@ struct Animation {
 gboolean animationTick(gpointer data) {
     auto* a = static_cast<Animation*>(data);
     Document* doc = a->control->getDocument();
+    if (AgentGate::paused()) {
+        a->pointsPerTick = SIZE_MAX / 2;  // the user paused the agent: finish the drawing at once
+    }
     while (a->current < a->strokes.size()) {
         auto& [stroke, full] = a->strokes[a->current];
         if (!ElementIds::get().existingId(stroke)) {  // destroyed meanwhile (document replaced): stop safely

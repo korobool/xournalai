@@ -10,6 +10,7 @@
 #include "control/ToolHandler.h"  // for ToolHandler
 #include "mcp/ElementJson.h"
 #include "mcp/McpServer.h"
+#include "mcp/McpUi.h"
 #include "model/Document.h"     // for Document
 #include "model/Layer.h"        // for Layer
 #include "model/StrokeStyle.h"  // for parseStyle
@@ -352,13 +353,23 @@ void insertAndRespond(McpServer& server, const Args& args, std::vector<ElementPt
     api::AnimationOptions anim;
     anim.enabled = args.boolean("animate", server.getConfig().animate);
     anim.speed = args.number("speed", 1.0, 0.05, 100);
-    api::DrawApi(ctrl).insert(target, std::move(elements), anim, [respond, extra](const api::DrawResult& r) {
-        json out = drawResultJson(r);
-        for (const auto& [k, v]: extra.items()) {
-            out[k] = v;
-        }
-        respond(ToolResult::structured(std::move(out)));
-    });
+    auto alive = server.aliveToken();
+    McpServer* srv = &server;
+    api::DrawApi(ctrl).insert(target, std::move(elements), anim,
+                              [respond, extra, alive, srv](const api::DrawResult& r) {
+                                  if (*alive && srv->getUi() && !r.elements.empty()) {
+                                      xoj::util::Rectangle<double> area = r.elements.front()->getBoundingBox();
+                                      for (const Element* e: r.elements) {
+                                          area.unite(e->getBoundingBox());
+                                      }
+                                      srv->getUi()->flash(r.page, area);
+                                  }
+                                  json out = drawResultJson(r);
+                                  for (const auto& [k, v]: extra.items()) {
+                                      out[k] = v;
+                                  }
+                                  respond(ToolResult::structured(std::move(out)));
+                              });
 }
 
 }  // namespace xoj::mcp::tools

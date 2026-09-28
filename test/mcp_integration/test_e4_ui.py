@@ -1,0 +1,83 @@
+"""E4: the in-app AI controls: status strip, pause switch, AI layer actions, menu."""
+
+import time
+
+
+def status_text(c):
+    widgets = c.call("ui_inspect", max_depth=40, all=True)["widgets"]
+    return [w for w in widgets if w.get("name") == "mcpStatus"][0]["label"]
+
+
+def layers(c):
+    return c.call("doc_info")["pages"][0]["layers"]
+
+
+def test_status_strip_and_menu(app):
+    c = app.client()
+    assert status_text(c).startswith("AI: ")
+    paths = {e["path"]: e for e in c.call("ui_menu_tree")["entries"]}
+    assert paths["AI Agent/Pause AI agent"]["action"] == "win.mcp-paused"
+    assert "checked" in paths["AI Agent/Pause AI agent"]
+    for p in ("Accept AI layer (merge down)", "Show or hide AI layer", "Clear AI layer"):
+        assert "AI Agent/" + p in paths
+
+
+def test_pause_blocks_agent_until_resumed(app):
+    c = app.client()
+    c.call("ui_menu_select", path="AI Agent/Pause AI agent")
+    time.sleep(0.2)
+    assert c.call("app_status")["mcp"]["paused_by_user"] is True
+    assert "paused" in c.call_error("create_shapes", shapes=[{"type": "rect", "x": 10, "y": 10, "w": 5, "h": 5}])
+    assert "paused" in c.call_error("doc_info")
+    app.user_key("ctrl+alt+Escape")  # the user resumes with the shortcut
+    time.sleep(0.3)
+    assert c.call("app_status")["mcp"]["paused_by_user"] is False
+    assert "paused" not in status_text(c)
+    c.call("doc_info")
+
+
+def test_ai_layer_accept_toggle_clear(app):
+    c = app.client()
+    before = len(layers(c))
+    c.call("create_shapes", shapes=[{"type": "circle", "center": [200, 200], "r": 20}], animate=False)
+    ls = layers(c)
+    ai = [l for l in ls if l["name"] == "AI"][0]
+    assert len(ls) == before + 1 and ai["elements"] == 1
+    c.call("ui_menu_select", path="AI Agent/Show or hide AI layer")
+    assert [l for l in layers(c) if l["name"] == "AI"][0]["visible"] is False
+    c.call("ui_menu_select", path="AI Agent/Show or hide AI layer")
+    assert [l for l in layers(c) if l["name"] == "AI"][0]["visible"] is True
+    c.call("ui_menu_select", path="AI Agent/Clear AI layer")
+    ls = layers(c)
+    assert len(ls) == before and not any(l["name"] == "AI" for l in ls)
+    c.call("action_run", action="undo")
+    assert any(l["name"] == "AI" for l in layers(c))
+    c.call("ui_menu_select", path="AI Agent/Accept AI layer (merge down)")
+    ls = layers(c)
+    assert len(ls) == before and sum(l["elements"] for l in ls) >= 1
+
+
+def test_pause_stops_the_pen_mid_stroke(app):
+    import math
+    import threading
+
+    c = app.client()
+    before = c.call("app_status")["user_tool"]
+    out = {}
+
+    def draw():
+        wave = [[60 + i * 2, 400 + 40 * math.sin(i / 9)] for i in range(240)]
+        out["r"] = app.client().call_raw("pen_draw", strokes=[{"points": wave}] * 3, speed=0.3)
+
+    th = threading.Thread(target=draw)
+    th.start()
+    time.sleep(1.0)
+    app.user_key("ctrl+alt+Escape")  # pause
+    th.join(timeout=20)
+    assert not th.is_alive()
+    r = out["r"]
+    assert r.get("isError") and "paused" in r["content"][0]["text"]
+    assert c.call("app_status")["user_tool"] == before  # the pen gave the user's tool back
+    app.user_key("ctrl+alt+Escape")  # resume
+    time.sleep(0.3)
+    assert c.call("app_status")["mcp"]["paused_by_user"] is False

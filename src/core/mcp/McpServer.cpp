@@ -2,12 +2,14 @@
 
 #include <glib.h>  // for g_message
 
+#include "api/AgentGate.h"
 #include "api/Backup.h"
 #include "api/EventHub.h"
 #include "tools/Tools.h"
 
 #include "McpHttpServer.h"
 #include "McpProtocol.h"
+#include "McpUi.h"
 #include "PathText.h"
 #include "config.h"  // for XOURNALAI_VERSION
 
@@ -20,6 +22,10 @@ McpServer::McpServer(Control* control): control(control) {
     info.instructions = instructions();
     protocol = std::make_unique<McpProtocol>(info, registry);
     protocol->setPermissionCheck([this](const ToolSpec& tool) -> std::optional<std::string> {
+        if (api::AgentGate::paused() && tool.name != "app_status") {
+            return std::string("The user paused the AI agent in xournalai (AI Agent menu or the Pause AI button). "
+                               "Wait for them to resume; app_status shows when you may continue.");
+        }
         if (config.allows(tool.tier)) {
             return std::nullopt;
         }
@@ -38,10 +44,16 @@ McpServer::McpServer(Control* control): control(control) {
                 events->beginAgentWork();
             }
         }
+        if (ui) {
+            ui->toolStarted(name);
+        }
     });
     protocol->setCallObserver([this, mutating](const std::string& name, bool, double) {
         if (events && mutating(name)) {
             events->endAgentWork();
+        }
+        if (ui) {
+            ui->toolFinished();
         }
     });
 }
@@ -61,6 +73,7 @@ void McpServer::requireTier(Tier tier, const std::string& what) const {
 McpServer::~McpServer() {
     *alive = false;
     stop();
+    ui.reset();
 }
 
 std::string McpServer::backup(const std::string& reason) const {
@@ -87,6 +100,9 @@ void McpServer::start() {
     if (!events) {
         events = std::make_unique<api::EventHub>(control);
     }
+    if (!ui) {
+        ui = std::make_unique<McpUi>(*this);
+    }
     if (!config.enabled) {
         g_message("MCP server disabled (see %s)", toUtf8(McpConfig::path()).c_str());
         return;
@@ -103,6 +119,7 @@ void McpServer::start() {
     }
     g_message("MCP server listening on http://127.0.0.1:%u/mcp", options.port);
     tools::wireResourceNotifications(*this);
+    ui->update();
 }
 
 void McpServer::stop() {
