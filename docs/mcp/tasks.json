@@ -501,7 +501,10 @@
               "story": "US-2.2",
               "title": "create_from_svg",
               "details": "nanosvg flattening into strokes, <text> pre-pass, fit modes, warnings.",
-              "commit": "mcp: add SVG to editable strokes conversion"
+              "commit": "mcp: add SVG to editable strokes conversion",
+              "status": "done",
+              "started": "2026-09-28T23:44:05+01:00",
+              "finished": "2026-09-28T23:46:54+01:00"
             },
             {
               "id": "T2.1.6",

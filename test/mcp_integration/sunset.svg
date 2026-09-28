@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <rect x="0" y="0" width="400" height="300" fill="#fde7c8" stroke="none"/>
+  <circle cx="200" cy="170" r="55" fill="#f7a531" stroke="#e8741f" stroke-width="2"/>
+  <g stroke="#e8741f" stroke-width="2">
+    <line x1="200" y1="90" x2="200" y2="70"/><line x1="140" y1="115" x2="125" y2="100"/>
+    <line x1="260" y1="115" x2="275" y2="100"/><line x1="120" y1="165" x2="100" y2="165"/>
+    <line x1="280" y1="165" x2="300" y2="165"/>
+  </g>
+  <path d="M0 230 L70 150 L120 200 L190 120 L260 210 L320 160 L400 230 L400 300 L0 300 Z" fill="#5b6f8a" stroke="#34445a" stroke-width="2.5"/>
+  <path d="M190 120 L170 145 L185 140 L195 150 L210 138 Z" fill="#ffffff" stroke="#34445a" stroke-width="1"/>
+  <path d="M20 270 Q 100 250 200 272 T 390 262" fill="none" stroke="#2c7fb8" stroke-width="3"/>
+  <path d="M60 60 q 8 -8 16 0 q 8 -8 16 0" fill="none" stroke="#333" stroke-width="1.5"/>
+  <path d="M300 50 q 6 -6 12 0 q 6 -6 12 0" fill="none" stroke="#333" stroke-width="1.5"/>
+  <text x="12" y="22" font-size="14" fill="#34445a">Sunset over the mountains</text>
+</svg>

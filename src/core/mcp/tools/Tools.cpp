@@ -12,6 +12,7 @@ void registerAll(McpServer& server) {
     registerExportTools(server);
     registerDrawTools(server);
     registerContentTools(server);
+    registerSvgTools(server);
 }
 
 }  // namespace xoj::mcp::tools
