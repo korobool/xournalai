@@ -25,6 +25,7 @@
 #include "model/XojPage.h"                  // for XojPage
 #include "undo/UndoRedoHandler.h"           // for UndoRedoHandler
 
+#include "Drafts.h"   // for isDraftLayer
 #include "DrawApi.h"  // for resolveLayer
 
 namespace xoj::api {
@@ -160,6 +161,10 @@ bool begin(Run* r) {
     // Target layer: selecting it makes the tools act there
     DrawApi draw(ctrl);
     LayerChoice layer = draw.resolveLayer(r->page, r->job.layer, true);
+    if (Drafts::get().isDraftLayer(layer.layer)) {
+        throw std::invalid_argument("The pen engine cannot draw into drafts (it records undo steps like the user); "
+                                    "use create_strokes/create_shapes/create_from_svg for drafts");
+    }
     if (layer.undo) {
         ctrl->getUndoRedoHandler()->addUndoAction(std::move(layer.undo));
     }

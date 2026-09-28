@@ -579,7 +579,10 @@
               "story": "US-2.4",
               "title": "draft tool",
               "details": "Draft layer lifecycle, render for self-critique, commit as one undo step.",
-              "commit": "mcp: add draft workflow tool"
+              "commit": "mcp: add draft workflow tool",
+              "status": "done",
+              "started": "2026-09-28T23:55:15+01:00",
+              "finished": "2026-09-28T23:58:01+01:00"
             },
             {
               "id": "T2.3.2",

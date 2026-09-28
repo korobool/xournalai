@@ -21,6 +21,7 @@
 #include "undo/InsertUndoAction.h"          // for InsertsUndoAction
 #include "undo/UndoRedoHandler.h"           // for UndoRedoHandler
 
+#include "Drafts.h"
 #include "ElementIds.h"
 
 namespace xoj::api {
@@ -202,12 +203,16 @@ void DrawApi::insert(const DrawTarget& target, std::vector<ElementPtr> elements,
         control->getLayerController()->fireRebuildLayerMenu();
     }
 
+    // Drafts are private scratch space: no undo history (their layer disappears on commit/discard)
+    const bool undoable = !Drafts::get().isDraftLayer(layer);
     auto holder = std::make_shared<std::unique_ptr<GroupUndoAction>>(std::move(group));
-    auto finish = [control = control, page, holder, result, done = std::move(done)](bool completed) {
+    auto finish = [control = control, page, holder, result, undoable, done = std::move(done)](bool completed) {
         if (completed) {
             auto bb = unionOf(result.elements);
             page->fireRectChanged(bb);
-            control->getUndoRedoHandler()->addUndoAction(std::move(*holder));
+            if (undoable) {
+                control->getUndoRedoHandler()->addUndoAction(std::move(*holder));
+            }
         }
         done(result);
     };

@@ -166,7 +166,7 @@ The agent draws with stylus-like pressure, either by simulating a pen or by crea
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
 | T2.2.1 | US-2.3 | **SyntheticPen** — Synthetic pen-class InputEvents fed to the input handlers; page/view coordinate mapping; tool save and restore; collision queue. | `mcp: add synthetic pen input engine (T2.2.1)` | ✅ done `8ed8cd90a` |
-| T2.2.2 | US-2.3 | **pen_draw tool** — Tool selection, speed modes, results with created, erased and selected ids. Bump 0.2.2. | `mcp: add pen_draw tool (T2.2.2)` | ✅ done |
+| T2.2.2 | US-2.3 | **pen_draw tool** — Tool selection, speed modes, results with created, erased and selected ids. Bump 0.2.2. | `mcp: add pen_draw tool (T2.2.2)` | ✅ done `e6317c4e0` |
 
 ### S2.3 — Drafts, editing & import → v0.3.0
 
@@ -179,7 +179,7 @@ The agent draws with stylus-like pressure, either by simulating a pen or by crea
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T2.3.1 | US-2.4 | **draft tool** — Draft layer lifecycle, render for self-critique, commit as one undo step. | `mcp: add draft workflow tool (T2.3.1)` | ⬜ todo |
+| T2.3.1 | US-2.4 | **draft tool** — Draft layer lifecycle, render for self-critique, commit as one undo step. | `mcp: add draft workflow tool (T2.3.1)` | ✅ done |
 | T2.3.2 | US-2.4 | **Editing & history tools** — elements_select, elements_edit, elements_delete, undo, redo, history. | `mcp: add element editing and history tools (T2.3.2)` | ⬜ todo |
 | T2.3.3 | US-2.4 | **import tool** — svg, image, xjson, xopp pages, pdf pages; path or inline sources; placement. | `mcp: add import tool (T2.3.3)` | ⬜ todo |
 | T2.3.4 | US-2.4 | **E2 integration & release 0.3.0** — Text-to-drawing scenario, xjson round-trip check, CHANGELOG, tag. | `mcp: release 0.3.0 (T2.3.4)` | ⬜ todo |
