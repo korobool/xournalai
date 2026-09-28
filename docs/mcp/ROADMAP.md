@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **0.2.1**
+Current version: **0.2.2**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -165,8 +165,8 @@ The agent draws with stylus-like pressure, either by simulating a pen or by crea
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T2.2.1 | US-2.3 | **SyntheticPen** — Synthetic pen-class InputEvents fed to the input handlers; page/view coordinate mapping; tool save and restore; collision queue. | `mcp: add synthetic pen input engine (T2.2.1)` | ✅ done |
-| T2.2.2 | US-2.3 | **pen_draw tool** — Tool selection, speed modes, results with created, erased and selected ids. Bump 0.2.2. | `mcp: add pen_draw tool (T2.2.2)` | ⬜ todo |
+| T2.2.1 | US-2.3 | **SyntheticPen** — Synthetic pen-class InputEvents fed to the input handlers; page/view coordinate mapping; tool save and restore; collision queue. | `mcp: add synthetic pen input engine (T2.2.1)` | ✅ done `8ed8cd90a` |
+| T2.2.2 | US-2.3 | **pen_draw tool** — Tool selection, speed modes, results with created, erased and selected ids. Bump 0.2.2. | `mcp: add pen_draw tool (T2.2.2)` | ✅ done |
 
 ### S2.3 — Drafts, editing & import → v0.3.0
 

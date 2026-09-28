@@ -27,5 +27,6 @@ void registerDrawTools(McpServer& server);
 void registerContentTools(McpServer& server);
 void registerSvgTools(McpServer& server);
 void registerPlacementTools(McpServer& server);
+void registerPenTools(McpServer& server);
 
 }  // namespace xoj::mcp::tools

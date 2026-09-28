@@ -6,6 +6,13 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+### 0.2.2 — Pen engine
+- `pen_draw`: a simulated stylus replayed through the app's real input pipeline (`InputContext::handleSynthetic`),
+  at hand speed, faster, or instantly. Tools: pen, highlighter, `recognizer` (shape recognizer), eraser,
+  lasso/rectangle selection, and the shape modes (line, rectangle, ellipse, arrow, double arrow, axes). Pressure is
+  explicit or comes from a profile and is mapped exactly like hardware. The user's tool, color, size, drawing mode
+  and selected layer are restored; a selection made by the pen stays active. Waits while the user is mid-stroke.
+
 ### 0.2.1 — Pressure model & direct drawing
 - Stylus-like pressure model: width is computed exactly like hardware input
   (`max(minPressure, p·multiplier)·width`), with resampling to stylus density. Profiles: ink, brush, pencil,
