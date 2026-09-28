@@ -5,6 +5,9 @@ Mcp  - minimal Streamable HTTP MCP client (initialize, tools/list, tools/call, p
 """
 
 import base64
+import gzip
+import math
+import random
 import json
 import os
 import pathlib
@@ -164,3 +167,55 @@ class Mcp:
     @staticmethod
     def images(result):
         return [base64.b64decode(c["data"]) for c in result["content"] if c["type"] == "image"]
+
+
+# ---- test documents ---------------------------------------------------------------------------------------------
+
+def stroke(points, color="#000000ff", width=1.41, tool="pen"):
+    """A stroke for make_xopp: points are (x, y) tuples."""
+    return {"points": points, "color": color, "width": width, "tool": tool}
+
+
+def wobbly(points, amount=0.6, seed=1, step=2.0):
+    """Densifies a polyline and adds hand-like noise."""
+    rnd = random.Random(seed)
+    out = []
+    for (x1, y1), (x2, y2) in zip(points, points[1:]):
+        n = max(1, int(math.hypot(x2 - x1, y2 - y1) / step))
+        for i in range(n):
+            t = i / n
+            out.append((x1 + (x2 - x1) * t + rnd.uniform(-amount, amount),
+                        y1 + (y2 - y1) * t + rnd.uniform(-amount, amount)))
+    out.append(points[-1])
+    return out
+
+
+def circle_points(cx, cy, r, n=48):
+    return [(cx + r * math.cos(2 * math.pi * i / n), cy + r * math.sin(2 * math.pi * i / n)) for i in range(n + 1)]
+
+
+def glyphs(x, y, count, size=10, seed=3):
+    """Letter-sized scribbles along a line (fake handwriting)."""
+    rnd = random.Random(seed)
+    out = []
+    for i in range(count):
+        gx = x + i * size * 0.75
+        pts = [(gx + rnd.uniform(0, size * 0.6), y + rnd.uniform(0, size)) for _ in range(6)]
+        out.append(stroke(wobbly(pts, 0.2, seed + i, 1.0)))
+    return out
+
+
+def make_xopp(path, pages):
+    """Writes a gzipped .xopp. `pages` is a list of pages; a page is a list of strokes (see stroke())."""
+    parts = ['<?xml version="1.0" standalone="no"?>', '<xournal creator="xoai-tests" fileversion="4">']
+    for strokes in pages:
+        parts.append('<page width="595.27" height="841.89"><background type="solid" color="#ffffffff" '
+                     'style="plain"/><layer>')
+        for s in strokes:
+            coords = " ".join(f"{x:.2f} {y:.2f}" for x, y in s["points"])
+            parts.append(f'<stroke tool="{s["tool"]}" color="{s["color"]}" width="{s["width"]}">{coords}</stroke>')
+        parts.append("</layer></page>")
+    parts.append("</xournal>")
+    with gzip.open(path, "wt") as f:
+        f.write("\n".join(parts))
+    return path

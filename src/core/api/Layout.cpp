@@ -191,19 +191,35 @@ Layout analyzeLayout(const std::vector<LayoutItem>& items) {
         (items[i].bbox.width < 0.35 * h && items[i].bbox.height < 0.35 * h ? dots : strokes).push_back(i);
     }
 
-    // 2. Cluster pen strokes into text lines and shape parts. A cluster made mostly of letter-sized strokes is
-    //    handwriting (however tall it is); one with a notable share of large strokes is a figure.
+    // 2. Large strokes (boxes, circles, long curves) are figure material; letter-sized strokes are clustered into
+    //    text lines. A cluster of small strokes spanning several lines that overlaps a figure (hatching, shading,
+    //    details of a drawing) belongs to that figure; otherwise small strokes are handwriting.
+    std::vector<size_t> large, small;
+    for (size_t i: strokes) {
+        (std::max(items[i].bbox.width, items[i].bbox.height) > 5 * h ? large : small).push_back(i);
+    }
     std::vector<LayoutBlock> blocks;
-    for (auto& group: cluster(items, strokes, 0.9 * h, 0.25 * h)) {
+    for (auto& group: cluster(items, large, 1.0 * h, 1.0 * h)) {
+        LayoutBlock b;
+        b.kind = "figure";
+        b.bbox = bboxOf(items, group);
+        b.items = std::move(group);
+        blocks.push_back(std::move(b));
+    }
+    const size_t figureCount = blocks.size();
+    for (auto& group: cluster(items, small, 0.9 * h, 0.25 * h)) {
         LayoutBlock b;
         b.bbox = bboxOf(items, group);
-        size_t large = 0;
-        for (size_t i: group) {
-            large += std::max(items[i].bbox.width, items[i].bbox.height) > 5 * h ? 1 : 0;
-        }
-        const bool flat = b.bbox.height <= 2.6 * h;
-        b.kind = flat || (large * 5 < group.size() && group.size() >= 3) ? "handwriting" : "figure";
         b.items = std::move(group);
+        b.kind = "handwriting";
+        if (b.bbox.height > 2.6 * h) {
+            for (size_t f = 0; f < figureCount; f++) {
+                if (intersects(blocks[f].bbox, b.bbox)) {
+                    b.kind = "figure";
+                    break;
+                }
+            }
+        }
         blocks.push_back(std::move(b));
     }
 
