@@ -8,9 +8,10 @@
 
 #pragma once
 
-#include <cstddef>   // for size_t
-#include <optional>  // for optional
-#include <string>    // for string
+#include <cstddef>     // for size_t
+#include <functional>  // for function
+#include <optional>    // for optional
+#include <string>      // for string
 
 #include "mcp/Args.h"
 #include "mcp/Json.h"
@@ -44,6 +45,13 @@ json pageSummary(const PageRef& page, size_t index);
 
 /// Reads an optional [x, y, width, height] argument (page points)
 std::optional<xoj::util::Rectangle<double>> parseRegion(const Args& args, const std::string& key = "region");
+
+/**
+ * @brief Calls `then(true)` once `condition` holds, polling on the main loop every `intervalMs`, or `then(false)`
+ * after `timeoutMs`. For state that the application updates asynchronously (scrolling, layout, dialogs).
+ */
+void whenReady(std::function<bool()> condition, std::function<void(bool)> then, unsigned timeoutMs = 2000,
+               unsigned intervalMs = 40);
 
 /// Throws ToolError unless a main window and document exist
 void requireDocument(Control* ctrl);

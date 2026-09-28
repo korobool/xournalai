@@ -5,6 +5,8 @@
 #include <cstdio>     // for snprintf
 #include <map>        // for map
 
+#include <glib.h>  // for g_timeout_add
+
 #include "control/Control.h"                   // for Control
 #include "control/pagetype/PageTypeHandler.h"  // for PageTypeHandler
 #include "model/Document.h"                    // for Document
@@ -143,6 +145,34 @@ json pageSummary(const PageRef& page, size_t index) {
     return {{"page", index + 1},           {"width", page->getWidth()},
             {"height", page->getHeight()}, {"background", std::move(background)},
             {"layers", std::move(layers)}, {"current_layer", page->getSelectedLayerId()}};
+}
+
+void whenReady(std::function<bool()> condition, std::function<void(bool)> then, unsigned timeoutMs,
+               unsigned intervalMs) {
+    if (condition()) {
+        then(true);
+        return;
+    }
+    struct State {
+        std::function<bool()> condition;
+        std::function<void(bool)> then;
+        gint64 deadline;
+    };
+    auto* state = new State{std::move(condition), std::move(then),
+                            g_get_monotonic_time() + static_cast<gint64>(timeoutMs) * 1000};
+    g_timeout_add(
+            intervalMs,
+            [](gpointer data) -> gboolean {
+                auto* st = static_cast<State*>(data);
+                const bool ok = st->condition();
+                if (ok || g_get_monotonic_time() >= st->deadline) {
+                    st->then(ok);
+                    delete st;
+                    return G_SOURCE_REMOVE;
+                }
+                return G_SOURCE_CONTINUE;
+            },
+            state);
 }
 
 void requireDocument(Control* ctrl) {

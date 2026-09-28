@@ -8,6 +8,7 @@ void registerAll(McpServer& server) {
     registerRenderTools(server);
     registerLayoutTools(server);
     registerGuideTools(server);
+    registerFileTools(server);
 }
 
 }  // namespace xoj::mcp::tools

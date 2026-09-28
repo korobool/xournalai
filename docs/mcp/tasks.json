@@ -385,7 +385,10 @@
               "story": "US-1.3",
               "title": "file_* tools",
               "details": "file_open, file_new, file_save, file_save_as, file_close, file_recent, file_info.",
-              "commit": "mcp: add file management tools"
+              "commit": "mcp: add file management tools",
+              "status": "done",
+              "started": "2026-09-28T23:18:23+01:00",
+              "finished": "2026-09-28T23:21:50+01:00"
             },
             {
               "id": "T1.3.2",
