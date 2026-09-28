@@ -6,6 +6,19 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+### 0.1.2 — Rendering & layout understanding
+- `page_render`: a PNG of a page or region (dpi and max size, background toggle, layer filter, labelled coordinate
+  grid, element highlights), returned inline and saved to a file, with pixel-to-point mapping metadata.
+- `layout_analyze`: splits a page into blocks in reading order — handwriting (with text lines), figure,
+  highlight, typed_text, latex, image, link — plus connectors (arrows/lines between blocks) and labels that belong
+  to figures. Large strokes seed figures and dots are attached afterwards, so boxes with labels, arrows and dense
+  handwriting are handled.
+- `blocks_render`: high-resolution crops per block, or per handwritten line (`split_lines`), for transcription.
+- `shapes_recognize`: the built-in shape recognizer on hand-drawn strokes (line, triangle, rectangle,
+  quadrilateral, circle/ellipse with geometry).
+- `guide` tool (conventions and recipes), plus MCP prompts `summarize`, `extract_text` and `explain_figure`.
+- The test harness can generate `.xopp` documents (`xoai.make_xopp`) for scenario tests.
+
 ### 0.1.1 — Model access
 - Stable element ids (`e42`) for the whole session. They survive moves, restyling and undo/redo, and are retired when
   the element object is destroyed (via a new `Element` destruction observer).

@@ -20,5 +20,6 @@ void registerStatusTools(McpServer& server);
 void registerReadTools(McpServer& server);
 void registerRenderTools(McpServer& server);
 void registerLayoutTools(McpServer& server);
+void registerGuideTools(McpServer& server);
 
 }  // namespace xoj::mcp::tools

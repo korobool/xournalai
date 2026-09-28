@@ -7,6 +7,7 @@ void registerAll(McpServer& server) {
     registerReadTools(server);
     registerRenderTools(server);
     registerLayoutTools(server);
+    registerGuideTools(server);
 }
 
 }  // namespace xoj::mcp::tools
