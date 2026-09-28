@@ -146,22 +146,22 @@ class Mcp:
     def tools(self):
         return {t["name"]: t for t in self.request("tools/list")["tools"]}
 
-    def call_raw(self, name, timeout=120, **args):
-        return self.request("tools/call", {"name": name, "arguments": args}, timeout)
+    def call_raw(self, tool, /, timeout=120, **args):
+        return self.request("tools/call", {"name": tool, "arguments": args}, timeout)
 
-    def call(self, name, timeout=120, **args):
+    def call(self, tool, /, timeout=120, **args):
         """Calls a tool; returns structuredContent (or text), raises McpError if the tool reported an error."""
-        result = self.call_raw(name, timeout, **args)
+        result = self.call_raw(tool, timeout, **args)
         if result.get("isError"):
-            raise McpError(f"{name}: " + " ".join(c.get("text", "") for c in result["content"]))
+            raise McpError(f"{tool}: " + " ".join(c.get("text", "") for c in result["content"]))
         if "structuredContent" in result:
             return result["structuredContent"]
         return "\n".join(c.get("text", "") for c in result["content"] if c["type"] == "text")
 
-    def call_error(self, name, **args):
+    def call_error(self, tool, /, **args):
         """Calls a tool that is expected to fail; returns the error text."""
-        result = self.call_raw(name, **args)
-        assert result.get("isError"), f"{name} was expected to fail but returned {result}"
+        result = self.call_raw(tool, **args)
+        assert result.get("isError"), f"{tool} was expected to fail but returned {result}"
         return " ".join(c.get("text", "") for c in result["content"])
 
     @staticmethod

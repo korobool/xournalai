@@ -197,8 +197,8 @@ The agent can control everything in the app, semantically and through the real U
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T3.1.1 | US-3.1 | **actions_list & action_run** — Via ActionDatabase, with enabled flag, state and parameters. | `mcp: add actions_list and action_run tools (T3.1.1)` | ✅ done |
-| T3.1.2 | US-3.1 | **page_manage & layer_manage** — Insert, delete, move, background, size and goto; layer add, rename, visibility, select, merge, delete and copy. | `mcp: add page and layer management tools (T3.1.2)` | ⬜ todo |
+| T3.1.1 | US-3.1 | **actions_list & action_run** — Via ActionDatabase, with enabled flag, state and parameters. | `mcp: add actions_list and action_run tools (T3.1.1)` | ✅ done `2680f8801` |
+| T3.1.2 | US-3.1 | **page_manage & layer_manage** — Insert, delete, move, background, size and goto; layer add, rename, visibility, select, merge, delete and copy. | `mcp: add page and layer management tools (T3.1.2)` | ✅ done |
 | T3.1.3 | US-3.1 | **tool_*, view, clipboard** — Tool state get and set, zoom, scroll, layout, fullscreen, presentation, clipboard. Bump 0.3.1. | `mcp: add tool, view and clipboard control tools (T3.1.3)` | ⬜ todo |
 
 ### S3.2 — UI automation → v0.3.2

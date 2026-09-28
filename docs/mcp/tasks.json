@@ -654,7 +654,10 @@
               "story": "US-3.1",
               "title": "page_manage & layer_manage",
               "details": "Insert, delete, move, background, size and goto; layer add, rename, visibility, select, merge, delete and copy.",
-              "commit": "mcp: add page and layer management tools"
+              "commit": "mcp: add page and layer management tools",
+              "status": "done",
+              "started": "2026-09-29T00:11:12+01:00",
+              "finished": "2026-09-29T00:13:43+01:00"
             },
             {
               "id": "T3.1.3",
