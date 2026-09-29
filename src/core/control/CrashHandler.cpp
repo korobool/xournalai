@@ -5,6 +5,10 @@
 #include <iostream>
 #include <string>
 
+#ifdef __unix__
+#include <glib-unix.h>  // for g_unix_signal_add
+#endif
+
 #include "control/xojfile/SaveHandler.h"  // for SaveHandler
 #include "util/PathUtil.h"
 #include "util/Stacktrace.h"
@@ -68,6 +72,22 @@ extern "C" void crashHandler(int sig) {
 #endif
 
     exit(crash);
+}
+
+#ifdef __unix__
+/// SIGTERM/SIGINT are handled by the main loop: saving from inside a signal handler deadlocks when the signal
+/// interrupts code holding a lock (e.g. the allocator's), leaving a hung process.
+static gboolean forceCloseFromMainLoop(gpointer sig) {
+    forceClose(GPOINTER_TO_INT(sig));
+    return G_SOURCE_REMOVE;
+}
+#endif
+
+void handleCloseSignalsInMainLoop() {
+#ifdef __unix__
+    g_unix_signal_add(SIGTERM, forceCloseFromMainLoop, GINT_TO_POINTER(SIGTERM));
+    g_unix_signal_add(SIGINT, forceCloseFromMainLoop, GINT_TO_POINTER(SIGINT));
+#endif
 }
 
 void installCrashHandlers() {
