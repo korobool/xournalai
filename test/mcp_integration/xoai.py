@@ -80,6 +80,21 @@ class App:
             time.sleep(0.25)
         raise TimeoutError("MCP server did not come up:\n" + self.read_log())
 
+    def _group_alive(self):
+        try:
+            os.killpg(self.proc.pid, 0)
+            return True
+        except ProcessLookupError:
+            return False
+
+    def app_env(self):
+        """Environment for helper processes of the app (e.g. the stdio bridge): the app's Xvfb, never the desktop."""
+        env = dict(self.env, DISPLAY=self.display)
+        if self._xauthority:
+            env["XAUTHORITY"] = self._xauthority
+        assert env["DISPLAY"] != os.environ.get("DISPLAY")
+        return env
+
     def read_log(self):
         try:
             return (self.home / "app.log").read_text()[-4000:]
@@ -92,7 +107,16 @@ class App:
             try:
                 self.proc.wait(timeout=10)
             except subprocess.TimeoutExpired:
+                pass
+        if self.proc:
+            # xvfb-run exits before the app does: never leave anything of the group behind
+            deadline = time.time() + 10
+            while time.time() < deadline and self._group_alive():
+                time.sleep(0.1)
+            try:
                 os.killpg(self.proc.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
         if getattr(self, "log", None):
             self.log.close()
 

@@ -58,7 +58,7 @@ def test_requires_token(app):
 
 
 def test_stdio_bridge(app):
-    p = subprocess.Popen([app.binary, "--mcp-stdio", f"--mcp-port={app.port}"], env=app.env, text=True,
+    p = subprocess.Popen([app.binary, "--mcp-stdio", f"--mcp-port={app.port}"], env=app.app_env(), text=True,
                          stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
     p.stdin.write(json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize",
                               "params": {"protocolVersion": "2025-06-18", "capabilities": {},

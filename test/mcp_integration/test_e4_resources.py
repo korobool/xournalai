@@ -39,7 +39,7 @@ def test_stdio_bridge_forwards_notifications(app):
     import subprocess
     import threading
 
-    p = subprocess.Popen([app.binary, "--mcp-stdio", f"--mcp-port={app.port}"], env=app.env, text=True,
+    p = subprocess.Popen([app.binary, "--mcp-stdio", f"--mcp-port={app.port}"], env=app.app_env(), text=True,
                          stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 
     def send(m):
