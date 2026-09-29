@@ -21,13 +21,13 @@ namespace xoj::mcp {
 struct McpConfig {
     bool enabled = true;
     uint16_t port = 7474;
-    std::string token;                ///< bearer token clients must send; generated on first run
-    std::set<Tier> tiers;             ///< granted permission tiers
-    std::string defaultLayer = "AI";  ///< layer that receives agent drawings ("AI", "current" or a layer name)
-    bool animate = true;              ///< animate agent drawing by default
-    fs::path exportDir;               ///< where exports and renders are written when no path is given
-    bool backups = true;              ///< save a copy of the document before risky agent operations
-    fs::path backupDir;               ///< where those copies go
+    std::string token;                     ///< bearer token clients must send; generated on first run
+    std::set<Tier> tiers;                  ///< granted permission tiers
+    std::string defaultLayer = "current";  ///< layer that receives agent drawings ("current", "AI" or a layer name)
+    bool animate = true;                   ///< animate agent drawing by default
+    fs::path exportDir;                    ///< where exports and renders are written when no path is given
+    bool backups = true;                   ///< save a copy of the document before risky agent operations
+    fs::path backupDir;                    ///< where those copies go
 
     /// Defaults: everything granted except Tier::Destructive
     McpConfig();

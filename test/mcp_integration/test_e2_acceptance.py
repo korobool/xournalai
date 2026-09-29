@@ -4,6 +4,8 @@ import os
 
 import xoai
 
+APP_CONFIG = {"default_layer": "AI"}  # these scenarios exercise the separate AI layer
+
 SUNSET = open(os.path.join(os.path.dirname(__file__), "sunset.svg")).read()
 
 

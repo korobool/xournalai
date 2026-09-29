@@ -85,7 +85,7 @@ bearer_token_env_var = "XOURNALAI_TOKEN"
 | `mcp.json` | `enabled` | Start the server with the app (default `true`) |
 | `mcp.json` | `port` | TCP port (default `7474`) |
 | `mcp.json` | `permissions` | `read`, `draw`, `ui`, `files` (default on), `destructive` (default off: discard unsaved changes, overwrite files, close without saving) |
-| `mcp.json` | `default_layer` | Where agent drawings go: `"AI"` (default), `"current"` or a layer name |
+| `mcp.json` | `default_layer` | Where agent drawings go: `"current"` (default: your selected layer, so you can erase and edit them right away), `"AI"` (a separate layer you accept, hide or clear from the AI Agent menu) or a layer name |
 | `mcp.json` | `animate` | Animate agent drawing by default |
 | `mcp.json` | `export_dir` | Folder for renders and exports when no path is given |
 | `mcp.json` | `backups` / `backup_dir` | Save a copy of the document before risky agent operations (discarding changes, deleting pages or layers, deleting 20+ elements); the newest 30 are kept |

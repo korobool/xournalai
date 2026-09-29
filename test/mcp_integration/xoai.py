@@ -34,9 +34,10 @@ def free_port():
 class App:
     """Runs xournalpp under Xvfb with its own XDG directories. Use as a context manager."""
 
-    def __init__(self, *args, binary=BINARY, permissions=None):
+    def __init__(self, *args, binary=BINARY, permissions=None, config=None):
         self.args = [str(a) for a in args]
         self.permissions = permissions
+        self.config = config or {}
         self.binary = str(binary)
         self.port = free_port()
         self.tmp = tempfile.TemporaryDirectory(prefix="xoai-")
@@ -57,10 +58,13 @@ class App:
         return self.home / "config" / "xournalpp" / "mcp.json"
 
     def start(self, timeout=30):
-        if self.permissions is not None:  # pre-seed mcp.json; the app adds a token on first start
+        if self.permissions is not None or self.config:  # pre-seed mcp.json; the app adds a token on first start
             self.env  # creates the XDG directories
             self.config_file.parent.mkdir(parents=True, exist_ok=True)
-            self.config_file.write_text(json.dumps({"permissions": self.permissions}))
+            seed = dict(self.config)
+            if self.permissions is not None:
+                seed["permissions"] = self.permissions
+            self.config_file.write_text(json.dumps(seed))
         self.log = open(self.home / "app.log", "w")
         cmd = ["xvfb-run", "-a", "-s", "-screen 0 1600x1000x24", self.binary, "--mcp", f"--mcp-port={self.port}",
                *self.args]

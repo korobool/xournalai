@@ -31,7 +31,7 @@ void registerDraftTools(McpServer& server) {
             {"page", schema::integer("begin: page (1-based); default: current page")},
             {"with_page", schema::withDefault(schema::boolean("render: show the draft over the page content"), true)},
             {"region", schema::array("render: area [x, y, width, height]", schema::number("coordinate"))},
-            {"layer", schema::string("commit: target layer (default \"AI\")")},
+            {"layer", schema::string("commit: target layer (default: the user's setting, see app_status)")},
             {"animate", schema::boolean("commit: draw the result progressively")},
             {"speed", schema::number("commit: animation speed")}};
     addRenderSchemaProperties(props);

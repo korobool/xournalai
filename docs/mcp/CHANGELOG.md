@@ -6,6 +6,16 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+### 1.0.1 — Draw into the current layer by default
+- `default_layer` now defaults to `"current"`: agent drawings land in the layer you have selected, so the eraser
+  and selection work on them immediately. `"AI"` (a separate layer) stays available in the settings or per call
+  (`layer="AI"`). Existing `mcp.json` files keep their value.
+- The AI Agent menu's layer actions act on the `"AI"` layer whenever the default is `"current"` (they found no
+  layer before).
+- Fixed: quitting the application crashed while removing the AI Agent menu (the main window is destroyed before
+  the MCP server); the UI now tracks its widgets with weak pointers. A normal-quit scenario was added — the
+  other tests stop the app with a signal and never ran this path.
+
 ## 1.0.0 — Polish (epoch E5)
 The complete feature set: agents read, draw with stylus-like pressure, create content directly, control the whole
 application, co-create with the user and remember what they learned.

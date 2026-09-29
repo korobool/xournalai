@@ -47,7 +47,8 @@ void registerSvgTools(McpServer& server) {
             "polygon, groups and transforms; stroke/fill colors, opacity, dashes) and <text> into text boxes, "
             "placed on the page (1 SVG unit = 1 point, or fitted into 'target'). Best way to draw complex "
             "illustrations. Optional pressure 'profile' and 'tremor' make it look hand-drawn. Gradients use their "
-            "first color. One undo step, \"AI\" layer by default; returns ids and warnings.";
+            "first color. One undo step, the default layer (the user's current layer unless they chose e.g. \"AI\"; "
+            "see app_status); returns ids and warnings.";
     svg.inputSchema = schema::object(std::move(props));
     svg.tier = Tier::Draw;
     svg.asyncHandler = [ctrl, srv](const json& jIn, Responder respond) {

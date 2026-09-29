@@ -170,7 +170,7 @@ void DrawApi::insert(const DrawTarget& target, std::vector<ElementPtr> elements,
     result.page = target.page;
     auto group = std::make_unique<GroupUndoAction>();
 
-    LayerChoice choice = resolveLayer(page, target.layer.empty() ? "AI" : target.layer, target.createLayer);
+    LayerChoice choice = resolveLayer(page, target.layer.empty() ? "current" : target.layer, target.createLayer);
     Layer* layer = choice.layer;
     const size_t layerIndex = choice.index;
     result.layerCreated = choice.created;

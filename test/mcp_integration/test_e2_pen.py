@@ -2,6 +2,8 @@
 
 import math
 
+APP_CONFIG = {"default_layer": "AI"}  # these scenarios exercise the separate AI layer
+
 
 def by_id(c, ident):
     return [e for e in c.call("page_elements", detail="full", limit=5000)["elements"] if e["id"] == ident][0]

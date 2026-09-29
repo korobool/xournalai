@@ -6,6 +6,8 @@ import time
 
 import xoai
 
+APP_CONFIG = {"default_layer": "AI"}  # these scenarios exercise the separate AI layer
+
 
 def test_co_creation_session(app):
     c = app.client()

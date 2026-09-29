@@ -174,8 +174,11 @@ void addStyleSchema(std::vector<schema::Property>& props) {
 void addTargetSchema(std::vector<schema::Property>& props) {
     props.push_back({"page", schema::integer("Page (1-based); default: current page")});
     props.push_back({"new_page", schema::boolean("Append a new page and draw there (ignores 'page')")});
-    props.push_back({"layer", schema::string("Target layer: \"AI\" (default, created on top), \"current\", a layer "
-                                             "name or \"#<n>\"")});
+    props.push_back(
+            {"layer",
+             schema::string("Target layer: \"current\" (the user's selected layer), \"AI\" (a separate layer "
+                            "created on top, which the user can accept, hide or clear), a layer name or \"#<n>\". "
+                            "Default: the user's setting (app_status default_layer)")});
     props.push_back({"animate", schema::boolean("Draw progressively so the user sees it being drawn (default from "
                                                 "settings)")});
     props.push_back({"speed", schema::number("Animation speed factor (1 = about hand speed)")});

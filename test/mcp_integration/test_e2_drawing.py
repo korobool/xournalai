@@ -4,6 +4,8 @@ import math
 
 import xoai
 
+APP_CONFIG = {"default_layer": "AI"}  # these scenarios exercise the separate AI layer
+
 
 def strokes_of(c, ids):
     els = {e["id"]: e for e in c.call("page_elements", detail="full", limit=5000)["elements"]}

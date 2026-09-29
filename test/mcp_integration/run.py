@@ -49,7 +49,8 @@ def main():
             continue
         out(f"== {f.name}")
         args = getattr(mod, "APP_ARGS", [])
-        with xoai.App(*args, permissions=getattr(mod, "APP_PERMISSIONS", None)) as app:
+        with xoai.App(*args, permissions=getattr(mod, "APP_PERMISSIONS", None),
+                      config=getattr(mod, "APP_CONFIG", None)) as app:
             for name, fn in tests:
                 t = time.time()
                 try:

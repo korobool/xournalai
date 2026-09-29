@@ -12,6 +12,8 @@
 
 namespace xoj::mcp::tools {
 
+#define DEF_LAYER "the default layer (the user's current layer unless they chose e.g. \"AI\"; see app_status)"
+
 namespace {
 
 std::vector<double> numberList(const json& v, const std::string& what) {
@@ -83,7 +85,7 @@ void registerDrawTools(McpServer& server) {
             "Creates freehand strokes (pen or highlighter) directly in the document with stylus-like pressure: "
             "give per-point 'pressure' (0..1, mapped like the user's own stylus) or 'widths', or let a "
             "'profile' generate it (default: ink; brush, pencil, calligraphy, marker, constant, none). Points "
-            "are resampled to stylus density. Content goes to the \"AI\" layer by default and the whole call is "
+            "are resampled to stylus density. Content goes to " DEF_LAYER " and the whole call is "
             "one undo step. Returns ids of the created strokes.";
     strokes.inputSchema = schema::object(std::move(props), {"strokes"});
     strokes.tier = Tier::Draw;
@@ -171,8 +173,8 @@ void registerDrawTools(McpServer& server) {
     shapesTool.description =
             "Creates geometric shapes as editable strokes: line, arrow, double_arrow, rectangle (corner_radius), "
             "ellipse, circle, polygon, polyline, bezier, arc, coordinate_system. Closed shapes can be filled "
-            "(fill_opacity). Clean lines by default; hand_drawn=true gives a sketched look. Goes to the \"AI\" "
-            "layer by default; one undo step.";
+            "(fill_opacity). Clean lines by default; hand_drawn=true gives a sketched look. Goes to " DEF_LAYER
+            "; one undo step.";
     shapesTool.inputSchema = schema::object(std::move(shapeProps), {"shapes"});
     shapesTool.tier = Tier::Draw;
     shapesTool.asyncHandler = [ctrl, srv](const json& jIn, Responder respond) {

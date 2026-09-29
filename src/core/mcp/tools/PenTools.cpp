@@ -79,8 +79,9 @@ void registerPenTools(McpServer& server) {
              schema::enumeration("Pressure profile when no pressure is given (default ink)",
                                  {"constant", "ink", "brush", "pencil", "calligraphy", "marker", "match_user"})},
             {"page", schema::integer("Page (1-based); default: current page")},
-            {"layer", schema::string("Layer to act on: default \"AI\" for drawing tools, \"current\" for eraser and "
-                                     "selection; or a name / \"#<n>\"")},
+            {"layer",
+             schema::string("Layer to act on: drawing tools default to the user's setting (app_status "
+                            "default_layer), eraser and selection to \"current\"; or \"AI\", a name, \"#<n>\"")},
             {"speed", schema::withDefault(schema::number("1 = hand speed (the user watches it being drawn), 3 = "
                                                          "faster, 0 = instant"),
                                           1)}};

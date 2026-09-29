@@ -7,6 +7,8 @@ import tempfile
 
 import xoai
 
+APP_CONFIG = {"default_layer": "AI"}  # these scenarios exercise the separate AI layer
+
 
 def elements(c, types):
     return c.call("page_elements", detail="bbox", types=types, limit=500)["elements"]

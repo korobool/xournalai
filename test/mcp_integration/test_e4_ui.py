@@ -2,6 +2,8 @@
 
 import time
 
+APP_CONFIG = {"default_layer": "AI"}  # these scenarios exercise the separate AI layer
+
 
 def status_text(c):
     widgets = c.call("ui_inspect", max_depth=40, all=True)["widgets"]

@@ -42,9 +42,9 @@ void registerContentTools(McpServer& server) {
     ToolSpec text;
     text.name = "create_text";
     text.title = "Create text";
-    text.description =
-            "Adds typed text boxes (multi-line with \\n) at x,y (top-left, page points). Optional font "
-            "{name,size}, color, align (left/center/right) and wrap width. Goes to the \"AI\" layer by default.";
+    text.description = "Adds typed text boxes (multi-line with \\n) at x,y (top-left, page points). Optional font "
+                       "{name,size}, color, align (left/center/right) and wrap width. Goes to the default layer (the "
+                       "user's current layer unless they chose e.g. \"AI\"; see app_status).";
     text.inputSchema = schema::object(
             withTarget({{"texts",
                          schema::array("Text boxes",

@@ -62,8 +62,9 @@ const std::map<std::string, std::string>& topics() {
              "idea it expresses. For flowcharts give the steps in order."},
             {"drawing",
              "Two ways to draw. DIRECT (create_strokes, create_shapes, create_from_svg, create_text, create_latex, "
-             "create_image, create_link): precise, fast, one undo step per call, content goes to the \"AI\" layer by "
-             "default (layer=\"current\" or a name to change). PEN (pen_draw): a simulated stylus through the "
+             "create_image, create_link): precise, fast, one undo step per call, content goes to the default layer "
+             "(app_status default_layer: \"current\" unless the user chose e.g. \"AI\"; layer=... to change). PEN "
+             "(pen_draw): a simulated stylus through the "
              "app's input pipeline - like the user's own pen, visible at hand speed; also erases and selects. "
              "Every creation returns element ids and an operation id; elements_edit/elements_delete accept both. "
              "Use find_free_space to avoid covering the user's notes; new_page=true draws on a fresh page."},
@@ -111,9 +112,10 @@ const std::map<std::string, std::string>& topics() {
              "log with origin user/agent; resources xournal://changes and xournal://page/{n} can be subscribed. "
              "view shows the page the user looks at, their pointer, selection and tool: work where they are. "
              "STYLE: user_style describes the user's pen (needs stylus strokes with pressure); profile=\"match_user\" "
-             "draws in their hand. ETIQUETTE: your drawings go to the \"AI\" layer by default and are briefly "
-             "marked on screen; the user accepts it (merge), hides or clears it from the AI Agent menu, so never "
-             "edit their strokes unless asked. The user can pause you at any time (Ctrl+Alt+Esc): every tool "
+             "draws in their hand. ETIQUETTE: your drawings go to the default layer and are briefly marked on "
+             "screen. With layer=\"AI\" (or default_layer \"AI\") they stay separate: the user accepts (merges), "
+             "hides or clears that layer from the AI Agent menu. Never edit the user's strokes unless asked. The user "
+             "can pause you at any time (Ctrl+Alt+Esc): every tool "
              "except app_status then fails with a 'paused' error and app_status shows paused_by_user=true; stop "
              "and wait, do not retry in a loop. Pausing, resuming and the agent settings are for the user only."},
             {"permissions", "Tools belong to tiers: read, draw, ui, files, destructive. The user grants tiers in "

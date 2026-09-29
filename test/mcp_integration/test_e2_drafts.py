@@ -2,6 +2,8 @@
 
 import xoai
 
+APP_CONFIG = {"default_layer": "AI"}  # these scenarios exercise the separate AI layer
+
 
 def layer_names(c):
     return [l["name"] for l in c.call("doc_info")["pages"][0]["layers"]]
