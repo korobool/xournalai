@@ -282,3 +282,77 @@ Complete, documented, verified coverage across several agents.
 | T5.1.2 | US-5.1 | **Performance** — Render cache, payload limits, pagination review. | `mcp: improve performance of rendering and large documents (T5.1.2)` | ✅ done `12ac74607` |
 | T5.1.3 | US-5.1 | **Reference docs & coverage** — TOOLS.md generated from the registry; COVERAGE.md mapping actions, menus and dialogs. | `mcp: add tool reference and coverage documentation (T5.1.3)` | ✅ done `eb903bcd9` |
 | T5.1.4 | US-5.1 | **Release 1.0.0** — Client matrix results, CHANGELOG, tag. | `mcp: release 1.0.0 (T5.1.4)` | ✅ done `4b15053c9` |
+
+## E6 — Serving session in the app (Assistant Milestone 1) (release 1.2.0)
+
+Your canvas workflow inside xournalai: an embedded terminal running the serving Claude Code (bypass permissions by default), an AI toolbar built on your markers, an Auto-improve toggle, and visible thinking, with no extra windows.
+
+### S6.1 — Embedded AI terminal → v1.1.1
+
+**US-6.1** — As the owner, I want a collapsible terminal inside xournalai that runs Claude Code or Codex, so that the serving session lives in the app, not in a separate window.
+
+- [ ] a dock with tabs toggles with a key and keeps its processes while hidden
+- [ ] tab 1 starts Claude Code in the companion folder with --dangerously-skip-permissions (setting: bypass | normal)
+- [ ] + opens Codex (--dangerously-bypass-approvals-and-sandbox), OpenCode or a shell
+- [ ] builds without VTE (ENABLE_AI_TERMINAL off)
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T6.1.1 | US-6.1 | **Terminal dock** — CMake option ENABLE_AI_TERMINAL (vte-2.91); a collapsible dock (bottom, resizable) with a notebook of VTE tabs; View/AI Agent menu toggle and shortcut; processes keep running while hidden. | `ai: add embedded terminal dock (T6.1.1)` | ⬜ todo |
+| T6.1.2 | US-6.1 | **Companion folder** — ~/.local/share/xournalai/companion: CLAUDE.md (role, markers *! **! *w! *c! *r!, assist-don't-redo, delegation, wake-up protocol), .mcp.json (stdio bridge to this app), settings (hooks); created and updated by the app. | `ai: provision the companion folder (T6.1.2)` | ⬜ todo |
+| T6.1.3 | US-6.1 | **Serving session autostart** — Tab 1 auto-starts `claude --dangerously-skip-permissions --continue` in the companion folder when the app starts (settings: autostart, permission mode bypass|normal, agent claude|codex); '+' menu for Codex / OpenCode / shell; restart action. | `ai: start the serving session in the dock (T6.1.3)` | ⬜ todo |
+
+### S6.2 — The app watches, the session works → v1.1.2
+
+**US-6.2** — As the owner, I want the serving session to react whenever something relevant happens on the canvas, without it falling asleep, so that watching works all day.
+
+- [ ] the app knows whether the session is busy or idle (hooks)
+- [ ] relevant events wake an idle session by typing a short line into its terminal
+- [ ] events are coalesced; a watchdog resends once and offers Restart
+- [ ] nothing is sent while AI is paused or the session is busy with your typing
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T6.2.1 | US-6.2 | **Session state via hooks** — `xournalpp --ai-hook <event>` (SessionStart, UserPromptSubmit, Stop, Notification) reports to the running app; state busy/idle/waiting shown in the status strip. | `ai: track the serving session state with hooks (T6.2.1)` | ⬜ todo |
+| T6.2.2 | US-6.2 | **Event pump and wake-ups** — Coalesced canvas events (user strokes after idle, markers, toolbar actions) become one wake-up line typed into the idle session's terminal (only when its prompt is empty); intents_next / changes_get for details; watchdog and Restart. | `ai: wake the serving session on canvas events (T6.2.2)` | ⬜ todo |
+
+### S6.3 — AI toolbar and Auto-improve → v1.1.3
+
+**US-6.3** — As the owner, I want AI buttons for my marker commands and a toggle for assistant mode, so that I can trigger AI help without writing markers every time.
+
+- [ ] an AI toolbar row with: Improve strokes (*!), Illustrate (**!), Web summary (*w!), Real image (*r!), Command (*c!), Revise page, Pause, Terminal
+- [ ] buttons act on the selection (or the last drawn piece)
+- [ ] an Auto-improve toggle: on = improve everything written; off = markers and commands only
+- [ ] handwritten markers are detected cheaply and trigger the same actions
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T6.3.1 | US-6.3 | **AI toolbar** — A toolbar row with the AI actions based on your markers, plus Revise page, Pause and Terminal; each creates an intent with the selection (or the last piece) and wakes the session. | `ai: add the AI toolbar (T6.3.1)` | ⬜ todo |
+| T6.3.2 | US-6.3 | **Auto-improve toggle** — Toggle button, menu entry and shortcut; per-rule dropdown (formulas, text, diagrams, colours); the mode is in the status strip and in every wake-up. | `ai: add the Auto-improve toggle (T6.3.2)` | ⬜ todo |
+| T6.3.3 | US-6.3 | **Handwritten marker detection** — Detect candidate markers among fresh strokes (asterisk: 2-4 short crossing strokes; then '!' bar plus dot; the letter read by the session from a crop); markers_list / marker_done removes the marker. | `ai: detect handwritten markers (T6.3.3)` | ⬜ todo |
+
+### S6.4 — Visible thinking → v1.1.4
+
+**US-6.4** — As the owner, I want to see where and what the AI is thinking about, so that it is never silent.
+
+- [ ] the zone being worked on is covered with a translucent grey veil and an animated outline, with a thinking icon and one-line status
+- [ ] states queued, thinking, drawing, done or failed are visible
+- [ ] the status strip shows the session state and the number of tasks in progress
+- [ ] clicking the icon cancels (interrupts the session)
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T6.4.1 | US-6.4 | **Thinking overlay** — Canvas overlay: a translucent grey veil plus animated outline over the zone, an icon, and a one-line status; follows zoom and scroll; the session sets it via intent_update / a thinking tool, the app sets it for its own intents. | `ai: show thinking zones on the canvas (T6.4.1)` | ⬜ todo |
+| T6.4.2 | US-6.4 | **Status and cancel** — The status strip shows the session state, active tasks and the mode; clicking a thinking icon or Stop interrupts the session (Esc into its terminal) and clears the zone. | `ai: show assistant status and allow cancel (T6.4.2)` | ⬜ todo |
+
+### S6.5 — Milestone 1 release → v1.2.0
+
+**US-6.5** — As the owner, I want Milestone 1 tested and documented, so that it works for a full day of real use.
+
+- [ ] integration tests with a fake companion (the terminal and the wake-up protocol)
+- [ ] docs/assistant updated
+- [ ] CHANGELOG and tag ai-v1.2.0
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T6.5.1 | US-6.5 | **Milestone 1 release** — Integration tests (fake companion script in the dock; wake-ups, hooks, toolbar intents, overlay), docs, CHANGELOG, tag ai-v1.2.0. | `ai: release 1.2.0 (Assistant Milestone 1) (T6.5.1)` | ⬜ todo |

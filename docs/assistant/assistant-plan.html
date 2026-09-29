@@ -1,0 +1,1343 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>xournalai Assistant plan</title>
+<style>
+:root {
+  --bg: #f6f7f7; --panel: #ffffff; --ink: #1d2428; --muted: #5d6a70; --line: #dde3e5;
+  --accent: #0d9488; --accent-soft: #e3f4f2; --warn: #b45309; --warn-soft: #fdf1e3;
+  --good: #15803d; --bad: #b91c1c; --code: #eef2f3;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1719; --panel: #172226; --ink: #e3ecee; --muted: #93a4aa; --line: #2a393e;
+    --accent: #2dd4bf; --accent-soft: #123331; --warn: #f59e0b; --warn-soft: #33260f;
+    --good: #4ade80; --bad: #f87171; --code: #1d2b30;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1719; --panel: #172226; --ink: #e3ecee; --muted: #93a4aa; --line: #2a393e;
+  --accent: #2dd4bf; --accent-soft: #123331; --warn: #f59e0b; --warn-soft: #33260f;
+  --good: #4ade80; --bad: #f87171; --code: #1d2b30;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Cantarell, Ubuntu, sans-serif; }
+.wrap { display: grid; grid-template-columns: 250px minmax(0, 1fr); max-width: 1200px; margin: 0 auto; gap: 32px;
+  padding: 24px 16px 80px; }
+nav { position: sticky; top: 16px; align-self: start; font-size: 14px; }
+nav a { display: block; color: var(--muted); text-decoration: none; padding: 4px 8px; border-radius: 6px; }
+nav a:hover { background: var(--accent-soft); color: var(--ink); }
+nav .count { float: right; color: var(--accent); font-weight: 600; }
+header h1 { margin: 0 0 4px; font-size: 30px; letter-spacing: -0.01em; }
+header p { margin: 0; color: var(--muted); }
+.badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px;
+  background: var(--warn-soft); color: var(--warn); margin-left: 8px; vertical-align: middle; }
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px 24px;
+  margin-top: 20px; }
+section h2 { margin: 0 0 12px; font-size: 21px; }
+section h3 { margin: 18px 0 6px; font-size: 16px; }
+.tldr { border-left: 4px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 8px; }
+.crit { border-left: 4px solid var(--warn); padding: 4px 0 4px 14px; margin: 12px 0; }
+.crit b { color: var(--warn); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 8px; border-bottom: 1px solid var(--line); }
+th { color: var(--muted); font-weight: 600; }
+td.v { font-weight: 600; white-space: nowrap; }
+.pos { color: var(--good); } .neg { color: var(--bad); }
+code, pre { font-family: ui-monospace, "JetBrains Mono", "DejaVu Sans Mono", monospace; font-size: 13px; }
+code { background: var(--code); padding: 1px 5px; border-radius: 4px; }
+pre { background: var(--code); padding: 12px; border-radius: 8px; overflow-x: auto; }
+ul { padding-left: 20px; } li { margin: 3px 0; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.card { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.card h4 { margin: 0 0 4px; font-size: 15px; }
+.card p { margin: 0; font-size: 14px; color: var(--muted); }
+.epoch { border: 1px solid var(--line); border-radius: 10px; margin: 10px 0; }
+.epoch summary { cursor: pointer; padding: 10px 14px; font-weight: 600; }
+.epoch summary span { color: var(--accent); margin-left: 6px; font-weight: 500; }
+.epoch ul { margin: 0 14px 12px; }
+svg { max-width: 100%; height: auto; }
+.diagram text { font: 13px system-ui, sans-serif; fill: var(--ink); }
+.diagram .box { fill: var(--panel); stroke: var(--line); stroke-width: 1.5; }
+.diagram .hl { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2; }
+.diagram .arrow { stroke: var(--muted); stroke-width: 1.5; fill: none; marker-end: url(#ah); }
+.diagram .small { font-size: 11.5px; fill: var(--muted); }
+/* feedback */
+.fb { margin-top: 16px; border-top: 1px dashed var(--line); padding-top: 12px; }
+.fb label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 4px; }
+textarea { width: 100%; min-height: 64px; resize: vertical; border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px 10px; background: var(--bg); color: var(--ink); font: inherit; font-size: 14px; }
+textarea:focus { outline: 2px solid var(--accent); border-color: transparent; }
+.stance { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.stance button, .opt { border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 99px;
+  padding: 4px 12px; font: inherit; font-size: 13px; cursor: pointer; }
+.stance button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.q { border: 1px solid var(--line); border-radius: 10px; padding: 14px; margin: 12px 0; }
+.q h4 { margin: 0 0 4px; }
+.q p { margin: 0 0 10px; color: var(--muted); font-size: 14px; }
+.opts { display: flex; flex-direction: column; gap: 6px; }
+.opts label { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; cursor: pointer; padding: 6px 8px;
+  border-radius: 8px; }
+.opts label:hover { background: var(--accent-soft); }
+.opts input { margin-top: 4px; accent-color: var(--accent); }
+.rec { font-size: 12px; color: var(--accent); font-weight: 600; margin-left: 4px; }
+.bar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--panel); border-top: 1px solid var(--line);
+  padding: 10px 16px; display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap; z-index: 5; }
+.bar button { border: 0; border-radius: 8px; padding: 8px 16px; font: inherit; font-weight: 600; cursor: pointer; }
+.primary { background: var(--accent); color: #fff; }
+.secondary { background: var(--code); color: var(--ink); }
+.bar .status { color: var(--muted); font-size: 13px; }
+.theme { position: absolute; top: 16px; right: 16px; }
+@media (max-width: 820px) {
+  .wrap { grid-template-columns: 1fr; gap: 0; }
+  nav { display: none; }
+  section { padding: 16px; }
+  td.v { white-space: normal; }
+}
+</style>
+</head>
+<body>
+<button class="secondary theme" id="themeBtn" type="button" style="border:0;border-radius:8px;padding:6px 10px;cursor:pointer">Theme</button>
+<div class="wrap">
+<nav aria-label="Sections">
+  <a href="#s20">★ What you actually do <span class="count" data-for="s20"></span></a>
+  <a href="#s9">0. Scope <span class="count" data-for="s9"></span></a>
+  <a href="#s12">0.1 The scenario <span class="count" data-for="s12"></span></a>
+  <a href="#s13">0.2 Assistant session <span class="count" data-for="s13"></span></a>
+  <a href="#s14">0.3 Lessons from real use <span class="count" data-for="s14"></span></a>
+  <a href="#s15">0.4 Launchpad <span class="count" data-for="s15"></span></a>
+  <a href="#s16">0.5 Sessions draw for you <span class="count" data-for="s16"></span></a>
+  <a href="#s17">0.6 Companion session <span class="count" data-for="s17"></span></a>
+  <a href="#s18">0.7 After drawing <span class="count" data-for="s18"></span></a>
+  <a href="#s19">0.8 Keeping it awake <span class="count" data-for="s19"></span></a>
+  <a href="#s1">1. Where we started <span class="count" data-for="s1"></span></a>
+  <a href="#s2">2. Critique <span class="count" data-for="s2"></span></a>
+  <a href="#s3">3. Options <span class="count" data-for="s3"></span></a>
+  <a href="#s4">4. Proposal <span class="count" data-for="s4"></span></a>
+  <a href="#s5">5. Feature set <span class="count" data-for="s5"></span></a>
+  <a href="#s8">5.8 Voice mode <span class="count" data-for="s8"></span></a>
+  <a href="#s10">5.9 Stability &amp; setup <span class="count" data-for="s10"></span></a>
+  <a href="#s11">5.10 Sessions &amp; socket bus <span class="count" data-for="s11"></span></a>
+  <a href="#s21">M1 toolbar &amp; thinking <span class="count" data-for="s21"></span></a>
+  <a href="#s6">6. Plan <span class="count" data-for="s6"></span></a>
+  <a href="#s7">7. Decisions <span class="count" data-for="s7"></span></a>
+</nav>
+<main>
+<header>
+  <h1>xournalai Assistant <span class="badge">rev 17 · Milestone 1 planned (E6 on the Kanban board)</span></h1>
+  <p>A full Claude session inside xournalai, driven by in-app controls and talking to your other sessions; the
+  MCP server keeps working for external agents.
+  Comment on every section; the bar at the bottom saves your feedback to a file.</p>
+</header>
+
+<section id="s0">
+  <div class="tldr">
+    <b>In one paragraph.</b> xournalai becomes <b>a shared whiteboard between you, your Claude sessions and your
+    system</b>: assisted drawing first, sessions and your system drawing for you, and the drawing as a launchpad.
+    You draw and think; a <b>full Claude Code companion session</b> starts with the app (your subscription, your laptop; first in a
+    terminal window, then in a hideable dock inside the app),
+    specialised for drawing by its own workspace and skills, and a <b>peer on your socket bus</b>, so it can ask
+    your project sessions for context. When a drawing is ready, it <b>launches or feeds other sessions</b>
+    (implementation, research, tinkering) with the picture and its meaning attached. In-app controls (AI pen, your
+    markers <code>XC!</code> / <code>*r!</code>, AI lasso, prompt box, voice later) create <b>intents</b>; the
+    session serves them. A <b>focused co-pilot</b> watches only fresh pieces and pinned zones, cheaply, while
+    <b>Revise</b> is a deliberate full pass. Previews, one-step undo and Stop live in the app. Its terminal is yours too: type
+    to it, or open Codex next to it. Order: quick wins to the MCP server, then the
+    drawing assistant (toolbox, previews, embedded session, co-pilot), then the launchpad, then a 2.0 pitch
+    build.
+  </div>
+</section>
+
+<section id="s20" data-section="★ What you actually do (read from your live canvas session)">
+  <h2>★ What you actually do: read from your live canvas session</h2>
+  <p style="color:var(--muted);font-size:14px">Source: the canvas session (<code>~/.claude/projects/-home-olek/085dba93…</code>),
+  about 116 of your messages from 04:30 to now, including its two context summaries. The rest of this document is
+  held against this section.</p>
+  <h3>1. Watching and assisting is the core loop</h3>
+  <p>Most of the day is <b>"keep watching"</b>: you write and draw with the stylus, and the session improves as you
+  go:</p>
+  <ul>
+    <li>formulas become LaTeX, including your later small edits;</li>
+    <li>text is rewritten in <b>your own v3 handwriting</b>, with spelling fixed, and sometimes a small tip beside
+      it;</li>
+    <li>diagrams are redrawn accurately;</li>
+    <li>drawings get a <b>consistent palette</b>, and the "?" placeholders turn grey.</li>
+  </ul>
+  <h3>2. Your marker language (you invented it; it works)</h3>
+  <table><thead><tr><th>Marker</th><th>Meaning</th></tr></thead><tbody>
+    <tr><td><code>*!</code></td><td>Improve my strokes: same object, same pose and size, drawn better.</td></tr>
+    <tr><td><code>**!</code></td><td>A professional illustration of the object.</td></tr>
+    <tr><td><code>*w!</code></td><td>Search the web, and write a short summary next to it.</td></tr>
+    <tr><td><code>*c!</code></td><td>What follows is a command for the AI.</td></tr>
+    <tr><td><code>*r!</code></td><td>A real image: a photo (PD/CC0 from Wikimedia), or a generated one when available.</td></tr>
+  </tbody></table>
+  <p>The marker strokes are removed after they've been acted on.</p>
+  <h3>3. Your sharpest feedback: assist, don't redo</h3>
+  <div class="crit">"I didn't ask you to redraw everything. I just needed you to improve my strokes… it needs to work
+    as an assisted mode, not as a complete redo without asking." And: <b>"I need much quicker reaction."</b></div>
+  <h3>4. Division of labour: your rule, already in use</h3>
+  <p><i>"Delegate this type of work so that the andrew project session is aware of important context; this session
+  is for rendering and watching; manage contexts in a smart way."</i></p>
+  <ul>
+    <li>The peer researched, verified the diagrams against code and live gcloud, caught false claims, and updated
+      and pushed the fleet docs, only after your confirmation in its own session.</li>
+    <li>The canvas session rendered and watched.</li>
+  </ul>
+  <h3>5. What the drawings became</h3>
+  <ul>
+    <li><b>Eleven architecture and data-flow schemes</b> (a right-to-left flow: insurers → scrapers → mappers →
+      canonical JSON → tool hub → MCP → thinking core and broker app).</li>
+    <li>They were exported as images into the <b>broker-fleet</b> docs and pushed (0.9.49–0.9.52).</li>
+    <li>Plus a conspect redrawn from a photo of your paper notes, the handwriting fonts (v1 → v3), Einstein as a pencil
+      sketch, the coloured butterfly, a real pigeon photo, and a "GYM AT HOME" mind map.</li>
+  </ul>
+  <h3>6. What hurt</h3>
+  <ul>
+    <li><b>Slow reactions,</b> and over-eager redraws.</li>
+    <li><b>The context ran out twice</b> during long watching (images and element dumps pile up).</li>
+    <li><b>Connection drops and the invisible pause.</b></li>
+    <li><b>Exports</b> that missed items drawn separately.</li>
+    <li><b>SVG size limits</b> and oversized tool results.</li>
+    <li><b>Stale facts</b> in diagrams, caught by the peer.</li>
+    <li><b>A second app window</b> started by the session.</li>
+  </ul>
+  <h3>7. How you talk to it</h3>
+  <ul>
+    <li><b>Long, dictated prompts</b> (voice is already part of your workflow, just outside the app).</li>
+    <li><b>Short "keep watching" / "go" / "watch"</b> to resume.</li>
+    <li><b>Commands written on the canvas</b> ("I added a command, see it").</li>
+  </ul>
+  <h3>What this changes in the design</h3>
+  <div class="grid2">
+    <div class="card"><h4>An assist contract (new)</h4><p>Assist means <b>minimal, in place, fast</b>: keep the position,
+      size, pose and layout; improve the strokes you made rather than replacing the drawing; never add content
+      unasked. A bigger change needs a marker (<code>**!</code>) or a question first.</p></div>
+    <div class="card"><h4>Speed: your targets (decided)</h4><p><b>Small pieces</b> (a few words, a simple shape, a
+      formula): <b>a few seconds is fine</b>. The input is small, so the model is quick. <b>Big tasks</b>
+      (<code>*c!</code> commands, <code>**!</code>, diagrams from a peer): they may take long. <b>Never silently:</b>
+      thinking is always visible where it happens. Geometric touch-ups (smoothing, snapping) can still be instant
+      in the app; that's a bonus, not a must.</p></div>
+    <div class="card"><h4>Auto-improve toggle (decided)</h4><p>A toggle button in the toolbar (plus a shortcut and a
+      menu entry). <b>On:</b> the assistant improves everything you write, unasked (formulas → LaTeX, text in your
+      handwriting, diagrams, consistent colours). <b>Off:</b> only your markers and commands are acted on. Its dropdown
+      switches the individual rules (formulas / text / diagrams / colours). The status strip always shows which mode
+      is on.</p></div>
+    <div class="card"><h4>Visible thinking (new, first-class)</h4><p>Every piece of work the assistant is doing shows
+      on the canvas: the <b>zone is highlighted</b> (a soft animated outline around the region or next to the
+      marker), with a <b>small thinking icon</b> and a one-line status ("reading formula…", "asking andrew-proj-fd…",
+      "drawing 3/5"). Queued, thinking, drawing, done or failed, each visibly. Tap the icon to cancel or see details.
+      The status strip counts what's in progress.</p></div>
+    <div class="card"><h4>Markers are the command grammar</h4><p>Your five markers are built in (and extendable).
+      The app finds candidate markers cheaply (an asterisk is 2–4 short crossing strokes, "!" is a bar plus a dot)
+      and asks the fast model only to read the tiny crop. It wakes the companion with "<code>*w!</code> next to the
+      pigeon on page 1", and removes the marker when it's done.</p></div>
+    <div class="card"><h4>Context that lasts all day</h4><p>The companion keeps images out of its context (crops on
+      demand, summaries in the notes memory), and before the context runs out it rolls over: a fresh session
+      resumed from a canvas-state summary. The app watches, so a rollover loses nothing.</p></div>
+    <div class="card"><h4>Delegation as a default</h4><p>The companion renders and watches. Facts, verification and docs
+      are asked of the project session. Peer messages are data: they never grant permissions (as
+      <code>andrew-proj-fd</code> already did right: push only on your confirmation).</p></div>
+    <div class="card"><h4>Drawings into docs, correctly</h4><p>"Publish this page to the project docs" exports from the
+      app's renderer (nothing missing), and the peer commits it on your confirmation. That's the path your 11
+      schemes took, made reliable.</p></div>
+  </div>
+</section>
+
+<section id="s9" data-section="0. Scope: a Linux prototype on your subscriptions">
+  <h2>0. Scope: a Linux prototype on your subscriptions</h2>
+  <div class="tldr" style="margin-bottom:12px;border-left-color:var(--warn);background:var(--warn-soft)">
+    <b>What xournalai is for you: a shared whiteboard between you, your Claude sessions and your system. Three
+    flows:</b><br>
+    <b>① Assisted drawing (phase 1, tested first).</b> You draw; a Claude session helps: strokes, shapes, colours,
+    sketches, images, formulas.<br>
+    <b>② Sessions and your system draw <i>for</i> you.</b> Start a board already connected: "draw the architecture
+    of the project in this folder" (the project session knows it), "learn my system and plot CPU and memory, capacity
+    and current use, hand-drawn". Knowledge and live data become drawings you can then work on.<br>
+    <b>③ The drawing as a launchpad.</b> What's on the page starts or feeds work in other sessions: implementation,
+    research, tinkering, or continuing a running conversation.<br>
+    The flows mix freely in one session: a diagram a project session drew (②) that you annotate with help (①)
+    becomes the task for the next step (③).</div>
+  <div class="tldr"><b>Now:</b> a complete, stable xournalai on <b>your Linux laptop</b>, for daily use and for
+  pitching. Installed with one command, with <b>no terminal window</b>. The assistant runs on your <b>Claude or Codex
+  subscription</b> through the locally installed Claude Code, Codex or OpenCode. No API keys, no tokens bought
+  separately, no servers of ours.<br><b>Later, not in scope:</b> a public endpoint or service, the built-in API runner,
+  Android, macOS, public packaging. The architecture keeps those doors open, and nothing is built for them now.</div>
+  <h3>What this changes in the plan</h3>
+  <ul>
+    <li><b>The runner is ACP only</b>, with the local CLIs. The built-in API runner moves to the later horizon.</li>
+    <li><b>Installing it is part of the product:</b> one script builds, installs, registers the launcher and sets up
+      the ACP adapters in a private folder the app manages. The app checks the setup and says what's missing.</li>
+    <li><b>Stability comes before features.</b> Agent crashes and hangs must never freeze or break the app (see
+      5.9). Usage is yours to judge (Max plan); the app only shows what it spends.</li>
+    <li><b>Android and other platforms:</b> a separate, later iteration with its own redesign. Not discussed here.</li>
+    <li><b>Voice A (push-to-talk) uses local speech recognition only</b> (whisper.cpp), with no cloud; if it's in,
+      it's in the prototype.</li>
+    <li><b>The terminal drawer is dropped from the prototype.</b> You don't want a terminal; the Activity panel
+      replaces it.</li>
+  </ul>
+  <h3>Architecture that keeps the doors open (without building them)</h3>
+  <ul>
+    <li><b>Assistant core as a plain C++ library, with no GTK:</b> intents and queue, action library, work-unit
+      grouping, runner interface, ACP client, prompts. The GTK app is one front end; an Android or macOS front end
+      would be another.</li>
+    <li><b>A runner interface with a remote-capable protocol:</b> intents and results are serialisable messages, so a
+      "remote runner" (laptop serving phone, later a cloud endpoint) is a transport, not a redesign.</li>
+    <li><b>MCP stays the tool surface:</b> any front end that implements the tools can be driven by the same
+      runners.</li>
+  </ul>
+</section>
+
+<section id="s12" data-section="0.1 The scenario (your words, structured)">
+  <h2>0.1 The scenario: how you'll use it</h2>
+  <ol>
+    <li><b>Think with a pen.</b> You open xournalai to brainstorm something and start drawing.</li>
+    <li><b>Assistant on.</b> You switch on AI mode. It watches (the focused way: fresh pieces and zones) and helps:
+      tidier strokes, clean shapes in hand-drawn diagrams, colours, drawing what's tedious by hand, improving
+      pictures.</li>
+    <li><b>Ask as you go:</b> "help with this schema", "colorize this", "draw a server rack here", "find a photo of X
+      and put it here" (<b>web search, image insert</b>), "generate an illustration of Y" (<b>image
+      generation</b>). You keep drawing while it works.</li>
+    <li><b>It talks to your other sessions.</b> Your software-engineering session lives in the project folder
+      with its CLAUDE.md, skills and the work in progress. The drawing session asks it for context ("which modules
+      talk to the broker?") and draws with the answer. The project session can push to the canvas too ("put the
+      new architecture on page 4"). What you draw becomes a task for the project session, with the picture
+      attached.</li>
+    <li><b>Connected from the start.</b> A board can begin <i>linked</i> to a project session or folder: "draw the
+      system architecture of the project in ~/workspace/andrew_proj" (the drawing session asks the project session,
+      which knows the code), or "learn my laptop and draw CPU and memory: capacity and current utilisation, as
+      hand-drawn charts" (the drawing session uses Claude Code's own tools to inspect the system). The result is a
+      drawing you then refine and talk about (0.5).</li>
+    <li><b>From drawing to action (the launchpad).</b> When the drawing is in good shape, it seeds further work:
+      "start implementing this" in a new or existing project folder, "research this", "tinker with this idea",
+      or "continue with andrew-proj-fd from here". The receiving session gets the picture and its <i>meaning</i>
+      (transcribed text, diagram structure, open questions) and can report progress back onto the page (0.4).</li>
+    <li><b>Division of labour.</b> The <b>drawing session</b> knows the canvas, drawing skills and tools. The
+      <b>project sessions</b> know their code. Neither has to know everything, and each keeps the full power of
+      Claude Code.</li>
+  </ol>
+  <p><b>The consequence for the design:</b> xournalai's assistant is a <b>real, full Claude Code session</b>,
+  embedded and hidden but complete (tools, skills, web, MCP, subagents, peer messaging), specialised for drawing
+  through its workspace, and a peer among your sessions.</p>
+</section>
+
+<section id="s13" data-section="0.2 Anatomy of the assistant session">
+  <h2>0.2 Anatomy of the assistant session</h2>
+  <div class="grid2">
+    <div class="card"><h4>Workspace</h4><p><code>~/.local/share/xournalai/assistant/</code> (or per document):
+      its own CLAUDE.md ("you are the drawing assistant of xournalai…"), the drawing skills
+      (<code>xournal-conspect</code> and new ones), the action library, and an exchange folder for images shared
+      with other sessions.</p></div>
+    <div class="card"><h4>Tools</h4><p>xournalai's MCP (per-window socket), plus everything your Claude Code has:
+      web search and fetch, files, bash, subagents, peer messaging, and whatever image generation you've wired
+      in (Nano Banana, an Anthropic tool, …). xournalai only has to bring the images onto the canvas well.</p></div>
+    <div class="card"><h4>One session, helpers inside</h4><p>The main session (strong model) holds the conversation.
+      A <b>canvas-watcher helper agent</b> on a fast model processes the fresh pieces; others as needed (layout,
+      image search). This replaces "two sessions per document": one context, and a cheap model where it
+      belongs.</p></div>
+    <div class="card"><h4>A peer on the bus</h4><p>Named <code>xournalai-&lt;document&gt;</code>. It messages project
+      sessions and answers them. Pictures travel as files in the exchange folder (same laptop), referenced in the
+      message.</p></div>
+    <div class="card"><h4>Hidden, but yours</h4><p>No terminal by default. <b>"Open session in terminal"</b>
+      starts <code>claude --resume &lt;id&gt;</code> in your normal terminal to take over, inspect or debug. There's
+      nothing to embed, and it replaces the VTE drawer.</p></div>
+    <div class="card"><h4>Lifecycle</h4><p>Starts when AI mode is switched on (or on the first request), stays while
+      the document is open, resumes the same session next time (its memory of this document lives on). A pause
+      stops it acting at once.</p></div>
+  </div>
+  <h3>Where I push back</h3>
+  <div class="crit"><b>"Sees completely what I'm doing" has to mean a cheap, focused eye.</b> If the full main
+    session (strong model, big context) looks at every stroke, it gets slow and your conversation context fills
+    with ink. The fast canvas-watcher helper looks at the fresh pieces and passes only meaningful events up ("a
+    diagram of 5 boxes appeared at the top-left"). The main session stays for thinking and talking.</div>
+  <div class="crit"><b>Talking to other sessions takes time and it's asynchronous.</b> A question to the project
+    session can take a minute. The app must never wait: the Activity panel shows "asked andrew-proj-fd, waiting",
+    you keep drawing, and the answer arrives as a note or draft.</div>
+</section>
+
+<section id="s14" data-section="0.3 Lessons from your canvas session (Einstein, conspects, fleet docs)">
+  <h2>0.3 Lessons from your canvas session</h2>
+  <p>From the session that drew Einstein, coloured your butterfly and flower as you drew them, redrew your
+  diagrams, typeset formulas, wrote in your handwriting (Russian and English) and built the fleet architecture
+  pages with <code>andrew-proj-fd</code>. Its record: 149 waits for your edits, 116 SVG imports, 85 renders, 45
+  LaTeX formulas, 64 deletions.</p>
+  <table>
+    <thead><tr><th>What happened</th><th>What it means for the design</th></tr></thead>
+    <tbody>
+      <tr><td><b>104 tool results were too big for the agent</b> (e.g. an SVG import answering with ~200k
+        characters: every stroke's id and bbox).</td>
+        <td><b>Compact answers by default:</b> count, operation id and overall bbox; ids only on request or
+        written to a file. <i>A quick win, fixable now.</i></td></tr>
+      <tr><td><b>An SVG over the 5 MB limit</b> had to be split by hand.</td>
+        <td>Big drawings go by <b>file path, streamed and chunked by the app</b>, with no size ceiling for local
+        files. <i>A quick win.</i></td></tr>
+      <tr><td><b>Its scripts wanted direct canvas access</b> (fetch strokes, place glyphs) but had no sanctioned
+        way (a token in a config file).</td>
+        <td><b>A canvas SDK for the assistant's scripts:</b> a small Python module plus a CLI that talk to the
+        per-window socket (owner-only permissions, no token), so skills like your handwriting library can
+        work fast and directly.</td></tr>
+      <tr><td><b>Procedural drawing couldn't reach a likeness of Einstein</b>; tracing a photo into line art
+        could.</td>
+        <td><b>Image → native strokes</b> as an app tool: <code>trace_image(image, style: line-art | pencil |
+        contour, detail)</code> turns any picture (found on the web, generated, photographed) into editable
+        pressure strokes. That covers your "sketch it with native strokes" wish for anything with a
+        reference.</td></tr>
+      <tr><td><b>Your handwriting</b> was captured into a glyph library inside the skill and reused, with fixes
+        (dots on "i", "g" and "p").</td>
+        <td><b>"My handwriting" as a first-class feature:</b> capture and refine your glyphs in the app, plus a tool
+        <code>write_handwritten(text, x, y, size, tidy)</code>. Every session can then write in your hand, not
+        just this skill. A strong pitch feature.</td></tr>
+      <tr><td><b>Grouping text into lines went wrong once</b> (a heading and the next line mixed up; a tilted
+        baseline).</td>
+        <td>Line and word grouping belongs in the app's layout analysis (it exists; make it robust to slant and
+        mixed scripts), so the model doesn't redo it every time.</td></tr>
+      <tr><td><b>Command markers you invented:</b> <code>XC!</code> (revise), <code>*r!</code> (generate an
+        image).</td>
+        <td>Keep them. <b>Your markers are first-class:</b> defined in the action library (marker → action), found
+        cheaply among the fresh pieces, next to the AI pen. <code>*r!</code> is served by whatever image tool your
+        session has.</td></tr>
+      <tr><td><b>Erasing</b> left orphaned tips; the session cleaned them up correctly but only by noticing.</td>
+        <td>Annotations remember what they belong to; erasing the target removes or greys out its annotations
+        automatically.</td></tr>
+      <tr><td><b>The peer caught a mistake</b> (a service is in prod, not only dev) before anything was published.</td>
+        <td>Validates the bus design: <b>"verify with project session"</b> becomes a built-in step for technical
+        diagrams.</td></tr>
+      <tr><td><b>An export left out a sketch</b> that had been drawn separately.</td>
+        <td>Exports and "send page to session" always come from the app's own renderer of the whole page (layers
+        included), never from a composite made by the agent.</td></tr>
+      <tr><td><b>Connection drops, the invisible pause</b></td>
+        <td>Fixed already: the bridge keeps the tools across restarts, the port is taken over, the pause is
+        obvious.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="s15" data-section="0.4 The launchpad: from a drawing to sessions">
+  <h2>0.4 The launchpad: from a drawing to sessions</h2>
+  <p>Phase 2, built on phase 1. A page (or a region) becomes the starting point of real work elsewhere.</p>
+  <div class="grid2">
+    <div class="card"><h4>Start a new session from the page</h4><p>"Start implementation", "Start research",
+      "Tinker", or your own templates. You choose a folder (new or existing project); a Claude Code session starts
+      there with a handoff package and a first prompt. It opens <b>in a normal terminal window</b> (that's where you
+      work with project sessions), joins the bus, and is linked to the page.</p></div>
+    <div class="card"><h4>Continue with a running session</h4><p>Send the page or a region to a peer
+      (<code>andrew-proj-fd</code>, …) with an instruction: "update the fleet docs from this", "does the code
+      match this diagram?". Replies land as notes or drafts.</p></div>
+    <div class="card"><h4>The handoff package</h4><p>Built by the drawing session so the receiver doesn't guess:
+      the page image (from the app's renderer), transcribed handwriting, <b>diagram structure</b> (boxes, arrows,
+      labels as a graph), formulas as LaTeX, the notes memory, open questions, and the link back. Saved in the
+      exchange folder and referenced in the prompt.</p></div>
+    <div class="card"><h4>The round trip</h4><p>Linked sessions can write back: progress marks on the diagram
+      ("✓ implemented", "⚠ blocked"), answers next to questions, a new page with their findings. The drawing
+      becomes a live map of the work.</p></div>
+  </div>
+  <h3>Where I push back</h3>
+  <div class="crit"><b>A picture alone is a weak spec.</b> Handing a project session just a PNG makes it re-derive
+    everything, and it will misread things. The value is in the <b>structured meaning</b>: the diagram as a graph,
+    the text transcribed, the ambiguities marked. That's why the package is built by the drawing session, which
+    knows the page, and why "diagram → graph" deserves to be a real tool (it builds on the layout analysis and
+    shape recognition that exist).</div>
+  <div class="crit"><b>Spawning sessions needs guard rails.</b> A new implementation session gets a folder, your
+    usual permissions and a clear first prompt. It should never start silently in the background with
+    write access; it opens where you can see it (a terminal), and the page shows the link.</div>
+</section>
+
+<section id="s16" data-section="0.5 Sessions and your system draw for you">
+  <h2>0.5 Sessions and your system draw for you</h2>
+  <p>The opposite direction of the launchpad: knowledge that lives in sessions, projects and your machine
+  <b>comes onto the canvas</b>, in your hand-drawn style, as material to think with. You've done it already: the
+  fleet architecture pages, drawn with field names that <code>andrew-proj-fd</code> read from the repos.</p>
+  <div class="grid2">
+    <div class="card"><h4>Linked boards</h4><p>"New board linked to…" a running session or a project folder (a
+      session is started there if none runs). The link is visible at the top of the page; questions and drawing
+      requests go to that session by default, and it can draw onto the board whenever it has something to show.</p></div>
+    <div class="card"><h4>A shared diagram description</h4><p>Sessions don't send prose; they send a small
+      <b>diagram description</b> (JSON: nodes, groups, edges, labels, notes, emphasis). The drawing session lays it
+      out and draws it in your style. The same format comes out of <code>diagram_structure</code> (ink → description),
+      so a hand-drawn diagram can go to a session and come back corrected.</p></div>
+    <div class="card"><h4>Charts from data, hand-drawn</h4><p><code>draw_chart(data, kind, style: hand | clean)</code>:
+      bars, lines, pies, gauges, tables, with the axes, labels and title in your handwriting. The system-inspection
+      part ("what CPU, how loaded, how much memory") is Claude Code's own tools; xournalai only needs to draw
+      well.</p></div>
+    <div class="card"><h4>Refreshable charts</h4><p>A chart remembers how its data was obtained (the command or
+      question, kept in notes). "Refresh" re-runs it and redraws in place: CPU now versus an hour ago. Snapshots
+      by default, not a live dashboard.</p></div>
+  </div>
+  <h3>Where I push back</h3>
+  <div class="crit"><b>Don't let the drawing session become the project expert.</b> It would read the whole
+    codebase again, costing time and context. It should ask the session that already knows ("give me the module
+    graph as a diagram description") and only draw. That keeps each session small and accurate, and it's exactly
+    what the bus is for.</div>
+  <div class="crit"><b>Live-updating dashboards are scope creep.</b> Continuous redraws fight with your ink and
+    with undo. Snapshots plus a Refresh button (or "refresh every N minutes while I watch", later) give 90% of the
+    value.</div>
+  <div class="crit"><b>Layout is the hard part of "draw the architecture".</b> Twenty nodes and forty edges need a
+    real graph layout (layered, with groups), not the model guessing coordinates. That goes into the app as part of
+    <code>draw_diagram</code>; the model decides <i>what</i> to show, the app decides <i>where</i>.</div>
+</section>
+
+<section id="s17" data-section="0.6 The companion session: how the assistant runs (revised)">
+  <h2>0.6 The companion session: how the assistant runs (revised)</h2>
+  <p><b>The defaults.</b> Starting xournalai starts <b>its own Claude Code session</b>, the companion, which serves
+  xournalai and assists you. Other sessions are <b>optional</b>; the companion <i>can</i> connect to them when you
+  ask. With AI switched off in the panel, xournalai is a plain drawing app and the companion stays idle or
+  stopped.</p>
+  <p class="tldr" style="margin:8px 0"><b>Decided (rev 16):</b> skip stage 1. The first goal is stage 2, the
+  collapsible dock, with the serving session auto-started in its dedicated folder. No GNOME Terminal window.</p>
+  <h3>Three stages of hosting, cheapest first</h3>
+  <div class="grid2">
+    <div class="card"><h4>Stage 1 · Companion terminal (auto-launched)</h4><p>xournalai opens a terminal
+      window with Claude Code already running in the assistant workspace: MCP connected to this window, skills and
+      CLAUDE.md loaded, a first prompt ("you are xournalai's assistant; serve intents"). It's a real interactive
+      session: a peer on the bus, with voice mode and <code>/mcp</code>, and you can type to it. <b>Days of work;
+      reuses exactly the setup that already works for you.</b></p></div>
+    <div class="card"><h4>Stage 2 · Hideable terminal dock</h4><p>The same companion, but in a terminal panel
+      <i>inside</i> xournalai (VTE, Linux, which is all we need now): show or hide it with a key; the process keeps
+      running while hidden. Tabs: <b>Claude</b> (the companion), plus <b>Codex</b>, <b>OpenCode</b> or a shell,
+      started manually when you want them. No extra windows.</p></div>
+    <div class="card"><h4>Stage 3 · Structured runner (only if needed)</h4><p>ACP: fully programmatic control
+      (cancel, permission prompts, token accounting, no terminal at all). Kept on the shelf; we build it only if
+      stages 1–2 hit a real limit.</p></div>
+  </div>
+  <h3>How in-app controls reach a session running in a terminal</h3>
+  <ul>
+    <li><b>Intents over MCP (always works):</b> buttons, the AI pen, your markers and the lasso put intents on the
+      queue. The companion takes them (<code>intents_next</code>), reports progress, and finishes; previews, undo
+      and cancel are the app's. A cancel is seen by the session at its next tool call.</li>
+    <li><b>A push over the socket bus (better, if spike S5 allows):</b> xournalai posts each intent to the companion
+      as a bus message. An idle session wakes up by itself: no polling loop, and the terminal stays free for you to
+      type.</li>
+    <li><b>Fallback, a waiting loop:</b> the companion sits in <code>intents_next</code> / <code>wait_for_user</code>
+      (as your canvas session does today); you press Esc to talk to it.</li>
+  </ul>
+  <h3>Where I push back</h3>
+  <div class="crit"><b>A terminal is a second thing to manage.</b> If it's closed by mistake the assistant is gone.
+    xournalai should watch its companion: show its state in the status strip, offer "Restart companion" (with
+    <code>--resume</code>, keeping context), and never start a second one for the same window.</div>
+  <div class="crit"><b>Interactive sessions ask for permissions.</b> A companion that stops to ask "allow
+    create_from_svg?" breaks the flow. Its workspace settings pre-allow xournalai's tools (and whatever you choose),
+    so it acts without prompts; dangerous things still ask.</div>
+  <div class="crit"><b>Starting it with the app costs a little memory (~300 MB) and some start-up time.</b> Fine on
+    your laptop; offer "start companion: with the app / when AI is switched on / manually".</div>
+</section>
+
+<section id="s18" data-section="0.7 After drawing: what happens with a board">
+  <h2>0.7 After drawing: what happens with a board</h2>
+  <p>A drawing isn't only an input to sessions. What you've made can go several ways, all by asking the companion or
+  by one click:</p>
+  <div class="grid2">
+    <div class="card"><h4>Save and export</h4><p>Save as .xopp, export to PDF, PNG or SVG, into a folder you name or
+      the project's docs folder (the export tools exist).</p></div>
+    <div class="card"><h4>Build a presentation</h4><p>"Make a presentation from these pages": the companion turns pages
+      into slides (a deck made of pages, cleaned up, with speaker notes from the notes memory), as PDF or as an HTML
+      or PPTX deck through its own tools.</p></div>
+    <div class="card"><h4>Share with a session</h4><p>Send to a running peer or start a new one (0.4), with the handoff
+      package.</p></div>
+    <div class="card"><h4>Keep drawing</h4><p>With the assistant on or off. Switching AI off doesn't lose anything:
+      the session keeps its context and resumes when you switch it back on.</p></div>
+  </div>
+</section>
+
+<section id="s19" data-section="0.8 Keeping the companion awake: the app watches, the session works">
+  <h2>0.8 Keeping the companion awake: the app watches, the session works</h2>
+  <p><b>The problem you hit:</b> the session is supposed to watch the canvas all the time, but after a while with
+  nothing to do it stops. That's structural. A model session can't wait for ever: watching today is a loop of
+  <code>wait_for_user</code> calls inside one turn, and the turn ends (your skill even says "after ~2 empty timeouts,
+  stop"). Then nothing wakes it up until you type.</p>
+  <div class="tldr"><b>The fix: invert it.</b> xournalai itself is the watcher. It sees every stroke for free and
+  already groups them (work units, markers, AI-pen commands, watch zones). When something <b>meaningful</b>
+  happens, it <b>wakes</b> the idle companion with a short message ("2 new events: a formula at top right, an
+  <code>XC!</code> command on page 2"). The session handles them and goes idle again. Idle is the normal state, not
+  a failure. And it costs less: a model turn only when there's work.</div>
+  <h3>How the app knows the session's state: Claude Code hooks</h3>
+  <p>The companion's workspace configures Claude Code <b>hooks</b> (SessionStart, UserPromptSubmit, Stop,
+  Notification) that report to xournalai's socket with a one-line command: <i>busy</i>, <i>idle</i>, <i>waiting for
+  permission</i>. The status strip shows it, and the app knows when a wake-up is welcome. While it's busy, events
+  are queued; when it goes idle and something is pending, it's woken at once.</p>
+  <h3>How to wake it: three channels, in order of preference</h3>
+  <table>
+    <thead><tr><th>Channel</th><th>How</th><th>Good</th><th>Bad</th></tr></thead>
+    <tbody>
+      <tr><td><b>Terminal input</b></td><td>The companion runs inside <code>tmux</code> (stage 1) or the app's VTE dock
+        (stage 2); the app types a short line into it, as if you had: <code>[xournalai] 2 new events: take them</code>.</td>
+        <td class="pos">Uses only public behaviour; works today; simple.</td>
+        <td class="neg">Must not collide with your typing: only sent when the hooks say idle and the input line is
+          empty.</td></tr>
+      <tr><td><b>Socket-bus message</b></td><td>The app posts to the companion over the cc-socks bus, like a peer
+        session would.</td><td class="pos">Native wake-up of an idle session; nothing typed into its terminal.</td>
+        <td class="neg">Unpublished protocol (spike S5); may change with updates.</td></tr>
+      <tr><td><b>Keep-alive via the Stop hook</b></td><td>When the session tries to stop while watch mode is on, the
+        Stop hook blocks it: "call <code>intents_next</code> again".</td><td class="pos">No external input
+        at all.</td><td class="neg">It burns a turn per timeout even when nothing happens; last resort.</td></tr>
+    </tbody>
+  </table>
+  <h3>Making it dependable</h3>
+  <ul>
+    <li><b>Coalescing:</b> events in the last few seconds go in one wake-up, not one per stroke. The message carries
+      a count and a cursor; details come from <code>intents_next</code> / <code>changes_get</code>.</li>
+    <li><b>Watchdog:</b> if a wake-up isn't picked up within about 20 s (hooks still say idle, the queue isn't
+      drained), resend once, then show "companion not responding" with a Restart button (<code>--resume</code>, context
+      kept).</li>
+    <li><b>Quiet hours:</b> AI off or paused means no wake-ups; the queue is kept or dropped as you choose.</li>
+    <li><b>The skill changes:</b> no more "stop after two timeouts". The companion handles what it's woken for, and
+      ends its turn.</li>
+  </ul>
+  <div class="crit"><b>Where I push back on "watching all the time".</b> A session that's always inside a turn,
+    looping on waits, is the fragile and expensive version: it holds a turn open, re-reads context at every timeout,
+    and dies silently. "App watches, session wakes on events" gives the same experience, with fewer tokens, and a
+    clear state you can see in the status strip.</div>
+</section>
+
+<section id="s1" data-section="1. Your idea, restated">
+  <h2>1. Where we started (the first version of the idea)</h2>
+  <p style="color:var(--muted);font-size:14px">Kept for the record; sections 0–0.3 describe where the idea is
+  now.</p>
+  <ul>
+    <li>Today a separate agent session watches the document over MCP, recognises handwritten commands
+      (<code>XC! revise …</code>) and edits the page. It works, but it's two windows, it needs <code>/mcp</code>
+      reconnects, and it's terminal-only.</li>
+    <li>You want xournalai to <b>carry its own assistant</b>: switch it on, and it does everything the external
+      session does, driven by an AI toolbox, an assistant mode, region buttons and command-writing.</li>
+    <li>A hidden or collapsible terminal inside the app running Claude / Codex / OpenCode would be acceptable to
+      you.</li>
+    <li>External agents over MCP keep working. Personal use first, public later.</li>
+  </ul>
+</section>
+
+<section id="s2" data-section="2. Critique">
+  <h2>2. Critique: where the idea is weak</h2>
+  <div class="crit"><b>An embedded terminal is the wrong primary interface.</b> A toolbar button can't reliably drive
+    a text interface: it would have to type into Claude Code's prompt and then work out from terminal output when
+    the agent is done and what changed. There's no structured result, so the app can't preview it, map it to one
+    undo step or offer accept/reject. It also means running a fully privileged coding agent (shell, files, bypassed
+    permissions, a large coding system prompt) to typeset a formula. And VTE is Linux-only in practice.
+    <br><i><b>Revised in rev 11:</b> this argument assumed buttons would drive the terminal. With intents, buttons
+    never touch it: the session reads requests over MCP (or gets them pushed over the socket bus), and previews,
+    undo and cancel live in the app. So a normal Claude Code in a terminal is a fine runner, and the quickest one.
+    See 0.6.</i></div>
+  <div class="crit"><b>Watching everything with the model costs too much.</b> Every idle pause becomes a full agent
+    turn: 5–60 s and real tokens, although most pauses contain no command. (The answer is in 5.3: watch small
+    work units and pinned zones on the fly, and keep full revision as a manual pass.) The model is also <i>guessing</i>
+    whether ink is a command. Detection must be cheap and certain; only execution should involve the model.</div>
+  <div class="crit"><b>A session per document: right for context, wrong for lifecycle.</b> Agent processes weigh
+    200–400 MB each. Better: at most one per window, started on first use, stopped when idle, resumed later.</div>
+  <div class="crit"><b>(Later) Public users don't have Claude Code or Codex.</b> An architecture built only on external CLIs
+    serves you, not the public. A built-in backend (API key or local model) must be a swap, not a rewrite.</div>
+  <div class="crit"><b>Reusing the terminal CLIs' voice mode is a trap.</b> Claude Code's (and other CLIs') voice
+    input lives inside their text interface: it only works in the visible terminal, can't be driven through ACP, and
+    it doesn't know what you've selected, where the pen is, or which strokes you just drew. "Make <i>these</i> lines
+    bolder" only works if speech is captured <i>in the app</i> together with the selection and pointer at that
+    moment. Voice must be an app-side layer that produces intents; the CLI's voice mode stays available when you open the
+    session in a terminal.</div>
+  <div class="crit"><b>Many actions don't need an agent.</b> "LaTeXify", "beautify" and "colour this" are single-shot
+    transformations with a known input and output shape: one model call plus a preview. Agents shine at open-ended
+    work. Support both, and don't force the first through the second.</div>
+</section>
+
+<section id="s3" data-section="3. Options considered">
+  <h2>3. Options considered</h2>
+  <table>
+    <thead><tr><th>Option</th><th>Good</th><th>Bad</th><th>Verdict</th></tr></thead>
+    <tbody>
+      <tr><td><b>A · Embedded terminal</b> (VTE) running claude / codex / opencode with MCP preconfigured</td>
+        <td class="pos">Days of work; your subscriptions; full power</td>
+        <td class="neg">No structured control, fragile buttons, Linux-only, privileged coding agent</td>
+        <td class="v">Not in the prototype</td></tr>
+      <tr><td><b>B · ACP client</b> in the app driving any ACP agent</td>
+        <td class="pos">Agent-agnostic by standard; structured stream (messages, tool calls, plans, permissions, cancel); our MCP server is passed in <code>session/new</code>; your subscriptions</td>
+        <td class="neg">Node plus adapters for Claude and Codex; adapters are young; coding-agent overhead</td>
+        <td class="v">The runner (prototype)</td></tr>
+      <tr><td><b>C · Built-in loop</b> calling model APIs directly (Anthropic / OpenAI / Ollama)</td>
+        <td class="pos">No installs; fastest and cheapest per action; full control of prompts, caching, previews; every OS</td>
+        <td class="neg">We own the loop (tools, context, retries); API keys instead of subscriptions</td>
+        <td class="v">Later horizon</td></tr>
+      <tr><td><b>D · Companion app</b> (a separate Python or web process)</td>
+        <td class="pos">Fast iteration; crash isolation</td>
+        <td class="neg">Two windows again; in-app buttons still need a channel</td>
+        <td class="v">Rejected as the product</td></tr>
+      <tr><td><b>V1 · Reuse the CLI's voice mode</b> (in the terminal drawer)</td>
+        <td class="pos">Zero work; multilingual already</td>
+        <td class="neg">Terminal only; no knowledge of selection or pointer; can't be driven through ACP</td>
+        <td class="v">Fallback only</td></tr>
+      <tr><td><b>V2 · App-side voice layer</b> (push-to-talk or VAD → speech-to-text → intent with a context snapshot)</td>
+        <td class="pos">Knows selection, pointer, page and recent strokes; works with every runner; local STT possible (whisper.cpp, multilingual)</td>
+        <td class="neg">We own audio capture, VAD and the STT integration</td>
+        <td class="v">Recommended</td></tr>
+      <tr><td><b>V3 · Realtime speech APIs</b> (OpenAI Realtime, Gemini Live) calling our tools directly</td>
+        <td class="pos">The most natural: sub-second, spoken replies, barge-in</td>
+        <td class="neg">Vendor-specific, expensive while listening, cloud only</td>
+        <td class="v">Later, as a "live" runner</td></tr>
+      <tr><td><b>E · Headless CLI modes</b> (<code>claude -p stream-json</code>, <code>codex app-server</code>, <code>opencode serve</code>)</td>
+        <td class="pos">Structured; no adapters</td>
+        <td class="neg">A different protocol per CLI: N integrations to maintain</td>
+        <td class="v">Rejected: ACP covers it</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:13px;color:var(--muted)">Checked here: <code>gemini --acp</code>, <code>opencode acp</code>,
+  <code>@zed-industries/claude-code-acp</code> 0.16.2, <code>@zed-industries/codex-acp</code> 0.16.0; VTE 0.68
+  runtime installed (headers not).</p>
+</section>
+
+<section id="s4" data-section="4. Proposal: intents first, then runners">
+  <h2>4. Proposal: intents first, then runners</h2>
+  <p>The in-app controls don't talk to an agent. They create <b>intents</b>: small structured requests such as
+  "beautify this selection", "execute the command written with the AI pen here" or "summarize page 3".</p>
+  <svg class="diagram" viewBox="0 0 860 330" role="img" aria-label="Intents architecture">
+    <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color:var(--muted)"/></marker></defs>
+    <rect class="box" x="10" y="20" width="840" height="56" rx="10"/>
+    <text x="30" y="44" font-weight="600">In-app controls</text>
+    <text x="30" y="64" class="small">AI pen · AI lasso + actions · Ctrl+Space prompt · live rules · Assistant switch</text>
+    <path class="arrow" d="M430 76 L430 110"/>
+    <rect class="hl" x="290" y="112" width="280" height="60" rx="10"/>
+    <text x="430" y="138" text-anchor="middle" font-weight="600">Intent queue (per document)</text>
+    <text x="430" y="157" text-anchor="middle" class="small">intents_next · intent_update · intent_done</text>
+    <rect class="box" x="600" y="112" width="250" height="60" rx="10"/>
+    <text x="725" y="138" text-anchor="middle" font-weight="600">In-app result UX</text>
+    <text x="725" y="157" text-anchor="middle" class="small">draft preview · accept/reject · 1 undo · cancel</text>
+    <path class="arrow" d="M570 142 L598 142"/>
+    <path class="arrow" d="M360 172 L200 232"/>
+    <path class="arrow" d="M500 172 L660 232"/>
+    <rect class="box" x="30" y="234" width="360" height="80" rx="10"/>
+    <text x="50" y="260" font-weight="600">Embedded runner (in xournalai)</text>
+    <text x="50" y="280" class="small">B: ACP agent (Claude via adapter, Codex, Gemini, OpenCode)</text>
+    <text x="50" y="298" class="small">C: built-in API loop (2.0) · optional terminal drawer</text>
+    <rect class="box" x="470" y="234" width="360" height="80" rx="10"/>
+    <text x="490" y="260" font-weight="600">Any external agent, over MCP</text>
+    <text x="490" y="280" class="small">today's Claude canvas session, Codex, scripts:</text>
+    <text x="490" y="298" class="small">unchanged, and they gain the toolbox for free</text>
+  </svg>
+  <div class="grid2">
+    <div class="card"><h4>It pays off immediately</h4><p>Your current external session serves intents, so the toolbox works before any embedded agent exists.</p></div>
+    <div class="card"><h4>One UX for all backends</h4><p>Preview, accept/reject, undo and cancel live in the app, not in the agent.</p></div>
+    <div class="card"><h4>The runner is replaceable</h4><p>Your Claude session through ACP now; other runners later if ever needed.</p></div>
+    <div class="card"><h4>It reuses what exists</h4><p>Drafts, EventHub, wait_for_user, pause, permission tiers, notes memory.</p></div>
+  </div>
+</section>
+
+<section id="s5" data-section="5. Feature set">
+  <h2>5. Feature set</h2>
+  <h3>5.1 AI toolbox</h3>
+  <ul>
+    <li><b>Two controls (decided):</b> <b>AI on/off</b> (off = a plain drawing app, the companion at rest) and the
+      <b>Auto-improve</b> toggle (on = improve everything you write; off = markers and commands only). A status light
+      shows idle, thinking, drawing or waiting for you.</li>
+    <li><b>AI pen:</b> a dedicated command pen (violet, dashed). Its ink is always a command, never content. On
+      pause it becomes an intent (the command plus the region it points at or encircles); afterwards it collapses
+      into a small history note. It sits <b>next to your markers</b> (<code>XC!</code>, <code>*r!</code>, …), which
+      stay first-class (0.3): the pen is simply the unambiguous, free-to-detect way.</li>
+    <li><b>AI lasso:</b> select a region, and an action popover appears at the selection.</li>
+    <li><b>Prompt box</b> (Ctrl+Space), with the selection or page attached. <b>Accept / Reject / Retry</b>,
+      <b>Undo AI</b>, <b>Stop</b>, <b>panel toggle</b>.</li>
+  </ul>
+  <h3>5.2 Action library (the buttons)</h3>
+  <pre>name: LaTeXify
+icon: sigma
+scope: selection        # selection | page | document | pen-command
+prompt: Transcribe the handwritten formula and typeset it as LaTeX at the same place.
+output: replace         # replace | annotate | beside | new-page | answer-only
+preview: draft          # draft | direct
+model: fast             # fast | strong | model id</pre>
+  <p>Defaults: Beautify handwriting (your glyphs) · Transcribe · Fix spelling · Translate · LaTeXify · Check maths ·
+    Clean diagram · Colorize · Plot this · Summarize · Explain · Quiz me · Continue · Make conspect · Page →
+    Markdown. User folder <code>~/.config/xournalpp/ai-actions/</code>; your <code>SKILL.md</code> packs can be
+    imported.</p>
+  <h3>5.3 Co-pilot, focused: watch small pieces, revise everything only on request</h3>
+  <p>Your refinement, which I agree with: watching doesn't have to mean the whole page. The co-pilot watches
+  <b>small, fresh pieces</b> of work and leaves full passes to an explicit command. The job per call shrinks from "a
+  whole page" to "these four strokes", so it costs fewer tokens and answers faster.</p>
+  <div class="grid2">
+    <div class="card"><h4>Work units (automatic)</h4><p>New strokes are grouped locally, with no model, into units:
+      strokes close in space and time. A unit is <b>closed</b> when you move the pen away to another area, or after
+      an idle period. Only closed units are sent.</p></div>
+    <div class="card"><h4>Watch zones (pinned)</h4><p>Lasso a region and choose "Watch this zone" (e.g. the formula
+      block or a diagram). Every change inside it becomes a unit, with the zone's own rule: "LaTeX here", "tidy
+      diagram here". Everything outside is left alone.</p></div>
+    <div class="card"><h4>Revise (manual, full)</h4><p>"Revise page" or "Revise selection": a deliberate, strong-model
+      pass for consistency, numbering and style. Runs in the background; the results come back as drafts to
+      review.</p></div>
+  </div>
+  <h3>What a unit call sends (small on purpose)</h3>
+  <ul>
+    <li>A <b>crop</b> of the unit at readable resolution, plus its element data (points, bbox).</li>
+    <li>A <b>halo</b>: a thin margin around the unit, so a formula continuing the line above is understood.</li>
+    <li>A tiny <b>page thumbnail</b> for layout, only when the rule needs it.</li>
+    <li>A short text <b>style memory</b> of the page (colours, notation, language, what "XC!" means), kept in notes
+      and not re-derived from images each time.</li>
+  </ul>
+  <p style="font-size:14px;color:var(--muted)">Rough, to be measured in spike S2: a whole-page turn is roughly
+  2–5k image tokens plus context and 10–60 s; a unit call is roughly 200–600 tokens and 1–4 s with a fast model.
+  That's about ten times cheaper and faster per reaction.</p>
+  <h3>Rules that keep it pleasant</h3>
+  <ul>
+    <li><b>Trigger on "moved on", not only on idle.</b> Moving the pen to another area is a stronger signal that
+      you've finished than a pause, so there are fewer interruptions mid-thought.</li>
+    <li><b>Hands-off radius:</b> never touch a unit near the pen's current position; you may still be writing it.</li>
+    <li><b>Local pre-sorting</b> (still no model): the shape recogniser and stroke statistics guess
+      text / formula / drawing, so only the rules that apply are run, with the right prompt.</li>
+    <li><b>Tiered models:</b> a fast model for small fixes and sorting; strong only for redraws, or when the fast one
+      isn't confident.</li>
+    <li><b>Each unit is handled once.</b> Unchanged units are never re-sent; editing a processed unit re-queues only
+      that unit.</li>
+    <li><b>Drafts, in the background:</b> units are processed in a queue while you keep writing; results appear as
+      drafts next to the unit. There's a budget meter and an hourly cap.</li>
+  </ul>
+  <h3>The weak spot, and the answer to it</h3>
+  <p>Unit-by-unit editing can lose the global picture: numbering, consistent notation, a diagram referring to a
+  formula. That is what the <b>manual Revise</b> pass and the page's <b>style memory</b> are for. The memory is
+  updated cheaply after each accepted unit, so local calls stay consistent without seeing the whole page.</p>
+  <p><b>Modes, then (decided):</b> AI off · AI on with <b>Auto-improve off</b> (markers, commands, buttons, voice
+  only) · AI on with <b>Auto-improve on</b> (the focused co-pilot: fresh pieces and watch zones) · <b>Revise</b>
+  (manual, full pass, any time).</p>
+  <h3>5.4 Activity panel (native, collapsible)</h3>
+  <ul>
+    <li>A conversation per document, tool calls as compact rows, plans, and cost and time per intent.</li>
+    <li>Inline permission requests (once / always for this document / deny), mapped onto the tiers.</li>
+    <li><b>Open session in terminal:</b> resumes the hidden session (<code>claude --resume</code>) in your normal
+      terminal, to take over or debug. No terminal widget in the app.</li>
+  </ul>
+  <h3>5.5 Runners</h3>
+  <ul>
+    <li><b>Revised (0.6):</b> the prototype runs the companion Claude Code session in a terminal (stage 1), then in a
+      hideable dock (stage 2). ACP is stage 3, only if needed. The rest of this item is kept for stage 3:
+      <b>ACP:</b> Claude Code (adapter, your Claude subscription), Codex (adapter, your ChatGPT
+      subscription), OpenCode, Gemini. One process per window, started on use, stopped after about 10 idle
+      minutes, resumable. xournalai passes its MCP server, a system prompt and the action library. Per-lane
+      models: fast lane on a small model, agent lane on the strong one.</li>
+    <li><b>Later:</b> a built-in API runner, a remote runner (laptop serves phone), a public endpoint.</li>
+    <li><b>External:</b> any MCP client, unchanged.</li>
+  </ul>
+  <h3>5.6 One connection per window, and 5.7 trust</h3>
+  <ul>
+    <li>A per-process Unix socket (<code>--mcp-socket</code>), so each window's assistant drives <i>its</i> window.
+      This also ends the "second window has no server" problem.</li>
+    <li>Drafts where they help, one undo step per intent, shared permission tiers, a usage display, a "never send"
+      flag for a page or layer, and conversation summaries kept in notes memory.</li>
+  </ul>
+</section>
+
+<section id="s8" data-section="5.8 Voice / conversational mode">
+  <h2>5.8 Voice: talk while you draw</h2>
+  <p>This isn't the existing audio recording. It's a <b>conversational mode</b>: the pen stays in your hand, you talk
+  to the app, and it acts on what you're looking at. Example: select a region, say <i>"make the lines of this part
+  bolder"</i>, and it's applied.</p>
+  <h3>How it works</h3>
+  <ol>
+    <li><b>Listening:</b> push-to-talk (a stylus button, a key, the mic button in the AI toolbox), or conversation
+      mode, which listens continuously and detects speech (VAD). A visible mic indicator is always shown.</li>
+    <li><b>Context snapshot at speech start:</b> the current selection (ids and bbox), pointer position, visible page
+      region, the strokes of the last few seconds, and the active tool. Pen gestures made while speaking count as
+      <b>pointing</b>: "put it <i>here</i>" plus a tap, or "connect <i>this</i> to <i>that</i>" plus two taps.</li>
+    <li><b>Speech-to-text:</b> multilingual; local (whisper.cpp) or cloud; the transcript appears live as subtitles
+      near the pointer.</li>
+    <li><b>Intent:</b> the transcript plus the snapshot become an intent, the same queue as the pen, lasso and
+      buttons.</li>
+    <li><b>Two lanes:</b>
+      <ul>
+        <li>A <b>fast lane</b> for simple edits ("bolder", "red", "undo", "delete this", "zoom in", "next page"): a
+          fast model maps the utterance to one or two tool calls, in about 1–2 s, applied directly.</li>
+        <li>An <b>agent lane</b> for the rest ("redraw this diagram cleanly and label the axes"), which goes through
+          the runner with a draft.</li>
+      </ul></li>
+    <li><b>Replies:</b> a short toast by default. Optionally spoken, briefly ("done", "which one: the left
+      or the right box?"). The assistant can ask a clarifying question, and you answer by voice or with a tap.</li>
+  </ol>
+  <h3>Why the app and not the CLI</h3>
+  <ul>
+    <li><b>Knowing what "this", "these" and "here" mean</b> needs the selection and pointer, which only the app has.</li>
+    <li><b>It works with every runner</b> (ACP agents, the built-in one, external sessions), because voice is just
+      another intent source.</li>
+    <li><b>Privacy is a real choice:</b> local speech-to-text is possible.</li>
+    <li><b>Later, a "live" runner</b> on realtime speech APIs could give sub-second conversation, built on the same
+      intents and tools.</li>
+  </ul>
+  <h3>Staging</h3>
+  <ul>
+    <li><b>Voice A (early, cheap):</b> push-to-talk dictation into the prompt box, with the selection attached. It
+      reuses intents, so it could arrive right after E7.</li>
+    <li><b>Voice B:</b> the context snapshot and pen-gesture pointing, the fast lane, subtitles, clarifying
+      questions.</li>
+    <li><b>Voice C (distant):</b> hands-free conversation (VAD, barge-in, spoken replies), a realtime "live" runner,
+      a wake word.</li>
+  </ul>
+</section>
+
+<section id="s10" data-section="5.9 Daily-use stability and setup">
+  <h2>5.9 Daily-use stability and setup (prototype must-haves)</h2>
+  <ul>
+    <li><b>The agent is isolated:</b> it's a child process. If it crashes or hangs, it's restarted and the intent
+      retried or failed cleanly; the UI thread never waits on it.</li>
+    <li><b>Timeouts and cancel</b> on every intent. Stop always works and leaves no half-applied edits (drafts or a
+      single undo step).</li>
+    <li><b>Usage limits:</b> if a limit is hit, the status strip says so plainly; switching the runner is manual.</li>
+    <li><b>Setup check:</b> which CLIs are installed and logged in, and which adapters are present; buttons to
+      install the adapters into the app's private folder; a clear message when a login is needed.</li>
+    <li><b>One-command install:</b> <code>tools/install.sh</code> builds a release, installs to
+      <code>~/.local</code>, registers the launcher and sets up the adapters. Updates work the same way.</li>
+    <li><b>Logs for diagnosis:</b> a runner log per session, and an intent history with timing and outcome.</li>
+    <li><b>Dogfooding gate:</b> two weeks of your own daily use without a blocker before the pitch build.</li>
+  </ul>
+</section>
+
+<section id="s11" data-section="5.10 Several Claude sessions and the socket bus">
+  <h2>5.10 Several Claude sessions and the socket bus</h2>
+  <p>You run several Claude Code sessions on your subscription and let them talk over the local socket bus
+  (<code>/run/user/1000/cc-socks/&lt;pid&gt;.sock</code>; today: <code>xournal-ai-9a</code>,
+  <code>olek-45</code>, <code>andrew-proj-fd</code>). xournalai's assistant should be <b>a citizen of that bus</b>,
+  not a separate world.</p>
+  <h3>What it gives you</h3>
+  <ul>
+    <li><b>xournalai's sessions are peers.</b> Each assistant session appears on the bus with a readable name
+      (e.g. <code>xournalai-lecture3</code>). Your other sessions can message it: "draw the architecture of
+      what you just built into my open page".</li>
+    <li><b>It reaches your other sessions.</b> A Sessions panel lists the local peers and their state; any intent
+      can be <b>routed to a peer</b>. Write "→ @andrew-proj-fd: update the fleet docs from this" with the AI pen,
+      or lasso a region and use Send to session. Replies come back into the document as notes or drafts. This is
+      what you already did by hand between two sessions.</li>
+    <li><b>Several sessions per document, by role.</b> A light <i>co-pilot</i> session (fast model, the work
+      units) next to a <i>worker</i> session (strong model: Revise, redraws), so a long Revise doesn't block the
+      quick fixes. They share limits, so the status strip shows usage.</li>
+  </ul>
+  <h3>How: two channels, deliberately</h3>
+  <ul>
+    <li><b>Control channel = ACP</b> (structured: prompts, streamed results, tool calls, cancel, permissions). The
+      app needs this to preview, undo and stop reliably.</li>
+    <li><b>Peer channel = the socket bus</b>, for session-to-session messages, exactly as your sessions use it
+      today.</li>
+  </ul>
+  <div class="crit"><b>The open risk (spike S5).</b> The bus is a Claude Code feature and its protocol isn't a
+    published API: it can change with Claude Code updates. And I don't yet know whether a session launched through
+    ACP (the Agent SDK) joins the bus like an interactive one. Two fallbacks if it doesn't:
+    <ul>
+      <li>(a) the app starts Claude Code <i>interactively</i> in a hidden pseudo-terminal, so it's a full bus
+        peer, and drives it through the bus plus MCP;</li>
+      <li>(b) xournalai talks to the bus itself through a small adapter module, isolated so an update to Claude
+        Code breaks one file, not the app.</li>
+    </ul>
+    Decided after S5 with facts, not now.</div>
+</section>
+
+<section id="s21" data-section="Milestone 1: AI toolbar and visible thinking (design)">
+  <h2>Milestone 1: the AI toolbar and visible thinking</h2>
+  <h3>AI toolbar (a row of its own, shown when AI is on)</h3>
+  <table><thead><tr><th>Button</th><th>Marker</th><th>What it does</th></tr></thead><tbody>
+    <tr><td>Improve strokes</td><td><code>*!</code></td><td>Same object, pose and size, drawn better (assist, not redo).</td></tr>
+    <tr><td>Illustrate</td><td><code>**!</code></td><td>A professional illustration of the object.</td></tr>
+    <tr><td>Web summary</td><td><code>*w!</code></td><td>Look it up, and write a short summary beside it.</td></tr>
+    <tr><td>Real image</td><td><code>*r!</code></td><td>A real photo (PD/CC0) or a generated one, placed at the object.</td></tr>
+    <tr><td>Command…</td><td><code>*c!</code></td><td>Opens a one-line prompt; the instruction goes with the selection.</td></tr>
+    <tr><td>Revise page</td><td></td><td>The deliberate full pass.</td></tr>
+    <tr><td>Auto-improve</td><td>(toggle)</td><td>On: improve everything written. Off: markers and commands only. Dropdown: formulas / text / diagrams / colours.</td></tr>
+    <tr><td>Pause · Terminal</td><td></td><td>Stop the agent at once · show or hide the dock.</td></tr>
+  </tbody></table>
+  <p>Buttons act on the <b>selection</b>; with no selection, on the <b>last piece you drew</b>. Written markers and the
+  buttons produce the same intent.</p>
+  <h3>Visible thinking (never silent)</h3>
+  <ul>
+    <li><b>On the canvas:</b> the zone being worked on gets a <b>translucent grey veil</b> with an animated dashed
+      outline, a small spinning icon at its corner, and a one-line status ("improving strokes…", "asking
+      andrew-proj-fd…"). A veil because it says "don't draw here right now" as well as "working"; your ink stays
+      visible beneath.</li>
+    <li><b>States:</b> queued (outline only) → thinking (veil plus spinner) → drawing (veil fading as strokes appear)
+      → done (a brief green tick) or failed (a red mark; tap for the reason).</li>
+    <li><b>In the status strip:</b> the session state (idle, thinking, waiting for permission, not running), the mode
+      (Auto-improve on or off), and the number of tasks in progress.</li>
+    <li><b>Cancel:</b> tap the icon, or Stop, which interrupts the session (Esc into its terminal) and clears the
+      zone.</li>
+  </ul>
+</section>
+
+<section id="s6" data-section="6. Plan">
+  <h2>6. Plan: the Linux prototype</h2>
+  <p style="color:var(--muted);font-size:14px">One commit per task, a version per stage, the Kanban monitor as
+  before. Everything in this section runs on your laptop with your subscriptions.</p>
+  <details class="epoch" open><summary>★ Milestone 1 = epoch E6 · Serving session in the app <span>→ 1.2.0, the short-term plan (on the Kanban board)</span></summary><ul>
+    <li><b>S6.1 Embedded AI terminal (1.1.1):</b> T6.1.1 terminal dock (VTE, collapsible, tabs, keeps running hidden) ·
+      T6.1.2 companion folder (CLAUDE.md with role, markers, assist contract, delegation, wake-up protocol;
+      <code>.mcp.json</code>; hooks) · T6.1.3 the serving session autostarts in tab 1:
+      <code>claude --dangerously-skip-permissions --continue</code> (default, as you decided; "normal" permission mode as
+      a setting), "+" for Codex (<code>--dangerously-bypass-approvals-and-sandbox</code>), OpenCode or a shell.</li>
+    <li><b>S6.2 The app watches, the session works (1.1.2):</b> T6.2.1 session state via hooks (busy / idle / waiting) ·
+      T6.2.2 event pump: coalesced canvas events typed as one wake-up line into the idle terminal, watchdog, Restart.</li>
+    <li><b>S6.3 AI toolbar and Auto-improve (1.1.3):</b> T6.3.1 the AI toolbar row built on your markers · T6.3.2 the
+      Auto-improve toggle · T6.3.3 handwritten marker detection.</li>
+    <li><b>S6.4 Visible thinking (1.1.4):</b> T6.4.1 thinking overlay on the canvas · T6.4.2 status and cancel.</li>
+    <li><b>S6.5 Release (1.2.0):</b> T6.5.1 tests with a fake companion, docs, tag.</li>
+    <li>Everything after it (quick wins, previews, co-pilot units, linked boards, voice…) builds on this base.</li>
+  </ul></details>
+  <details class="epoch" open><summary>E5b · Quick wins from real use <span>→ 1.2.0, now (MCP only)</span></summary><ul>
+    <li>Compact tool results by default (count, operation, bbox; ids on request or to a file).</li>
+    <li>Big drawings by path, streamed and chunked, with no 5 MB ceiling locally.</li>
+    <li><code>trace_image</code>: picture → native pressure strokes (line-art / pencil / contour).</li>
+    <li>Annotations bound to their targets (erasing the target cleans them up).</li>
+    <li>Robust line and word grouping in layout analysis (slant, mixed scripts).</li>
+    <li><b>Instant assist tier (no model):</b> smooth, straighten, snap shapes, even out spacing, palette recolour, as
+      tools the session calls and that work in milliseconds.</li>
+    <li><b>Marker detection:</b> candidate <code>*</code> / <code>!</code> shapes among fresh strokes, an event with a crop,
+      <code>markers_list</code> / <code>marker_done</code> (removes the marker strokes).</li></ul></details>
+  <details class="epoch" open><summary>E5c · Sessions draw for you (MCP) <span>→ 1.2.x, early</span></summary><ul>
+    <li>The diagram description format (JSON schema) · <code>draw_diagram(description, style: hand | clean)</code>
+      with real graph layout (layered, groups, orthogonal or curved edges) · <code>diagram_structure</code> (ink →
+      description).</li>
+    <li><code>draw_chart(data, kind, style)</code>: bars, lines, pies, gauges, tables, with labels in your
+      handwriting once E8's "My handwriting" exists (plain text until then) · refreshable charts (data source kept
+      in notes, Refresh redraws in place).</li>
+    <li>Works right away from your external sessions: "draw my system's CPU and memory" and "draw the project
+      architecture" become quick requests.</li></ul></details>
+  <details class="epoch" open><summary>Spikes <span>about 2–3 days</span></summary><ul>
+    <li><b>S1</b> (deferred with stage 3.) <b>S1′</b> Companion launch: <code>claude</code> started by the app in the
+      assistant workspace with MCP config, skills, pre-allowed tools and a first prompt; terminal choice
+      (gnome-terminal / x-terminal-emulator); session naming on the bus.</li>
+    <li><b>S2</b> Latency and usage per action (LaTeXify, Beautify, Clean diagram): a whole-page turn versus a
+      unit crop, fast versus strong model.</li>
+    <li><b>S3</b> (back) VTE dock: build dependency (<code>libvte-2.91-dev</code>), a terminal inside the GTK3 window,
+      hiding it while the process keeps running. <b>S4</b> Per-window Unix-socket transport.</li>
+    <li><b>S8</b> Waking the companion: Claude Code hooks reporting busy/idle to xournalai; typing a wake-up line into
+      tmux (stage 1) and VTE (stage 2) safely; the Stop-hook keep-alive as a last resort; end-to-end latency from a
+      finished formula to the session acting.</li>
+    <li><b>S5</b> (now the key spike) The Claude Code socket bus: can xournalai <b>push</b> an intent to the companion as
+      a message that wakes it? does an ACP- or SDK-started session join it? What does the message
+      protocol look like, and how stable is it? Can xournalai list peers and send and receive messages? This
+      decides the design in 5.10.</li>
+    <li><b>S6</b> (dropped: image generation is whatever your Claude Code session has.)</li>
+    <li><b>S7</b> The assistant session through ACP: does it load its workspace's CLAUDE.md, skills and subagents
+      like an interactive session? Can <code>claude --resume</code> take it over in a terminal?</li></ul></details>
+  <details class="epoch"><summary>E6 · Assistant core, intents and AI toolbox <span>→ 1.2.0</span></summary><ul>
+    <li>Assistant core as a GTK-free library: intent model and queue, action library (YAML, defaults, SKILL.md
+      import).</li>
+    <li>MCP surface for intents (so today's external session already works with the toolbox).</li>
+    <li>AI lasso popover · AI pen · prompt box (Ctrl+Space).</li>
+    <li><b>Task a session from the canvas (a first, simple version; the full launchpad is E10):</b> lasso a region or pick the page, add a
+      written or typed instruction, and send it as a task, with image, element data and page context, to a chosen
+      session: an external one via MCP intents, or any bus peer if S5 allows. The reply comes back as a note on the
+      page. Also "→ @session" with the AI pen.</li>
+    <li>Acceptance: your current workflow (canvas → task → project session → result) driven from in-app controls.</li></ul></details>
+  <details class="epoch"><summary>E7 · Result UX <span>→ 1.3.0</span></summary><ul>
+    <li><b>Visible thinking:</b> zone highlight (an animated outline around the region, unit or marker) · a thinking
+      icon with a one-line status the session updates (<code>intent_update</code>) · states queued → thinking →
+      drawing → done / failed · tap to cancel or open details · a count in the status strip.</li>
+    <li>Work the session does without an intent (e.g. something you typed in its terminal) still shows: the app marks
+      the regions its tool calls touch, and the hooks' busy state shows "thinking…".</li>
+    <li>Draft previews with Accept / Reject / Retry · one undo per intent · time per intent.</li></ul></details>
+  <details class="epoch"><summary>E8 · Companion session: hardening after Milestone 1 <span>→ 1.4.0</span></summary><ul>
+    <li>The assistant workspace (CLAUDE.md, drawing skills, action library, exchange folder, pre-allowed tools) ·
+      launch on app start, AI on, or manually · MCP connected to this window (per-window socket) · first prompt.</li>
+    <li><b>The app watches, the session works:</b> hooks report busy/idle · event coalescing · wake-ups by terminal
+      input (tmux), bus push if S5 allows · watchdog with resend and Restart (<code>--resume</code>) · no wake-ups
+      when AI is off or paused · the skill's "stop after timeouts" rule removed.</li>
+    <li>Companion state in the status strip · one companion per window.</li>
+    <li><b>All-day context:</b> images out of the context by default, the canvas-state summary kept in notes, and an
+      automatic rollover to a fresh session before the limit.</li>
+    <li>The assist contract in the companion's instructions (minimal, in place, fast; bigger changes only with a
+      marker or a question) · the delegation default (render and watch; facts and docs from peers).</li>
+    <li>"Open companion" / "Hide" (bring its terminal to front) · AI off puts it to rest.</li>
+    <li>Acceptance: start xournalai from the icon, and the whole canvas-session workflow works with the companion
+      that comes with it.</li></ul></details>
+  <details class="epoch"><summary>E8b · Companion extras <span>→ 1.4.x</span></summary><ul>
+    <li>(The dock itself moved to Milestone 1; the external terminal stage is skipped.)</li>
+    <li>Canvas SDK, "My handwriting", sessions panel, peers, capabilities (from the former E8).</li></ul></details>
+  <details class="epoch"><summary>E9 · Focused co-pilot and Revise <span>→ 1.5.0</span></summary><ul>
+    <li><b>The Auto-improve toggle</b> (toolbar button, shortcut, menu; per-rule dropdown; shown in the status strip)
+      drives the co-pilot; off = markers and commands only.</li>
+    <li>Work units, watch zones, small payloads, local pre-sorting, tiered models, per-unit caching, background
+      drafts · manual Revise page or selection, and the style memory.</li></ul></details>
+  <details class="epoch"><summary>E10 · Linked boards and the launchpad <span>→ 1.6.0</span></summary><ul>
+    <li>Linked boards: "New board linked to…" a session or folder (starting one if needed), link shown on the page,
+      requests routed to it, it may draw on the board.</li>
+    <li>The handoff package (image, transcription, diagram description, LaTeX, notes, open questions).</li>
+    <li>"Start session from page": templates (implementation, research, tinker, custom), folder picker, a new
+      Claude Code session in a terminal window, joins the bus, linked to the page.</li>
+    <li>"Send to session": page or region plus instruction to a running peer; replies as notes or drafts.</li>
+    <li>The round trip: linked sessions write progress marks and findings back onto the page.</li></ul></details>
+  <details class="epoch"><summary>E10b · Voice A: push-to-talk, local <span>→ 1.7.0 (optional for the pitch)</span></summary><ul>
+    <li>Audio capture (PortAudio is already a dependency) · whisper.cpp, multilingual, on the machine · mic button,
+      stylus or key push-to-talk · transcript plus selection become an intent.</li></ul></details>
+  <details class="epoch"><summary>E11 · Prototype release <span>→ 2.0.0 "pitch build"</span></summary><ul>
+    <li><code>tools/install.sh</code> (build, install to <code>~/.local</code>, launcher, adapters, updates) ·
+      logs and diagnostics · polish.</li>
+    <li>Two weeks of dogfooding without blockers · four scripted demo scenarios (assisted drawing session; a
+      conspect in your handwriting; <b>"draw my laptop's CPU and memory, hand-drawn"</b>; <b>a drawing that launches
+      an implementation session</b>) · a short
+      demo video and a one-pager.</li></ul></details>
+  <h3>Later horizon (designed for, not built now)</h3>
+  <div class="grid2">
+    <div class="card"><h4>Remote runner</h4><p>Your laptop serves as the runner for other devices (paired, local
+      network); then a hosted endpoint.</p></div>
+    <div class="card"><h4>Built-in API runner</h4><p>Direct API calls (Anthropic, OpenAI-compatible, Ollama) for users
+      without CLIs, with keys, caching and budgets.</p></div>
+    <div class="card"><h4>Android</h4><p>A new touch app reusing the file format and the assistant core; its brain is a
+      remote runner.</p></div>
+    <div class="card"><h4>macOS</h4><p>The same GTK app plus the local CLIs; mostly packaging and testing.</p></div>
+    <div class="card"><h4>Voice B and C</h4><p>Pointing gestures, fast lane, conversation mode, spoken replies,
+      realtime "live" runner.</p></div>
+    <div class="card"><h4>Public release</h4><p>Onboarding, privacy settings, Flatpak / AppImage, a proper runner
+      business model.</p></div>
+  </div>
+</section>
+
+<section id="s7" data-section="7. Decisions">
+  <h2>7. Decisions for you</h2>
+  <div class="q" data-q="Command convention">
+    <h4>1. How should you give commands in ink?</h4>
+    <p>Your marker language (<code>*!</code> <code>**!</code> <code>*w!</code> <code>*c!</code> <code>*r!</code>) is proven; an
+    AI pen would be an addition.</p>
+    <div class="opts">
+      <label><input type="radio" name="q1" value="Markers only (as today)"> Markers only, as today</label>
+      <label><input type="radio" name="q1" value="Markers built in, AI pen as an optional extra"> Markers built in, plus an optional AI pen for longer commands <span class="rec">recommended</span></label>
+      <label><input type="radio" name="q1" value="AI pen replaces markers"> AI pen replaces the markers</label>
+    </div>
+  </div>
+  <div class="q" data-q="First runner">
+    <h4>2. Which runner first? <span class="rec">settled by the scope: ACP on your subscriptions</span></h4>
+    <p>Kept for the record. Rev 4 fixes this: ACP with the local CLIs now, the built-in runner later.</p>
+    <div class="opts">
+      <label><input type="radio" name="q2" value="ACP first, built-in for 2.0"> ACP first, built-in for 2.0 <span class="rec">recommended</span></label>
+      <label><input type="radio" name="q2" value="Built-in API runner first"> Built-in API runner first</label>
+      <label><input type="radio" name="q2" value="Terminal drawer first (fastest), then ACP"> Terminal drawer first (fastest), then ACP</label>
+    </div>
+  </div>
+  <div class="q" data-q="Preview vs direct">
+    <h4>3. Previews or direct edits?</h4>
+    <div class="opts">
+      <label><input type="radio" name="q3" value="Drafts for co-pilot, direct for explicit buttons"> Drafts for co-pilot, direct edits for explicit buttons <span class="rec">recommended</span></label>
+      <label><input type="radio" name="q3" value="Always drafts"> Always drafts (accept/reject everything)</label>
+      <label><input type="radio" name="q3" value="Always direct, undo only"> Always direct, undo only</label>
+    </div>
+  </div>
+  <div class="q" data-q="Public platforms">
+    <h4>4. (Later) Public release scope</h4>
+    <div class="opts">
+      <label><input type="radio" name="q4" value="Linux only (Flatpak/AppImage)"> Linux only (Flatpak / AppImage)</label>
+      <label><input type="radio" name="q4" value="Cross-platform"> Cross-platform (Linux, Windows, macOS)</label>
+      <label><input type="radio" name="q4" value="Undecided"> Undecided for now</label>
+    </div>
+  </div>
+  <div class="q" data-q="Co-pilot budget">
+    <h4>5. What's acceptable per co-pilot action? <span class="rec">answered: seconds for small pieces, longer for big tasks, never silent</span></h4>
+    <div class="opts">
+      <label><input type="radio" name="q5" value="Fast and cheap: < 5 s, fast model"> Fast and cheap: under 5 s, fast model</label>
+      <label><input type="radio" name="q5" value="Balanced: < 15 s, fast model + strong for redraws"> Balanced: under 15 s, fast model, strong model for redraws <span class="rec">recommended</span></label>
+      <label><input type="radio" name="q5" value="Quality first: strong model, latency OK"> Quality first: strong model, latency is fine</label>
+    </div>
+  </div>
+  <div class="q" data-q="Voice: speech recognition">
+    <h4>6. Voice: where should speech be recognised?</h4>
+    <p>Your multilingual speech; local keeps audio on the machine.</p>
+    <div class="opts">
+      <label><input type="radio" name="q6" value="Local first (whisper.cpp), cloud optional"> Local first (whisper.cpp), cloud optional <span class="rec">recommended</span></label>
+      <label><input type="radio" name="q6" value="Cloud first (best accuracy), local later"> Cloud first (best accuracy), local later</label>
+      <label><input type="radio" name="q6" value="Reuse the CLI's voice mode only"> Reuse the CLI's voice mode only (terminal drawer)</label>
+    </div>
+  </div>
+  <div class="q" data-q="Voice: listening style">
+    <h4>7. Voice: how should it listen?</h4>
+    <div class="opts">
+      <label><input type="radio" name="q7" value="Push-to-talk first, conversation mode later"> Push-to-talk first (stylus button or key), conversation mode later <span class="rec">recommended</span></label>
+      <label><input type="radio" name="q7" value="Conversation mode from the start"> Conversation mode (always listening while on) from the start</label>
+    </div>
+  </div>
+  <div class="q" data-q="Voice: spoken replies">
+    <h4>8. Voice: should it talk back?</h4>
+    <div class="opts">
+      <label><input type="radio" name="q8" value="Visual only (toasts, subtitles)"> Visual only (toasts, subtitles)</label>
+      <label><input type="radio" name="q8" value="Short spoken confirmations, optional"> Short spoken confirmations and questions, optional <span class="rec">recommended</span></label>
+      <label><input type="radio" name="q8" value="Full spoken conversation"> Full spoken conversation</label>
+    </div>
+  </div>
+  <div class="q" data-q="Co-pilot: when is a unit finished">
+    <h4>9. Focused co-pilot: when is a piece of writing "done"?</h4>
+    <div class="opts">
+      <label><input type="radio" name="q9" value="When I move to another area (or long idle)"> When I move to another area, or after a long idle <span class="rec">recommended</span></label>
+      <label><input type="radio" name="q9" value="After a short idle (2–4 s)"> After a short idle (2–4 s)</label>
+      <label><input type="radio" name="q9" value="Only in pinned watch zones"> Only inside zones I pinned; nothing automatic elsewhere</label>
+    </div>
+  </div>
+  <div class="q" data-q="Prototype: default runner">
+    <h4>10. Prototype: which subscription is the default runner?</h4>
+    <div class="opts">
+      <label><input type="radio" name="q10" value="Claude Code (Claude subscription)"> Claude Code (your Claude subscription)</label>
+      <label><input type="radio" name="q10" value="Codex (ChatGPT subscription)"> Codex (your ChatGPT subscription)</label>
+      <label><input type="radio" name="q10" value="Both: Claude default, Codex as failover"> Claude by default, Codex selectable per document <span class="rec">recommended</span></label>
+    </div>
+  </div>
+  <div class="q" data-q="Prototype: voice in the pitch build">
+    <h4>11. Voice A (local push-to-talk) in the pitch build?</h4>
+    <div class="opts">
+      <label><input type="radio" name="q11" value="Yes, it's part of the pitch"> Yes, it's part of the pitch</label>
+      <label><input type="radio" name="q11" value="Only if time allows"> Only if time allows <span class="rec">recommended</span></label>
+      <label><input type="radio" name="q11" value="No, later"> No, later</label>
+    </div>
+  </div>
+  <div class="q" data-q="Sessions: how many per document">
+    <h4>12. How many Claude sessions per document?</h4>
+    <div class="opts">
+      <label><input type="radio" name="q12" value="One session per document, fast helper agent inside"> One full session per document, with a fast canvas-watcher helper inside <span class="rec">recommended (rev 7)</span></label>
+      <label><input type="radio" name="q12" value="Co-pilot + worker per document"> Two separate sessions: a fast co-pilot plus a strong worker</label>
+      <label><input type="radio" name="q12" value="One shared session for the whole app"> One shared session for the whole app</label>
+    </div>
+  </div>
+  <div class="q" data-q="Sessions: peer naming">
+    <h4>13. How should xournalai's sessions be named on the bus?</h4>
+    <div class="opts">
+      <label><input type="radio" name="q13" value="xournalai-<document name>"> <code>xournalai-&lt;document name&gt;</code> <span class="rec">recommended</span></label>
+      <label><input type="radio" name="q13" value="A name I choose per document"> A name I choose per document</label>
+      <label><input type="radio" name="q13" value="Claude Code's default names"> Claude Code's default names</label>
+    </div>
+  </div>
+  <div class="q" data-q="Launchpad: where new sessions run">
+    <h4>14. Launchpad: where should a session started from a page run?</h4>
+    <div class="opts">
+      <label><input type="radio" name="q14" value="A normal terminal window, joins the bus"> In a normal terminal window, joining the bus <span class="rec">recommended</span></label>
+      <label><input type="radio" name="q14" value="Hidden, visible in the Sessions panel"> Hidden, visible only in the Sessions panel</label>
+      <label><input type="radio" name="q14" value="Ask each time"> Ask each time</label>
+    </div>
+  </div>
+  <div class="q" data-q="Charts from data: freshness">
+    <h4>15. Charts from live data: how fresh?</h4>
+    <div class="opts">
+      <label><input type="radio" name="q15" value="Snapshot + Refresh button"> Snapshots, plus a Refresh button <span class="rec">recommended</span></label>
+      <label><input type="radio" name="q15" value="Auto-refresh while I watch"> Auto-refresh every N minutes while the page is open</label>
+      <label><input type="radio" name="q15" value="Snapshots only"> Snapshots only</label>
+    </div>
+  </div>
+  <div class="q" data-q="Companion: when to start">
+    <h4>16. Companion session: when should it start? <span class="rec">answered: with the app; connected to nothing else by default</span></h4>
+    <div class="opts">
+      <label><input type="radio" name="q16" value="With the app"> Together with xournalai</label>
+      <label><input type="radio" name="q16" value="When AI mode is switched on"> When I switch AI mode on <span class="rec">recommended</span></label>
+      <label><input type="radio" name="q16" value="Manually"> Manually</label>
+    </div>
+  </div>
+  <div class="q" data-q="Companion: where it lives first">
+    <h4>17. Companion session: where should it live first? <span class="rec">answered: straight to the in-app dock</span></h4>
+    <div class="opts">
+      <label><input type="radio" name="q17" value="Terminal window first, dock next"> A terminal window first (fastest), the in-app dock next <span class="rec">recommended</span></label>
+      <label><input type="radio" name="q17" value="Straight to the in-app dock"> Straight to the in-app dock</label>
+    </div>
+  </div>
+  <div class="q" data-q="Companion: how to wake it">
+    <h4>18. How should the app wake the companion?</h4>
+    <div class="opts">
+      <label><input type="radio" name="q18" value="Terminal input first, bus push when proven"> Terminal input first (works today), switch to bus push once S5 proves it <span class="rec">recommended</span></label>
+      <label><input type="radio" name="q18" value="Bus push only"> Bus push only</label>
+      <label><input type="radio" name="q18" value="Keep-alive loop (Stop hook)"> Keep it looping via the Stop hook</label>
+    </div>
+  </div>
+  <div class="q" data-q="Companion: permissions">
+    <h4>19. Companion permissions <span class="rec">answered: --dangerously-skip-permissions by default (your setup); "normal" mode as a setting</span></h4>
+    <p>It's driven by canvas content, web pages (<code>*w!</code>) and peer messages, so a page could try to steer it.</p>
+    <div class="opts">
+      <label><input type="radio" name="q19" value="Allowlist by default, skip-all as a setting"> An allowlist (xournalai tools, web, its skill scripts, its folder) by default; "skip all permissions" as a setting <span class="rec">recommended</span></label>
+      <label><input type="radio" name="q19" value="--dangerously-skip-permissions always"> Always <code>--dangerously-skip-permissions</code></label>
+    </div>
+  </div>
+</section>
+</main>
+</div>
+
+<div class="bar">
+  <span class="status" id="status">Your notes are kept in this browser.</span>
+  <button class="secondary" id="copyBtn" type="button">Copy feedback</button>
+  <button class="primary" id="saveBtn" type="button">Save feedback (.md)</button>
+</div>
+
+<script>
+(function () {
+  const KEY = "xournalai-assistant-plan-feedback-v1";
+  const store = {
+    get() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } },
+    set(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) {} }
+  };
+  let data = store.get();
+  data.comments = data.comments || {}; data.stance = data.stance || {}; data.answers = data.answers || {};
+
+  // theme
+  const themeBtn = document.getElementById("themeBtn");
+  function applyTheme(t) { if (t) document.documentElement.setAttribute("data-theme", t); else document.documentElement.removeAttribute("data-theme"); }
+  applyTheme(data.theme);
+  themeBtn.addEventListener("click", () => {
+    const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+    const cur = data.theme || (dark ? "dark" : "light");
+    data.theme = cur === "dark" ? "light" : "dark"; applyTheme(data.theme); store.set(data);
+  });
+
+  // a feedback box under every commentable section
+  document.querySelectorAll("section[data-section]").forEach(sec => {
+    const id = sec.id, title = sec.dataset.section;
+    const fb = document.createElement("div"); fb.className = "fb";
+    const stance = document.createElement("div"); stance.className = "stance";
+    ["Agree", "Partly", "Disagree", "Discuss"].forEach(s => {
+      const b = document.createElement("button"); b.type = "button"; b.textContent = s;
+      b.setAttribute("aria-pressed", data.stance[id] === s ? "true" : "false");
+      b.addEventListener("click", () => {
+        data.stance[id] = data.stance[id] === s ? undefined : s; store.set(data);
+        stance.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x.textContent === data.stance[id] ? "true" : "false"));
+        refreshCounts();
+      });
+      stance.appendChild(b);
+    });
+    const label = document.createElement("label"); label.textContent = "Your comments on “" + title + "”";
+    label.setAttribute("for", "c-" + id);
+    const ta = document.createElement("textarea"); ta.id = "c-" + id; ta.value = data.comments[id] || "";
+    ta.placeholder = "What's wrong, what's missing, what you'd do instead…";
+    ta.addEventListener("input", () => { data.comments[id] = ta.value; store.set(data); refreshCounts(); saved(); });
+    fb.append(stance, label, ta); sec.appendChild(fb);
+  });
+
+  // decisions
+  document.querySelectorAll(".q").forEach(q => {
+    const name = q.querySelector("input").name;
+    q.querySelectorAll("input").forEach(inp => {
+      if (data.answers[name] === inp.value) inp.checked = true;
+      inp.addEventListener("change", () => { data.answers[name] = inp.value; store.set(data); refreshCounts(); saved(); });
+    });
+  });
+
+  function refreshCounts() {
+    document.querySelectorAll(".count").forEach(c => {
+      const id = c.dataset.for;
+      let n = (data.comments[id] || "").trim() ? 1 : 0;
+      if (data.stance[id]) n++;
+      if (id === "s7") n = Object.keys(data.answers).length;
+      c.textContent = n ? "●".repeat(Math.min(n, 5)) : "";
+    });
+  }
+  refreshCounts();
+
+  let t;
+  function saved() { const s = document.getElementById("status"); s.textContent = "Saved in this browser."; clearTimeout(t); t = setTimeout(() => s.textContent = "Your notes are kept in this browser.", 1500); }
+
+  function markdown() {
+    const out = ["# Feedback on the xournalai Assistant plan", "", "_" + new Date().toLocaleString() + "_", ""];
+    document.querySelectorAll("section[data-section]").forEach(sec => {
+      const id = sec.id, c = (data.comments[id] || "").trim(), s = data.stance[id];
+      if (!c && !s) return;
+      out.push("## " + sec.dataset.section);
+      if (s) out.push("**Stance:** " + s);
+      if (c) out.push("", c);
+      out.push("");
+    });
+    const qs = document.querySelectorAll(".q");
+    if (Object.keys(data.answers).length) {
+      out.push("## Decisions");
+      qs.forEach(q => { const name = q.querySelector("input").name; if (data.answers[name]) out.push("- **" + q.dataset.q + ":** " + data.answers[name]); });
+      out.push("");
+    }
+    return out.join("\n");
+  }
+  document.getElementById("saveBtn").addEventListener("click", () => {
+    const blob = new Blob([markdown()], { type: "text/markdown" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "assistant-plan-feedback.md";
+    document.body.appendChild(a); a.click(); a.remove();
+    document.getElementById("status").textContent = "Saved to your Downloads as assistant-plan-feedback.md. Tell Claude.";
+  });
+  document.getElementById("copyBtn").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(markdown()); document.getElementById("status").textContent = "Copied. Paste it into the chat."; }
+    catch (e) { document.getElementById("status").textContent = "Copy failed; use Save instead."; }
+  });
+})();
+</script>
+</body>
+</html>

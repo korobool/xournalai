@@ -1,8 +1,8 @@
 {
   "meta": {
-    "project": "xournalai — embedded MCP server",
+    "project": "xournalai: embedded MCP server and assistant",
     "branch": "mcp",
-    "plan": "docs/mcp/PLAN.md",
+    "plan": "docs/mcp/PLAN.md, docs/assistant/ASSISTANT-PLAN.md",
     "version": "1.1.0",
     "versioning": [
       "The fork has its own semantic version, XOURNALAI_VERSION, kept in CMakeLists.txt. The application version string becomes <upstream>+ai.<XOURNALAI_VERSION>, e.g. 1.3.7+ai.0.2.0.",
@@ -946,6 +946,196 @@
               "status": "done",
               "started": "2026-09-29T01:19:43+01:00",
               "finished": "2026-09-29T01:36:53+01:00"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "E6",
+      "title": "Serving session in the app (Assistant Milestone 1)",
+      "release": "1.2.0",
+      "goal": "Your canvas workflow inside xournalai: an embedded terminal running the serving Claude Code (bypass permissions by default), an AI toolbar built on your markers, an Auto-improve toggle, and visible thinking, with no extra windows.",
+      "stages": [
+        {
+          "id": "S6.1",
+          "title": "Embedded AI terminal",
+          "version": "1.1.1",
+          "stories": [
+            {
+              "id": "US-6.1",
+              "text": "As the owner, I want a collapsible terminal inside xournalai that runs Claude Code or Codex, so that the serving session lives in the app, not in a separate window.",
+              "acceptance": [
+                "a dock with tabs toggles with a key and keeps its processes while hidden",
+                "tab 1 starts Claude Code in the companion folder with --dangerously-skip-permissions (setting: bypass | normal)",
+                "+ opens Codex (--dangerously-bypass-approvals-and-sandbox), OpenCode or a shell",
+                "builds without VTE (ENABLE_AI_TERMINAL off)"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T6.1.1",
+              "story": "US-6.1",
+              "title": "Terminal dock",
+              "details": "CMake option ENABLE_AI_TERMINAL (vte-2.91); a collapsible dock (bottom, resizable) with a notebook of VTE tabs; View/AI Agent menu toggle and shortcut; processes keep running while hidden.",
+              "commit": "ai: add embedded terminal dock",
+              "status": "todo"
+            },
+            {
+              "id": "T6.1.2",
+              "story": "US-6.1",
+              "title": "Companion folder",
+              "details": "~/.local/share/xournalai/companion: CLAUDE.md (role, markers *! **! *w! *c! *r!, assist-don't-redo, delegation, wake-up protocol), .mcp.json (stdio bridge to this app), settings (hooks); created and updated by the app.",
+              "commit": "ai: provision the companion folder",
+              "status": "todo"
+            },
+            {
+              "id": "T6.1.3",
+              "story": "US-6.1",
+              "title": "Serving session autostart",
+              "details": "Tab 1 auto-starts `claude --dangerously-skip-permissions --continue` in the companion folder when the app starts (settings: autostart, permission mode bypass|normal, agent claude|codex); '+' menu for Codex / OpenCode / shell; restart action.",
+              "commit": "ai: start the serving session in the dock",
+              "status": "todo"
+            }
+          ]
+        },
+        {
+          "id": "S6.2",
+          "title": "The app watches, the session works",
+          "version": "1.1.2",
+          "stories": [
+            {
+              "id": "US-6.2",
+              "text": "As the owner, I want the serving session to react whenever something relevant happens on the canvas, without it falling asleep, so that watching works all day.",
+              "acceptance": [
+                "the app knows whether the session is busy or idle (hooks)",
+                "relevant events wake an idle session by typing a short line into its terminal",
+                "events are coalesced; a watchdog resends once and offers Restart",
+                "nothing is sent while AI is paused or the session is busy with your typing"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T6.2.1",
+              "story": "US-6.2",
+              "title": "Session state via hooks",
+              "details": "`xournalpp --ai-hook <event>` (SessionStart, UserPromptSubmit, Stop, Notification) reports to the running app; state busy/idle/waiting shown in the status strip.",
+              "commit": "ai: track the serving session state with hooks",
+              "status": "todo"
+            },
+            {
+              "id": "T6.2.2",
+              "story": "US-6.2",
+              "title": "Event pump and wake-ups",
+              "details": "Coalesced canvas events (user strokes after idle, markers, toolbar actions) become one wake-up line typed into the idle session's terminal (only when its prompt is empty); intents_next / changes_get for details; watchdog and Restart.",
+              "commit": "ai: wake the serving session on canvas events",
+              "status": "todo"
+            }
+          ]
+        },
+        {
+          "id": "S6.3",
+          "title": "AI toolbar and Auto-improve",
+          "version": "1.1.3",
+          "stories": [
+            {
+              "id": "US-6.3",
+              "text": "As the owner, I want AI buttons for my marker commands and a toggle for assistant mode, so that I can trigger AI help without writing markers every time.",
+              "acceptance": [
+                "an AI toolbar row with: Improve strokes (*!), Illustrate (**!), Web summary (*w!), Real image (*r!), Command (*c!), Revise page, Pause, Terminal",
+                "buttons act on the selection (or the last drawn piece)",
+                "an Auto-improve toggle: on = improve everything written; off = markers and commands only",
+                "handwritten markers are detected cheaply and trigger the same actions"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T6.3.1",
+              "story": "US-6.3",
+              "title": "AI toolbar",
+              "details": "A toolbar row with the AI actions based on your markers, plus Revise page, Pause and Terminal; each creates an intent with the selection (or the last piece) and wakes the session.",
+              "commit": "ai: add the AI toolbar",
+              "status": "todo"
+            },
+            {
+              "id": "T6.3.2",
+              "story": "US-6.3",
+              "title": "Auto-improve toggle",
+              "details": "Toggle button, menu entry and shortcut; per-rule dropdown (formulas, text, diagrams, colours); the mode is in the status strip and in every wake-up.",
+              "commit": "ai: add the Auto-improve toggle",
+              "status": "todo"
+            },
+            {
+              "id": "T6.3.3",
+              "story": "US-6.3",
+              "title": "Handwritten marker detection",
+              "details": "Detect candidate markers among fresh strokes (asterisk: 2-4 short crossing strokes; then '!' bar plus dot; the letter read by the session from a crop); markers_list / marker_done removes the marker.",
+              "commit": "ai: detect handwritten markers",
+              "status": "todo"
+            }
+          ]
+        },
+        {
+          "id": "S6.4",
+          "title": "Visible thinking",
+          "version": "1.1.4",
+          "stories": [
+            {
+              "id": "US-6.4",
+              "text": "As the owner, I want to see where and what the AI is thinking about, so that it is never silent.",
+              "acceptance": [
+                "the zone being worked on is covered with a translucent grey veil and an animated outline, with a thinking icon and one-line status",
+                "states queued, thinking, drawing, done or failed are visible",
+                "the status strip shows the session state and the number of tasks in progress",
+                "clicking the icon cancels (interrupts the session)"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T6.4.1",
+              "story": "US-6.4",
+              "title": "Thinking overlay",
+              "details": "Canvas overlay: a translucent grey veil plus animated outline over the zone, an icon, and a one-line status; follows zoom and scroll; the session sets it via intent_update / a thinking tool, the app sets it for its own intents.",
+              "commit": "ai: show thinking zones on the canvas",
+              "status": "todo"
+            },
+            {
+              "id": "T6.4.2",
+              "story": "US-6.4",
+              "title": "Status and cancel",
+              "details": "The status strip shows the session state, active tasks and the mode; clicking a thinking icon or Stop interrupts the session (Esc into its terminal) and clears the zone.",
+              "commit": "ai: show assistant status and allow cancel",
+              "status": "todo"
+            }
+          ]
+        },
+        {
+          "id": "S6.5",
+          "title": "Milestone 1 release",
+          "version": "1.2.0",
+          "stories": [
+            {
+              "id": "US-6.5",
+              "text": "As the owner, I want Milestone 1 tested and documented, so that it works for a full day of real use.",
+              "acceptance": [
+                "integration tests with a fake companion (the terminal and the wake-up protocol)",
+                "docs/assistant updated",
+                "CHANGELOG and tag ai-v1.2.0"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T6.5.1",
+              "story": "US-6.5",
+              "title": "Milestone 1 release",
+              "details": "Integration tests (fake companion script in the dock; wake-ups, hooks, toolbar intents, overlay), docs, CHANGELOG, tag ai-v1.2.0.",
+              "commit": "ai: release 1.2.0 (Assistant Milestone 1)",
+              "status": "todo"
             }
           ]
         }
