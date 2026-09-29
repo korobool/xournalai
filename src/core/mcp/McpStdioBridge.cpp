@@ -1,6 +1,7 @@
 #include "McpStdioBridge.h"
 
-#include <cstdio>  // for fwrite, fflush
+#include <algorithm>  // for find
+#include <cstdio>     // for fwrite, fflush
 #include <string>  // for string
 
 #include <gio/gio.h>
@@ -18,6 +19,7 @@ namespace {
 
 constexpr int MAX_CONNECT_ATTEMPTS = 80;  // x 250 ms = 20 s for the application to start
 constexpr guint RETRY_MS = 250;
+constexpr guint POLL_SECONDS = 3;  // while the application is not running: look for it this often
 
 struct Bridge {
     McpConfig cfg;
@@ -31,6 +33,11 @@ struct Bridge {
     bool launched = false;
     bool stdinClosed = false;
     int inflight = 0;
+    /// The application is not running: the bridge answers for it (no tools) and polls until it appears, then tells
+    /// the client that the tools changed. Agents are configured once and work whenever the user starts the app.
+    bool offline = false;
+    guint pollSource = 0;
+    json clientInit;  ///< the client's initialize params, replayed to the application when it appears
 };
 
 struct Pending {
@@ -39,6 +46,7 @@ struct Pending {
     json id;  ///< null for notifications
     int attempt = 0;
     SoupMessage* msg = nullptr;
+    std::string method;
 };
 
 void log(const std::string& text) { g_printerr("xournalai-mcp-stdio: %s\n", text.c_str()); }
@@ -99,6 +107,131 @@ void launchApplication(Bridge* b) {
 
 void startSse(Bridge* b);
 void send(Pending* p);
+void goOffline(Bridge* b);
+
+/// Our answer to `initialize`: tools/prompts/resources may change (they appear when the application starts)
+json advertiseChanges(json result) {
+    if (result.is_object() && result.contains("capabilities")) {
+        auto& caps = result["capabilities"];
+        for (const char* k: {"tools", "prompts", "resources"}) {
+            if (caps.contains(k) && caps[k].is_object()) {
+                caps[k]["listChanged"] = true;
+            }
+        }
+    }
+    return result;
+}
+
+json offlineInitializeResult(const json& params) {
+    const auto& versions = McpProtocol::supportedProtocolVersions();
+    const std::string requested = params.value("protocolVersion", "");
+    const bool known = std::find(versions.begin(), versions.end(), requested) != versions.end();
+    return {{"protocolVersion", known ? requested : std::string(McpProtocol::LATEST_PROTOCOL_VERSION)},
+            {"capabilities",
+             {{"tools", {{"listChanged", true}}},
+              {"prompts", {{"listChanged", true}}},
+              {"resources", {{"subscribe", true}, {"listChanged", true}}},
+              {"logging", json::object()}}},
+            {"serverInfo", {{"name", "xournalai"}, {"title", "Xournal++ (xournalai)"}, {"version", "offline"}}},
+            {"instructions", "xournalai (a note-taking app) is not running right now. Its tools appear as soon as "
+                             "the user starts it; calling a tool also starts it."}};
+}
+
+/// Answers a request while the application is not running. Returns false if it has to go to the application.
+bool answerOffline(Bridge* b, const std::string& method, const json& id) {
+    if (method == "tools/call") {
+        return false;  // an explicit request: start the application and forward
+    }
+    if (id.is_null()) {
+        return true;  // notifications need no application
+    }
+    json result;
+    if (method == "tools/list") {
+        result = {{"tools", json::array()}};
+    } else if (method == "prompts/list") {
+        result = {{"prompts", json::array()}};
+    } else if (method == "resources/list") {
+        result = {{"resources", json::array()}};
+    } else if (method == "resources/templates/list") {
+        result = {{"resourceTemplates", json::array()}};
+    } else if (method == "ping" || method == "logging/setLevel") {
+        result = json::object();
+    } else if (method == "initialize") {
+        result = offlineInitializeResult(b->clientInit);
+    } else {
+        writeError(id, "xournalai is not running; ask the user to start it");
+        return true;
+    }
+    writeLine(rpc::resultResponse(id, result).dump());
+    return true;
+}
+
+void notifyListsChanged() {
+    for (const char* m:
+         {"notifications/tools/list_changed", "notifications/prompts/list_changed", "notifications/resources/list_changed"}) {
+        writeLine(json({{"jsonrpc", "2.0"}, {"method", m}}).dump());
+    }
+}
+
+/// Offline: try to reach the application; once it answers, initialize a session for the client and tell it
+gboolean poll(gpointer data) {
+    auto* b = static_cast<Bridge*>(data);
+    if (!b->offline || b->stdinClosed) {
+        b->pollSource = 0;
+        return G_SOURCE_REMOVE;
+    }
+    json init = {{"jsonrpc", "2.0"}, {"id", "xournalai-bridge-init"}, {"method", "initialize"},
+                 {"params", b->clientInit.is_object() ? b->clientInit :
+                                                         json{{"protocolVersion", McpProtocol::LATEST_PROTOCOL_VERSION},
+                                                              {"capabilities", json::object()},
+                                                              {"clientInfo", {{"name", "xournalai-bridge"},
+                                                                              {"version", "1"}}}}}};
+    SoupMessage* msg = soup_message_new("POST", b->url.c_str());
+    auto* h = soup_message_get_request_headers(msg);
+    soup_message_headers_replace(h, "Authorization", ("Bearer " + b->cfg.token).c_str());
+    soup_message_headers_replace(h, "Accept", "application/json, text/event-stream");
+    const std::string text = init.dump();
+    GBytes* bytes = g_bytes_new(text.data(), text.size());
+    soup_message_set_request_body_from_bytes(msg, "application/json", bytes);
+    g_bytes_unref(bytes);
+    GBytes* reply = soup_session_send_and_read(b->http, msg, nullptr, nullptr);  // local and quick
+    const guint status = soup_message_get_status(msg);
+    const char* sid = soup_message_headers_get_one(soup_message_get_response_headers(msg), "Mcp-Session-Id");
+    if (reply && status == 200 && sid) {
+        b->sessionId = sid;
+        b->offline = false;
+        b->launched = false;
+        b->pollSource = 0;
+        g_object_unref(msg);
+        g_bytes_unref(reply);
+        // complete the handshake, then let the client fetch the real tools
+        auto* note = new Pending{b, json({{"jsonrpc", "2.0"}, {"method", "notifications/initialized"}}).dump(),
+                                 json(), 0, nullptr, "notifications/initialized"};
+        b->inflight++;
+        send(note);
+        log("xournalai is running: tools are available");
+        notifyListsChanged();
+        startSse(b);
+        return G_SOURCE_REMOVE;
+    }
+    if (reply) {
+        g_bytes_unref(reply);
+    }
+    g_object_unref(msg);
+    return G_SOURCE_CONTINUE;
+}
+
+void goOffline(Bridge* b) {
+    const bool wasOnline = !b->offline;
+    b->offline = true;
+    b->sessionId.clear();
+    if (!b->pollSource) {
+        b->pollSource = g_timeout_add_seconds(POLL_SECONDS, poll, b);
+    }
+    if (wasOnline) {
+        notifyListsChanged();  // the tools are gone until the application is back
+    }
+}
 
 void onSseLine(GObject* source, GAsyncResult* res, gpointer data) {
     auto* b = static_cast<Bridge*>(data);
@@ -170,6 +303,18 @@ void onResponse(GObject* source, GAsyncResult* res, gpointer data) {
         }
         g_object_unref(p->msg);
         p->msg = nullptr;
+        if (refused && p->method != "tools/call") {
+            // Not running: answer for it and wait for the user to start it (no window pops up by itself)
+            if (!b->offline) {
+                log("xournalai is not running; its tools appear when it starts");
+            }
+            goOffline(b);
+            answerOffline(b, p->method, p->id);
+            b->inflight--;
+            delete p;
+            maybeQuit(b);
+            return;
+        }
         if (refused && p->attempt < MAX_CONNECT_ATTEMPTS) {
             if (!b->launched) {
                 launchApplication(b);
@@ -201,7 +346,19 @@ void onResponse(GObject* source, GAsyncResult* res, gpointer data) {
     }
     g_object_unref(p->msg);
 
+    b->launched = false;  // reachable again: if the user closes the app later, the next call may start it again
+    if (b->offline && status < 500) {  // reached it while offline (a tool call started it)
+        b->offline = false;
+        notifyListsChanged();
+    }
     if (status == 200 && !body.empty()) {
+        if (p->method == "initialize") {
+            json parsed = json::parse(body, nullptr, false);
+            if (parsed.is_object() && parsed.contains("result")) {
+                parsed["result"] = advertiseChanges(parsed["result"]);
+                body = parsed.dump();
+            }
+        }
         writeLine(body);
         startSse(b);
     } else if (status != 202 && status != 200) {
@@ -210,7 +367,7 @@ void onResponse(GObject* source, GAsyncResult* res, gpointer data) {
                                       parsed["error"].value("message", body) :
                                       "HTTP " + std::to_string(status) + " " + body;
         if (status == 404) {
-            b->sessionId.clear();  // the application restarted; the client has to initialize again
+            b->sessionId.clear();  // unknown session (older servers): the next request starts a new one
         }
         writeError(p->id, message);
     }
@@ -250,9 +407,18 @@ void onStdinLine(GObject* source, GAsyncResult* res, gpointer data) {
         if (parsed.is_discarded()) {
             writeLine(rpc::errorResponse(nullptr, rpc::PARSE_ERROR, "Invalid JSON").dump());
         } else {
-            auto* p = new Pending{b, text, parsed.is_object() ? parsed.value("id", json()) : json()};
-            b->inflight++;
-            send(p);
+            const std::string method = parsed.is_object() ? parsed.value("method", "") : "";
+            const json id = parsed.is_object() ? parsed.value("id", json()) : json();
+            if (method == "initialize") {
+                b->clientInit = parsed.value("params", json::object());
+            }
+            if (b->offline && answerOffline(b, method, id)) {
+                // answered for the absent application
+            } else {
+                auto* p = new Pending{b, text, id, 0, nullptr, method};
+                b->inflight++;
+                send(p);
+            }
         }
     }
     g_data_input_stream_read_line_async(b->in, G_PRIORITY_DEFAULT, nullptr, onStdinLine, b);
