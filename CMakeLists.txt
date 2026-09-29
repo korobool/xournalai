@@ -442,6 +442,13 @@ if (${INSTALL_DESKTOP_FILES})
             DESTINATION share/metainfo)
 endif ()
 
+# xournalai: its own launcher entry and icon (app id io.github.korobool.xournalai), next to a regular Xournal++
+set(XOURNALAI_EXEC "${CMAKE_INSTALL_PREFIX}/bin/xournalpp")
+configure_file(desktop/io.github.korobool.xournalai.desktop
+               ${CMAKE_BINARY_DIR}/generated/io.github.korobool.xournalai.desktop @ONLY)
+install(FILES ${CMAKE_BINARY_DIR}/generated/io.github.korobool.xournalai.desktop DESTINATION share/applications)
+install(FILES ui/pixmaps/io.github.korobool.xournalai.svg DESTINATION share/icons/hicolor/scalable/apps)
+
 # Uninstall target
 configure_file(
         cmake/cmake_uninstall.cmake.in

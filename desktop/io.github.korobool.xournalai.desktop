@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=xournalai
+GenericName=Note-taking with an AI agent
+Comment=Xournal++ with an embedded MCP server: AI agents read, draw and co-create in your notes
+Keywords=tablet;pen input;PDF Annotation;handwriting;notes;AI;MCP;agent;
+Exec=@XOURNALAI_EXEC@ %f
+TryExec=@XOURNALAI_EXEC@
+Icon=io.github.korobool.xournalai
+StartupWMClass=io.github.korobool.xournalai
+Terminal=false
+StartupNotify=true
+Categories=Office;GTK;
