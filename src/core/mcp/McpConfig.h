@@ -40,6 +40,7 @@ struct McpConfig {
         std::vector<std::string> rules{"formulas", "text", "diagrams", "colours"};
         int wakeIdleMs = 2500;  ///< wake the session this long after the user stopped drawing
         int watchdogS = 20;     ///< resend a wake-up the session didn't react to after this long
+        int maxParallel = 5;    ///< subagents / open edit transactions at once (1-5)
     } assistant;
     fs::path backupDir;  ///< where those copies go
 

@@ -29,6 +29,7 @@ void registerAll(McpServer& server) {
     registerPresenceTools(server);
     registerNoteTools(server);
     registerThinkingTools(server);
+    registerTransactionTools(server);
 }
 
 }  // namespace xoj::mcp::tools

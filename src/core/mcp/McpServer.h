@@ -26,6 +26,7 @@ class McpProtocol;
 class McpHttpServer;
 class McpUi;
 class NotesStore;
+class Transactions;
 }  // namespace xoj::mcp
 
 namespace xoj::api {
@@ -68,6 +69,8 @@ public:
     McpUi* getUi() const { return ui.get(); }
     /// What the serving session (in the AI terminal) is doing, from its hooks
     assistant::ServingState& serving() { return servingState; }
+    /// Edit transactions (parallel agents, serialized edits)
+    Transactions& transactions() { return *txns; }
     /// Notes memory of the open document (created when the server starts)
     NotesStore* getNotes() const { return notes.get(); }
 
@@ -96,6 +99,7 @@ private:
     std::unique_ptr<McpUi> ui;
     std::unique_ptr<NotesStore> notes;
     assistant::ServingState servingState;
+    std::unique_ptr<Transactions> txns;
     std::string waiting;
     guint retrySource = 0;
     static constexpr guint RETRY_SECONDS = 2;

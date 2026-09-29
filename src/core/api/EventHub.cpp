@@ -3,10 +3,12 @@
 #include <algorithm>     // for min, max
 #include <shared_mutex>  // for shared_lock
 
-#include "control/Control.h"       // for Control
-#include "model/Document.h"        // for Document
-#include "model/Element.h"         // for Element
-#include "model/Layer.h"           // for Layer
+#include "control/Control.h"  // for Control
+#include "model/Document.h"   // for Document
+#include "model/Element.h"    // for Element
+#include "model/Layer.h"
+#include "model/Stroke.h"          // for Stroke           // for Layer
+#include "model/Text.h"            // for Text
 #include "model/XojPage.h"         // for XojPage
 #include "undo/UndoRedoHandler.h"  // for UndoRedoHandler
 
@@ -16,6 +18,27 @@ namespace xoj::api {
 
 namespace {
 constexpr size_t MAX_EVENTS = 5000;
+
+/// A cheap fingerprint of what an element looks like (colour, width, fill, points, text), so that changes that
+/// keep the bounding box (a recolour, a restyle) are seen too
+size_t contentKey(const Element* e) {
+    size_t h = std::hash<uint32_t>()(static_cast<uint32_t>(e->getColor()));
+    auto mix = [&h](size_t v) { h ^= v + 0x9e3779b97f4a7c15ULL + (h << 6) + (h >> 2); };
+    mix(static_cast<size_t>(e->getType()));
+    if (const auto* s = dynamic_cast<const Stroke*>(e)) {
+        mix(std::hash<double>()(s->getWidth()));
+        mix(static_cast<size_t>(s->getFill() + 1));
+        mix(s->getPointCount());
+        if (s->getPointCount() > 0) {
+            const auto& p = s->getPointVector();
+            mix(std::hash<double>()(p.front().x + 3 * p.front().y + 7 * p.back().x + 11 * p.back().y +
+                                    13 * p[p.size() / 2].z));
+        }
+    } else if (const auto* t = dynamic_cast<const Text*>(e)) {
+        mix(std::hash<std::string>()(t->getText()));
+    }
+    return h;
+}
 
 xoj::util::Rectangle<double> unite(const xoj::util::Rectangle<double>& a, const xoj::util::Rectangle<double>& b) {
     if (a.width <= 0 && a.height <= 0) {
@@ -46,6 +69,7 @@ EventHub::Snapshot EventHub::take(const PageRef& page) const {
     for (const Layer* l: page->getLayersView()) {
         for (const Element* e: l->getElementsView()) {
             s.boxes.emplace(e, e->getBoundingBox());
+            s.keys.emplace(e, contentKey(e));
         }
     }
     return s;
@@ -143,7 +167,7 @@ void EventHub::diff(const PageRef& page, const std::string& origin) {
             added.ids.push_back(ids.idOf(e));
             added.area = unite(added.area, box);
             agentAdded = agentAdded || ids.origin(e).has_value();
-        } else if (!(it->second == box)) {
+        } else if (!(it->second == box) || before.keys[e] != now.keys[e]) {
             changed.ids.push_back(ids.idOf(e));
             changed.area = unite(unite(changed.area, it->second), box);
         }

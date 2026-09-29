@@ -42,6 +42,7 @@ void registerResources(McpServer& server);
 void registerPresenceTools(McpServer& server);
 void registerNoteTools(McpServer& server);
 void registerThinkingTools(McpServer& server);
+void registerTransactionTools(McpServer& server);
 /// Connects document events to resource-update notifications (after the server started)
 void wireResourceNotifications(McpServer& server);
 

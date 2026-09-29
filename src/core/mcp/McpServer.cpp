@@ -13,12 +13,13 @@
 #include "McpUi.h"
 #include "NotesStore.h"
 #include "PathText.h"
+#include "Transactions.h"
 #include "config-features.h"  // for ENABLE_AI_TERMINAL
 #include "config.h"           // for XOURNALAI_VERSION
 
 namespace xoj::mcp {
 
-McpServer::McpServer(Control* control): control(control) {
+McpServer::McpServer(Control* control): control(control), txns(std::make_unique<Transactions>(*this)) {
     registerTools();
     ServerInfo info;
     info.version = XOURNALAI_VERSION;

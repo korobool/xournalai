@@ -69,6 +69,7 @@ McpConfig McpConfig::load() {
                 }
                 cfg.assistant.wakeIdleMs = a.value("wake_idle_ms", cfg.assistant.wakeIdleMs);
                 cfg.assistant.watchdogS = a.value("watchdog_s", cfg.assistant.watchdogS);
+                cfg.assistant.maxParallel = a.value("max_parallel", cfg.assistant.maxParallel);
             }
             if (j.contains("backup_dir") && j["backup_dir"].is_string() &&
                 !j["backup_dir"].get<std::string>().empty()) {
@@ -130,7 +131,8 @@ void McpConfig::save() const {
                 {"auto_improve", assistant.autoImprove},
                 {"rules", assistant.rules},
                 {"wake_idle_ms", assistant.wakeIdleMs},
-                {"watchdog_s", assistant.watchdogS}}},
+                {"watchdog_s", assistant.watchdogS},
+                {"max_parallel", assistant.maxParallel}}},
               {"backup_dir", toUtf8(backupDir)},
               {"_help",
                {{"url", url()},

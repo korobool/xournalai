@@ -100,6 +100,7 @@ public:
 private:
     struct Snapshot {
         std::unordered_map<const Element*, xoj::util::Rectangle<double>> boxes;
+        std::unordered_map<const Element*, size_t> keys;  ///< content fingerprint: restyles count as changes
     };
     void snapshotAll();
     Snapshot take(const PageRef& page) const;
