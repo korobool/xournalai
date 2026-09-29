@@ -85,9 +85,14 @@ def test_bridge_waits_for_the_app(app):
         st = b.request("tools/call", {"name": "app_status", "arguments": {}})
         assert st["result"]["structuredContent"]["app"] == "xournalai"
 
-        later.stop()  # the user closes it
-        assert b.request("tools/list")["result"]["tools"] == []
-        later.start()  # and starts it again
+        later.stop()  # the user closes it: the tools stay listed, calls ask for the app instead of relaunching it
+        assert len(b.request("tools/list")["result"]["tools"]) > 50
+        r = b.request("tools/call", {"name": "doc_info", "arguments": {}})["result"]
+        assert r["isError"] and "not open" in r["content"][0]["text"]
+        time.sleep(1)
+        assert subprocess.run(["pgrep", "-f", f"xournalpp --mcp --mcp-port={later.port}"], capture_output=True,
+                              text=True).stdout.strip() == "", "a closed app must not be reopened by the agent"
+        later.start()  # the user opens it again
         b.wait(lambda m: m.get("method") == "notifications/tools/list_changed", timeout=20)
         assert b.request("tools/call", {"name": "doc_info", "arguments": {}})["result"]["structuredContent"][
             "page_count"] >= 1

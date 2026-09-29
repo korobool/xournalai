@@ -2,6 +2,8 @@
 
 #include <algorithm>  // for find
 #include <cstdio>     // for fwrite, fflush
+#include <fstream>    // for ifstream, ofstream
+#include <map>        // for map
 #include <string>     // for string
 
 #include <gio/gio.h>
@@ -37,8 +39,49 @@ struct Bridge {
     /// the client that the tools changed. Agents are configured once and work whenever the user starts the app.
     bool offline = false;
     guint pollSource = 0;
-    json clientInit;  ///< the client's initialize params, replayed to the application when it appears
+    json clientInit;              ///< the client's initialize params, replayed to the application when it appears
+    bool everOnline = false;      ///< the application answered during this bridge's life (the user may close it later)
+    json lists = json::object();  ///< last tools/prompts/resources lists of the application (also cached on disk)
 };
+
+std::string listsCacheFile() {
+    return (fs::path(g_get_user_cache_dir()) / "xournalpp" / "mcp-bridge-lists.json").string();
+}
+
+void loadLists(Bridge* b) {
+    std::ifstream in(listsCacheFile());
+    if (in) {
+        json j = json::parse(in, nullptr, false);
+        if (j.is_object()) {
+            b->lists = j;
+        }
+    }
+}
+
+/// Remembers a list result of the application, so the agent keeps seeing the tools while the app is closed
+void rememberList(Bridge* b, const std::string& method, const std::string& body) {
+    static const std::map<std::string, std::string> keys = {{"tools/list", "tools"},
+                                                            {"prompts/list", "prompts"},
+                                                            {"resources/list", "resources"},
+                                                            {"resources/templates/list", "resourceTemplates"}};
+    auto k = keys.find(method);
+    if (k == keys.end()) {
+        return;
+    }
+    json parsed = json::parse(body, nullptr, false);
+    if (!parsed.is_object() || !parsed.contains("result") || !parsed["result"].contains(k->second) ||
+        parsed["result"].contains("nextCursor")) {
+        return;
+    }
+    if (b->lists.value(k->second, json()) == parsed["result"][k->second]) {
+        return;
+    }
+    b->lists[k->second] = parsed["result"][k->second];
+    try {
+        fs::create_directories(fs::path(listsCacheFile()).parent_path());
+        std::ofstream(listsCacheFile()) << b->lists.dump();
+    } catch (const std::exception&) {}
+}
 
 struct Pending {
     Bridge* bridge;
@@ -140,20 +183,34 @@ json offlineInitializeResult(const json& params) {
 /// Answers a request while the application is not running. Returns false if it has to go to the application.
 bool answerOffline(Bridge* b, const std::string& method, const json& id) {
     if (method == "tools/call") {
-        return false;  // an explicit request: start the application and forward
+        if (!b->everOnline) {
+            return false;  // first use: start the application and forward
+        }
+        // The user closed the application: don't reopen it behind their back
+        if (!id.is_null()) {
+            writeLine(rpc::resultResponse(
+                              id, {{"content",
+                                    {{{"type", "text"},
+                                      {"text", "xournalai is not open right now (the user closed it). Ask the user to "
+                                               "open xournalai, then call the tool again - no reconnect is needed."}}}},
+                                   {"isError", true}})
+                              .dump());
+        }
+        return true;
     }
     if (id.is_null()) {
         return true;  // notifications need no application
     }
     json result;
+    auto cached = [b](const char* key) { return b->lists.value(key, json::array()); };
     if (method == "tools/list") {
-        result = {{"tools", json::array()}};
+        result = {{"tools", cached("tools")}};  // the last known tools: calls explain that the app is closed
     } else if (method == "prompts/list") {
-        result = {{"prompts", json::array()}};
+        result = {{"prompts", cached("prompts")}};
     } else if (method == "resources/list") {
         result = {{"resources", json::array()}};
     } else if (method == "resources/templates/list") {
-        result = {{"resourceTemplates", json::array()}};
+        result = {{"resourceTemplates", cached("resourceTemplates")}};
     } else if (method == "ping" || method == "logging/setLevel") {
         result = json::object();
     } else if (method == "initialize") {
@@ -203,6 +260,7 @@ gboolean poll(gpointer data) {
         b->sessionId = sid;
         b->offline = false;
         b->launched = false;
+        b->everOnline = true;
         b->pollSource = 0;
         g_object_unref(msg);
         g_bytes_unref(reply);
@@ -231,9 +289,7 @@ void goOffline(Bridge* b) {
     if (!b->pollSource) {
         b->pollSource = g_timeout_add_seconds(POLL_SECONDS, poll, b);
     }
-    if (wasOnline) {
-        notifyListsChanged();  // the tools are gone until the application is back
-    }
+    (void)wasOnline;  // the tools stay listed (cached); calls explain that the app is closed
 }
 
 void onSseLine(GObject* source, GAsyncResult* res, gpointer data) {
@@ -349,12 +405,14 @@ void onResponse(GObject* source, GAsyncResult* res, gpointer data) {
     }
     g_object_unref(p->msg);
 
-    b->launched = false;  // reachable again: if the user closes the app later, the next call may start it again
+    b->launched = false;
+    b->everOnline = true;
     if (b->offline && status < 500) {  // reached it while offline (a tool call started it)
         b->offline = false;
         notifyListsChanged();
     }
     if (status == 200 && !body.empty()) {
+        rememberList(b, p->method, body);
         if (p->method == "initialize") {
             json parsed = json::parse(body, nullptr, false);
             if (parsed.is_object() && parsed.contains("result")) {
@@ -432,6 +490,7 @@ void onStdinLine(GObject* source, GAsyncResult* res, gpointer data) {
 int runStdioBridge(const char* executable) {
     Bridge b;
     b.cfg = McpConfig::load();
+    loadLists(&b);
     b.url = b.cfg.url();
     if (executable && *executable) {
         b.executable = executable;

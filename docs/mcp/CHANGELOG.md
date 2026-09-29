@@ -10,6 +10,11 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 - The stdio bridge follows the app: while xournalai is not running it answers the handshake itself (no tools,
   nothing launched), polls, and sends `list_changed` notifications when the app starts or quits. Configure an agent
   once and it works whenever you run xournalai. A tool call while the app is closed starts it.
+- The bridge remembers the tool lists (`~/.cache/xournalpp/mcp-bridge-lists.json`), so agents always see the tools;
+  after the user closes the app, calls say "xournalai is not open, ask the user to open it" instead of reopening
+  it. Only the first call of a session starts an app that was never running.
+- Fixed: `create_from_svg(profile="match_user")` failed ("Unknown argument profile_options"); it now uses the user's
+  pressure and keeps the SVG's own colors and widths.
 - The HTTP server adopts session ids it does not know (app restarted, settings applied) instead of answering 404,
   so connected agents simply continue.
 - xournalai has its own app id (`io.github.korobool.xournalai`), launcher entry and icon; `tools/register-desktop.sh`.

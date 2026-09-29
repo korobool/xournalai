@@ -52,11 +52,17 @@ void registerSvgTools(McpServer& server) {
     svg.inputSchema = schema::object(std::move(props));
     svg.tier = Tier::Draw;
     svg.asyncHandler = [ctrl, srv](const json& jIn, Responder respond) {
-        const json j = resolveMatchUser(ctrl, jIn);
+        // match_user: only the user's pressure profile; the SVG keeps its own colors and stroke widths
+        json j = resolveMatchUser(ctrl, jIn);
+        for (const char* k: {"width", "color"}) {
+            if (!jIn.contains(k)) {
+                j.erase(k);
+            }
+        }
         requireDocument(ctrl);
         Args args(j);
-        args.rejectUnknown({"svg", "path", "target", "fit", "x", "y", "scale", "profile", "tremor", "color", "page",
-                            "new_page", "layer", "animate", "speed"});
+        args.rejectUnknown({"svg", "path", "target", "fit", "x", "y", "scale", "profile", "profile_options", "tremor",
+                            "color", "page", "new_page", "layer", "animate", "speed"});
         std::string text;
         if (args.has("svg")) {
             text = args.str("svg");

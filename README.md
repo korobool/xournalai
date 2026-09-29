@@ -63,9 +63,9 @@ Connect an agent **once**. The stdio bridge reads the token itself, so the agent
 claude mcp add -s user xournalai -- $PWD/build/install/bin/xournalpp --mcp-stdio
 ```
 
-- If the app is not running, the bridge answers for it with no tools and starts no window. When you start xournalai,
-  the tools appear on their own. Closing and restarting the app is fine too.
-- A tool call while the app is closed starts it.
+- The agent always has xournalai's tools. While the app is closed, a call answers "xournalai is not open, ask the
+  user to open it"; as soon as you open it, the same session just works, with no reconnect. The agent never
+  reopens a window you closed. Only its very first call, if you haven't started xournalai at all yet, opens it.
 - Over HTTP instead: `http://127.0.0.1:7474/mcp` with `Authorization: Bearer <token>`. **AI Agent → Copy agent
   connect command** copies a ready-made command, and the token is in `~/.config/xournalpp/mcp.json`.
 - Setups for Gemini CLI, OpenCode, Codex and Cursor are in [docs/mcp/CLIENTS.md](docs/mcp/CLIENTS.md).

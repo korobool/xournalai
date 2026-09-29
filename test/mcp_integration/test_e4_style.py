@@ -36,3 +36,8 @@ def test_match_user_drawing(app):
     assert sum(ws[-20:]) / 20 < 0.8 * ws[len(ws) // 2]
     p = c.call("pen_draw", strokes=[{"points": [[80, 450], [320, 450]]}], profile="match_user", speed=0)
     assert len(p["created"]) == 1
+    # SVG in the user's hand: their pressure, but the drawing keeps its own colors
+    svg = '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0 L200 0" stroke="#0000ff" stroke-width="2"/></svg>'
+    s = c.call("create_from_svg", svg=svg, x=80, y=500, fit="none", profile="match_user", animate=False)
+    e = [x for x in c.call("page_elements", detail="full", limit=200)["elements"] if x["id"] == s["created"][0]["id"]][0]
+    assert e["color"] == "#0000ff" and e["pressure"]
