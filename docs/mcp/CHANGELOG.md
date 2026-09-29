@@ -6,6 +6,24 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+## 1.0.0 — Polish (epoch E5)
+The complete feature set: agents read, draw with stylus-like pressure, create content directly, control the whole
+application, co-create with the user and remember what they learned.
+- Reference documentation generated from the running server: [TOOLS.md](TOOLS.md) (56 tools with their tiers,
+  arguments and defaults, prompts, resources) and [COVERAGE.md](COVERAGE.md) (all 133 actions, the main menu,
+  dialogs, and every Lua plugin API function mapped to its MCP counterpart). `tools/mcpdoc/gen_docs.py`. Tools report
+  their permission tier in `_meta["xournalai/tier"]`.
+- Client matrix ([CLIENTS.md](CLIENTS.md), `tools/mcpdoc/client_matrix.py`): Gemini CLI and OpenCode connect and
+  list the tools; the official MCP Python SDK passes a full protocol run over HTTP and stdio; Claude Code and Codex
+  accept the configuration (their connection needs user approval or a session).
+- Upstream fix: SIGTERM/SIGINT made the app save and `exit()` inside the signal handler, which could deadlock and
+  leave a hung process; the GUI now handles them in the main loop (emergency save, exit in ~0.1 s).
+- Fixed: applying the settings while a tool call was in flight (e.g. `wait_for_user`) crashed when the call later
+  answered through the restarted server; `current_page` could point past the last page right after pages were
+  removed.
+- Tests: 108/108 integration scenarios, 176/176 unit tests; the MCP-off build is verified. The harness reaps every
+  process it starts and keeps helper processes on the Xvfb display.
+
 ### 0.5.1 — Notes and performance
 - `notes` tool: remembers transcripts, summaries and meanings for the document, a page or a region; stored next to
   the file (`<file>.ai-notes.json`), follows page moves, kept in memory until an untitled document is saved.

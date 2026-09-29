@@ -54,6 +54,12 @@ stdio variant: `"xournalai": { "type": "local", "command": ["xournalpp", "--mcp-
 command = "xournalpp"
 args = ["--mcp-stdio"]
 ```
+HTTP variant (token from an environment variable):
+```toml
+[mcp_servers.xournalai]
+url = "http://127.0.0.1:7474/mcp"
+bearer_token_env_var = "XOURNALAI_TOKEN"
+```
 
 ## Cursor — `~/.cursor/mcp.json`
 ```json
@@ -86,7 +92,22 @@ args = ["--mcp-stdio"]
 | command line | `--mcp` / `--no-mcp` | Force the server on or off for this session |
 | command line | `--mcp-port=N` | Port for this session. The stdio bridge uses the same flag to find the app |
 
-Restart xournalai after editing `mcp.json`.
+The **AI Agent → AI Agent Settings…** dialog edits the same file and applies the changes immediately. It is for the
+user only: agents cannot open or operate it. After editing `mcp.json` by hand, restart xournalai.
+
+## Client matrix (xournalai 1.0.0, 2026-09-29)
+Produced by `python3 tools/mcpdoc/client_matrix.py`. The script starts a headless xournalai and asks each installed
+client for its MCP server status, using a temporary config and never the user's own. No model calls are made.
+
+| Client | Version | HTTP | Details |
+|---|---|---|---|
+| Gemini CLI | 0.52.0 | ✅ | `gemini mcp list`: xournalai (http) - Connected |
+| OpenCode | 1.17.8 | ✅ | `opencode mcp list`: xournalai connected |
+| Claude Code | 2.1.284 (Claude Code) | ⚠️ | config accepted; project servers need a one-time approval in `claude` (not given by this check) |
+| OpenAI Codex CLI | codex-cli 0.116.0 | ⚠️ | config accepted (Codex connects when a session starts; `codex mcp get` shows it as enabled) |
+| MCP Python SDK | 1.26.0 | ✅ | full protocol run over HTTP and stdio: initialize, tools, prompts, resources, subscribe (`test_e5_sdk_client.py`) |
+
+✅ connected and listed the tools · ⚠️ configuration accepted, connection not attempted (see details)
 
 ## Testing the connection
 ```sh
