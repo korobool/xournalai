@@ -34,6 +34,8 @@ public:
     gint64 changedUs() const { return changed; }
     /// The current process has reported through hooks (Claude Code does; Codex doesn't)
     bool hooksSeen() const { return sawHook; }
+    /// Background subagents currently working (started via the Agent tool, until their SubagentStop)
+    int subagents() const { return subagentCount; }
     static const char* name(State s);
     mcp::json toJson() const;
 
@@ -48,6 +50,7 @@ private:
     std::string session;
     gint64 changed = 0;
     bool sawHook = false;
+    int subagentCount = 0;
     std::function<void()> listener;
 };
 

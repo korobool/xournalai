@@ -1,7 +1,8 @@
 #include "ServingState.h"
 
-#include <iostream>  // for cin
-#include <iterator>  // for istreambuf_iterator
+#include <algorithm>  // for max
+#include <iostream>   // for cin
+#include <iterator>   // for istreambuf_iterator
 
 #include <libsoup/soup.h>
 #include <unistd.h>  // for isatty
@@ -50,12 +51,21 @@ void ServingState::apply(const mcp::json& report) {
     if (payload.is_object() && payload.contains("session_id") && payload["session_id"].is_string()) {
         session = payload["session_id"].get<std::string>();
     }
-    if (event == "SessionStart" || event == "Stop" || event == "SubagentStop") {
-        set(event == "SubagentStop" ? State::Busy : State::Idle);
+    if (event == "SubagentStop") {
+        subagentCount = std::max(0, subagentCount - 1);  // the coordinator's own state is unchanged
+        set(current, currentTool);
+    } else if (event == "SessionStart" || event == "SessionEnd") {
+        subagentCount = 0;
+        set(event == "SessionStart" ? State::Idle : State::NotRunning);
+    } else if (event == "Stop") {
+        set(State::Idle);
     } else if (event == "UserPromptSubmit") {
         set(State::Busy);
     } else if (event == "PreToolUse") {
         std::string tool = payload.is_object() ? payload.value("tool_name", "") : "";
+        if (tool == "Agent" || tool == "Task") {
+            subagentCount++;  // a subagent starts (it reports SubagentStop when it's done)
+        }
         if (tool.rfind("mcp__xournalai__", 0) == 0) {
             tool = tool.substr(16);
         }
@@ -66,8 +76,6 @@ void ServingState::apply(const mcp::json& report) {
         // Claude Code notifies on permission prompts and when it has been waiting for input a while
         const std::string msg = payload.is_object() ? payload.value("message", "") : "";
         set(msg.find("permission") != std::string::npos ? State::Waiting : State::Idle);
-    } else if (event == "SessionEnd") {
-        set(State::NotRunning);
     }
 }
 
@@ -78,6 +86,9 @@ mcp::json ServingState::toJson() const {
     }
     if (!session.empty()) {
         j["session_id"] = session;
+    }
+    if (subagentCount > 0) {
+        j["subagents"] = subagentCount;
     }
     return j;
 }

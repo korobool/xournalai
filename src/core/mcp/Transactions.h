@@ -69,6 +69,10 @@ public:
     std::vector<Transaction> list();
     size_t open() const { return txns.size(); }
 
+    /// Called when a transaction begins; returns the zone to show it in (its request's zone, or a new one)
+    void setBeginListener(std::function<int(const Transaction&)> l) { beginListener = std::move(l); }
+    /// Zones of the open transactions (they close with their transaction, not when the coordinator goes idle)
+    std::vector<int> openZones() const;
     /// Called when a transaction ends: (zone, state "done" | "failed", reason)
     void setZoneListener(std::function<void(int zone, const std::string& state, const std::string& why)> l) {
         zoneListener = std::move(l);
@@ -93,6 +97,7 @@ private:
     unsigned counter = 0;
     std::map<std::string, std::string> aborted;  ///< recently aborted ids → why (so their commit gets a clear answer)
     std::function<void(int, const std::string&, const std::string&)> zoneListener;
+    std::function<int(const Transaction&)> beginListener;
 };
 
 }  // namespace xoj::mcp

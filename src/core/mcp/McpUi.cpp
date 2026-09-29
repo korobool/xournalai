@@ -486,6 +486,10 @@ void McpUi::update() {
         switch (sv.state()) {
             case S::Idle:
                 text += "  |  " + who + ": idle";
+                if (sv.subagents() > 0) {
+                    text += " (" + std::to_string(sv.subagents()) + " subagent" + (sv.subagents() == 1 ? "" : "s") +
+                            " working)";
+                }
                 break;
             case S::Busy:
                 text += "  |  " + who + ": thinking" + (sv.tool().empty() ? "" : " (" + sv.tool() + ")");
@@ -834,9 +838,6 @@ std::string McpUi::aiAction(const std::string& kind, const std::string& text) {
         }
         desc += " (ids " + list + (ids.size() > 12 ? ",…" : "") + ")";
     }
-    if (hub) {
-        hub->pushIntent(page, ids, area, desc);
-    }
     int zone = 0;
     if (thinkingOverlay) {
         static const std::map<std::string, std::string> labels = {
@@ -845,6 +846,10 @@ std::string McpUi::aiAction(const std::string& kind, const std::string& text) {
         const auto zoneArea = (area.width > 0 || area.height > 0) ? area : pageArea(page);
         zone = thinkingOverlay->add(page, zoneArea, labels.count(kind) ? labels.at(kind) : "working…",
                                     assistant::ThinkingOverlay::State::Queued);
+        desc += " [zone " + std::to_string(zone) + "]";
+    }
+    if (hub) {
+        hub->pushIntent(page, ids, area, desc);
     }
 #ifdef ENABLE_AI_TERMINAL
     if (eventPump) {
@@ -920,13 +925,14 @@ void McpUi::scanMarkers() {
                 desc += "; read its letter (w, c, r, …) from page_render with region " + where;
             }
             desc += "; it applies to the drawing or text right next to it";
-            if (hub) {
-                hub->pushIntent(page, m.ids, m.area, desc);
-            }
             int zone = 0;
             if (thinkingOverlay) {
                 zone = thinkingOverlay->add(page, m.area, "marker " + m.kind + " seen…",
                                             assistant::ThinkingOverlay::State::Queued);
+                desc += " [zone " + std::to_string(zone) + "]";
+            }
+            if (hub) {
+                hub->pushIntent(page, m.ids, m.area, desc);
             }
 #ifdef ENABLE_AI_TERMINAL
             if (eventPump) {
@@ -1000,6 +1006,29 @@ void McpUi::buildThinking() {
     };
     thinkingOverlay =
             std::make_unique<assistant::ThinkingOverlay>(overlay, mapper, [this](int zone) { stopWork(zone); }, bounds);
+    // Every transaction is visible: in its request's zone, or a new one over its area
+    server.transactions().setBeginListener([this](const Transaction& t) {
+        if (!thinkingOverlay) {
+            return t.zone;
+        }
+        const auto zones = thinkingOverlay->zones();
+        const bool known = std::any_of(zones.begin(), zones.end(), [&t](const auto& z) { return z.id == t.zone; });
+        if (t.zone && known) {
+            thinkingOverlay->set(t.zone, assistant::ThinkingOverlay::State::Thinking, t.label + "…");
+            return t.zone;
+        }
+        return thinkingOverlay->add(t.page, t.region ? *t.region : pageArea(t.page), t.label + "…",
+                                    assistant::ThinkingOverlay::State::Thinking);
+    });
+    server.transactions().setZoneListener([this](int zone, const std::string& state, const std::string& why) {
+        if (thinkingOverlay) {
+            thinkingOverlay->set(zone,
+                                 state == "done" ? assistant::ThinkingOverlay::State::Done :
+                                                   assistant::ThinkingOverlay::State::Failed,
+                                 why);
+        }
+        update();
+    });
 }
 
 void McpUi::stopWork(int zone) {
@@ -1032,8 +1061,13 @@ void McpUi::onServingChanged() {
     using S = assistant::ServingState::State;
     const auto st = server.serving().state();
     // the session finished a turn: what it was thinking about is done
-    if (thinkingOverlay && (st == S::Idle || st == S::NotRunning) && lastServingState == static_cast<int>(S::Busy)) {
+    if (thinkingOverlay && (st == S::Idle || st == S::NotRunning) && lastServingState == static_cast<int>(S::Busy) &&
+        (st == S::NotRunning || server.serving().subagents() == 0)) {
+        const auto owned = server.transactions().openZones();  // they end with their transaction
         for (int z: thinkingOverlay->inState(assistant::ThinkingOverlay::State::Thinking)) {
+            if (std::find(owned.begin(), owned.end(), z) != owned.end()) {
+                continue;
+            }
             thinkingOverlay->set(z, st == S::Idle ? assistant::ThinkingOverlay::State::Done :
                                                     assistant::ThinkingOverlay::State::Failed);
         }

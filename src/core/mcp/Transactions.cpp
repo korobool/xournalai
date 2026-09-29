@@ -96,6 +96,9 @@ const Transaction& Transactions::begin(size_t page, std::optional<xoj::util::Rec
         t.cursor = hub->lastSeq();
     }
     t.beganUs = g_get_monotonic_time();
+    if (beginListener) {
+        t.zone = beginListener(t);
+    }
     return txns[t.id] = t;
 }
 
@@ -157,6 +160,16 @@ void Transactions::abortAll(const std::string& why) {
     for (const auto& id: ids) {
         abort(id, why);
     }
+}
+
+std::vector<int> Transactions::openZones() const {
+    std::vector<int> out;
+    for (const auto& [id, t]: txns) {
+        if (t.zone) {
+            out.push_back(t.zone);
+        }
+    }
+    return out;
 }
 
 std::vector<Transaction> Transactions::list() {
