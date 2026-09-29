@@ -933,15 +933,18 @@
               "title": "Reference docs & coverage",
               "details": "TOOLS.md generated from the registry; COVERAGE.md mapping actions, menus and dialogs.",
               "commit": "mcp: add tool reference and coverage documentation",
-              "status": "doing",
-              "started": "2026-09-29T01:17:18+01:00"
+              "status": "done",
+              "started": "2026-09-29T01:17:18+01:00",
+              "finished": "2026-09-29T01:19:43+01:00"
             },
             {
               "id": "T5.1.4",
               "story": "US-5.1",
               "title": "Release 1.0.0",
               "details": "Client matrix results, CHANGELOG, tag.",
-              "commit": "mcp: release 1.0.0"
+              "commit": "mcp: release 1.0.0",
+              "status": "doing",
+              "started": "2026-09-29T01:19:43+01:00"
             }
           ]
         }
