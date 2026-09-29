@@ -866,15 +866,18 @@
               "title": "Settings page",
               "details": "MCP page in Settings: enable, port, token copy, tiers, defaults.",
               "commit": "mcp: add MCP settings page",
-              "status": "doing",
-              "started": "2026-09-29T00:55:51+01:00"
+              "status": "done",
+              "started": "2026-09-29T00:55:51+01:00",
+              "finished": "2026-09-29T01:00:53+01:00"
             },
             {
               "id": "T4.2.5",
               "story": "US-4.2",
               "title": "E4 integration & release 0.5.0",
               "details": "Co-creation scenario, CHANGELOG, tag.",
-              "commit": "mcp: release 0.5.0"
+              "commit": "mcp: release 0.5.0",
+              "status": "doing",
+              "started": "2026-09-29T01:00:54+01:00"
             }
           ]
         }
