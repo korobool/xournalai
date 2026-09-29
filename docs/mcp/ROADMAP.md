@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.1.0**
+Current version: **1.1.1**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -298,9 +298,9 @@ Your canvas workflow inside xournalai: an embedded terminal running the serving 
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T6.1.1 | US-6.1 | **Terminal dock** — CMake option ENABLE_AI_TERMINAL (vte-2.91); a collapsible dock (bottom, resizable) with a notebook of VTE tabs; View/AI Agent menu toggle and shortcut; processes keep running while hidden. | `ai: add embedded terminal dock (T6.1.1)` | ⬜ todo |
-| T6.1.2 | US-6.1 | **Companion folder** — ~/.local/share/xournalai/companion: CLAUDE.md (role, markers *! **! *w! *c! *r!, assist-don't-redo, delegation, wake-up protocol), .mcp.json (stdio bridge to this app), settings (hooks); created and updated by the app. | `ai: provision the companion folder (T6.1.2)` | ⬜ todo |
-| T6.1.3 | US-6.1 | **Serving session autostart** — Tab 1 auto-starts `claude --dangerously-skip-permissions --continue` in the companion folder when the app starts (settings: autostart, permission mode bypass|normal, agent claude|codex); '+' menu for Codex / OpenCode / shell; restart action. | `ai: start the serving session in the dock (T6.1.3)` | ⬜ todo |
+| T6.1.1 | US-6.1 | **Terminal dock** — CMake option ENABLE_AI_TERMINAL (vte-2.91); a collapsible dock (bottom, resizable) with a notebook of VTE tabs; View/AI Agent menu toggle and shortcut; processes keep running while hidden. | `ai: add embedded terminal dock (T6.1.1)` | ✅ done `8377db56a` |
+| T6.1.2 | US-6.1 | **Companion folder** — ~/.local/share/xournalai/companion: CLAUDE.md (role, markers *! **! *w! *c! *r!, assist-don't-redo, delegation, wake-up protocol), .mcp.json (stdio bridge to this app), settings (hooks); created and updated by the app. | `ai: provision the companion folder (T6.1.2)` | ✅ done `cd2bf6bc9` |
+| T6.1.3 | US-6.1 | **Serving session autostart** — Tab 1 auto-starts `claude --dangerously-skip-permissions --continue` in the companion folder when the app starts (settings: autostart, permission mode bypass|normal, agent claude|codex); '+' menu for Codex / OpenCode / shell; restart action. | `ai: start the serving session in the dock (T6.1.3)` | ✅ done `1c7f934aa` |
 
 ### S6.2 — The app watches, the session works → v1.1.2
 
@@ -313,7 +313,7 @@ Your canvas workflow inside xournalai: an embedded terminal running the serving 
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T6.2.1 | US-6.2 | **Session state via hooks** — `xournalpp --ai-hook <event>` (SessionStart, UserPromptSubmit, Stop, Notification) reports to the running app; state busy/idle/waiting shown in the status strip. | `ai: track the serving session state with hooks (T6.2.1)` | ⬜ todo |
+| T6.2.1 | US-6.2 | **Session state via hooks** — `xournalpp --ai-hook <event>` (SessionStart, UserPromptSubmit, Stop, Notification) reports to the running app; state busy/idle/waiting shown in the status strip. | `ai: track the serving session state with hooks (T6.2.1)` | 🔨 doing |
 | T6.2.2 | US-6.2 | **Event pump and wake-ups** — Coalesced canvas events (user strokes after idle, markers, toolbar actions) become one wake-up line typed into the idle session's terminal (only when its prompt is empty); intents_next / changes_get for details; watchdog and Restart. | `ai: wake the serving session on canvas events (T6.2.2)` | ⬜ todo |
 
 ### S6.3 — AI toolbar and Auto-improve → v1.1.3
