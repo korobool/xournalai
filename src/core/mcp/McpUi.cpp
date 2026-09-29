@@ -276,7 +276,9 @@ void McpUi::update() {
     const McpConfig& cfg = server.getConfig();
     std::string text;
     auto* http = server.getHttpServer();
-    if (!http || !http->isListening()) {
+    if (!server.waitingReason().empty()) {
+        text = "AI: waiting - " + server.waitingReason() + "; agents connect as soon as it is free";
+    } else if (!http || !http->isListening()) {
         text = "AI: off";
     } else if (api::AgentGate::paused()) {
         text = "AI: paused by you - agents cannot change anything";

@@ -111,6 +111,7 @@ void McpServer::start() {
         ui = std::make_unique<McpUi>(*this);
     }
     if (!config.enabled) {
+        waiting.clear();
         g_message("MCP server disabled (see %s)", toUtf8(McpConfig::path()).c_str());
         return;
     }
@@ -120,16 +121,39 @@ void McpServer::start() {
     http = std::make_unique<McpHttpServer>(*protocol);
     std::string error;
     if (!http->start(options, error)) {
-        g_warning("MCP server could not listen on 127.0.0.1:%u: %s", options.port, error.c_str());
+        // Usually another xournalai window holds the port: keep trying, take over when it is closed
+        if (waiting.empty()) {
+            g_warning("MCP server could not listen on 127.0.0.1:%u: %s (retrying every %u s)", options.port,
+                      error.c_str(), RETRY_SECONDS);
+        }
+        waiting = "port " + std::to_string(options.port) + " is in use (another xournalai window?)";
         http.reset();
+        if (!retrySource) {
+            retrySource = g_timeout_add_seconds(
+                    RETRY_SECONDS,
+                    [](gpointer self) -> gboolean {
+                        auto* s = static_cast<McpServer*>(self);
+                        s->retrySource = 0;
+                        s->start();
+                        return G_SOURCE_REMOVE;
+                    },
+                    this);
+        }
+        ui->update();
         return;
     }
+    waiting.clear();
     g_message("MCP server listening on http://127.0.0.1:%u/mcp", options.port);
     tools::wireResourceNotifications(*this);
     ui->update();
 }
 
 void McpServer::stop() {
+    if (retrySource) {
+        g_source_remove(retrySource);
+        retrySource = 0;
+    }
+    waiting.clear();
     events.reset();
     if (http) {
         http->stop();

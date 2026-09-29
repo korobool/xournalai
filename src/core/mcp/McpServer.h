@@ -11,6 +11,8 @@
 #include <memory>  // for unique_ptr
 #include <string>  // for string
 
+#include <glib.h>  // for guint
+
 #include "McpConfig.h"
 #include "Registry.h"
 
@@ -48,6 +50,9 @@ public:
     /// Stops listening and drops all sessions
     void stop();
     bool isRunning() const;
+    /// Why the server is not listening although enabled (e.g. the port is used by another xournalai window); empty
+    /// otherwise. The server keeps retrying and takes over the port once it is free.
+    const std::string& waitingReason() const { return waiting; }
     /// Reloads the configuration and restarts listening (after the user changed the settings)
     void restart();
 
@@ -86,6 +91,9 @@ private:
     std::unique_ptr<api::EventHub> events;
     std::unique_ptr<McpUi> ui;
     std::unique_ptr<NotesStore> notes;
+    std::string waiting;
+    guint retrySource = 0;
+    static constexpr guint RETRY_SECONDS = 2;
     std::shared_ptr<bool> alive = std::make_shared<bool>(true);
 };
 
