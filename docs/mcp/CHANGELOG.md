@@ -6,6 +6,32 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+## 1.2.0 — Assistant Milestone 1: the serving session in the app (epoch E6)
+Your canvas workflow inside xournalai, with no extra windows.
+- **AI terminal dock** (VTE, Ctrl+`): collapsible, tabs for Claude Code, Codex, OpenCode or a shell; processes keep
+  running while hidden. Build option `ENABLE_AI_TERMINAL`.
+- **The serving session** starts with the app in the dock: `claude --dangerously-skip-permissions` (resumes its last
+  conversation) in the companion folder `~/.local/share/xournalai/companion` (CLAUDE.md/AGENTS.md with its role,
+  your markers, the assist contract and delegation; `.mcp.json` bound to this app; hooks). Settings: autostart,
+  agent (Claude/Codex), permission mode.
+- **The app watches, the session works:** Claude Code hooks (`xournalpp --ai-hook`) tell the app whether the session
+  is idle, busy or waiting; canvas events are coalesced and typed into the idle session as one `[xournalai] …` line;
+  a watchdog resends once, then reports "not responding". Never while paused or while you type in the terminal.
+- **AI toolbar:** *! Improve, **! Illustrate, *w! Web, *r! Image, *c! Command…, Revise page, Auto-improve (with its
+  rules), Stop, Pause, Terminal. Actions apply to the selection, else the last thing you drew, else the page, and are
+  recorded as `intent` events for any agent.
+- **Auto-improve toggle** (Ctrl+Alt+I, remembered): on = everything you write wakes the session (rules: formulas,
+  text, diagrams, colours); off = markers and commands only.
+- **Handwritten markers** (`*!`, `**!`, `*w!`, `*c!`, `*r!`) are detected in the app, geometrically and without a
+  model, and handed to the session with their stroke ids.
+- **Visible thinking:** a grey veil with an animated outline and a status line over the area being worked on, a
+  spinner to stop it, a tick when done; the `thinking` tool lets the session mark its own work. Stop interrupts the
+  session (Esc) and drops queued requests.
+- **AI drawings always go to the layer set in the settings** (an agent's own choice only if you allow it).
+- Fixed along the way: the overlay must not catch input (a windowed drawing area swallowed every click and stroke).
+- Tests: 134 integration scenarios (a fake agent in the dock stands in for Claude), unit tests for markers and the
+  companion folder.
+
 ### 1.1.0 — Always available
 - The stdio bridge follows the app: while xournalai is not running it answers the handshake itself (no tools,
   nothing launched), polls, and sends `list_changed` notifications when the app starts or quits. Configure an agent
