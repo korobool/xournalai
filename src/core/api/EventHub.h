@@ -1,5 +1,5 @@
 /*
- * Xournal++ (xournalai)
+ * xournalai (based on Xournal++)
  *
  * EventHub: a cursor-based log of what changes in the document, and who changed it (user or agent)
  *

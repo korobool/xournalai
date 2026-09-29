@@ -1,5 +1,5 @@
 /*
- * Xournal++ (xournalai)
+ * xournalai (based on Xournal++)
  *
  * Registration of all MCP tools, prompts and resources. Each group lives in its own file in this directory.
  *

@@ -132,7 +132,7 @@ json offlineInitializeResult(const json& params) {
               {"prompts", {{"listChanged", true}}},
               {"resources", {{"subscribe", true}, {"listChanged", true}}},
               {"logging", json::object()}}},
-            {"serverInfo", {{"name", "xournalai"}, {"title", "Xournal++ (xournalai)"}, {"version", "offline"}}},
+            {"serverInfo", {{"name", "xournalai"}, {"title", "xournalai"}, {"version", "offline"}}},
             {"instructions", "xournalai (a note-taking app) is not running right now. Its tools appear as soon as "
                              "the user starts it; calling a tool also starts it."}};
 }

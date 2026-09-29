@@ -104,7 +104,7 @@ void PrintHandler::print(Document* doc, size_t currentPage, GtkWindow* parent) {
     gtk_print_operation_set_print_settings(op, settings);
     gtk_print_operation_set_n_pages(op, strict_cast<int>(doc->getPageCount()));
     gtk_print_operation_set_current_page(op, strict_cast<int>(currentPage));
-    gtk_print_operation_set_job_name(op, "Xournal++");
+    gtk_print_operation_set_job_name(op, "xournalai");
     gtk_print_operation_set_unit(op, GTK_UNIT_POINTS);
     gtk_print_operation_set_use_full_page(op, true);
     g_signal_connect(op, "draw_page", G_CALLBACK(drawPage), doc);

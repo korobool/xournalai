@@ -183,7 +183,7 @@ void registerContentTools(McpServer& server) {
     latex.name = "create_latex";
     latex.title = "Create LaTeX";
     latex.description =
-            "Typesets a LaTeX formula with the user's LaTeX template (math mode, as in Xournal++'s LaTeX tool, "
+            "Typesets a LaTeX formula with the user's LaTeX template (math mode, as in the app's LaTeX tool, "
             "e.g. \"\\\\int_0^1 x^2\\\\,dx\") and inserts it at x,y; 'height' scales it. Needs a TeX installation. "
             "Returns LaTeX errors if compilation fails.";
     latex.inputSchema = schema::object(withTarget({{"latex", schema::string("Formula (LaTeX source)")},

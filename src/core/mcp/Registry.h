@@ -1,5 +1,5 @@
 /*
- * Xournal++ (xournalai)
+ * xournalai (based on Xournal++)
  *
  * Tool, prompt and resource definitions of the MCP server
  *

@@ -30,6 +30,7 @@ project(xournalpp
 # xournalai fork version (semantic, independent of upstream). Bumped by `tools/monitor/track.py version <x.y.z>`.
 set(XOURNALAI_VERSION "1.1.0")
 set(VERSION_SUFFIX "+ai.${XOURNALAI_VERSION}")
+set(XOURNALPP_BASE_VERSION "${PROJECT_VERSION}")  # the Xournal++ release xournalai is based on
 set(PROJECT_VERSION "${PROJECT_VERSION}${VERSION_SUFFIX}")
 set(xournalpp_VERSION ${PROJECT_VERSION})
 set(CMAKE_PROJECT_VERSION ${PROJECT_VERSION})

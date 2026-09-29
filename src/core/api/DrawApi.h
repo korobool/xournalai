@@ -1,5 +1,5 @@
 /*
- * Xournal++ (xournalai)
+ * xournalai (based on Xournal++)
  *
  * Inserting agent-created content into the document: target layer, attribution, undo and animation
  *

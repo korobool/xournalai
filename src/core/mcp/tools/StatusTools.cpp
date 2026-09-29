@@ -70,7 +70,7 @@ void registerStatusTools(McpServer& server) {
         }
         json out = {{"app", "xournalai"},
                     {"version", XOURNALAI_VERSION},
-                    {"xournalpp_version", PROJECT_VERSION},
+                    {"based_on", std::string("Xournal++ ") + XOURNALPP_BASE_VERSION},
                     {"mcp",
                      {{"url", cfg.url()},
                       {"sessions", srv->getHttpServer() ? srv->getHttpServer()->sessionCount() : 0},

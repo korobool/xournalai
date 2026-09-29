@@ -1,5 +1,5 @@
 /*
- * Xournal++ (xournalai)
+ * xournalai (based on Xournal++)
  *
  * Finding room for new content, and adding pages
  *

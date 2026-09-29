@@ -1,5 +1,5 @@
 /*
- * Xournal++ (xournalai)
+ * xournalai (based on Xournal++)
  *
  * JSON form of document events (shared by changes_get, wait_for_user and notifications)
  *

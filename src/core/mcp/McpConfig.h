@@ -1,5 +1,5 @@
 /*
- * Xournal++ (xournalai)
+ * xournalai (based on Xournal++)
  *
  * Configuration of the embedded MCP server (~/.config/xournalpp/mcp.json)
  *

@@ -1,5 +1,5 @@
 /*
- * Xournal++ (xournalai)
+ * xournalai (based on Xournal++)
  *
  * Drafts: hidden scratch layers where agents iterate on a drawing before committing it
  *

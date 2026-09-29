@@ -67,7 +67,7 @@ const char* getGdkBackend() {
 }
 
 std::string getXournalppVersion() {
-    auto str = std::string(PROJECT_NAME) + " " + PROJECT_VERSION;
+    auto str = std::string("xournalai ") + XOURNALAI_VERSION + " (based on Xournal++ " + XOURNALPP_BASE_VERSION + ")";
     if (!std::string(GIT_COMMIT_ID).empty()) {
         str = str + " (" + GIT_COMMIT_ID + " from " + GIT_ORIGIN_OWNER + "/" + GIT_BRANCH + ")";
     }

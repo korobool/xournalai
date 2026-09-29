@@ -1677,7 +1677,7 @@ void Control::openXoppFile(fs::path filepath, int scrollToPage, std::function<vo
         XojMsgBox::askQuestion(
                 this->getGtkWindow(), _("File version mismatch"),
                 _("The file being loaded has a file format version newer than the one currently supported by this "
-                  "version of Xournal++, so it may not load properly. Open anyways?"),
+                  "version of xournalai, so it may not load properly. Open anyways?"),
                 buttons, [afterOpen = std::move(afterOpen), callback = std::move(callback)](int response) mutable {
                     if (response == YES) {
                         afterOpen();
@@ -2102,7 +2102,7 @@ void Control::updateWindowTitle() {
     }
     this->doc->unlock_shared();
 
-    title += " - Xournal++";
+    title += " - xournalai";
 
     gtk_window_set_title(getGtkWindow(), title.c_str());
 }

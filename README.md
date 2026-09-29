@@ -6,14 +6,14 @@
 > If you just want a stable note-taking app, use the [original project](https://github.com/xournalpp/xournalpp) and its
 > [official releases](https://github.com/xournalpp/xournalpp/releases).
 
-<img src="readme/main.png" width=550px title="Xournal++ on GNU/Linux"/>
+<img src="readme/main.png" width=550px title="xournalai on GNU/Linux"/>
 
 ## About
 
-xournalai is Xournal++, the handwriting and PDF annotation app, with an **AI agent built in as a tool**. The running
-app hosts an [MCP](https://modelcontextprotocol.io) server. Any MCP-capable agent can read your notes, draw in them
-with stylus-like pressure, operate the whole application, and work on the page together with you. That includes
-Claude Code, Gemini CLI, OpenCode, Codex, Cursor or your own scripts. Everything runs locally: the server only
+xournalai is a handwriting and PDF annotation app with an **AI agent built in as a tool**. It is based on
+Xournal++. The running app hosts an [MCP](https://modelcontextprotocol.io) server. Any MCP-capable agent can read
+your notes, draw in them with stylus-like pressure, operate the whole application, and work on the page together
+with you. That includes Claude Code, Gemini CLI, OpenCode, Codex, Cursor or your own scripts. Everything runs locally: the server only
 listens on `127.0.0.1` and needs a token.
 
 ## What an agent can do
@@ -53,7 +53,7 @@ Build and install (see [LinuxBuild.md](readme/LinuxBuild.md) for dependencies; C
 ```sh
 cmake -S . -B build -G Ninja -DCMAKE_INSTALL_PREFIX=$PWD/build/install -DCMAKE_BUILD_TYPE=RelWithDebInfo
 cmake --build build --target install
-tools/register-desktop.sh        # optional: a "xournalai" launcher with its own icon, next to a regular Xournal++
+tools/register-desktop.sh        # optional: a "xournalai" launcher with its own icon
 build/install/bin/xournalpp
 ```
 
@@ -78,7 +78,7 @@ Then just ask, e.g. *"summarize page 2"*, *"draw a labelled diagram of a heat en
 - Plan, roadmap and changes: [docs/mcp/PLAN.md](docs/mcp/PLAN.md), [ROADMAP.md](docs/mcp/ROADMAP.md),
   [CHANGELOG.md](docs/mcp/CHANGELOG.md).
 - The MCP code is in `src/core/mcp` (protocol, transport, tools) and `src/core/api` (typed services). Build with
-  `-DENABLE_MCP=OFF` to get plain Xournal++.
+  `-DENABLE_MCP=OFF` to build without the agent server.
 - Tests: `ctest` (unit tests, configure with `-DENABLE_GTEST=on`) and
   `python3 test/mcp_integration/run.py` (end-to-end scenarios against the installed build under Xvfb).
 - `tools/mcpdoc/gen_docs.py` regenerates the reference docs; `tools/mcpdoc/client_matrix.py` checks installed agents.

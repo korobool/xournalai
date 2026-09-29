@@ -16,7 +16,8 @@ namespace {
 const std::map<std::string, std::string>& topics() {
     static const std::map<std::string, std::string> t = {
             {"overview",
-             "xournalai = Xournal++ with an embedded MCP server. You are connected to the user's running app; "
+             "xournalai is a note-taking app with an embedded MCP server (always call it xournalai). You are "
+             "connected to the user's running app; "
              "what you change appears on their screen immediately.\n"
              "Start with app_status and doc_info. Topics: coordinates, ids, understanding, summarize, "
              "extract_text, explain_figure, drawing, pressure, drafts, draw, pen, control, ui, cocreate, "

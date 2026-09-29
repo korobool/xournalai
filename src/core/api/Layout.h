@@ -1,5 +1,5 @@
 /*
- * Xournal++ (xournalai)
+ * xournalai (based on Xournal++)
  *
  * Heuristic layout analysis: groups page content into blocks (handwriting, figures, connectors, ...)
  *

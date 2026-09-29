@@ -57,7 +57,7 @@ auto DeviceListHelper::getDeviceList(Settings* settings, bool ignoreTouchDevices
     g_list_free(pointerSlaves);
 
     if (deviceList.empty()) {
-        g_warning("No device found. Is Xournal++ running in debugger / Eclipse...?\n"
+        g_warning("No device found. Is xournalai running in debugger / Eclipse...?\n"
                   "Probably this is the reason for not finding devices!\n");
     }
 

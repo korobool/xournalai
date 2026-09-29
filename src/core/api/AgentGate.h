@@ -1,5 +1,5 @@
 /*
- * Xournal++ (xournalai)
+ * xournalai (based on Xournal++)
  *
  * Global "the user paused the agent" switch, checked by long-running agent operations
  *

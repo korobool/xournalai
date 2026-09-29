@@ -88,7 +88,8 @@ std::string McpServer::backup(const std::string& reason) const {
 }
 
 std::string McpServer::instructions() {
-    return "xournalai is a running Xournal++ note-taking app (handwriting, drawings, PDF annotation). "
+    return "xournalai is the user's running note-taking app (handwriting, drawings, PDF annotation). Call it "
+           "xournalai. "
            "Coordinates are page points (1/72 inch), origin at the top-left of each page; pages are numbered "
            "from 1. Call the 'guide' tool for conventions and step-by-step recipes.";
 }

@@ -1,5 +1,5 @@
 /*
- * Xournal++ (xournalai)
+ * xournalai (based on Xournal++)
  *
  * JSON-RPC 2.0 / Model Context Protocol message handling, independent of the transport
  *
@@ -45,7 +45,7 @@ struct Session {
 
 struct ServerInfo {
     std::string name = "xournalai";
-    std::string title = "Xournal++ (xournalai)";
+    std::string title = "xournalai";
     std::string version;
     std::string instructions;
 };

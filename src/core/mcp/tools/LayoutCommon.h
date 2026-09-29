@@ -1,5 +1,5 @@
 /*
- * Xournal++ (xournalai)
+ * xournalai (based on Xournal++)
  *
  * Layout analysis of a page, shared by layout_analyze and blocks_render
  *

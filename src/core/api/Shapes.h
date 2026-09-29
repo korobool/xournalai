@@ -1,5 +1,5 @@
 /*
- * Xournal++ (xournalai)
+ * xournalai (based on Xournal++)
  *
  * Geometry generators for shapes drawn by agents (all coordinates in page points)
  *

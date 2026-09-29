@@ -303,7 +303,7 @@ void registerLayoutTools(McpServer& server) {
     shapes.name = "shapes_recognize";
     shapes.title = "Recognize sketched shapes";
     shapes.description =
-            "Runs Xournal++'s shape recognizer (the one behind the 'shape recognizer' pen mode) on hand-drawn "
+            "Runs the app's shape recognizer (the one behind the 'shape recognizer' pen mode) on hand-drawn "
             "strokes, in the given order, and reports which ones are lines, triangles, rectangles, quadrilaterals "
             "or circles/ellipses, with their clean geometry. Strokes that together form a polygon (e.g. a "
             "triangle drawn as three lines) are recognized on the stroke that completes it. Read-only.";

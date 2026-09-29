@@ -1,5 +1,5 @@
 /*
- * Xournal++ (xournalai)
+ * xournalai (based on Xournal++)
  *
  * Notes memory: what the agent learned about the document (transcripts, summaries, meanings), kept next to it
  *

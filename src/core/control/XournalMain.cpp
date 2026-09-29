@@ -137,7 +137,7 @@ void checkForEmergencySave(Control* control) {
         return;
     }
 
-    const std::string msg = _("Xournal++ crashed last time. Would you like to restore the last edited file?");
+    const std::string msg = _("xournalai crashed last time. Would you like to restore the last edited file?");
     enum { DELETE_FILE = 1, RESTORE_FILE };
     XojMsgBox::askQuestion(
             control->getGtkWindow(), _("Recovery file detected"), msg,
@@ -405,7 +405,7 @@ void on_open_files(GApplication* application, gpointer f, gint numFiles, gchar* 
     }
     auto* files = (GFile**)f;
     if (numFiles != 1) {
-        const std::string msg = _("Sorry, Xournal++ can only open one file at once.\n"
+        const std::string msg = _("Sorry, xournalai can only open one file at once.\n"
                                   "Others are ignored.");
         XojMsgBox::showErrorToUser(GTK_WINDOW(app_data->win->getWindow()), msg);
     }
@@ -421,7 +421,7 @@ void on_open_files(GApplication* application, gpointer f, gint numFiles, gchar* 
         }
     } catch (const fs::filesystem_error& e) {
         const std::string msg = FS(_F("Filesystem error: {1}\n"
-                                      "Sorry, Xournal++ cannot open the file: {2}\n"
+                                      "Sorry, xournalai cannot open the file: {2}\n"
                                       "Consider copying the file to a local directory.") %
                                    e.what() % p.u8string());
         XojMsgBox::showErrorToUser(GTK_WINDOW(app_data->win->getWindow()), msg);
@@ -467,7 +467,7 @@ void on_startup(GApplication* application, XMPtr app_data) {
     fs::path p;
     if (app_data->optFilename) {
         if (g_strv_length(app_data->optFilename) != 1) {
-            const std::string msg = _("Sorry, Xournal++ can only open one file at once.\n"
+            const std::string msg = _("Sorry, xournalai can only open one file at once.\n"
                                       "Others are ignored.");
             XojMsgBox::showErrorToUser(GTK_WINDOW(app_data->win->getWindow()), msg);
         }
@@ -628,6 +628,7 @@ auto XournalMain::run(int argc, char** argv) -> int {
     GtkApplication* app = gtk_application_new("io.github.korobool.xournalai", APP_FLAGS);
     g_object_set(G_OBJECT(app), "register-session", true, nullptr);  // Needed for opening files on MacOS from Finder
     g_set_prgname("io.github.korobool.xournalai");  // xournalai: own app id, window class and launcher icon
+    g_set_application_name("xournalai");
     g_signal_connect(app, "activate", G_CALLBACK(&on_activate), &app_data);
     g_signal_connect(app, "command-line", G_CALLBACK(&on_command_line), &app_data);
     g_signal_connect(app, "open", G_CALLBACK(&on_open_files), &app_data);

@@ -9,7 +9,7 @@
   </object>
   <object class="GtkWindow" id="aboutDialog">
     <property name="can-focus">False</property>
-    <property name="title" translatable="yes">About Xournal++</property>
+    <property name="title" translatable="yes">About xournalai</property>
     <property name="resizable">False</property>
     <property name="modal">True</property>
     <property name="destroy-with-parent">True</property>
@@ -90,8 +90,8 @@
                 <property name="name">labelTitle</property>
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
-                <property name="label" translatable="yes">&lt;span size="xx-large" weight="bold"&gt;Xournal++&lt;/span&gt;
-&lt;i&gt;The next generation&lt;/i&gt;</property>
+                <property name="label" translatable="yes">&lt;span size="xx-large" weight="bold"&gt;xournalai&lt;/span&gt;
+&lt;i&gt;Notes with an AI agent — based on Xournal++&lt;/i&gt;</property>
                 <property name="use-markup">True</property>
                 <property name="justify">center</property>
               </object>

@@ -1,5 +1,5 @@
 /*
- * Xournal++ (xournalai)
+ * xournalai (based on Xournal++)
  *
  * MCP "Streamable HTTP" transport on libsoup 3, running on the GLib main loop
  *

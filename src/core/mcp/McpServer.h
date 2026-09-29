@@ -1,5 +1,5 @@
 /*
- * Xournal++ (xournalai)
+ * xournalai (based on Xournal++)
  *
  * Embedded MCP server: lets AI agents (any MCP client) use the running application as a tool.
  *

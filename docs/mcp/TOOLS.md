@@ -191,7 +191,7 @@ Returns the text of the PDF page used as the background of a page (for annotated
 
 **Recognize sketched shapes** · read-only, idempotent
 
-Runs Xournal++'s shape recognizer (the one behind the 'shape recognizer' pen mode) on hand-drawn strokes, in the given order, and reports which ones are lines, triangles, rectangles, quadrilaterals or circles/ellipses, with their clean geometry. Strokes that together form a polygon (e.g. a triangle drawn as three lines) are recognized on the stroke that completes it. Read-only.
+Runs the app's shape recognizer (the one behind the 'shape recognizer' pen mode) on hand-drawn strokes, in the given order, and reports which ones are lines, triangles, rectangles, quadrilaterals or circles/ellipses, with their clean geometry. Strokes that together form a polygon (e.g. a triangle drawn as three lines) are recognized on the stroke that completes it. Read-only.
 
 | Argument | Type | Required | Default | Description |
 |---|---|---|---|---|
@@ -274,7 +274,7 @@ Inserts an image (PNG, JPEG, ...) from a file path or base64 data. Place it with
 
 **Create LaTeX**
 
-Typesets a LaTeX formula with the user's LaTeX template (math mode, as in Xournal++'s LaTeX tool, e.g. "\\int_0^1 x^2\\,dx") and inserts it at x,y; 'height' scales it. Needs a TeX installation. Returns LaTeX errors if compilation fails.
+Typesets a LaTeX formula with the user's LaTeX template (math mode, as in the app's LaTeX tool, e.g. "\\int_0^1 x^2\\,dx") and inserts it at x,y; 'height' scales it. Needs a TeX installation. Returns LaTeX errors if compilation fails.
 
 | Argument | Type | Required | Default | Description |
 |---|---|---|---|---|
@@ -432,7 +432,7 @@ Changes existing elements (one undo step): op=move (dx, dy), scale (factor or fx
 
 **Import**
 
-Imports external content. svg → editable strokes (like create_from_svg); image → image element; xjson → elements exactly as exported (move with dx/dy); xopp → pages copied from another Xournal++ file; pdf → pages of another PDF, each as a new page showing the PDF page as an image (a document can only have one background PDF; use file_open to annotate a PDF). Source: 'path' or inline 'data'.
+Imports external content. svg → editable strokes (like create_from_svg); image → image element; xjson → elements exactly as exported (move with dx/dy); xopp → pages copied from another .xopp file; pdf → pages of another PDF, each as a new page showing the PDF page as an image (a document can only have one background PDF; use file_open to annotate a PDF). Source: 'path' or inline 'data'.
 
 | Argument | Type | Required | Default | Description |
 |---|---|---|---|---|

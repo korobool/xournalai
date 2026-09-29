@@ -1,5 +1,5 @@
 /*
- * Xournal++ (xournalai)
+ * xournalai (based on Xournal++)
  *
  * Typed, forgiving access to tool arguments with agent-friendly error messages
  *

@@ -1,5 +1,5 @@
 /*
- * Xournal++ (xournalai)
+ * xournalai (based on Xournal++)
  *
  * Typesetting LaTeX formulas into TexImage elements without the LaTeX dialog
  *

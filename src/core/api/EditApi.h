@@ -1,5 +1,5 @@
 /*
- * Xournal++ (xournalai)
+ * xournalai (based on Xournal++)
  *
  * Editing existing elements with proper undo: move, scale, rotate, restyle, reorder, change layer, delete, select
  *

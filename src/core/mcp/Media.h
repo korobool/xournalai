@@ -1,5 +1,5 @@
 /*
- * Xournal++ (xournalai)
+ * xournalai (based on Xournal++)
  *
  * Images and files produced by tools: PNG encoding, base64, and the export folder
  *

@@ -15,6 +15,10 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 - xournalai has its own app id (`io.github.korobool.xournalai`), launcher entry and icon; `tools/register-desktop.sh`.
 - Fixed: a normal quit crashed (see 1.0.1 notes); the AI Agent menu is built before the first request is served.
 - README describes the features.
+- The app is called xournalai everywhere it names itself: window title, About dialog, messages, `--version`
+  ("xournalai 1.1.0 (based on Xournal++ 1.3.7)"), preferences, print jobs, launcher, what agents are told
+  (`serverInfo.title`, instructions, guide). `app_status` reports `based_on` instead of `xournalpp_version`.
+  Xournal++ is named only as the original project and for the `.xopp` file format.
 
 ### 1.0.1 — Draw into the current layer by default
 - `default_layer` now defaults to `"current"`: agent drawings land in the layer you have selected, so the eraser

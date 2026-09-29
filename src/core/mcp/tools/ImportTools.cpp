@@ -89,7 +89,7 @@ void registerImportTools(McpServer& server) {
     imp.title = "Import";
     imp.description =
             "Imports external content. svg → editable strokes (like create_from_svg); image → image element; "
-            "xjson → elements exactly as exported (move with dx/dy); xopp → pages copied from another Xournal++ "
+            "xjson → elements exactly as exported (move with dx/dy); xopp → pages copied from another .xopp "
             "file; pdf → pages of another PDF, each as a new page showing the PDF page as an image (a document "
             "can only have one background PDF; use file_open to annotate a PDF). Source: 'path' or inline 'data'.";
     imp.inputSchema = schema::object(std::move(props), {"kind"});

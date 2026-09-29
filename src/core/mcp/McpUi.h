@@ -1,5 +1,5 @@
 /*
- * Xournal++ (xournalai)
+ * xournalai (based on Xournal++)
  *
  * In-app UI of the MCP server: status strip, "AI Agent" menu actions (pause, AI layer), highlights
  *

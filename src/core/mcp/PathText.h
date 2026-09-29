@@ -1,5 +1,5 @@
 /*
- * Xournal++ (xournalai)
+ * xournalai (based on Xournal++)
  *
  * UTF-8 <-> filesystem path helpers for the MCP module (JSON strings are UTF-8)
  *

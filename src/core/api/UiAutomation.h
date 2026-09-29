@@ -1,5 +1,5 @@
 /*
- * Xournal++ (xournalai)
+ * xournalai (based on Xournal++)
  *
  * UI automation: inspecting and operating the application's GTK interface like a user would
  *

@@ -1,5 +1,5 @@
 /*
- * Xournal++ (xournalai)
+ * xournalai (based on Xournal++)
  *
  * Builders for portable tool input schemas, plus a lint that keeps them portable across MCP clients.
  *

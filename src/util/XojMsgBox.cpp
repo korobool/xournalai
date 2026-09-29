@@ -133,7 +133,7 @@ void XojMsgBox::showErrorAndQuit(std::string& msg, int exitCode) {
 }
 
 void XojMsgBox::showPluginMessage(const std::string& pluginName, const std::string& msg, bool error) {
-    auto header = std::string("Xournal++ Plugin «") + pluginName + "»";
+    auto header = std::string("xournalai Plugin «") + pluginName + "»";
     auto escapedHeader = xoj::util::OwnedCString::assumeOwnership(g_markup_escape_text(header.c_str(), -1));
     header = (error ? std::string("<b>Error in </b>") : "") + escapedHeader.get();
 
@@ -147,7 +147,7 @@ auto XojMsgBox::askPluginQuestion(const std::string& pluginName, const std::stri
      */
     std::string header = "<i>Warning: The plugin interface function msgbox() is deprecated and will soon be removed. "
                          "Please adapt your plugin to use the function openDialog() instead</i>\n\n";
-    header += (error ? std::string("<b>Error in </b>") : "") + std::string("Xournal++ Plugin «") + pluginName + "»";
+    header += (error ? std::string("<b>Error in </b>") : "") + std::string("xournalai Plugin «") + pluginName + "»";
 
     GtkWidget* dialog = gtk_message_dialog_new_with_markup(defaultWindow, GTK_DIALOG_MODAL,
                                                            error ? GTK_MESSAGE_ERROR : GTK_MESSAGE_QUESTION,

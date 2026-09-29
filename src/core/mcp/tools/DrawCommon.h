@@ -1,5 +1,5 @@
 /*
- * Xournal++ (xournalai)
+ * xournalai (based on Xournal++)
  *
  * Shared parts of the drawing tools: stroke style, pressure, target layer, insertion and results
  *

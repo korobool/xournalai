@@ -1,5 +1,5 @@
 /*
- * Xournal++ (xournalai)
+ * xournalai (based on Xournal++)
  *
  * Pen engine: an agent drives the application's real input pipeline with a simulated stylus
  *

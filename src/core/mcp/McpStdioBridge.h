@@ -1,5 +1,5 @@
 /*
- * Xournal++ (xournalai)
+ * xournalai (based on Xournal++)
  *
  * stdio <-> HTTP bridge for MCP clients that can only launch stdio servers
  *

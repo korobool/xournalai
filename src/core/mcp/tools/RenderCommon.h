@@ -1,5 +1,5 @@
 /*
- * Xournal++ (xournalai)
+ * xournalai (based on Xournal++)
  *
  * Shared pieces of the rendering tools (page_render, blocks_render, draft rendering)
  *
