@@ -21,6 +21,7 @@ namespace xoj::mcp {
 
 namespace {
 constexpr const char* AI_LAYER_HINT = "AI";
+constexpr const char* MENU_LABEL = "_AI Agent";
 
 /// Index (1-based) of the "AI" layer on a page, or 0
 size_t aiLayerIndex(const PageRef& page, const std::string& name) {
@@ -36,6 +37,15 @@ size_t aiLayerIndex(const PageRef& page, const std::string& name) {
 
 McpUi::McpUi(McpServer& server): server(server) {
     installActions();
+    // The main menu is populated after the server starts (Control::initWindow runs before MainWindow::populate)
+    menuIdle = g_idle_add(
+            [](gpointer self) -> gboolean {
+                auto* ui = static_cast<McpUi*>(self);
+                ui->menuIdle = 0;
+                ui->buildMenu();
+                return G_SOURCE_REMOVE;
+            },
+            this);
     buildStrip();
     timer = g_timeout_add_seconds(2, &McpUi::onTick, this);
     update();
@@ -45,9 +55,13 @@ McpUi::~McpUi() {
     if (timer) {
         g_source_remove(timer);
     }
+    if (menuIdle) {
+        g_source_remove(menuIdle);
+    }
     if (settings) {
         gtk_widget_destroy(settings);
     }
+    removeMenu();
     if (strip) {
         gtk_widget_destroy(strip);
     }
@@ -137,6 +151,54 @@ void McpUi::clearLayer(bool merge) {
         lc->deleteCurrentLayer();
     }
     lc->switchToLay(std::min<Layer::Index>(selected, page->getLayerCount()), false, false);
+}
+
+/// The "AI Agent" main menu, inserted before "Help" (not in mainmenubar.xml: it only exists with the MCP server)
+void McpUi::buildMenu() {
+    GMenuModel* model = server.getControl()->getWindow()->getMenuModel();
+    if (!model || !G_IS_MENU(model)) {
+        return;
+    }
+    GMenu* sub = g_menu_new();
+    auto section = [&](std::initializer_list<std::pair<const char*, const char*>> items, const char* accel = nullptr) {
+        GMenu* s = g_menu_new();
+        for (const auto& [label, action]: items) {
+            GMenuItem* item = g_menu_item_new(label, action);
+            if (accel) {
+                g_menu_item_set_attribute(item, "accel", "s", accel);
+            }
+            g_menu_append_item(s, item);
+            g_object_unref(item);
+        }
+        g_menu_append_section(sub, nullptr, G_MENU_MODEL(s));
+        g_object_unref(s);
+    };
+    section({{"Pause AI agent", "win.mcp-paused"}}, "<Ctrl><Alt>Escape");
+    section({{"Accept AI layer (merge down)", "win.mcp-ai-accept"},
+             {"Show or hide AI layer", "win.mcp-ai-toggle"},
+             {"Clear AI layer", "win.mcp-ai-clear"}});
+    section({{"Copy agent connect command", "win.mcp-copy-command"}, {"AI Agent _Settings…", "win.mcp-settings"}});
+    const int n = g_menu_model_get_n_items(model);
+    g_menu_insert_submenu(G_MENU(model), std::max(0, n - 1), MENU_LABEL, G_MENU_MODEL(sub));
+    g_object_unref(sub);
+}
+
+void McpUi::removeMenu() {
+    Control* ctrl = server.getControl();
+    GMenuModel* model = ctrl->getWindow() ? ctrl->getWindow()->getMenuModel() : nullptr;
+    if (!model || !G_IS_MENU(model)) {
+        return;
+    }
+    for (int i = g_menu_model_get_n_items(model) - 1; i >= 0; i--) {
+        gchar* label = nullptr;
+        if (g_menu_model_get_item_attribute(model, i, G_MENU_ATTRIBUTE_LABEL, "s", &label)) {
+            const bool ours = std::string(label) == MENU_LABEL;
+            g_free(label);
+            if (ours) {
+                g_menu_remove(G_MENU(model), i);
+            }
+        }
+    }
 }
 
 void McpUi::buildStrip() {

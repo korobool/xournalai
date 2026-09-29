@@ -6,6 +6,29 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+## 0.5.0 — Co-creation (epoch E4)
+The agent works alongside the user: it notices what they draw, answers in their hand on its own layer, and the
+user stays in charge.
+- In-app controls (only when built with MCP): an **AI Agent** menu and a status strip at the bottom of the window
+  (off / listening / N agent sessions / working: <tool>).
+- **Pause** (menu, strip button or Ctrl+Alt+Esc): every tool except `app_status` is refused with a clear message;
+  a running pen stroke lifts the pen and restores the user's tool, animations finish at once. `app_status` reports
+  `paused_by_user`.
+- AI layer actions: accept (merge down), show/hide, clear (undoable). A small "AI" marker briefly shows where the
+  agent drew.
+- **AI Agent Settings** dialog: enable, port, token (hidden, regenerate), permission tiers, default layer,
+  animation, backups; applied immediately (the server restarts, the change log is kept).
+- Agents cannot pause/resume themselves, open or operate the settings dialog (menu, actions, keys and widget
+  automation all refuse).
+- Guide topic `cocreate`. 100/100 integration scenarios, 176/176 unit tests; the MCP-off build is verified.
+  Acceptance scenario: user sketches, agent waits, answers with the pen on the AI layer,
+  talks on the canvas, is paused by the user, and the user accepts the layer.
+- Upstream fix: `Menubar::menu` was read uninitialised before the menubar was populated.
+- `view` reports the user's pointer (page coordinates), selection and active tool; `show_message` shows a
+  non-modal callout on the canvas.
+- `user_style` learns the user's pen from their strokes (width, pressure base/min, tapers, variation, a pressure
+  curve); `match_user` profile for `create_strokes` and `pen_draw`.
+
 ### 0.4.1 — Events
 - `EventHub`: every undoable change is diffed per page (added, removed or changed elements, with ids and area),
   plus page inserts/deletes and document replacements. Each change is attributed to the user or the agent; only

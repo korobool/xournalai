@@ -19,7 +19,8 @@ const std::map<std::string, std::string>& topics() {
              "xournalai = Xournal++ with an embedded MCP server. You are connected to the user's running app; "
              "what you change appears on their screen immediately.\n"
              "Start with app_status and doc_info. Topics: coordinates, ids, understanding, summarize, "
-             "extract_text, explain_figure, drawing, pressure, drafts, draw, pen, control, ui, permissions.\n"
+             "extract_text, explain_figure, drawing, pressure, drafts, draw, pen, control, ui, cocreate, "
+             "permissions.\n"
              "Read tools: page_elements (structure), page_render (see a page), layout_analyze (blocks), "
              "blocks_render (readable crops), pdf_text (PDF background text), shapes_recognize (sketched shapes).\n"
              "Draw: create_* tools, pen_draw, draft, find_free_space; edit: elements_edit/delete/select, undo, "
@@ -102,10 +103,22 @@ const std::map<std::string, std::string>& topics() {
              "Keyboard: ui_keys(shortcut=\"<Ctrl>z\") or type text. Opening a file or creating a new one while the "
              "document has unsaved changes first shows a Save As / Discard / Cancel prompt; Discard needs the "
              "'destructive' permission."},
-            {"permissions",
-             "Tools belong to tiers: read, draw, ui, files, destructive. The user grants tiers in "
-             "~/.config/xournalpp/mcp.json; app_status shows them. A denied call returns an error explaining "
-             "how the user can grant it; ask the user instead of retrying."}};
+            {"cocreate",
+             "Drawing together with the user. LOOP: wait_for_user(idle_ms, timeout_s) returns once the user drew "
+             "something and paused: their changes, the area and an image of it; look, then answer (draw, or "
+             "show_message(text, x, y) for a short callout on the canvas). changes_get(since=cursor) gives the full "
+             "log with origin user/agent; resources xournal://changes and xournal://page/{n} can be subscribed. "
+             "view shows the page the user looks at, their pointer, selection and tool: work where they are. "
+             "STYLE: user_style describes the user's pen (needs stylus strokes with pressure); profile=\"match_user\" "
+             "draws in their hand. ETIQUETTE: your drawings go to the \"AI\" layer by default and are briefly "
+             "marked on screen; the user accepts it (merge), hides or clears it from the AI Agent menu, so never "
+             "edit their strokes unless asked. The user can pause you at any time (Ctrl+Alt+Esc): every tool "
+             "except app_status then fails with a 'paused' error and app_status shows paused_by_user=true; stop "
+             "and wait, do not retry in a loop. Pausing, resuming and the agent settings are for the user only."},
+            {"permissions", "Tools belong to tiers: read, draw, ui, files, destructive. The user grants tiers in "
+                            "the AI Agent settings (AI Agent menu) or ~/.config/xournalpp/mcp.json; app_status shows "
+                            "them. A denied call returns an error explaining "
+                            "how the user can grant it; ask the user instead of retrying."}};
     return t;
 }
 

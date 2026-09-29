@@ -42,6 +42,8 @@ private:
     static gboolean onTick(gpointer self);
     void installActions();
     void buildStrip();
+    void buildMenu();
+    void removeMenu();
     void clearLayer(bool merge);
     void applySettings(GtkWidget* dialog);
 
@@ -52,6 +54,7 @@ private:
     std::string currentTool;
     int running = 0;
     guint timer = 0;
+    guint menuIdle = 0;
     std::string lastText;
     GtkWidget* settings = nullptr;
 };
