@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <memory>  // for unique_ptr
 #include <string>
 
 #include <gtk/gtk.h>
@@ -30,6 +31,14 @@ namespace xoj::mcp {
 
 class McpServer;
 
+}  // namespace xoj::mcp
+
+namespace xoj::assistant {
+class AiToolbar;
+}
+
+namespace xoj::mcp {
+
 class McpUi final {
 public:
     explicit McpUi(McpServer& server);
@@ -50,6 +59,9 @@ public:
     /// Opens the MCP settings dialog (user only; agents cannot operate it)
     void showSettings();
 
+    /// An AI toolbar action: improve | illustrate | web | image | command | revise (text: the typed command).
+    /// Becomes an intent for the selection (or the last piece drawn, or the page); returns its description.
+    std::string aiAction(const std::string& kind, const std::string& text);
 
 #ifdef ENABLE_AI_TERMINAL
     /// The AI terminal dock (null if the window has no place for it)
@@ -98,6 +110,8 @@ private:
     guint menuIdle = 0;
     std::string lastText;
     GtkWidget* settings = nullptr;  ///< weak (strip, label, pauseButton too)
+    void buildToolbar();
+    std::unique_ptr<assistant::AiToolbar> aiToolbar;
 #ifdef ENABLE_AI_TERMINAL
     void buildTerminal();
     assistant::TerminalSpec terminalSpec(const std::string& kind, bool serving) const;

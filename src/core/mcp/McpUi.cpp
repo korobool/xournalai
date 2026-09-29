@@ -19,6 +19,12 @@
 #include "assistant/terminal/TerminalDock.h"
 #endif
 
+#include "api/DocumentApi.h"              // for currentPageIndex
+#include "api/ElementIds.h"               // for ElementIds
+#include "api/EventHub.h"                 // for EventHub
+#include "assistant/AiToolbar.h"          // for AiToolbar
+#include "control/tools/EditSelection.h"  // for EditSelection
+#include "model/Element.h"                // for Element
 
 #include "McpConfig.h"
 #include "McpHttpServer.h"
@@ -65,6 +71,7 @@ McpUi::McpUi(McpServer& server): server(server) {
             },
             this, nullptr);
     buildStrip();
+    buildToolbar();
 #ifdef ENABLE_AI_TERMINAL
     buildTerminal();
 #endif
@@ -86,6 +93,7 @@ McpUi::~McpUi() {
         gtk_widget_destroy(s);
     }
     removeMenu();
+    aiToolbar.reset();
 #ifdef ENABLE_AI_TERMINAL
     eventPump.reset();
     dock.reset();
@@ -99,7 +107,7 @@ McpUi::~McpUi() {
     }
     if (window) {
         for (const char* name: {"mcp-paused", "mcp-ai-accept", "mcp-ai-clear", "mcp-ai-toggle", "mcp-copy-command",
-                                "mcp-settings", "ai-terminal", "ai-terminal-open"}) {
+                                "mcp-settings", "ai-terminal", "ai-terminal-open", "ai-act", "ai-toolbar"}) {
             g_action_map_remove_action(G_ACTION_MAP(window), name);
         }
         unwatch(window);
@@ -172,6 +180,26 @@ void McpUi::installActions() {
                 GConnectFlags(0));
         add(a);
     }
+    // AI toolbar actions (also reachable from the menu and by tests): "improve", …, "command:<text>"
+    GSimpleAction* act = g_simple_action_new("ai-act", G_VARIANT_TYPE_STRING);
+    g_signal_connect(act, "activate", G_CALLBACK(+[](GSimpleAction*, GVariant* v, gpointer self) {
+                         const std::string arg = g_variant_get_string(v, nullptr);
+                         const auto colon = arg.find(':');
+                         static_cast<McpUi*>(self)->aiAction(arg.substr(0, colon),
+                                                             colon == std::string::npos ? "" : arg.substr(colon + 1));
+                     }),
+                     this);
+    add(act);
+    GSimpleAction* tb = g_simple_action_new_stateful("ai-toolbar", nullptr, g_variant_new_boolean(true));
+    g_signal_connect(tb, "change-state", G_CALLBACK(+[](GSimpleAction* a, GVariant* v, gpointer self) {
+                         g_simple_action_set_state(a, v);
+                         auto* ui = static_cast<McpUi*>(self);
+                         if (ui->aiToolbar) {
+                             ui->aiToolbar->setVisible(g_variant_get_boolean(v));
+                         }
+                     }),
+                     this);
+    add(tb);
 #ifdef ENABLE_AI_TERMINAL
     GSimpleAction* term = g_simple_action_new("ai-terminal", nullptr);
     g_signal_connect(term, "activate", G_CALLBACK(+[](GSimpleAction*, GVariant*, gpointer self) {
@@ -242,6 +270,7 @@ void McpUi::buildMenu() {
         g_object_unref(s);
     };
     section({{"Pause AI agent", "win.mcp-paused"}}, "<Ctrl><Alt>Escape");
+    section({{"Show AI toolbar", "win.ai-toolbar"}});
     section({{"Accept AI layer (merge down)", "win.mcp-ai-accept"},
              {"Show or hide AI layer", "win.mcp-ai-toggle"},
              {"Clear AI layer", "win.mcp-ai-clear"}});
@@ -602,6 +631,86 @@ void McpUi::startServing() {
     server.serving().processStarted();
 }
 #endif
+
+void McpUi::buildToolbar() {
+    GtkWidget* mainBox = server.getControl()->getWindow()->get("mainBox");
+    GtkWidget* tbTop2 = server.getControl()->getWindow()->get("tbTop2");
+    if (!mainBox || !GTK_IS_BOX(mainBox)) {
+        return;
+    }
+    int position = 2;
+    if (tbTop2) {
+        GList* children = gtk_container_get_children(GTK_CONTAINER(mainBox));
+        const int i = g_list_index(children, tbTop2);
+        g_list_free(children);
+        if (i >= 0) {
+            position = i + 1;
+        }
+    }
+    aiToolbar = std::make_unique<assistant::AiToolbar>(
+            mainBox, position, [this](const std::string& kind, const std::string& text) { aiAction(kind, text); });
+}
+
+std::string McpUi::aiAction(const std::string& kind, const std::string& text) {
+    Control* ctrl = server.getControl();
+    auto* hub = server.getEvents();
+    // What it applies to: the selection, else the last piece the user drew, else the current page
+    size_t page = api::currentPageIndex(ctrl);
+    std::vector<std::string> ids;
+    xoj::util::Rectangle<double> area{0, 0, 0, 0};
+    std::string target;
+    auto r = [](double v) { return std::to_string(std::lround(v)); };
+    if (EditSelection* sel = ctrl->getWindow()->getXournal()->getSelection()) {
+        for (const Element* e: sel->getElementsView()) {
+            ids.push_back(api::ElementIds::get().idOf(e));
+        }
+        area = {sel->getXOnView(), sel->getYOnView(), sel->getWidth(), sel->getHeight()};
+        target = "the selection (" + std::to_string(ids.size()) + " element(s))";
+    } else if (auto last = hub ? hub->lastUserAddition() : std::nullopt; last && kind != "revise") {
+        page = last->page;
+        ids = last->ids;
+        area = last->area;
+        target = "the last thing the user drew";
+    } else {
+        target = "the whole page";
+    }
+    std::string what;
+    if (kind == "improve") {
+        what = "*! improve the strokes (same object, pose and size; assist, don't redo)";
+    } else if (kind == "illustrate") {
+        what = "**! make a professional illustration of it";
+    } else if (kind == "web") {
+        what = "*w! search the web for it and write a short summary next to it";
+    } else if (kind == "image") {
+        what = "*r! place a real image of it (a PD/CC0 photo or a generated one)";
+    } else if (kind == "command") {
+        what = "*c! the user's command: \"" + text + "\"";
+    } else if (kind == "revise") {
+        what = "revise the whole page carefully (a full pass)";
+    } else {
+        return {};
+    }
+    std::string desc = "AI toolbar: " + what + " — on " + target + " on page " + std::to_string(page + 1);
+    if (area.width > 0 || area.height > 0) {
+        desc += " at [" + r(area.x) + "," + r(area.y) + "," + r(area.width) + "," + r(area.height) + "]";
+    }
+    if (!ids.empty()) {
+        std::string list;
+        for (size_t i = 0; i < ids.size() && i < 12; i++) {
+            list += (i ? "," : "") + ids[i];
+        }
+        desc += " (ids " + list + (ids.size() > 12 ? ",…" : "") + ")";
+    }
+    if (hub) {
+        hub->pushIntent(page, ids, area, desc);
+    }
+#ifdef ENABLE_AI_TERMINAL
+    if (eventPump) {
+        eventPump->addIntent(desc);
+    }
+#endif
+    return desc;
+}
 
 void McpUi::showSettings() {
     if (settings) {

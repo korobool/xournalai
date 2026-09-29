@@ -11,6 +11,7 @@
 #include <cstdint>        // for uint64_t
 #include <deque>          // for deque
 #include <functional>     // for function
+#include <optional>       // for optional
 #include <string>         // for string
 #include <unordered_map>  // for unordered_map
 #include <vector>         // for vector
@@ -31,7 +32,7 @@ struct DocEvent {
     uint64_t seq = 0;
     gint64 timeUs = 0;   ///< g_get_monotonic_time()
     std::string type;    ///< element_added | element_removed | element_changed | page_inserted | page_deleted |
-                         ///< document_replaced
+                         ///< document_replaced | intent (a request from the AI toolbar or a marker)
     std::string origin;  ///< "user" or "agent"
     size_t page = 0;     ///< 0-based
     std::vector<std::string> ids;
@@ -70,6 +71,20 @@ public:
 
     /// Called for every new event (e.g. to push notifications)
     void setListener(std::function<void(const DocEvent&)> l) { listener = std::move(l); }
+    /// Records an explicit request of the user (AI toolbar, marker) in the log, so any agent can see it
+    void pushIntent(size_t page, std::vector<std::string> ids, const xoj::util::Rectangle<double>& area,
+                    const std::string& description) {
+        push({0, 0, "intent", "user", page, std::move(ids), area, description});
+    }
+    /// The user's most recent addition (the "last piece" toolbar actions apply to without a selection)
+    std::optional<DocEvent> lastUserAddition() const {
+        for (auto it = log.rbegin(); it != log.rend(); ++it) {
+            if (it->origin == "user" && it->type == "element_added") {
+                return *it;
+            }
+        }
+        return std::nullopt;
+    }
     /// Additional listeners (e.g. the assistant's event pump); called after the main one
     void addListener(std::function<void(const DocEvent&)> l) { extraListeners.push_back(std::move(l)); }
 
