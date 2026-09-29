@@ -13,7 +13,8 @@
 #include "McpUi.h"
 #include "NotesStore.h"
 #include "PathText.h"
-#include "config.h"  // for XOURNALAI_VERSION
+#include "config-features.h"  // for ENABLE_AI_TERMINAL
+#include "config.h"           // for XOURNALAI_VERSION
 
 namespace xoj::mcp {
 
@@ -158,6 +159,11 @@ void McpServer::start() {
         }
         assistant::Companion::ensure(setup);
     }
+#ifdef ENABLE_AI_TERMINAL
+    if (config.assistant.autostart && ui) {
+        ui->startServing();
+    }
+#endif
     tools::wireResourceNotifications(*this);
     ui->update();
 }

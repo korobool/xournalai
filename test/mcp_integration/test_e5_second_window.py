@@ -8,8 +8,8 @@ import xoai
 def test_second_window_takes_over_the_port(app):
     second = xoai.App()
     second.port = app.port  # same port, like two windows started from the launcher
-    second.start()  # "comes up" at once: the first window answers on the port
     try:
+        second.start()  # "comes up" at once: the first window answers on the port
         first = app.client()
         assert first.call("app_status")["app"] == "xournalai"
         time.sleep(1)

@@ -212,7 +212,10 @@ void TerminalDock::spawn(Tab* tab) {
     std::vector<std::string> args = {shell, "-l"};
     if (!tab->spec.command.empty()) {
         // -i so that ~/.bashrc (nvm, PATH additions) is read, like in a normal terminal
-        args = {shell, "-l", "-i", "-c", "exec " + tab->spec.command};
+        const std::string& cmd = tab->spec.command;
+        const bool compound = cmd.find("||") != std::string::npos || cmd.find("&&") != std::string::npos ||
+                              cmd.find(';') != std::string::npos;
+        args = {shell, "-l", "-i", "-c", compound ? cmd : "exec " + cmd};
     }
     std::vector<char*> argv;
     for (auto& a: args) {

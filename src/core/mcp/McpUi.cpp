@@ -13,6 +13,7 @@
 #include "model/XojPage.h"                  // for XojPage
 
 #ifdef ENABLE_AI_TERMINAL
+#include "assistant/Companion.h"
 #include "assistant/terminal/TerminalDock.h"
 #endif
 
@@ -445,20 +446,76 @@ bool checked(GtkWidget* dialog, const std::string& name) {
 
 #ifdef ENABLE_AI_TERMINAL
 namespace {
-assistant::TerminalSpec terminalSpec(const std::string& kind) {
-    // Your setup: agents start without permission prompts (the companion folder and settings come with T6.1.2/3)
-    if (kind == "claude") {
-        return {"Claude", "claude --dangerously-skip-permissions", "", {}};
+std::string selfExecutable() {
+    std::string exe = "xournalpp";
+    if (char* self = g_file_read_link("/proc/self/exe", nullptr)) {
+        exe = self;
+        g_free(self);
     }
-    if (kind == "codex") {
-        return {"Codex", "codex --dangerously-bypass-approvals-and-sandbox", "", {}};
+    return exe;
+}
+
+/// Whether Claude Code has a stored conversation for `folder` (~/.claude/projects/<folder, non-alphanumerics as ->/)
+bool hasClaudeHistory(const std::string& folder) {
+    std::string key = folder;
+    for (char& c: key) {
+        if (!g_ascii_isalnum(c) && c != '-') {
+            c = '-';
+        }
     }
-    if (kind == "opencode") {
-        return {"OpenCode", "opencode", "", {}};
+    const fs::path dir = fs::path(g_get_home_dir()) / ".claude" / "projects" / key;
+    std::error_code ec;
+    if (!fs::is_directory(dir, ec)) {
+        return false;
     }
-    return {"Shell", "", "", {}};
+    for (const auto& e: fs::directory_iterator(dir, ec)) {
+        if (e.path().extension() == ".jsonl") {
+            return true;
+        }
+    }
+    return false;
+}
+
+/// Single-quotes a string for the shell
+std::string shq(const std::string& s) {
+    std::string out = "'";
+    for (char c: s) {
+        out += c == '\'' ? std::string("'\\''") : std::string(1, c);
+    }
+    return out + "'";
 }
 }  // namespace
+
+assistant::TerminalSpec McpUi::terminalSpec(const std::string& kind, bool serving) const {
+    const McpConfig& cfg = server.getConfig();
+    const bool bypass = cfg.assistant.permissionMode != "normal";
+    const std::string folder = assistant::Companion::folder().string();
+    assistant::TerminalSpec spec;
+    spec.env = {"XOURNALAI_PORT=" + std::to_string(cfg.port)};
+    if (kind == "claude") {
+        // Runs in the companion folder: its CLAUDE.md, .mcp.json (this app) and settings; resumes its last session
+        std::string command = std::string("claude") + (bypass ? " --dangerously-skip-permissions" : "");
+        if (serving && hasClaudeHistory(folder)) {
+            command += " --continue";  // resume the serving session's last conversation
+        }
+        spec = {serving ? "Claude · serving" : "Claude", command, folder, spec.env};
+    } else if (kind == "codex") {
+        const std::string mcp =
+                " -c " + shq("mcp_servers.xournalai.command=\"" + selfExecutable() + "\"") + " -c " +
+                shq("mcp_servers.xournalai.args=[\"--mcp-stdio\",\"--mcp-port=" + std::to_string(cfg.port) + "\"]");
+        spec = {serving ? "Codex · serving" : "Codex",
+                std::string("codex") + (bypass ? " --dangerously-bypass-approvals-and-sandbox" : "") + mcp, folder,
+                spec.env};
+    } else if (kind == "opencode") {
+        spec = {"OpenCode", "opencode", folder, spec.env};
+    } else {
+        spec = {"Shell", "", "", spec.env};
+    }
+    if (serving && !cfg.assistant.command.empty()) {
+        spec.command = cfg.assistant.command;  // advanced override (tests use a fake agent)
+    }
+    return spec;
+}
 
 void McpUi::buildTerminal() {
     Control* ctrl = server.getControl();
@@ -468,14 +525,30 @@ void McpUi::buildTerminal() {
         return;
     }
     dock = std::make_unique<assistant::TerminalDock>(mainBox, content);
-    dock->setNewTabChoices(
-            {terminalSpec("claude"), terminalSpec("codex"), terminalSpec("opencode"), terminalSpec("shell")});
+    dock->setNewTabChoices({terminalSpec("claude", false), terminalSpec("codex", false),
+                            terminalSpec("opencode", false), terminalSpec("shell", false)});
 }
 
 void McpUi::openTerminal(const std::string& kind) {
     if (dock) {
-        dock->openTab(terminalSpec(kind), true);
+        dock->openTab(terminalSpec(kind, false), true);
     }
+}
+
+void McpUi::startServing() {
+    if (!dock) {
+        return;
+    }
+    const std::string agent = server.getConfig().assistant.agent == "codex" ? "codex" : "claude";
+    const assistant::TerminalSpec spec = terminalSpec(agent, true);
+    const int existing = dock->findTab(spec.title);
+    if (existing >= 0) {
+        if (!dock->isRunning(existing)) {
+            dock->restartTab(existing);
+        }
+        return;
+    }
+    servingTab = dock->openTab(spec, true);  // shown: its first start may ask you something (e.g. folder trust)
 }
 #endif
 
@@ -568,6 +641,17 @@ void McpUi::showSettings() {
     check("mcpBackups", "Keep a _backup copy before risky agent operations", cfg.backups,
           "Copies go to the backup folder in xournalpp's data directory");
 
+    heading("Serving session (AI terminal)");
+    check("mcpAutostart", "Start the serving session _when xournalai starts", cfg.assistant.autostart,
+          "Opens the AI terminal with Claude Code (or Codex) in the companion folder when xournalai starts");
+    check("mcpBypass", "S_kip permission prompts (bypass)", cfg.assistant.permissionMode != "normal",
+          "--dangerously-skip-permissions for Claude Code, --dangerously-bypass-approvals-and-sandbox for Codex");
+    GtkWidget* agent = named(gtk_combo_box_text_new(), "mcpAgent");
+    gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(agent), "claude", "Claude Code");
+    gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(agent), "codex", "Codex");
+    gtk_combo_box_set_active_id(GTK_COMBO_BOX(agent), cfg.assistant.agent == "codex" ? "codex" : "claude");
+    labelled("Serving a_gent", agent);
+
     GtkWidget* note = gtk_label_new(nullptr);
     std::string noteText = "Settings are stored in " + toUtf8(McpConfig::path()) + ".";
     if (McpConfig::overrides().enabled || McpConfig::overrides().port) {
@@ -618,6 +702,12 @@ void McpUi::applySettings(GtkWidget* dialog) {
     next.defaultLayer = layer.empty() ? "current" : layer;
     next.animate = checked(dialog, "mcpAnimate");
     next.backups = checked(dialog, "mcpBackups");
+    next.assistant = cfg.assistant;  // keeps the advanced command override
+    next.assistant.autostart = checked(dialog, "mcpAutostart");
+    next.assistant.permissionMode = checked(dialog, "mcpBypass") ? "bypass" : "normal";
+    if (const char* id = gtk_combo_box_get_active_id(GTK_COMBO_BOX(find(dialog, "mcpAgent")))) {
+        next.assistant.agent = id;
+    }
     next.save();
     // Apply now: agents reconnect (same port and token: their next request just starts a new session)
     server.restart();

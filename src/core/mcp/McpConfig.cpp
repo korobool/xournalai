@@ -51,6 +51,13 @@ McpConfig McpConfig::load() {
             cfg.defaultLayer = j.value("default_layer", cfg.defaultLayer);
             cfg.animate = j.value("animate", cfg.animate);
             cfg.backups = j.value("backups", cfg.backups);
+            if (j.contains("assistant") && j["assistant"].is_object()) {
+                const auto& a = j["assistant"];
+                cfg.assistant.autostart = a.value("autostart", cfg.assistant.autostart);
+                cfg.assistant.agent = a.value("agent", cfg.assistant.agent);
+                cfg.assistant.permissionMode = a.value("permission_mode", cfg.assistant.permissionMode);
+                cfg.assistant.command = a.value("command", cfg.assistant.command);
+            }
             if (j.contains("backup_dir") && j["backup_dir"].is_string() &&
                 !j["backup_dir"].get<std::string>().empty()) {
                 cfg.backupDir = pathFromUtf8(j["backup_dir"].get<std::string>());
@@ -102,6 +109,11 @@ void McpConfig::save() const {
               {"animate", animate},
               {"export_dir", toUtf8(exportDir)},
               {"backups", backups},
+              {"assistant",
+               {{"autostart", assistant.autostart},
+                {"agent", assistant.agent},
+                {"permission_mode", assistant.permissionMode},
+                {"command", assistant.command}}},
               {"backup_dir", toUtf8(backupDir)},
               {"_help",
                {{"url", url()},

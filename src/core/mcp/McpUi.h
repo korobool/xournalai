@@ -21,7 +21,8 @@
 
 namespace xoj::assistant {
 class TerminalDock;
-}
+struct TerminalSpec;
+}  // namespace xoj::assistant
 #endif
 
 namespace xoj::mcp {
@@ -53,6 +54,8 @@ public:
     assistant::TerminalDock* terminal() const { return dock.get(); }
     /// Opens a terminal tab: "claude", "codex", "opencode" or "shell"
     void openTerminal(const std::string& kind);
+    /// Starts the serving session (Claude Code or Codex in the companion folder) unless it runs already
+    void startServing();
 #endif
 
 private:
@@ -93,7 +96,9 @@ private:
     GtkWidget* settings = nullptr;  ///< weak (strip, label, pauseButton too)
 #ifdef ENABLE_AI_TERMINAL
     void buildTerminal();
+    assistant::TerminalSpec terminalSpec(const std::string& kind, bool serving) const;
     std::unique_ptr<assistant::TerminalDock> dock;
+    int servingTab = -1;
 #endif
 };
 

@@ -27,7 +27,14 @@ struct McpConfig {
     bool animate = true;                   ///< animate agent drawing by default
     fs::path exportDir;                    ///< where exports and renders are written when no path is given
     bool backups = true;                   ///< save a copy of the document before risky agent operations
-    fs::path backupDir;                    ///< where those copies go
+    /// The serving session in the AI terminal
+    struct Assistant {
+        bool autostart = true;                  ///< start it with the app
+        std::string agent = "claude";           ///< "claude" or "codex"
+        std::string permissionMode = "bypass";  ///< "bypass" (skip all permission prompts) or "normal"
+        std::string command;                    ///< overrides the command line (advanced; tests use a fake agent)
+    } assistant;
+    fs::path backupDir;  ///< where those copies go
 
     /// Defaults: everything granted except Tier::Destructive
     McpConfig();

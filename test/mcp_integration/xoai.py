@@ -58,13 +58,22 @@ class App:
         return self.home / "config" / "xournalpp" / "mcp.json"
 
     def start(self, timeout=30):
-        if self.permissions is not None or self.config:  # pre-seed mcp.json; the app adds a token on first start
+        if True:  # pre-seed mcp.json; the app adds a token on first start
             self.env  # creates the XDG directories
             self.config_file.parent.mkdir(parents=True, exist_ok=True)
-            seed = dict(self.config)
+            # never start a real Claude Code / Codex from tests (it would use the owner's subscription)
+            seed = {"assistant": {"autostart": False}}
+            seed.update(self.config)
             if self.permissions is not None:
                 seed["permissions"] = self.permissions
-            self.config_file.write_text(json.dumps(seed))
+            existing = {}
+            if self.config_file.exists():  # e.g. written by a stdio bridge started earlier: keep its token
+                try:
+                    existing = json.loads(self.config_file.read_text())
+                except ValueError:
+                    existing = {}
+            existing.update(seed)
+            self.config_file.write_text(json.dumps(existing))
         self.log = open(self.home / "app.log", "w")
         cmd = ["xvfb-run", "-a", "-s", "-screen 0 1600x1000x24", self.binary, "--mcp", f"--mcp-port={self.port}",
                *self.args]
@@ -77,8 +86,10 @@ class App:
             try:
                 urllib.request.urlopen(f"http://127.0.0.1:{self.port}/", timeout=1).read()
                 if self.config_file.exists():
-                    self.token = json.loads(self.config_file.read_text())["token"]
-                    return self
+                    token = json.loads(self.config_file.read_text()).get("token")
+                    if token:  # the seeded file has none until the app has written it
+                        self.token = token
+                        return self
             except (urllib.error.URLError, ConnectionError, OSError):
                 pass
             time.sleep(0.25)
