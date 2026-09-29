@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.1.2**
+Current version: **1.1.3**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -327,9 +327,9 @@ Your canvas workflow inside xournalai: an embedded terminal running the serving 
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T6.3.1 | US-6.3 | **AI toolbar** — A toolbar row with the AI actions based on your markers, plus Revise page, Pause and Terminal; each creates an intent with the selection (or the last piece) and wakes the session. | `ai: add the AI toolbar (T6.3.1)` | 🔨 doing |
-| T6.3.2 | US-6.3 | **Auto-improve toggle** — Toggle button, menu entry and shortcut; per-rule dropdown (formulas, text, diagrams, colours); the mode is in the status strip and in every wake-up. | `ai: add the Auto-improve toggle (T6.3.2)` | ⬜ todo |
-| T6.3.3 | US-6.3 | **Handwritten marker detection** — Detect candidate markers among fresh strokes (asterisk: 2-4 short crossing strokes; then '!' bar plus dot; the letter read by the session from a crop); markers_list / marker_done removes the marker. | `ai: detect handwritten markers (T6.3.3)` | ⬜ todo |
+| T6.3.1 | US-6.3 | **AI toolbar** — A toolbar row with the AI actions based on your markers, plus Revise page, Pause and Terminal; each creates an intent with the selection (or the last piece) and wakes the session. | `ai: add the AI toolbar (T6.3.1)` | ✅ done `33f9c1fdf` |
+| T6.3.2 | US-6.3 | **Auto-improve toggle** — Toggle button, menu entry and shortcut; per-rule dropdown (formulas, text, diagrams, colours); the mode is in the status strip and in every wake-up. | `ai: add the Auto-improve toggle (T6.3.2)` | ✅ done `b3edb143a` |
+| T6.3.3 | US-6.3 | **Handwritten marker detection** — Detect markers among fresh strokes, geometrically and without a model: an asterisk is 2-4 short crossing strokes, '!' is a bar plus a dot, and a letter between them is read by the session from a crop. Each marker becomes an intent with its stroke ids; the session deletes them with elements_delete after acting (no separate marker_done tool needed). | `ai: detect handwritten markers (T6.3.3)` | ✅ done `b8f98f520` |
 
 ### S6.4 — Visible thinking → v1.1.4
 
@@ -342,7 +342,7 @@ Your canvas workflow inside xournalai: an embedded terminal running the serving 
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T6.4.1 | US-6.4 | **Thinking overlay** — Canvas overlay: a translucent grey veil plus animated outline over the zone, an icon, and a one-line status; follows zoom and scroll; the session sets it via intent_update / a thinking tool, the app sets it for its own intents. | `ai: show thinking zones on the canvas (T6.4.1)` | ⬜ todo |
+| T6.4.1 | US-6.4 | **Thinking overlay** — Canvas overlay: a translucent grey veil plus animated outline over the zone, an icon, and a one-line status; follows zoom and scroll; the session sets it via intent_update / a thinking tool, the app sets it for its own intents. | `ai: show thinking zones on the canvas (T6.4.1)` | 🔨 doing |
 | T6.4.2 | US-6.4 | **Status and cancel** — The status strip shows the session state, active tasks and the mode; clicking a thinking icon or Stop interrupts the session (Esc into its terminal) and clears the zone. | `ai: show assistant status and allow cancel (T6.4.2)` | ⬜ todo |
 
 ### S6.5 — Milestone 1 release → v1.2.0
