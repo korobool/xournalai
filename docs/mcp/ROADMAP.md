@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.1.1**
+Current version: **1.1.2**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -313,8 +313,8 @@ Your canvas workflow inside xournalai: an embedded terminal running the serving 
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T6.2.1 | US-6.2 | **Session state via hooks** — `xournalpp --ai-hook <event>` (SessionStart, UserPromptSubmit, Stop, Notification) reports to the running app; state busy/idle/waiting shown in the status strip. | `ai: track the serving session state with hooks (T6.2.1)` | 🔨 doing |
-| T6.2.2 | US-6.2 | **Event pump and wake-ups** — Coalesced canvas events (user strokes after idle, markers, toolbar actions) become one wake-up line typed into the idle session's terminal (only when its prompt is empty); intents_next / changes_get for details; watchdog and Restart. | `ai: wake the serving session on canvas events (T6.2.2)` | ⬜ todo |
+| T6.2.1 | US-6.2 | **Session state via hooks** — `xournalpp --ai-hook <event>` (SessionStart, UserPromptSubmit, Stop, Notification) reports to the running app; state busy/idle/waiting shown in the status strip. | `ai: track the serving session state with hooks (T6.2.1)` | ✅ done `feef02967` |
+| T6.2.2 | US-6.2 | **Event pump and wake-ups** — Coalesced canvas events (user strokes after idle, markers, toolbar actions) become one wake-up line typed into the idle session's terminal (only when its prompt is empty); intents_next / changes_get for details; watchdog and Restart. | `ai: wake the serving session on canvas events (T6.2.2)` | ✅ done `49854ef3e` |
 
 ### S6.3 — AI toolbar and Auto-improve → v1.1.3
 
@@ -327,7 +327,7 @@ Your canvas workflow inside xournalai: an embedded terminal running the serving 
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T6.3.1 | US-6.3 | **AI toolbar** — A toolbar row with the AI actions based on your markers, plus Revise page, Pause and Terminal; each creates an intent with the selection (or the last piece) and wakes the session. | `ai: add the AI toolbar (T6.3.1)` | ⬜ todo |
+| T6.3.1 | US-6.3 | **AI toolbar** — A toolbar row with the AI actions based on your markers, plus Revise page, Pause and Terminal; each creates an intent with the selection (or the last piece) and wakes the session. | `ai: add the AI toolbar (T6.3.1)` | 🔨 doing |
 | T6.3.2 | US-6.3 | **Auto-improve toggle** — Toggle button, menu entry and shortcut; per-rule dropdown (formulas, text, diagrams, colours); the mode is in the status strip and in every wake-up. | `ai: add the Auto-improve toggle (T6.3.2)` | ⬜ todo |
 | T6.3.3 | US-6.3 | **Handwritten marker detection** — Detect candidate markers among fresh strokes (asterisk: 2-4 short crossing strokes; then '!' bar plus dot; the letter read by the session from a crop); markers_list / marker_done removes the marker. | `ai: detect handwritten markers (T6.3.3)` | ⬜ todo |
 
