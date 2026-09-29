@@ -923,15 +923,18 @@
               "title": "Performance",
               "details": "Render cache, payload limits, pagination review.",
               "commit": "mcp: improve performance of rendering and large documents",
-              "status": "doing",
-              "started": "2026-09-29T01:13:07+01:00"
+              "status": "done",
+              "started": "2026-09-29T01:13:07+01:00",
+              "finished": "2026-09-29T01:17:18+01:00"
             },
             {
               "id": "T5.1.3",
               "story": "US-5.1",
               "title": "Reference docs & coverage",
               "details": "TOOLS.md generated from the registry; COVERAGE.md mapping actions, menus and dialogs.",
-              "commit": "mcp: add tool reference and coverage documentation"
+              "commit": "mcp: add tool reference and coverage documentation",
+              "status": "doing",
+              "started": "2026-09-29T01:17:18+01:00"
             },
             {
               "id": "T5.1.4",
