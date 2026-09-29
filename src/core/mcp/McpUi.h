@@ -35,11 +35,15 @@ public:
     /// Refreshes the status text
     void update();
 
+    /// Opens the MCP settings dialog (user only; agents cannot operate it)
+    void showSettings();
+
 private:
     static gboolean onTick(gpointer self);
     void installActions();
     void buildStrip();
     void clearLayer(bool merge);
+    void applySettings(GtkWidget* dialog);
 
     McpServer& server;
     GtkWidget* strip = nullptr;
@@ -49,6 +53,7 @@ private:
     int running = 0;
     guint timer = 0;
     std::string lastText;
+    GtkWidget* settings = nullptr;
 };
 
 }  // namespace xoj::mcp

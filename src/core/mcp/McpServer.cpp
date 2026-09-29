@@ -131,6 +131,18 @@ void McpServer::stop() {
     }
 }
 
+void McpServer::restart() {
+    // Keeps the change log, so agents' cursors stay valid
+    if (http) {
+        http->stop();
+        http.reset();
+    }
+    start();
+    if (ui) {
+        ui->update();
+    }
+}
+
 bool McpServer::isRunning() const { return http && http->isListening(); }
 
 }  // namespace xoj::mcp

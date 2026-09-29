@@ -130,9 +130,11 @@ class App:
             env["XAUTHORITY"] = self._xauthority
         subprocess.run(["xdotool", *map(str, a)], env=env, check=True)
 
-    def user_key(self, *keys):
-        """Presses keys like the user (xdotool key names, e.g. "ctrl+alt+Escape") in the app's window."""
-        self._xdo("search", "--sync", "--pid", self.proc.pid, "--onlyvisible", "--class", "xournalpp",
+    def user_key(self, *keys, window=None):
+        """Presses keys like the user (xdotool key names, e.g. "ctrl+alt+Escape") in the app's main window, or in
+        the window whose title is `window`."""
+        match = ["--name", f"^{window}$"] if window else ["--class", "xournalpp"]
+        self._xdo("search", "--sync", "--limit", "1", "--pid", self.proc.pid, "--onlyvisible", *match,
                   "windowfocus", "--sync", "key", "--clearmodifiers", *keys)
 
     def user_drag(self, points, step_delay=0.01):

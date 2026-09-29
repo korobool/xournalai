@@ -47,6 +47,8 @@ public:
     /// Stops listening and drops all sessions
     void stop();
     bool isRunning() const;
+    /// Reloads the configuration and restarts listening (after the user changed the settings)
+    void restart();
 
     Control* getControl() const { return control; }
     Registry& getRegistry() { return registry; }

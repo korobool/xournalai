@@ -5,6 +5,7 @@
 
 #include <gtk/gtk.h>
 
+#include "api/AgentGate.h"     // for AgentGate
 #include "api/Menus.h"         // for walkMenu
 #include "api/UiAutomation.h"  // for findMenuItem
 #include "control/Control.h"   // for Control
@@ -210,6 +211,9 @@ void registerMenuTools(McpServer& server) {
         ActionRef action = actionFor(ctrl, entry->action);
         if (!action.group) {
             throw ToolError("The entry's action '" + entry->action + "' is not available");
+        }
+        if (api::AgentGate::userOnlyAction(action.name)) {
+            throw ToolError("'" + entry->path + "' is for the user only");
         }
         if (action.name == "quit") {
             server.requireTier(Tier::Destructive, "quitting the application");

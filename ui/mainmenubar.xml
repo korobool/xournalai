@@ -902,6 +902,10 @@
      <attribute name="label" translatable="yes">Copy agent connect command</attribute>
      <attribute name="action">win.mcp-copy-command</attribute>
     </item>
+    <item>
+     <attribute name="label" translatable="yes">AI Agent _Settings…</attribute>
+     <attribute name="action">win.mcp-settings</attribute>
+    </item>
    </section>
   </submenu>
   <submenu>

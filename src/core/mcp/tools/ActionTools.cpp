@@ -5,6 +5,7 @@
 
 #include <gtk/gtk.h>
 
+#include "api/AgentGate.h"    // for AgentGate
 #include "api/Menus.h"        // for walkMenu
 #include "control/Control.h"  // for Control
 #include "gui/MainWindow.h"   // for MainWindow
@@ -137,6 +138,9 @@ void registerActionTools(McpServer& server) {
         args.rejectUnknown({"action", "parameter", "state"});
         const std::string name = args.str("action");
         auto [group, bare] = findAction(ctrl, name);
+        if (api::AgentGate::userOnlyAction(bare)) {
+            throw ToolError("Action '" + name + "' is for the user only (pausing the agent, agent settings)");
+        }
         if (destructiveActions().count(name) || destructiveActions().count("win." + bare)) {
             srv->requireTier(Tier::Destructive, "action '" + name + "'");
         }

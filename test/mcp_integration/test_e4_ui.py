@@ -24,8 +24,11 @@ def test_status_strip_and_menu(app):
 
 def test_pause_blocks_agent_until_resumed(app):
     c = app.client()
-    c.call("ui_menu_select", path="AI Agent/Pause AI agent")
-    time.sleep(0.2)
+    assert "user only" in c.call_error("ui_menu_select", path="AI Agent/Pause AI agent")
+    assert "user only" in c.call_error("action_run", action="win.mcp-paused", state="true")
+    assert "user only" in c.call_error("ui_keys", op="shortcut", keys="<Ctrl><Alt>Escape")
+    app.user_key("ctrl+alt+Escape")  # only the user pauses
+    time.sleep(0.3)
     assert c.call("app_status")["mcp"]["paused_by_user"] is True
     assert "paused" in c.call_error("create_shapes", shapes=[{"type": "rect", "x": 10, "y": 10, "w": 5, "h": 5}])
     assert "paused" in c.call_error("doc_info")
@@ -81,3 +84,34 @@ def test_pause_stops_the_pen_mid_stroke(app):
     app.user_key("ctrl+alt+Escape")  # resume
     time.sleep(0.3)
     assert c.call("app_status")["mcp"]["paused_by_user"] is False
+
+
+def test_settings_dialog_is_user_only_and_applies(app):
+    import json
+
+    c = app.client()
+    assert "user only" in c.call_error("ui_menu_select", path="AI Agent/AI Agent Settings…")
+    assert "user only" in c.call_error("action_run", action="mcp-settings")
+    # The user opens it from the menu (Alt+A, then S)
+    app.user_key("alt+a")
+    time.sleep(0.4)
+    app.user_key("s")
+    time.sleep(0.8)
+    wins = c.call("ui_windows")["windows"]
+    dlg = [w for w in wins if w.get("title") == "AI Agent Settings"]
+    assert dlg, wins
+    assert "user only" in c.call_error("ui_inspect", target=dlg[0]["id"])
+    assert "user only" in c.call_error("ui_interact", target=dlg[0]["id"], op="close")
+    # The user turns off animation and saves
+    cfg_before = json.loads(app.config_file.read_text())
+    assert cfg_before["animate"] is True
+    app.user_key("alt+a", window="AI Agent Settings")  # "_Animate agent drawing" mnemonic toggles it
+    time.sleep(0.3)
+    app.user_key("alt+s", window="AI Agent Settings")  # "_Save"
+    time.sleep(1.0)
+    cfg = json.loads(app.config_file.read_text())
+    assert cfg["animate"] is False and cfg["token"] == cfg_before["token"]
+    assert cfg["permissions"] == cfg_before["permissions"]
+    # The server restarted with the same port and token: a new session works
+    c2 = app.client()
+    assert c2.call("app_status")["app"] == "xournalai"

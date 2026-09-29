@@ -20,6 +20,8 @@ class Control;
 
 namespace xoj::mcp::tools {
 
+/// Throws if `w` belongs to a window agents must not operate (the AI agent settings)
+void refuseUserOnly(GtkWidget* w);
 /// Widget from an id argument, or (if allowed) the focused window
 GtkWidget* resolveWidget(Control* ctrl, const Args& args, const std::string& key, bool defaultToFocused);
 json widgetJson(const api::ui::WidgetInfo& w);

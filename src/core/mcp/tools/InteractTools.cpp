@@ -4,6 +4,7 @@
 
 #include <gtk/gtk.h>
 
+#include "api/AgentGate.h"     // for AgentGate
 #include "api/UiAutomation.h"  // for ui
 #include "control/Control.h"   // for Control
 #include "gui/MainWindow.h"    // for MainWindow
@@ -201,10 +202,13 @@ GtkWidget* focusedWindow(Control* ctrl) {
     auto wins = api::ui::windows(ctrl->getWindow()->getWindow());
     for (const auto& w: wins) {
         if (w.focused) {
+            refuseUserOnly(w.window);
             return w.window;
         }
     }
-    return wins.empty() ? ctrl->getWindow()->getWindow() : wins.front().window;
+    GtkWidget* w = wins.empty() ? ctrl->getWindow()->getWindow() : wins.front().window;
+    refuseUserOnly(w);
+    return w;
 }
 
 }  // namespace
@@ -327,6 +331,9 @@ void registerInteractTools(McpServer& server) {
                 std::string full = *a;
                 if (full == "app.quit") {
                     server.requireTier(Tier::Destructive, "quitting the application");
+                }
+                if (api::AgentGate::userOnlyAction(full)) {
+                    throw ToolError("'" + full + "' is for the user only");
                 }
                 const auto dot = full.find('.');
                 GActionGroup* group = full.rfind("app.", 0) == 0 ? G_ACTION_GROUP(app) :

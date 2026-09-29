@@ -15,6 +15,7 @@
 #include "McpConfig.h"
 #include "McpHttpServer.h"
 #include "McpServer.h"
+#include "PathText.h"
 
 namespace xoj::mcp {
 
@@ -44,12 +45,16 @@ McpUi::~McpUi() {
     if (timer) {
         g_source_remove(timer);
     }
+    if (settings) {
+        gtk_widget_destroy(settings);
+    }
     if (strip) {
         gtk_widget_destroy(strip);
     }
     GtkWidget* win = server.getControl()->getWindow() ? server.getControl()->getWindow()->getWindow() : nullptr;
     if (win) {
-        for (const char* name: {"mcp-paused", "mcp-ai-accept", "mcp-ai-clear", "mcp-ai-toggle", "mcp-copy-command"}) {
+        for (const char* name:
+             {"mcp-paused", "mcp-ai-accept", "mcp-ai-clear", "mcp-ai-toggle", "mcp-copy-command", "mcp-settings"}) {
             g_action_map_remove_action(G_ACTION_MAP(win), name);
         }
     }
@@ -93,6 +98,7 @@ void McpUi::installActions() {
                                    c->getLayerController()->setLayerVisible(layer, !page->isLayerVisible(layer));
                                }
                            }},
+                    Simple{"mcp-settings", [](McpUi* ui) { ui->showSettings(); }},
                     Simple{"mcp-copy-command", [](McpUi* ui) {
                                const McpConfig& cfg = ui->server.getConfig();
                                const std::string cmd = "claude mcp add --transport http xournalai " + cfg.url() +
@@ -234,6 +240,174 @@ void McpUi::flash(size_t page, const xoj::util::Rectangle<double>& area) {
                 return G_SOURCE_REMOVE;
             },
             popover);
+}
+
+namespace {
+GtkWidget* named(GtkWidget* w, const char* name) {
+    gtk_buildable_set_name(GTK_BUILDABLE(w), name);
+    return w;
+}
+
+GtkWidget* find(GtkWidget* root, const std::string& name) {
+    if (GTK_IS_BUILDABLE(root)) {
+        const char* n = gtk_buildable_get_name(GTK_BUILDABLE(root));
+        if (n && name == n) {
+            return root;
+        }
+    }
+    GtkWidget* found = nullptr;
+    if (GTK_IS_CONTAINER(root)) {
+        GList* children = gtk_container_get_children(GTK_CONTAINER(root));
+        for (GList* c = children; c && !found; c = c->next) {
+            found = find(GTK_WIDGET(c->data), name);
+        }
+        g_list_free(children);
+    }
+    return found;
+}
+
+bool checked(GtkWidget* dialog, const std::string& name) {
+    return gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(find(dialog, name)));
+}
+}  // namespace
+
+void McpUi::showSettings() {
+    if (settings) {
+        gtk_window_present(GTK_WINDOW(settings));
+        return;
+    }
+    const McpConfig cfg = McpConfig::load();  // the file, not this run's command line overrides
+    GtkWindow* parent = GTK_WINDOW(server.getControl()->getWindow()->getWindow());
+    settings = gtk_dialog_new_with_buttons("AI Agent Settings", parent, GTK_DIALOG_DESTROY_WITH_PARENT, "_Cancel",
+                                           GTK_RESPONSE_CANCEL, "_Save", GTK_RESPONSE_OK, nullptr);
+    gtk_buildable_set_name(GTK_BUILDABLE(settings), api::AgentGate::SETTINGS_DIALOG);
+    gtk_dialog_set_default_response(GTK_DIALOG(settings), GTK_RESPONSE_OK);
+
+    GtkWidget* grid = gtk_grid_new();
+    g_object_set(grid, "margin", 12, "row-spacing", 6, "column-spacing", 12, nullptr);
+    int row = 0;
+    auto heading = [&](const char* text) {
+        GtkWidget* l = gtk_label_new(nullptr);
+        gchar* markup = g_markup_printf_escaped("<b>%s</b>", text);
+        gtk_label_set_markup(GTK_LABEL(l), markup);
+        g_free(markup);
+        gtk_label_set_xalign(GTK_LABEL(l), 0);
+        gtk_widget_set_margin_top(l, row == 0 ? 0 : 8);
+        gtk_grid_attach(GTK_GRID(grid), l, 0, row++, 3, 1);
+    };
+    auto check = [&](const char* name, const char* label, bool value, const char* hint) {
+        GtkWidget* c = named(gtk_check_button_new_with_mnemonic(label), name);
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(c), value);
+        gtk_widget_set_tooltip_text(c, hint);
+        gtk_grid_attach(GTK_GRID(grid), c, 0, row++, 3, 1);
+    };
+    auto labelled = [&](const char* label, GtkWidget* w) {
+        GtkWidget* l = gtk_label_new_with_mnemonic(label);
+        gtk_label_set_xalign(GTK_LABEL(l), 0);
+        gtk_label_set_mnemonic_widget(GTK_LABEL(l), w);
+        gtk_grid_attach(GTK_GRID(grid), l, 0, row, 1, 1);
+        gtk_widget_set_hexpand(w, TRUE);
+        gtk_grid_attach(GTK_GRID(grid), w, 1, row++, 1, 1);
+    };
+
+    heading("Server");
+    check("mcpEnabled", "_Let AI agents connect (MCP server on 127.0.0.1)", cfg.enabled,
+          "Any MCP client (Claude Code, Gemini CLI, Codex, OpenCode, ...) can use xournalai as a tool");
+    GtkWidget* port = named(gtk_spin_button_new_with_range(1024, 65535, 1), "mcpPort");
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(port), cfg.port);
+    labelled("_Port", port);
+    GtkWidget* token = named(gtk_entry_new(), "mcpToken");
+    gtk_entry_set_text(GTK_ENTRY(token), cfg.token.c_str());
+    gtk_editable_set_editable(GTK_EDITABLE(token), FALSE);
+    gtk_entry_set_visibility(GTK_ENTRY(token), FALSE);
+    labelled("Access _token", token);
+    GtkWidget* regenerate = gtk_button_new_with_mnemonic("_New token");
+    gtk_widget_set_tooltip_text(regenerate, "Disconnects every agent until it is configured with the new token");
+    g_signal_connect(regenerate, "clicked", G_CALLBACK(+[](GtkButton*, gpointer entry) {
+                         gtk_entry_set_text(GTK_ENTRY(entry), McpConfig::generateToken().c_str());
+                     }),
+                     token);
+    gtk_grid_attach(GTK_GRID(grid), regenerate, 2, row - 1, 1, 1);
+
+    heading("What agents may do");
+    const struct {
+        Tier tier;
+        const char* name;
+        const char* label;
+        const char* hint;
+    } tiers[] = {{Tier::Read, "mcpTierRead", "_Read and render the document", "Inspect pages, elements and images"},
+                 {Tier::Draw, "mcpTierDraw", "_Draw and edit content", "Create, move, restyle and delete elements"},
+                 {Tier::Ui, "mcpTierUi", "Control the application (_menus, tools, dialogs)",
+                  "Menus, tools, dialogs, view and navigation"},
+                 {Tier::Files, "mcpTierFiles", "Open, save, import and _export files", "File operations"},
+                 {Tier::Destructive, "mcpTierDestructive", "Destructive operations (discard unsaved work, _overwrite)",
+                  "Close without saving, overwrite existing files, quit. Off by default."}};
+    for (const auto& t: tiers) {
+        check(t.name, t.label, cfg.allows(t.tier), t.hint);
+    }
+
+    heading("Defaults");
+    GtkWidget* layer = named(gtk_entry_new(), "mcpLayer");
+    gtk_entry_set_text(GTK_ENTRY(layer), cfg.defaultLayer.c_str());
+    gtk_widget_set_tooltip_text(layer, "\"AI\" (a separate layer you can accept or clear), \"current\" or a layer "
+                                       "name");
+    labelled("Agent drawings go to la_yer", layer);
+    check("mcpAnimate", "_Animate agent drawing", cfg.animate, "Strokes appear gradually, like handwriting");
+    check("mcpBackups", "Keep a _backup copy before risky agent operations", cfg.backups,
+          "Copies go to the backup folder in xournalpp's data directory");
+
+    GtkWidget* note = gtk_label_new(nullptr);
+    std::string noteText = "Settings are stored in " + toUtf8(McpConfig::path()) + ".";
+    if (McpConfig::overrides().enabled || McpConfig::overrides().port) {
+        noteText += " Command line options (--mcp, --no-mcp, --mcp-port) override them for this run.";
+    }
+    gtk_label_set_text(GTK_LABEL(note), noteText.c_str());
+    gtk_label_set_line_wrap(GTK_LABEL(note), TRUE);
+    gtk_label_set_max_width_chars(GTK_LABEL(note), 60);
+    gtk_label_set_xalign(GTK_LABEL(note), 0);
+    gtk_widget_set_margin_top(note, 8);
+    gtk_style_context_add_class(gtk_widget_get_style_context(note), "dim-label");
+    gtk_grid_attach(GTK_GRID(grid), note, 0, row++, 3, 1);
+
+    gtk_container_add(GTK_CONTAINER(gtk_dialog_get_content_area(GTK_DIALOG(settings))), grid);
+    g_signal_connect(settings, "response", G_CALLBACK(+[](GtkDialog* d, gint response, gpointer self) {
+                         auto* ui = static_cast<McpUi*>(self);
+                         if (response == GTK_RESPONSE_OK) {
+                             ui->applySettings(GTK_WIDGET(d));
+                         }
+                         ui->settings = nullptr;
+                         gtk_widget_destroy(GTK_WIDGET(d));
+                     }),
+                     this);
+    gtk_widget_show_all(settings);
+}
+
+void McpUi::applySettings(GtkWidget* dialog) {
+    const McpConfig cfg = McpConfig::load();
+    McpConfig next;
+    next.exportDir = cfg.exportDir;
+    next.backupDir = cfg.backupDir;
+    next.enabled = checked(dialog, "mcpEnabled");
+    next.port = static_cast<uint16_t>(gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(find(dialog, "mcpPort"))));
+    next.token = gtk_entry_get_text(GTK_ENTRY(find(dialog, "mcpToken")));
+    next.tiers.clear();
+    const std::pair<Tier, const char*> tiers[] = {{Tier::Read, "mcpTierRead"},
+                                                  {Tier::Draw, "mcpTierDraw"},
+                                                  {Tier::Ui, "mcpTierUi"},
+                                                  {Tier::Files, "mcpTierFiles"},
+                                                  {Tier::Destructive, "mcpTierDestructive"}};
+    for (const auto& [tier, name]: tiers) {
+        if (checked(dialog, name)) {
+            next.tiers.insert(tier);
+        }
+    }
+    const std::string layer = gtk_entry_get_text(GTK_ENTRY(find(dialog, "mcpLayer")));
+    next.defaultLayer = layer.empty() ? "AI" : layer;
+    next.animate = checked(dialog, "mcpAnimate");
+    next.backups = checked(dialog, "mcpBackups");
+    next.save();
+    // Apply now: agents reconnect (same port and token: their next request just starts a new session)
+    server.restart();
 }
 
 }  // namespace xoj::mcp

@@ -1,5 +1,6 @@
 // Tools: ui_windows, ui_inspect, ui_screenshot
 
+#include "api/AgentGate.h"
 #include "api/UiAutomation.h"  // for ui
 #include "control/Control.h"   // for Control
 #include "gui/MainWindow.h"    // for MainWindow
@@ -13,6 +14,16 @@
 
 namespace xoj::mcp::tools {
 
+void refuseUserOnly(GtkWidget* w) {
+    GtkWidget* top = w ? gtk_widget_get_toplevel(w) : nullptr;
+    if (top && GTK_IS_BUILDABLE(top)) {
+        const char* name = gtk_buildable_get_name(GTK_BUILDABLE(top));
+        if (name && std::string(name) == api::AgentGate::SETTINGS_DIALOG) {
+            throw ToolError("The AI agent settings dialog is for the user only; agents cannot operate it");
+        }
+    }
+}
+
 GtkWidget* resolveWidget(Control* ctrl, const Args& args, const std::string& key, bool defaultToFocused) {
     if (args.has(key)) {
         GtkWidget* w = api::ui::lookup(args.str(key));
@@ -21,6 +32,7 @@ GtkWidget* resolveWidget(Control* ctrl, const Args& args, const std::string& key
                             "' (ids come from ui_windows / "
                             "ui_inspect; call them again)");
         }
+        refuseUserOnly(w);
         return w;
     }
     if (!defaultToFocused) {
@@ -29,10 +41,13 @@ GtkWidget* resolveWidget(Control* ctrl, const Args& args, const std::string& key
     auto wins = api::ui::windows(ctrl->getWindow()->getWindow());
     for (const auto& w: wins) {
         if (w.focused) {
+            refuseUserOnly(w.window);
             return w.window;
         }
     }
-    return wins.empty() ? ctrl->getWindow()->getWindow() : wins.front().window;
+    GtkWidget* w = wins.empty() ? ctrl->getWindow()->getWindow() : wins.front().window;
+    refuseUserOnly(w);
+    return w;
 }
 
 json widgetJson(const api::ui::WidgetInfo& w) {
