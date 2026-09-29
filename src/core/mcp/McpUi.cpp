@@ -1122,6 +1122,8 @@ void McpUi::showSettings() {
     gtk_widget_set_tooltip_text(layer, "\"AI\" (a separate layer you can accept or clear), \"current\" or a layer "
                                        "name");
     labelled("Agent drawings go to la_yer", layer);
+    check("mcpChooseLayer", "Let agents c_hoose another layer when they ask for one", cfg.agentsChooseLayer,
+          "Off: everything the AI draws goes to the layer above, whatever the agent asks");
     check("mcpAnimate", "_Animate agent drawing", cfg.animate, "Strokes appear gradually, like handwriting");
     check("mcpBackups", "Keep a _backup copy before risky agent operations", cfg.backups,
           "Copies go to the backup folder in xournalpp's data directory");
@@ -1186,6 +1188,7 @@ void McpUi::applySettings(GtkWidget* dialog) {
     const std::string layer = gtk_entry_get_text(GTK_ENTRY(find(dialog, "mcpLayer")));
     next.defaultLayer = layer.empty() ? "current" : layer;
     next.animate = checked(dialog, "mcpAnimate");
+    next.agentsChooseLayer = checked(dialog, "mcpChooseLayer");
     next.backups = checked(dialog, "mcpBackups");
     next.assistant = cfg.assistant;  // keeps the advanced command override
     next.assistant.autostart = checked(dialog, "mcpAutostart");

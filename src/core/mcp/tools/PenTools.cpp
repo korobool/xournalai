@@ -124,7 +124,7 @@ void registerPenTools(McpServer& server) {
             job.size = s->second;
         }
         const bool acting = job.tool == TOOL_ERASER || job.tool == TOOL_SELECT_REGION || job.tool == TOOL_SELECT_RECT;
-        job.layer = args.str("layer", acting ? std::string("current") : srv->getConfig().defaultLayer);
+        job.layer = acting ? args.str("layer", "current") : drawingLayer(*srv, args, nullptr);
         job.speed = args.number("speed", 1, 0, 50);
         api::PressureProfile profile;
         profile.preset = args.str("profile", "ink");

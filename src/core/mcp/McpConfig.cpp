@@ -50,6 +50,7 @@ McpConfig McpConfig::load() {
             cfg.token = j.value("token", "");
             cfg.defaultLayer = j.value("default_layer", cfg.defaultLayer);
             cfg.animate = j.value("animate", cfg.animate);
+            cfg.agentsChooseLayer = j.value("agents_choose_layer", cfg.agentsChooseLayer);
             cfg.backups = j.value("backups", cfg.backups);
             if (j.contains("assistant") && j["assistant"].is_object()) {
                 const auto& a = j["assistant"];
@@ -118,6 +119,7 @@ void McpConfig::save() const {
               {"permissions", permissions},
               {"default_layer", defaultLayer},
               {"animate", animate},
+              {"agents_choose_layer", agentsChooseLayer},
               {"export_dir", toUtf8(exportDir)},
               {"backups", backups},
               {"assistant",

@@ -64,6 +64,10 @@ std::unique_ptr<Stroke> buildStroke(std::vector<Point> points, const StrokeStyle
                                     const std::vector<double>* times = nullptr);
 
 /// Inserts elements according to page/layer/animate/speed arguments and responds with the created ids
+/// The layer an AI drawing goes to: the user's setting (default_layer); an agent's own choice only if the user
+/// allows it (agents_choose_layer) or it's the agent's hidden draft layer. `note` explains an ignored choice.
+std::string drawingLayer(McpServer& server, const Args& args, json* note);
+
 void insertAndRespond(McpServer& server, const Args& args, std::vector<ElementPtr> elements, Responder respond,
                       json extra = json::object());
 

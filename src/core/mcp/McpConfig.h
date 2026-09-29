@@ -26,6 +26,7 @@ struct McpConfig {
     std::set<Tier> tiers;                  ///< granted permission tiers
     std::string defaultLayer = "current";  ///< layer that receives agent drawings ("current", "AI" or a layer name)
     bool animate = true;                   ///< animate agent drawing by default
+    bool agentsChooseLayer = false;        ///< false: AI drawings always go to defaultLayer, whatever an agent asks
     fs::path exportDir;                    ///< where exports and renders are written when no path is given
     bool backups = true;                   ///< save a copy of the document before risky agent operations
     /// The serving session in the AI terminal

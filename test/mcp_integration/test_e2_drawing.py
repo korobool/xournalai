@@ -4,7 +4,7 @@ import math
 
 import xoai
 
-APP_CONFIG = {"default_layer": "AI"}  # these scenarios exercise the separate AI layer
+APP_CONFIG = {"default_layer": "AI", "agents_choose_layer": True}  # the AI layer, and choosing layers on request
 
 
 def strokes_of(c, ids):

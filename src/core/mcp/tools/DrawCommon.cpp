@@ -4,6 +4,7 @@
 #include <shared_mutex>  // for shared_lock
 
 #include "api/DocumentApi.h"      // for currentPageIndex
+#include "api/Drafts.h"           // for Drafts
 #include "api/ElementIds.h"       // for ElementIds
 #include "api/Geometry.h"         // for roundTo
 #include "api/Placement.h"        // for appendPage
@@ -344,6 +345,23 @@ json drawResultJson(const api::DrawResult& r) {
                              r.operation + "\")"}};
 }
 
+std::string drawingLayer(McpServer& server, const Args& args, json* note) {
+    const std::string preferred = server.getConfig().defaultLayer;
+    const std::string asked = args.str("layer", "");
+    if (asked.empty() || asked == preferred || server.getConfig().agentsChooseLayer) {
+        return asked.empty() ? preferred : asked;
+    }
+    for (const auto& [id, draft]: api::Drafts::get().all()) {
+        if (draft.layerName == asked) {
+            return asked;  // an agent's own hidden draft layer
+        }
+    }
+    if (note) {
+        *note = "The user's settings put AI drawings on layer \"" + preferred + "\"; \"" + asked + "\" was ignored.";
+    }
+    return preferred;
+}
+
 void insertAndRespond(McpServer& server, const Args& args, std::vector<ElementPtr> elements, Responder respond,
                       json extra) {
     Control* ctrl = server.getControl();
@@ -353,7 +371,11 @@ void insertAndRespond(McpServer& server, const Args& args, std::vector<ElementPt
     } else {
         target.page = resolvePageIndex(ctrl, args);
     }
-    target.layer = args.str("layer", server.getConfig().defaultLayer);
+    json layerNote;
+    target.layer = drawingLayer(server, args, &layerNote);
+    if (!layerNote.is_null()) {
+        extra["layer_note"] = layerNote;
+    }
     api::AnimationOptions anim;
     anim.enabled = args.boolean("animate", server.getConfig().animate);
     anim.speed = args.number("speed", 1.0, 0.05, 100);
