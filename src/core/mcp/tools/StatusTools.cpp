@@ -76,6 +76,7 @@ void registerStatusTools(McpServer& server) {
                       {"sessions", srv->getHttpServer() ? srv->getHttpServer()->sessionCount() : 0},
                       {"permissions", permissions},
                       {"paused_by_user", api::AgentGate::paused()},
+                      {"paused_since", api::AgentGate::paused() ? json(api::AgentGate::pausedSince()) : json(nullptr)},
                       {"default_layer", cfg.defaultLayer},
                       {"export_dir", toUtf8(cfg.exportDir)}}},
                     {"document", documentSummary(ctrl)},

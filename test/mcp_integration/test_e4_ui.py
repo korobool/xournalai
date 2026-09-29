@@ -31,7 +31,10 @@ def test_pause_blocks_agent_until_resumed(app):
     assert "user only" in c.call_error("ui_keys", op="shortcut", keys="<Ctrl><Alt>Escape")
     app.user_key("ctrl+alt+Escape")  # only the user pauses
     time.sleep(0.3)
-    assert c.call("app_status")["mcp"]["paused_by_user"] is True
+    st = c.call("app_status")["mcp"]
+    assert st["paused_by_user"] is True and len(st["paused_since"]) == 8  # HH:MM:SS
+    assert "Resume AI" in c.call_error("doc_info")
+
     assert "paused" in c.call_error("create_shapes", shapes=[{"type": "rect", "x": 10, "y": 10, "w": 5, "h": 5}])
     assert "paused" in c.call_error("doc_info")
     app.user_key("ctrl+alt+Escape")  # the user resumes with the shortcut

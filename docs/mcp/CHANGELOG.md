@@ -15,6 +15,10 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   it. Only the first call of a session starts an app that was never running.
 - Fixed: `create_from_svg(profile="match_user")` failed ("Unknown argument profile_options"); it now uses the user's
   pressure and keeps the SVG's own colors and widths.
+- Pausing is unmistakable and hard to trigger by accident: when paused the status strip turns amber with bold
+  "AI PAUSED - agents are blocked; your pen still works" and the button reads "Resume AI"; the button sits on the
+  left next to the status (no longer under the zoom slider) and takes no keyboard focus. Agents are told since when
+  the app is paused and where to resume (`app_status.paused_since`); pause/resume are logged.
 - The HTTP server adopts session ids it does not know (app restarted, settings applied) instead of answering 404,
   so connected agents simply continue.
 - xournalai has its own app id (`io.github.korobool.xournalai`), launcher entry and icon; `tools/register-desktop.sh`.

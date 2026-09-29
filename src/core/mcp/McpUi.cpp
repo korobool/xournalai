@@ -112,7 +112,11 @@ void McpUi::installActions() {
     GSimpleAction* pause = g_simple_action_new_stateful("mcp-paused", nullptr, g_variant_new_boolean(false));
     g_signal_connect(pause, "change-state", G_CALLBACK(+[](GSimpleAction* a, GVariant* v, gpointer self) {
                          g_simple_action_set_state(a, v);
-                         api::AgentGate::setPaused(g_variant_get_boolean(v));
+                         const bool paused = g_variant_get_boolean(v);
+                         if (paused != api::AgentGate::paused()) {
+                             g_message("AI agent %s by the user", paused ? "paused" : "resumed");  // for diagnosis
+                         }
+                         api::AgentGate::setPaused(paused);
                          static_cast<McpUi*>(self)->update();
                      }),
                      this);
@@ -241,11 +245,25 @@ void McpUi::buildStrip() {
     gtk_label_set_xalign(GTK_LABEL(label), 0);
     gtk_label_set_ellipsize(GTK_LABEL(label), PANGO_ELLIPSIZE_END);
     pauseButton = gtk_toggle_button_new_with_label("Pause AI");
+    // Not focusable (a stray Space must not toggle it); on the left, away from the zoom controls
+    gtk_widget_set_can_focus(pauseButton, FALSE);
+    gtk_button_set_relief(GTK_BUTTON(pauseButton), GTK_RELIEF_NORMAL);
     gtk_buildable_set_name(GTK_BUILDABLE(pauseButton), "mcpPause");
     gtk_actionable_set_action_name(GTK_ACTIONABLE(pauseButton), "win.mcp-paused");
     gtk_widget_set_tooltip_text(pauseButton, "Stop the AI agent immediately (Ctrl+Alt+Esc)");
+    gtk_box_pack_start(GTK_BOX(strip), pauseButton, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(strip), label, TRUE, TRUE, 0);
-    gtk_box_pack_end(GTK_BOX(strip), pauseButton, FALSE, FALSE, 0);
+    // Paused must be impossible to miss
+    GtkCssProvider* css = gtk_css_provider_new();
+    gtk_css_provider_load_from_data(css,
+                                    "#mcpStatusStrip.paused { background-color: #b45309; }"
+                                    "#mcpStatusStrip.paused > label { color: #ffffff; font-weight: bold; }"
+                                    "#mcpStatusStrip.paused > button label { font-weight: bold; }",
+                                    -1, nullptr);
+    gtk_widget_set_name(strip, "mcpStatusStrip");
+    gtk_style_context_add_provider_for_screen(gtk_widget_get_screen(strip), GTK_STYLE_PROVIDER(css),
+                                              GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+    g_object_unref(css);
     gtk_box_pack_end(GTK_BOX(mainBox), strip, FALSE, FALSE, 0);
     gtk_widget_show_all(strip);
     watch(strip);
@@ -281,7 +299,7 @@ void McpUi::update() {
     } else if (!http || !http->isListening()) {
         text = "AI: off";
     } else if (api::AgentGate::paused()) {
-        text = "AI: paused by you - agents cannot change anything";
+        text = "AI PAUSED - agents are blocked; your pen still works (resume: button or Ctrl+Alt+Esc)";
     } else {
         const size_t sessions = http->sessionCount();
         text = "AI: " + (sessions == 0 ? std::string("listening on 127.0.0.1:") + std::to_string(cfg.port) :
@@ -289,6 +307,17 @@ void McpUi::update() {
         if (!currentTool.empty()) {
             text += "  |  working: " + currentTool;
         }
+    }
+    if (strip) {
+        GtkStyleContext* ctx = gtk_widget_get_style_context(strip);
+        if (api::AgentGate::paused()) {
+            gtk_style_context_add_class(ctx, "paused");
+        } else {
+            gtk_style_context_remove_class(ctx, "paused");
+        }
+    }
+    if (pauseButton) {
+        gtk_button_set_label(GTK_BUTTON(pauseButton), api::AgentGate::paused() ? "Resume AI" : "Pause AI");
     }
     if (text != lastText) {
         gtk_label_set_text(GTK_LABEL(label), text.c_str());

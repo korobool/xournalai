@@ -24,8 +24,9 @@ McpServer::McpServer(Control* control): control(control) {
     protocol = std::make_unique<McpProtocol>(info, registry);
     protocol->setPermissionCheck([this](const ToolSpec& tool) -> std::optional<std::string> {
         if (api::AgentGate::paused() && tool.name != "app_status") {
-            return std::string("The user paused the AI agent in xournalai (AI Agent menu or the Pause AI button). "
-                               "Wait for them to resume; app_status shows when you may continue.");
+            return "The user paused the AI agent in xournalai at " + api::AgentGate::pausedSince() +
+                   " (the orange bar at the bottom of the window). Ask them to click \"Resume AI\" there (or press "
+                   "Ctrl+Alt+Esc); app_status shows when you may continue.";
         }
         if (config.allows(tool.tier)) {
             return std::nullopt;
