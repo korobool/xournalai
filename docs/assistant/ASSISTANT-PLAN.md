@@ -495,6 +495,18 @@ Staging:
 - **Voice B:** snapshot and gesture pointing, the fast lane, subtitles, clarifying questions.
 - **Voice C (distant):** hands-free conversation, barge-in, spoken replies, a realtime "live" runner, a wake word.
 
+## E7: think in parallel, edit one transaction at a time (built, 1.3.0)
+- **The serving session coordinates:** each request goes to a background subagent (up to 5; `canvas-quick` on a
+  fast model or `canvas-artist` on the strong one), and the coordinator ends its turn, staying responsive.
+- **Thinking is concurrent, editing is not:**
+  - `transaction_begin` claims an area and opens a private draft;
+  - `transaction_commit` plays an ordered list (draw instantly or like a stylus, delete, restyle, move);
+  - commits are serialized, each one undo step "AI: …"; completion order may differ from request order.
+- **Conflicts are checked at commit:** strokes it depends on that changed meanwhile, or that the user drew over,
+  refuse the commit with a reason; the draft is kept.
+- **Hard limits:** N open at most, no overlapping claims, a 10-minute lease; Stop aborts all.
+- **Visible:** a zone per transaction; the request's zone travels in the wake-up; the subagent count is shown.
+
 ## 6. Plan: the Linux prototype
 
 **★ Milestone 1 = epoch E6: serving session in the app → 1.2.0** (the short-term plan; tasks in

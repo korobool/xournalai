@@ -122,12 +122,13 @@ textarea:focus { outline: 2px solid var(--accent); border-color: transparent; }
   <a href="#s10">5.9 Stability &amp; setup <span class="count" data-for="s10"></span></a>
   <a href="#s11">5.10 Sessions &amp; socket bus <span class="count" data-for="s11"></span></a>
   <a href="#s21">M1 toolbar &amp; thinking <span class="count" data-for="s21"></span></a>
+  <a href="#s22">E7 Parallel &amp; transactions <span class="count" data-for="s22"></span></a>
   <a href="#s6">6. Plan <span class="count" data-for="s6"></span></a>
   <a href="#s7">7. Decisions <span class="count" data-for="s7"></span></a>
 </nav>
 <main>
 <header>
-  <h1>xournalai Assistant <span class="badge">rev 17 · Milestone 1 planned (E6 on the Kanban board)</span></h1>
+  <h1>xournalai Assistant <span class="badge">rev 18 · Milestone 1 built (1.2.0), E7 parallel serving (1.3.0)</span></h1>
   <p>A full Claude session inside xournalai, driven by in-app controls and talking to your other sessions; the
   MCP server keeps working for external agents.
   Comment on every section; the bar at the bottom saves your feedback to a file.</p>
@@ -946,6 +947,26 @@ model: fast             # fast | strong | model id</pre>
       (Auto-improve on or off), and the number of tasks in progress.</li>
     <li><b>Cancel:</b> tap the icon, or Stop, which interrupts the session (Esc into its terminal) and clears the
       zone.</li>
+  </ul>
+</section>
+
+<section id="s22" data-section="E7: parallel serving session and edit transactions (built, 1.3.0)">
+  <h2>E7: think in parallel, edit one transaction at a time <span class="rec">built in 1.3.0</span></h2>
+  <ul>
+    <li><b>The serving session coordinates.</b> It hands each request to a background subagent (up to 5, setting),
+      <code>canvas-quick</code> on a fast model or <code>canvas-artist</code> on the strong one, and ends its turn at
+      once, so it stays responsive.</li>
+    <li><b>Thinking is concurrent, editing is not.</b> A subagent claims an area (<code>transaction_begin</code>),
+      prepares in a private draft, and commits an <b>ordered list</b> of operations: draw (instantly, or like a
+      stylus), delete, restyle, move. Commits are serialized, and each plays as <b>one undo step</b> named "AI: …".
+      Completion order may differ from request order.</li>
+    <li><b>Conflicts are checked at commit.</b> If the strokes a transaction depends on changed meanwhile (you edited
+      them, drew over them, or another commit touched them), the commit is refused with the reason and the draft is
+      kept for a corrected commit.</li>
+    <li><b>Hard limits in the app:</b> at most N open transactions, no overlapping claims, a 10-minute lease. Stop
+      aborts them all and finishes a playback at once.</li>
+    <li><b>Visible:</b> every transaction has a zone; the request's zone travels in the wake-up; the strip counts
+      subagents.</li>
   </ul>
 </section>
 

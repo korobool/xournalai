@@ -6,6 +6,25 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+## 1.3.0 — Parallel serving session (epoch E7)
+The serving session coordinates up to five background subagents: they think in parallel, and each one's edits
+land as one ordered transaction.
+- **Edit transactions** (`transaction_begin` / `transaction_commit` / `transaction_abort` / `transaction_list`):
+  claim an area, prepare new content in a private draft, then commit an ordered list of operations (draw the draft
+  instantly or like a stylus, delete, restyle, move) played in order as ONE undo step ("AI: …"). Commits are
+  serialized, so edits never interleave; they may complete in a different order than they began.
+- **Conflict check** at commit: if strokes a transaction depends on (its base and every stroke it deletes or edits)
+  changed since it began, or the user drew over them, the commit is refused with the reason; the draft is kept for a
+  corrected commit. Restyles count as changes (the change log now fingerprints colour, width, fill and points).
+- **Hard limits:** at most `max_parallel` (1-5, settings) open transactions, no two overlapping claims, a 10-minute
+  lease; Stop aborts every open transaction and finishes a playback at once.
+- **Subagents** in the companion folder: `canvas-quick` (fast model: formulas, handwriting, colours, `*!`, `*w!`)
+  and `canvas-artist` (strong model: `**!`, `*r!`, sketches, diagrams, Revise); the serving session delegates in the
+  background and ends its turn, so it stays responsive.
+- **Visible:** every transaction has a thinking zone (the request's zone travels in the wake-up line as
+  `[zone N]`); zones close with their transaction, not when the coordinator goes idle; the status strip counts
+  working subagents.
+
 ## 1.2.0 — Assistant Milestone 1: the serving session in the app (epoch E6)
 Your canvas workflow inside xournalai, with no extra windows.
 - **AI terminal dock** (VTE, Ctrl+`): collapsible, tabs for Claude Code, Codex, OpenCode or a shell; processes keep

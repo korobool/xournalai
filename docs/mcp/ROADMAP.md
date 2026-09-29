@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.2.2**
+Current version: **1.3.0**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -400,4 +400,4 @@ The serving session coordinates up to 5 background subagents: they think in para
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T7.3.1 | US-7.3 | **Release 1.3.0** — Tests, docs, CHANGELOG, tag. | `ai: release 1.3.0 (parallel serving session) (T7.3.1)` | ⬜ todo |
+| T7.3.1 | US-7.3 | **Release 1.3.0** — Tests, docs, CHANGELOG, tag. | `ai: release 1.3.0 (parallel serving session) (T7.3.1)` | ✅ done |
