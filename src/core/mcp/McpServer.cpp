@@ -5,6 +5,7 @@
 #include "api/AgentGate.h"
 #include "api/Backup.h"
 #include "api/EventHub.h"
+#include "assistant/Companion.h"
 #include "tools/Tools.h"
 
 #include "McpHttpServer.h"
@@ -145,6 +146,18 @@ void McpServer::start() {
     }
     waiting.clear();
     g_message("MCP server listening on http://127.0.0.1:%u/mcp", options.port);
+    // The serving session's folder follows this app (port, binary)
+    {
+        assistant::CompanionSetup setup;
+        setup.port = options.port;
+        if (char* self = g_file_read_link("/proc/self/exe", nullptr)) {
+            setup.executable = self;
+            g_free(self);
+        } else {
+            setup.executable = "xournalpp";
+        }
+        assistant::Companion::ensure(setup);
+    }
     tools::wireResourceNotifications(*this);
     ui->update();
 }
