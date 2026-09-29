@@ -114,6 +114,8 @@ AiToolbar::AiToolbar(GtkWidget* mainBox, int position, ActionHandler h): handler
         gtk_container_add(GTK_CONTAINER(holder), mb);
         gtk_toolbar_insert(GTK_TOOLBAR(toolbar), holder, -1);
     }
+    GtkToolItem* stop = gtk_tool_button_new(nullptr, "Stop");
+    actionItem(stop, "win.ai-stop", "process-stop-symbolic", "Stop what the AI is doing now (it stays on)", "aiStop");
     GtkToolItem* pause = gtk_toggle_tool_button_new();
     gtk_tool_button_set_label(GTK_TOOL_BUTTON(pause), "Pause");
     actionItem(pause, "win.mcp-paused", "media-playback-pause-symbolic", "Stop the AI at once (Ctrl+Alt+Esc)",

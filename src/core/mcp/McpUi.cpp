@@ -126,8 +126,8 @@ McpUi::~McpUi() {
     if (window) {
         for (const char* name:
              {"mcp-paused", "mcp-ai-accept", "mcp-ai-clear", "mcp-ai-toggle", "mcp-copy-command", "mcp-settings",
-              "ai-terminal", "ai-terminal-open", "ai-act", "ai-toolbar", "ai-auto-improve", "ai-rule-formulas",
-              "ai-rule-text", "ai-rule-diagrams", "ai-rule-colours"}) {
+              "ai-terminal", "ai-terminal-open", "ai-act", "ai-toolbar", "ai-stop", "ai-auto-improve",
+              "ai-rule-formulas", "ai-rule-text", "ai-rule-diagrams", "ai-rule-colours"}) {
             g_action_map_remove_action(G_ACTION_MAP(window), name);
         }
         unwatch(window);
@@ -220,6 +220,12 @@ void McpUi::installActions() {
                      }),
                      this);
     add(tb);
+    GSimpleAction* stop = g_simple_action_new("ai-stop", nullptr);
+    g_signal_connect(stop, "activate", G_CALLBACK(+[](GSimpleAction*, GVariant*, gpointer self) {
+                         static_cast<McpUi*>(self)->stopWork(0);
+                     }),
+                     this);
+    add(stop);
     // Auto-improve: on = improve everything the user writes; off = markers and commands only (remembered)
     const auto& assistantCfg = server.getConfig().assistant;
     GSimpleAction* autoImp =
@@ -339,7 +345,7 @@ void McpUi::buildMenu() {
         g_object_unref(s);
     };
     section({{"Pause AI agent", "win.mcp-paused"}}, "<Ctrl><Alt>Escape");
-    section({{"Show AI toolbar", "win.ai-toolbar"}});
+    section({{"Show AI toolbar", "win.ai-toolbar"}, {"Stop current AI work", "win.ai-stop"}});
     {
         GMenu* s = g_menu_new();
         GMenuItem* item = g_menu_item_new("Auto-_improve", "win.ai-auto-improve");
@@ -490,6 +496,9 @@ void McpUi::update() {
                 break;
         }
 #ifdef ENABLE_AI_TERMINAL
+        if (thinkingOverlay && thinkingOverlay->active() > 0) {
+            text += "  |  " + std::to_string(thinkingOverlay->active()) + " in progress";
+        }
         if (eventPump) {
             text += std::string("  |  Auto-improve ") + (eventPump->autoImprove() ? "ON" : "off");
             if (!eventPump->status().empty()) {
@@ -687,11 +696,33 @@ void McpUi::buildTerminal() {
         if (!thinkingOverlay) {
             return;
         }
+        std::vector<int> started = zones;
         for (int z: zones) {
             thinkingOverlay->set(z, assistant::ThinkingOverlay::State::Thinking);
         }
         if (edits && (area.width > 0 || area.height > 0)) {
-            thinkingOverlay->add(page, area, "improving what you wrote…", assistant::ThinkingOverlay::State::Thinking);
+            started.push_back(thinkingOverlay->add(page, area, "improving what you wrote…",
+                                                   assistant::ThinkingOverlay::State::Thinking));
+        }
+        // Without hooks (Codex) nothing tells us when it's done: the zones end by themselves after a while
+        if (!server.serving().hooksSeen() && !started.empty()) {
+            struct Later {
+                McpUi* ui;
+                std::vector<int> zones;
+                std::shared_ptr<bool> alive;
+            };
+            g_timeout_add_seconds_full(
+                    G_PRIORITY_DEFAULT, 20,
+                    [](gpointer d) -> gboolean {
+                        auto* l = static_cast<Later*>(d);
+                        if (*l->alive && l->ui->thinkingOverlay) {
+                            for (int z: l->zones) {
+                                l->ui->thinkingOverlay->set(z, assistant::ThinkingOverlay::State::Done);
+                            }
+                        }
+                        return G_SOURCE_REMOVE;
+                    },
+                    new Later{this, started, server.aliveToken()}, +[](gpointer d) { delete static_cast<Later*>(d); });
         }
     };
     const auto& a = server.getConfig().assistant;
@@ -965,15 +996,32 @@ void McpUi::buildThinking() {
         }
         return GdkRectangle{cx, cy, gtk_widget_get_allocated_width(widget), gtk_widget_get_allocated_height(widget)};
     };
-    thinkingOverlay = std::make_unique<assistant::ThinkingOverlay>(
-            overlay, mapper,
-            [this](int zone) {
-                // T6.4.2 interrupts the session; for now the zone is closed
-                if (thinkingOverlay) {
-                    thinkingOverlay->set(zone, assistant::ThinkingOverlay::State::Failed, "stopped");
-                }
-            },
-            bounds);
+    thinkingOverlay =
+            std::make_unique<assistant::ThinkingOverlay>(overlay, mapper, [this](int zone) { stopWork(zone); }, bounds);
+}
+
+void McpUi::stopWork(int zone) {
+    using Z = assistant::ThinkingOverlay::State;
+#ifdef ENABLE_AI_TERMINAL
+    // Esc interrupts Claude Code (and Codex) mid-turn, like pressing it in the terminal
+    if (dock && servingTab >= 0 && server.serving().state() != assistant::ServingState::State::Idle) {
+        dock->feed(servingTab, "\x1b");
+    }
+    if (eventPump) {
+        eventPump->clear();
+    }
+#endif
+    if (thinkingOverlay) {
+        // The session works on one turn at a time: stopping any zone (zone != 0) stops that turn, so every zone in
+        // progress ends, and queued requests are dropped with it
+        (void)zone;
+        for (Z st: {Z::Thinking, Z::Queued}) {
+            for (int z: thinkingOverlay->inState(st)) {
+                thinkingOverlay->set(z, Z::Failed, "stopped");
+            }
+        }
+    }
+    update();
 }
 
 void McpUi::onServingChanged() {

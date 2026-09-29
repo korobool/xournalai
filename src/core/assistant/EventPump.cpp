@@ -65,6 +65,16 @@ void EventPump::addIntent(const std::string& description, int zone) {
     tick();
 }
 
+void EventPump::clear() {
+    intents.clear();
+    intentZones.clear();
+    editCount = 0;
+    editPages.clear();
+    editArea = {0, 0, 0, 0};
+    awaitingBusy = false;
+    setStatus("");
+}
+
 void EventPump::setAutoImprove(bool on) {
     settings.autoImprove = on;
     if (!on) {

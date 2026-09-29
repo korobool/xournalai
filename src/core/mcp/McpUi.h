@@ -70,6 +70,8 @@ public:
 
     /// Visible thinking on the canvas (null if the window has no overlay)
     assistant::ThinkingOverlay* thinking() const { return thinkingOverlay.get(); }
+    /// Stops the AI's current work (one zone, or all with zone = 0): interrupts the serving session (Esc)
+    void stopWork(int zone);
     /// The whole page's area in page points (for page-level zones)
     xoj::util::Rectangle<double> pageArea(size_t page) const;
 

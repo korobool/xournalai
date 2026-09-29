@@ -56,6 +56,8 @@ public:
     /// An explicit request (toolbar button, marker): delivered as soon as the session is idle
     void addIntent(const std::string& description, int zone = 0);
 
+    /// Drops everything waiting (Stop)
+    void clear();
     void setAutoImprove(bool on);
     void setRules(std::vector<std::string> rules);
     const std::vector<std::string>& rules() const { return settings.rules; }

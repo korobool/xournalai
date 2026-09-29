@@ -110,11 +110,8 @@ int ThinkingOverlay::add(size_t page, const xoj::util::Rectangle<double>& area, 
         gtk_widget_set_can_focus(z->button, FALSE);
         GtkWidget* box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
         z->spinner = gtk_spinner_new();
-        z->label = gtk_label_new(text.c_str());
-        gtk_label_set_ellipsize(GTK_LABEL(z->label), PANGO_ELLIPSIZE_END);
-        gtk_label_set_max_width_chars(GTK_LABEL(z->label), 40);
-        gtk_box_pack_start(GTK_BOX(box), z->spinner, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(box), z->label, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(box), z->spinner, FALSE, FALSE, 0);  // the status text is drawn, not a widget
+        gtk_widget_set_tooltip_text(z->button, (text + " (click to stop)").c_str());
         gtk_container_add(GTK_CONTAINER(z->button), box);
         g_object_set_data(G_OBJECT(z->button), "zone", GINT_TO_POINTER(z->id));
         g_signal_connect(z->button, "clicked", G_CALLBACK(+[](GtkButton* b, gpointer self) {
@@ -143,8 +140,8 @@ void ThinkingOverlay::set(int id, State state, const std::string& text) {
             z->stateUs = g_get_monotonic_time();
             if (!text.empty()) {
                 z->text = text;
-                if (z->label) {
-                    gtk_label_set_text(GTK_LABEL(z->label), text.c_str());
+                if (z->button) {
+                    gtk_widget_set_tooltip_text(z->button, (text + " (click to stop)").c_str());
                 }
             }
         }
@@ -201,15 +198,18 @@ void ThinkingOverlay::layout() {
             gtk_widget_hide(z->button);
             continue;
         }
-        // above the zone's top-left corner, or inside it when that would leave the canvas (never on the toolbars)
+        // a compact spinner inside the zone's top-right corner: it only takes input where the AI is working (the
+        // status text is drawn, so it never blocks your pen), and it never lands on the toolbars
         const auto area = bounds ? bounds() : std::nullopt;
         const int top = area ? area->y : 0, left = area ? area->x : 0;
-        int y = z->rect.y - 28 >= top ? z->rect.y - 28 : z->rect.y + 2;
+        int x = z->rect.x + z->rect.width - 30;
+        int y = z->rect.y + 2;
+        x = std::max(x, std::max(z->rect.x, left + 2));
         y = std::max(y, top + 2);
         if (area) {
-            y = std::min(y, area->y + area->height - 28);
+            x = std::min(x, area->x + area->width - 32);
+            y = std::min(y, area->y + area->height - 32);
         }
-        const int x = std::max(z->rect.x, left + 2);
         // positioned by get-child-position (margins would give the button an input area reaching the corner)
         g_object_set_data(G_OBJECT(z->button), "ai-x", GINT_TO_POINTER(std::max(0, x) + 1));  // +1: never NULL
         g_object_set_data(G_OBJECT(z->button), "ai-y", GINT_TO_POINTER(std::max(0, y) + 1));
@@ -297,6 +297,24 @@ gboolean ThinkingOverlay::onDraw(GtkWidget*, cairo_t* cr, gpointer data) {
         cairo_rectangle(cr, x, y, w, h);
         cairo_stroke(cr);
         cairo_set_dash(cr, nullptr, 0, 0);
+        // the one-line status, above the zone (drawn: it lets the pen through)
+        if (!z->text.empty() && z->state != State::Done) {
+            cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+            cairo_set_font_size(cr, 12);
+            cairo_text_extents_t ext;
+            cairo_text_extents(cr, z->text.c_str(), &ext);
+            const double tx = x + 2, ty = (y - 8 > 14) ? y - 6 : y + h + 16;
+            cairo_set_source_rgba(cr, 1, 1, 1, 0.85);
+            cairo_rectangle(cr, tx - 3, ty - ext.height - 4, ext.x_advance + 6, ext.height + 8);
+            cairo_fill(cr);
+            if (z->state == State::Failed) {
+                cairo_set_source_rgba(cr, 0.7, 0.1, 0.1, 1);
+            } else {
+                cairo_set_source_rgba(cr, 0.05, 0.45, 0.42, 1);
+            }
+            cairo_move_to(cr, tx, ty);
+            cairo_show_text(cr, z->text.c_str());
+        }
         // done: a tick; failed: a cross (top-right corner)
         if (z->state == State::Done || z->state == State::Failed) {
             const double cx = x + w - 10, cy = y + 10;
