@@ -28,6 +28,8 @@ struct DrawTarget {
     size_t page = 0;           ///< 0-based
     std::string layer = "AI";  ///< "AI" (created on top if missing), "current", a layer name or "#<n>" (1-based)
     bool createLayer = true;   ///< create a named layer that doesn't exist yet
+    /// If set, receives the insert's undo action instead of the undo history (transactions collect them)
+    std::function<void(std::unique_ptr<UndoAction>)> undoSink;
 };
 
 struct DrawResult {

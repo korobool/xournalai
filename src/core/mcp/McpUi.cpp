@@ -1002,6 +1002,7 @@ void McpUi::buildThinking() {
 
 void McpUi::stopWork(int zone) {
     using Z = assistant::ThinkingOverlay::State;
+    api::AgentGate::hurry();  // a playback in progress completes at once
 #ifdef ENABLE_AI_TERMINAL
     // Esc interrupts Claude Code (and Codex) mid-turn, like pressing it in the terminal
     if (dock && servingTab >= 0 && server.serving().state() != assistant::ServingState::State::Idle) {

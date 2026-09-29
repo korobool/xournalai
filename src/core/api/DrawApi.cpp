@@ -58,7 +58,7 @@ struct Animation {
 gboolean animationTick(gpointer data) {
     auto* a = static_cast<Animation*>(data);
     Document* doc = a->control->getDocument();
-    if (AgentGate::paused()) {
+    if (AgentGate::paused() || AgentGate::hurrying()) {
         a->pointsPerTick = SIZE_MAX / 2;  // the user paused the agent: finish the drawing at once
     }
     while (a->current < a->strokes.size()) {
@@ -210,11 +210,14 @@ void DrawApi::insert(const DrawTarget& target, std::vector<ElementPtr> elements,
     // Drafts are private scratch space: no undo history (their layer disappears on commit/discard)
     const bool undoable = !Drafts::get().isDraftLayer(layer);
     auto holder = std::make_shared<std::unique_ptr<GroupUndoAction>>(std::move(group));
-    auto finish = [control = control, page, holder, result, undoable, done = std::move(done)](bool completed) {
+    auto finish = [control = control, page, holder, result, undoable, sink = target.undoSink,
+                   done = std::move(done)](bool completed) {
         if (completed) {
             auto bb = unionOf(result.elements);
             page->fireRectChanged(bb);
-            if (undoable) {
+            if (undoable && sink) {
+                sink(std::move(*holder));
+            } else if (undoable) {
                 control->getUndoRedoHandler()->addUndoAction(std::move(*holder));
             }
         }

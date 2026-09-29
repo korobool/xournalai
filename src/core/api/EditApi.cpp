@@ -72,11 +72,15 @@ private:
     std::vector<Element*> elements;
 };
 
-void addUndo(Control* control, std::unique_ptr<UndoAction> a) {
-    control->getUndoRedoHandler()->addUndoAction(std::move(a));
-}
-
 }  // namespace
+
+void EditApi::addUndo(std::unique_ptr<UndoAction> a) {
+    if (sink) {
+        sink(std::move(a));
+    } else {
+        control->getUndoRedoHandler()->addUndoAction(std::move(a));
+    }
+}
 
 ElementGroup EditApi::resolve(const std::vector<std::string>& ids) {
     if (ids.empty()) {
@@ -137,7 +141,7 @@ void EditApi::move(const ElementGroup& g, double dx, double dy) {
         group->addAction(std::make_unique<MoveUndoAction>(layer, g.page, elements, dx, dy, layer, g.page));
     }
     g.page->firePageChanged();
-    addUndo(control, std::move(group));
+    addUndo(std::move(group));
 }
 
 void EditApi::scale(const ElementGroup& g, double fx, double fy, double x0, double y0, bool keepLineWidth) {
@@ -147,14 +151,14 @@ void EditApi::scale(const ElementGroup& g, double fx, double fy, double x0, doub
     std::vector<Element*> all = g.all;
     auto action = std::make_unique<ScaleUndoAction>(g.page, &all, x0, y0, fx, fy, 0.0, keepLineWidth);
     action->redo(control);  // applies the scaling
-    addUndo(control, std::move(action));
+    addUndo(std::move(action));
 }
 
 void EditApi::rotate(const ElementGroup& g, double degrees, double x0, double y0) {
     std::vector<Element*> all = g.all;
     auto action = std::make_unique<RotateUndoAction>(g.page, &all, x0, y0, degrees * PI / 180.0);
     action->redo(control);  // applies the rotation
-    addUndo(control, std::move(action));
+    addUndo(std::move(action));
 }
 
 size_t EditApi::restyle(const ElementGroup& g, const Restyle& st) {
@@ -220,7 +224,7 @@ size_t EditApi::restyle(const ElementGroup& g, const Restyle& st) {
     }
     g.page->firePageChanged();
     if (changed) {
-        addUndo(control, std::move(group));
+        addUndo(std::move(group));
     }
     return changed;
 }
@@ -246,7 +250,7 @@ void EditApi::reorder(const ElementGroup& g, const std::string& where) {
         action->redo(control);  // applies the new order
         group->addAction(std::move(action));
     }
-    addUndo(control, std::move(group));
+    addUndo(std::move(group));
 }
 
 std::string EditApi::toLayer(const ElementGroup& g, const std::string& layerName) {
@@ -263,7 +267,7 @@ std::string EditApi::toLayer(const ElementGroup& g, const std::string& layerName
         action->redo(control);
         group->addAction(std::move(action));
     }
-    addUndo(control, std::move(group));
+    addUndo(std::move(group));
     return target.name;
 }
 
@@ -283,7 +287,7 @@ size_t EditApi::remove(const ElementGroup& g) {
         }
     }
     g.page->firePageChanged();
-    addUndo(control, std::move(action));
+    addUndo(std::move(action));
     return count;
 }
 

@@ -24,6 +24,9 @@ public:
         }
         flag().store(p);
     }
+    /// Finish running playbacks at once (Stop): for the next second, animations complete immediately
+    static void hurry() { hurryUntil().store(g_get_monotonic_time() + G_USEC_PER_SEC); }
+    static bool hurrying() { return g_get_monotonic_time() < hurryUntil().load(); }
     /// Local time the pause started, "HH:MM:SS" (empty when not paused)
     static std::string pausedSince() {
         if (!paused()) {
@@ -46,6 +49,10 @@ public:
     static constexpr const char* SETTINGS_DIALOG = "mcpSettingsDialog";
 
 private:
+    static std::atomic<gint64>& hurryUntil() {
+        static std::atomic<gint64> t{0};
+        return t;
+    }
     static std::atomic<gint64>& sinceUs() {
         static std::atomic<gint64> t{0};
         return t;

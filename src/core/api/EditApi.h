@@ -8,13 +8,16 @@
 
 #pragma once
 
-#include <optional>  // for optional
-#include <string>    // for string
-#include <vector>    // for vector
+#include <functional>  // for function
+#include <memory>      // for unique_ptr
+#include <optional>    // for optional
+#include <string>      // for string
+#include <vector>      // for vector
 
 #include "model/Element.h"    // for Element
 #include "model/LineStyle.h"  // for LineStyle
 #include "model/PageRef.h"    // for PageRef
+#include "undo/UndoAction.h"  // for UndoAction
 #include "util/Color.h"       // for Color
 
 class Control;
@@ -42,6 +45,9 @@ struct Restyle {
 class EditApi {
 public:
     explicit EditApi(Control* control): control(control) {}
+    /// Undo actions go to `sink` instead of the undo history (transactions collect them into one step)
+    EditApi(Control* control, std::function<void(std::unique_ptr<UndoAction>)> sink):
+            control(control), sink(std::move(sink)) {}
 
     /// Resolves ids (ends the user's current selection first, so selected elements are back in their layers)
     ElementGroup resolve(const std::vector<std::string>& ids);
@@ -64,6 +70,8 @@ public:
 
 private:
     Control* control;
+    std::function<void(std::unique_ptr<UndoAction>)> sink;
+    void addUndo(std::unique_ptr<UndoAction> a);
 };
 
 }  // namespace xoj::api
