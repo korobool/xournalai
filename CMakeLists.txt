@@ -218,6 +218,17 @@ else ()
     message(STATUS "Disable embedded MCP server")
 endif ()
 
+# xournalai assistant: a terminal dock inside the window that runs the serving Claude Code (or Codex, a shell)
+option(ENABLE_AI_TERMINAL "Embedded terminal dock for the AI assistant (needs vte-2.91; xournalai)" ON)
+if (ENABLE_AI_TERMINAL AND NOT ENABLE_MCP)
+    message(STATUS "AI terminal needs the MCP server: disabled")
+    set(ENABLE_AI_TERMINAL OFF)
+endif ()
+if (ENABLE_AI_TERMINAL)
+    pkg_check_modules(Vte REQUIRED IMPORTED_TARGET "vte-2.91 >= 0.60")
+    message(STATUS "Enable AI terminal dock")
+endif ()
+
 option(ENABLE_GTK_SOURCEVIEW "Enable syntax highlighting in TeX editor" ON)
 if (ENABLE_GTK_SOURCEVIEW)
     pkg_check_modules(GtkSourceView REQUIRED IMPORTED_TARGET "gtksourceview-4 >= 4.0.0")
@@ -291,6 +302,7 @@ target_link_libraries(external_modules INTERFACE
         $<$<TARGET_EXISTS:PkgConfig::GtkSourceView>:PkgConfig::GtkSourceView>
         $<$<TARGET_EXISTS:PkgConfig::ExternalAudioModules>:PkgConfig::ExternalAudioModules>
         $<$<TARGET_EXISTS:PkgConfig::Libsoup3>:PkgConfig::Libsoup3>
+        $<$<TARGET_EXISTS:PkgConfig::Vte>:PkgConfig::Vte>
         $<$<TARGET_EXISTS:nlohmann_json::nlohmann_json>:nlohmann_json::nlohmann_json>
         $<$<TARGET_EXISTS:xoj::nanosvg>:xoj::nanosvg>
         $<$<TARGET_EXISTS:X11::Xi>:X11::Xi>
@@ -468,6 +480,7 @@ Configuration:
     Compiler:                   ${CMAKE_CXX_COMPILER}
     X11 support enabled:        ${X11_FOUND}
     MCP server enabled:         ${ENABLE_MCP}
+    AI terminal enabled:        ${ENABLE_AI_TERMINAL}
     GTEST enabled:              ${ENABLE_GTEST}
     GCOV enabled:               ${DEV_ENABLE_GCOV}
     Profiling enabled:          ${ENABLE_PROFILING}

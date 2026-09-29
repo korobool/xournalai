@@ -14,6 +14,16 @@
 
 #include "util/Rectangle.h"
 
+#include "config-features.h"  // for ENABLE_AI_TERMINAL
+
+#ifdef ENABLE_AI_TERMINAL
+#include <memory>  // for unique_ptr
+
+namespace xoj::assistant {
+class TerminalDock;
+}
+#endif
+
 namespace xoj::mcp {
 
 class McpServer;
@@ -37,6 +47,13 @@ public:
 
     /// Opens the MCP settings dialog (user only; agents cannot operate it)
     void showSettings();
+
+#ifdef ENABLE_AI_TERMINAL
+    /// The AI terminal dock (null if the window has no place for it)
+    assistant::TerminalDock* terminal() const { return dock.get(); }
+    /// Opens a terminal tab: "claude", "codex", "opencode" or "shell"
+    void openTerminal(const std::string& kind);
+#endif
 
 private:
     static gboolean onTick(gpointer self);
@@ -74,6 +91,10 @@ private:
     guint menuIdle = 0;
     std::string lastText;
     GtkWidget* settings = nullptr;  ///< weak (strip, label, pauseButton too)
+#ifdef ENABLE_AI_TERMINAL
+    void buildTerminal();
+    std::unique_ptr<assistant::TerminalDock> dock;
+#endif
 };
 
 }  // namespace xoj::mcp

@@ -23,6 +23,9 @@
 
 #cmakedefine ENABLE_MCP
 
+// xournalai assistant terminal dock (vte)
+#cmakedefine ENABLE_AI_TERMINAL
+
 #cmakedefine01 ENABLE_FLOAT_FROM_CHARS
 
 /* --- Testing features --- */

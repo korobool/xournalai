@@ -12,6 +12,10 @@
 #include "model/Layer.h"                    // for Layer
 #include "model/XojPage.h"                  // for XojPage
 
+#ifdef ENABLE_AI_TERMINAL
+#include "assistant/terminal/TerminalDock.h"
+#endif
+
 #include "McpConfig.h"
 #include "McpHttpServer.h"
 #include "McpServer.h"
@@ -56,6 +60,9 @@ McpUi::McpUi(McpServer& server): server(server) {
             },
             this, nullptr);
     buildStrip();
+#ifdef ENABLE_AI_TERMINAL
+    buildTerminal();
+#endif
     timer = g_timeout_add_seconds(2, &McpUi::onTick, this);
     update();
 }
@@ -74,6 +81,9 @@ McpUi::~McpUi() {
         gtk_widget_destroy(s);
     }
     removeMenu();
+#ifdef ENABLE_AI_TERMINAL
+    dock.reset();
+#endif
     unwatch(label);
     unwatch(pauseButton);
     if (strip) {
@@ -82,8 +92,8 @@ McpUi::~McpUi() {
         gtk_widget_destroy(s);
     }
     if (window) {
-        for (const char* name:
-             {"mcp-paused", "mcp-ai-accept", "mcp-ai-clear", "mcp-ai-toggle", "mcp-copy-command", "mcp-settings"}) {
+        for (const char* name: {"mcp-paused", "mcp-ai-accept", "mcp-ai-clear", "mcp-ai-toggle", "mcp-copy-command",
+                                "mcp-settings", "ai-terminal", "ai-terminal-open"}) {
             g_action_map_remove_action(G_ACTION_MAP(window), name);
         }
         unwatch(window);
@@ -156,9 +166,30 @@ void McpUi::installActions() {
                 GConnectFlags(0));
         add(a);
     }
+#ifdef ENABLE_AI_TERMINAL
+    GSimpleAction* term = g_simple_action_new("ai-terminal", nullptr);
+    g_signal_connect(term, "activate", G_CALLBACK(+[](GSimpleAction*, GVariant*, gpointer self) {
+                         auto* ui = static_cast<McpUi*>(self);
+                         if (ui->dock) {
+                             ui->dock->toggle();
+                         }
+                     }),
+                     this);
+    add(term);
+    GSimpleAction* open = g_simple_action_new("ai-terminal-open", G_VARIANT_TYPE_STRING);
+    g_signal_connect(open, "activate", G_CALLBACK(+[](GSimpleAction*, GVariant* v, gpointer self) {
+                         static_cast<McpUi*>(self)->openTerminal(g_variant_get_string(v, nullptr));
+                     }),
+                     this);
+    add(open);
+#endif
     GtkApplication* app = gtk_window_get_application(GTK_WINDOW(win));
     const char* pauseAccel[] = {"<Ctrl><Alt>Escape", nullptr};
     gtk_application_set_accels_for_action(app, "win.mcp-paused", pauseAccel);
+#ifdef ENABLE_AI_TERMINAL
+    const char* termAccel[] = {"<Ctrl>grave", nullptr};
+    gtk_application_set_accels_for_action(app, "win.ai-terminal", termAccel);
+#endif
 }
 
 void McpUi::clearLayer(bool merge) {
@@ -208,6 +239,21 @@ void McpUi::buildMenu() {
     section({{"Accept AI layer (merge down)", "win.mcp-ai-accept"},
              {"Show or hide AI layer", "win.mcp-ai-toggle"},
              {"Clear AI layer", "win.mcp-ai-clear"}});
+#ifdef ENABLE_AI_TERMINAL
+    {
+        GMenu* s = g_menu_new();
+        GMenuItem* item = g_menu_item_new("Show or hide AI _terminal", "win.ai-terminal");
+        g_menu_item_set_attribute(item, "accel", "s", "<Ctrl>grave");
+        g_menu_append_item(s, item);
+        g_object_unref(item);
+        g_menu_append(s, "New Claude Code tab", "win.ai-terminal-open::claude");
+        g_menu_append(s, "New Codex tab", "win.ai-terminal-open::codex");
+        g_menu_append(s, "New OpenCode tab", "win.ai-terminal-open::opencode");
+        g_menu_append(s, "New shell tab", "win.ai-terminal-open::shell");
+        g_menu_append_section(sub, nullptr, G_MENU_MODEL(s));
+        g_object_unref(s);
+    }
+#endif
     section({{"Copy agent connect command", "win.mcp-copy-command"}, {"AI Agent _Settings…", "win.mcp-settings"}});
     const int n = g_menu_model_get_n_items(model);
     g_menu_insert_submenu(G_MENU(model), std::max(0, n - 1), MENU_LABEL, G_MENU_MODEL(sub));
@@ -396,6 +442,42 @@ bool checked(GtkWidget* dialog, const std::string& name) {
     return gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(find(dialog, name)));
 }
 }  // namespace
+
+#ifdef ENABLE_AI_TERMINAL
+namespace {
+assistant::TerminalSpec terminalSpec(const std::string& kind) {
+    // Your setup: agents start without permission prompts (the companion folder and settings come with T6.1.2/3)
+    if (kind == "claude") {
+        return {"Claude", "claude --dangerously-skip-permissions", "", {}};
+    }
+    if (kind == "codex") {
+        return {"Codex", "codex --dangerously-bypass-approvals-and-sandbox", "", {}};
+    }
+    if (kind == "opencode") {
+        return {"OpenCode", "opencode", "", {}};
+    }
+    return {"Shell", "", "", {}};
+}
+}  // namespace
+
+void McpUi::buildTerminal() {
+    Control* ctrl = server.getControl();
+    GtkWidget* mainBox = ctrl->getWindow()->get("mainBox");
+    GtkWidget* content = ctrl->getWindow()->get("mainContainerBox");
+    if (!mainBox || !content || !GTK_IS_BOX(mainBox)) {
+        return;
+    }
+    dock = std::make_unique<assistant::TerminalDock>(mainBox, content);
+    dock->setNewTabChoices(
+            {terminalSpec("claude"), terminalSpec("codex"), terminalSpec("opencode"), terminalSpec("shell")});
+}
+
+void McpUi::openTerminal(const std::string& kind) {
+    if (dock) {
+        dock->openTab(terminalSpec(kind), true);
+    }
+}
+#endif
 
 void McpUi::showSettings() {
     if (settings) {
