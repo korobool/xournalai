@@ -293,6 +293,16 @@ def glyphs(x, y, count, size=10, seed=3):
     return out
 
 
+def wait_for_file(path, timeout=10):
+    """Files written in the background (safety backups) appear shortly after the call that made them."""
+    end = time.time() + timeout
+    while time.time() < end:
+        if os.path.exists(path):
+            return True
+        time.sleep(0.05)
+    return False
+
+
 def make_xopp(path, pages):
     """Writes a gzipped .xopp. `pages` is a list of pages; a page is a list of strokes (see stroke())."""
     parts = ['<?xml version="1.0" standalone="no"?>', '<xournal creator="xoai-tests" fileversion="4">']

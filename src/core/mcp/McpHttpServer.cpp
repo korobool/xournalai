@@ -10,6 +10,7 @@ namespace xoj::mcp {
 constexpr const char* SESSION_HEADER = "Mcp-Session-Id";
 constexpr const char* DEFAULT_SESSION = "default";
 constexpr size_t MAX_SESSIONS = 64;
+constexpr gsize MAX_REQUEST_BYTES = 64 * 1024 * 1024;  ///< generous: imports may carry base64 images
 constexpr guint KEEPALIVE_SECONDS = 20;
 
 struct McpHttpServer::SessionState {
@@ -193,6 +194,13 @@ void McpHttpServer::handlePost(SoupServerMessage* msg) {
     GBytes* bytes = soup_message_body_flatten(body);
     gsize size = 0;
     const auto* data = static_cast<const char*>(g_bytes_get_data(bytes, &size));
+    if (size > MAX_REQUEST_BYTES) {
+        g_bytes_unref(bytes);
+        respondJson(msg, 413,
+                    rpc::errorResponse(nullptr, rpc::INVALID_REQUEST,
+                                       "Request too large (at most 64 MB); pass big files by path instead"));
+        return;
+    }
     json message = json::parse(data, data + size, nullptr, false);
     g_bytes_unref(bytes);
     if (message.is_discarded()) {

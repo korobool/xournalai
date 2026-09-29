@@ -18,6 +18,11 @@
 namespace xoj::mcp::tools {
 
 namespace {
+/// page_elements stops adding elements beyond this much JSON (a few MB keeps agents' context and memory sane)
+constexpr size_t MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
+}  // namespace
+
+namespace {
 
 std::optional<xoj::util::Rectangle<double>> regionArg(const Args& args, const std::string& key = "region") {
     auto r = args.numbersOpt(key);
@@ -94,12 +99,19 @@ void registerReadTools(McpServer& server) {
 
         json list = json::array();
         size_t matching = 0;
+        size_t bytes = 0;
+        bool full = false;  // the response is big enough: the rest comes with next_offset
         for (const auto& loc: api::elementsOnPage(page, pageIndex, layer, regionArg(args))) {
             if (!types.empty() && std::find(types.begin(), types.end(), elementTypeName(loc.element)) == types.end()) {
                 continue;
             }
-            if (matching >= offset && list.size() < limit) {
-                list.push_back(elementToJson(loc, detail, tolerance));
+            if (matching >= offset && list.size() < limit && !full) {
+                json e = elementToJson(loc, detail, tolerance);
+                if (detail != Detail::Bbox) {
+                    bytes += e.dump().size();
+                    full = bytes > MAX_RESPONSE_BYTES && !list.empty();
+                }
+                list.push_back(std::move(e));
             }
             matching++;
         }

@@ -76,6 +76,7 @@ McpServer::~McpServer() {
     stop();
     ui.reset();
     notes.reset();
+    api::waitForBackups();  // don't quit while a safety copy is still being written
 }
 
 std::string McpServer::backup(const std::string& reason) const {

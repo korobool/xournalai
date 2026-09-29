@@ -3,6 +3,8 @@
 import os
 import time
 
+import xoai
+
 
 def test_destructive_operations_need_permission(app):
     c = app.client()
@@ -24,10 +26,10 @@ def test_backups_before_risky_operations(app):
     c = app.client()
     c.call("page_manage", op="insert", page=1)
     r = c.call("page_manage", op="delete", page=2)
-    assert os.path.exists(r["backup"]) and r["backup"].endswith(".xopp")
+    assert xoai.wait_for_file(r["backup"]) and r["backup"].endswith(".xopp")
     many = c.call("create_strokes", strokes=[{"points": [[10, 10 + i], [100, 10 + i]]} for i in range(25)],
                   animate=False)
     d = c.call("elements_delete", operation=many["operation"])
-    assert d["deleted"] == 25 and os.path.exists(d["backup"])
+    assert d["deleted"] == 25 and xoai.wait_for_file(d["backup"])
     few = c.call("create_strokes", strokes=[{"points": [[10, 300], [100, 300]]}], animate=False)
     assert "backup" not in c.call("elements_delete", operation=few["operation"])

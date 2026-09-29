@@ -6,6 +6,17 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+### 0.5.1 — Notes and performance
+- `notes` tool: remembers transcripts, summaries and meanings for the document, a page or a region; stored next to
+  the file (`<file>.ai-notes.json`), follows page moves, kept in memory until an untitled document is saved.
+- Safety backups are captured synchronously but written in the background (deleting a page of a 72k-stroke
+  document: 3.8 s → 76 ms); files appear only when complete; the app waits for pending backups on exit.
+- `page_elements` stops at ~4 MB of JSON and continues with `next_offset`; HTTP requests over 64 MB get 413.
+- Measured on 120 pages × 600 strokes: status/info/elements/layout/changes calls take 0–45 ms, `page_render`
+  ~70 ms (no render cache: it would add staleness risks for little gain).
+- Upstream fix: the render thread read the page layout while the UI thread rebuilt it (page insert/move/delete),
+  crashing in `Layout::getPixelCoordinatesOfEntry`; repaint positions are now computed on the UI thread.
+
 ## 0.5.0 — Co-creation (epoch E4)
 The agent works alongside the user: it notices what they draw, answers in their hand on its own layer, and the
 user stays in charge.
