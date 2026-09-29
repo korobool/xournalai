@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.3.0**
+Current version: **1.3.1**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -400,4 +400,21 @@ The serving session coordinates up to 5 background subagents: they think in para
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T7.3.1 | US-7.3 | **Release 1.3.0** — Tests, docs, CHANGELOG, tag. | `ai: release 1.3.0 (parallel serving session) (T7.3.1)` | ✅ done |
+| T7.3.1 | US-7.3 | **Release 1.3.0** — Tests, docs, CHANGELOG, tag. | `ai: release 1.3.0 (parallel serving session) (T7.3.1)` | ✅ done `7848a9783` |
+
+## E8 — Touch zoom (release 1.3.1)
+
+Pinch zoom on a touchscreen follows the fingers 1:1, even when a gesture daemon (Touchégg on Pop!_OS) turns the same pinch into zoom keystrokes.
+
+### S8.1 — Pinch owns the zoom → v1.3.1
+
+**US-8.1** — As the owner, I want pinch zoom on my laptop's touchscreen to follow my fingers smoothly.
+
+- [ ] zoom keys, Ctrl+wheel and the zoom action are ignored while two fingers are down (and 0.4 s after)
+- [ ] a pinch whose zoom sequence was ended elsewhere re-anchors instead of compounding
+- [ ] opt-in touch/zoom trace for diagnosis on real hardware
+- [ ] test: synthetic pinch with Touchégg-style keystrokes in the middle
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T8.1.1 | US-8.1 | **Pinch owns the zoom** — Root cause from a trace on the owner's laptop: Touchégg's default config maps a 2-finger pinch to repeated Ctrl+KP_Add/KP_Subtract; each 10% step ended the touch zoom sequence, after which the pinch factor multiplied the current zoom (compounding to 700%/30%). Fix in ZoomControl/TouchInputHandler; test hook test_touch (XOURNALAI_TEST_HOOKS=1). | `ai: pinch owns the zoom (T8.1.1)` | ✅ done `a16b038d0` |
