@@ -10,6 +10,7 @@
 
 #include <memory>  // for unique_ptr
 #include <string>
+#include <vector>
 
 #include <gtk/gtk.h>
 
@@ -35,6 +36,9 @@ class McpServer;
 
 namespace xoj::assistant {
 class AiToolbar;
+}
+namespace xoj::api {
+struct DocEvent;
 }
 
 namespace xoj::mcp {
@@ -112,6 +116,18 @@ private:
     GtkWidget* settings = nullptr;  ///< weak (strip, label, pauseButton too)
     void buildToolbar();
     std::unique_ptr<assistant::AiToolbar> aiToolbar;
+
+    // Handwritten markers (*! **! *w! *c! *r!) among the user's fresh strokes
+    void noteUserStroke(const api::DocEvent& e);
+    void scanMarkers();
+    struct RecentStroke {
+        size_t page;
+        std::string id;
+        gint64 timeUs;
+    };
+    std::vector<RecentStroke> recentStrokes;
+    std::vector<std::string> markerIdsDone;
+    guint markerTimer = 0;
 #ifdef ENABLE_AI_TERMINAL
     void buildTerminal();
     assistant::TerminalSpec terminalSpec(const std::string& kind, bool serving) const;

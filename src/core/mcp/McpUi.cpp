@@ -1,6 +1,8 @@
 #include "McpUi.h"
 
 #include <algorithm>  // for find, remove
+#include <map>
+#include <shared_mutex>
 
 #include "api/AgentGate.h"                  // for AgentGate
 #include "control/Control.h"                // for Control
@@ -21,12 +23,14 @@
 #include "assistant/terminal/TerminalDock.h"
 #endif
 
-#include "api/DocumentApi.h"              // for currentPageIndex
-#include "api/ElementIds.h"               // for ElementIds
-#include "api/EventHub.h"                 // for EventHub
-#include "assistant/AiToolbar.h"          // for AiToolbar
+#include "api/DocumentApi.h"  // for currentPageIndex
+#include "api/ElementIds.h"   // for ElementIds
+#include "api/EventHub.h"     // for EventHub
+#include "assistant/AiToolbar.h"
+#include "assistant/Markers.h"            // for findMarkers          // for AiToolbar
 #include "control/tools/EditSelection.h"  // for EditSelection
 #include "model/Element.h"                // for Element
+#include "model/Stroke.h"                 // for Stroke
 
 #include "McpConfig.h"
 #include "McpHttpServer.h"
@@ -74,6 +78,9 @@ McpUi::McpUi(McpServer& server): server(server) {
             this, nullptr);
     buildStrip();
     buildToolbar();
+    if (auto* hub = server.getEvents()) {
+        hub->addListener([this](const api::DocEvent& e) { noteUserStroke(e); });
+    }
 #ifdef ENABLE_AI_TERMINAL
     buildTerminal();
 #endif
@@ -87,6 +94,9 @@ McpUi::~McpUi() {
     }
     if (menuIdle) {
         g_source_remove(menuIdle);
+    }
+    if (markerTimer) {
+        g_source_remove(markerTimer);
     }
     // Only what still exists: when the application quits, the main window (and all of this) is already gone
     if (settings) {
@@ -782,6 +792,87 @@ std::string McpUi::aiAction(const std::string& kind, const std::string& text) {
     }
 #endif
     return desc;
+}
+
+void McpUi::noteUserStroke(const api::DocEvent& e) {
+    if (e.origin != "user" || e.type != "element_added") {
+        return;
+    }
+    const gint64 now = g_get_monotonic_time();
+    for (const auto& id: e.ids) {
+        recentStrokes.push_back({e.page, id, now});
+    }
+    // only the last ~20 s matter (a marker is written in one go)
+    recentStrokes.erase(std::remove_if(recentStrokes.begin(), recentStrokes.end(),
+                                       [now](const RecentStroke& r) { return now - r.timeUs > 20 * G_USEC_PER_SEC; }),
+                        recentStrokes.end());
+    if (markerTimer) {
+        g_source_remove(markerTimer);
+    }
+    markerTimer = g_timeout_add(
+            1200,
+            [](gpointer self) -> gboolean {
+                auto* ui = static_cast<McpUi*>(self);
+                ui->markerTimer = 0;
+                ui->scanMarkers();
+                return G_SOURCE_REMOVE;
+            },
+            this);
+}
+
+void McpUi::scanMarkers() {
+    Control* ctrl = server.getControl();
+    Document* doc = ctrl->getDocument();
+    std::map<size_t, std::vector<assistant::StrokeShape>> byPage;
+    {
+        std::shared_lock lock(*doc);
+        for (const auto& r: recentStrokes) {
+            if (std::find(markerIdsDone.begin(), markerIdsDone.end(), r.id) != markerIdsDone.end()) {
+                continue;
+            }
+            try {
+                const auto loc = api::locateId(doc, r.id);
+                if (auto* s = dynamic_cast<Stroke*>(loc.element)) {
+                    const auto& bb = s->getBoundingBox();
+                    if (std::max(bb.width, bb.height) <= 40) {  // marker strokes are small
+                        byPage[loc.page].push_back({r.id, s->getPointVector()});
+                    }
+                }
+            } catch (const std::exception&) {
+                // erased meanwhile
+            }
+        }
+    }
+    auto* hub = server.getEvents();
+    auto rnd = [](double v) { return std::to_string(std::lround(v)); };
+    for (const auto& [page, strokes]: byPage) {
+        for (const auto& m: assistant::findMarkers(strokes)) {
+            markerIdsDone.insert(markerIdsDone.end(), m.ids.begin(), m.ids.end());
+            std::string ids;
+            for (size_t i = 0; i < m.ids.size(); i++) {
+                ids += (i ? "," : "") + m.ids[i];
+            }
+            const std::string where = "[" + rnd(m.area.x) + "," + rnd(m.area.y) + "," + rnd(m.area.width) + "," +
+                                      rnd(m.area.height) + "]";
+            std::string desc = "handwritten marker " + m.kind + " on page " + std::to_string(page + 1) + " at " +
+                               where + " (marker strokes " + ids + ": delete them after acting)";
+            if (m.kind == "*?!") {
+                desc += "; read its letter (w, c, r, …) from page_render with region " + where;
+            }
+            desc += "; it applies to the drawing or text right next to it";
+            if (hub) {
+                hub->pushIntent(page, m.ids, m.area, desc);
+            }
+#ifdef ENABLE_AI_TERMINAL
+            if (eventPump) {
+                eventPump->addIntent(desc);
+            }
+#endif
+        }
+    }
+    if (markerIdsDone.size() > 2000) {
+        markerIdsDone.erase(markerIdsDone.begin(), markerIdsDone.begin() + 1000);
+    }
 }
 
 void McpUi::showSettings() {
