@@ -912,7 +912,9 @@
               "story": "US-5.1",
               "title": "Notes memory",
               "details": "notes tool storing transcripts, summaries and meanings in the document.",
-              "commit": "mcp: add persistent notes memory"
+              "commit": "mcp: add persistent notes memory",
+              "status": "doing",
+              "started": "2026-09-29T01:08:00+01:00"
             },
             {
               "id": "T5.1.2",

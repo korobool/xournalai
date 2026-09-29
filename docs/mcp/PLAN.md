@@ -361,8 +361,10 @@ In addition:
 
 **Recognition aid**: `shapes_recognize(ids)` uses the app's `ShapeRecognizer`.
 
-**Notes memory (optional)**: `notes(op: set|get, target, kind: transcript|summary|meaning, text)`, stored inside
-the `.xopp` file.
+**Notes memory (optional)**: `notes(op: set|get, page, region, kind: transcript|summary|meaning|note, text)`.
+*Implemented (0.5.x) as a sidecar `<file>.ai-notes.json` next to the document instead of inside the `.xopp`: an
+unknown XML tag makes upstream Xournal++ report load errors, and the file parser stays untouched. Notes follow
+pages by identity (moves, inserts), are kept in memory for untitled documents and written on the first save.*
 
 **Recipes** (as MCP prompts and as `guide(topic)`): `summarize`, `extract_text`, `explain_figure`.
 

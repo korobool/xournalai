@@ -22,7 +22,8 @@ const std::map<std::string, std::string>& topics() {
              "extract_text, explain_figure, drawing, pressure, drafts, draw, pen, control, ui, cocreate, "
              "permissions.\n"
              "Read tools: page_elements (structure), page_render (see a page), layout_analyze (blocks), "
-             "blocks_render (readable crops), pdf_text (PDF background text), shapes_recognize (sketched shapes).\n"
+             "blocks_render (readable crops), pdf_text (PDF background text), shapes_recognize (sketched shapes); "
+             "notes remembers transcripts, summaries and meanings you worked out (saved next to the file).\n"
              "Draw: create_* tools, pen_draw, draft, find_free_space; edit: elements_edit/delete/select, undo, "
              "redo, history. Files: file_*, export, import. App: action_run, page_manage, layer_manage, tool_set, "
              "view, clipboard, ui_* (menus, dialogs, keys)."},

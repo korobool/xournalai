@@ -10,6 +10,7 @@
 #include "McpHttpServer.h"
 #include "McpProtocol.h"
 #include "McpUi.h"
+#include "NotesStore.h"
 #include "PathText.h"
 #include "config.h"  // for XOURNALAI_VERSION
 
@@ -74,6 +75,7 @@ McpServer::~McpServer() {
     *alive = false;
     stop();
     ui.reset();
+    notes.reset();
 }
 
 std::string McpServer::backup(const std::string& reason) const {
@@ -99,6 +101,9 @@ void McpServer::start() {
     config = McpConfig::load();
     if (!events) {
         events = std::make_unique<api::EventHub>(control);
+    }
+    if (!notes) {
+        notes = std::make_unique<NotesStore>(control);
     }
     if (!ui) {
         ui = std::make_unique<McpUi>(*this);

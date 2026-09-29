@@ -261,7 +261,7 @@ I draw, the agent watches, reacts and adds to my work in real time.
 | T4.2.2 | US-4.2 | **match_user profile** — Derive the pressure and width profile from the user's recent strokes. | `mcp: add match_user pressure profile (T4.2.2)` | ✅ done `c5ca883cb` |
 | T4.2.3 | US-4.2 | **Status, Stop & highlight** — Status indicator, Stop agent action and shortcut, highlight of agent additions, AI layer accept and clear. | `mcp: add agent status indicator, stop action and highlights (T4.2.3)` | ✅ done `3e6efcd37` |
 | T4.2.4 | US-4.2 | **Settings page** — MCP page in Settings: enable, port, token copy, tiers, defaults. | `mcp: add MCP settings page (T4.2.4)` | ✅ done `e2e946212` |
-| T4.2.5 | US-4.2 | **E4 integration & release 0.5.0** — Co-creation scenario, CHANGELOG, tag. | `mcp: release 0.5.0 (T4.2.5)` | ✅ done |
+| T4.2.5 | US-4.2 | **E4 integration & release 0.5.0** — Co-creation scenario, CHANGELOG, tag. | `mcp: release 0.5.0 (T4.2.5)` | ✅ done `6ae2063b3` |
 
 ## E5 — Polish (release 1.0.0)
 
@@ -278,7 +278,7 @@ Complete, documented, verified coverage across several agents.
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T5.1.1 | US-5.1 | **Notes memory** — notes tool storing transcripts, summaries and meanings in the document. | `mcp: add persistent notes memory (T5.1.1)` | ⬜ todo |
+| T5.1.1 | US-5.1 | **Notes memory** — notes tool storing transcripts, summaries and meanings in the document. | `mcp: add persistent notes memory (T5.1.1)` | 🔨 doing |
 | T5.1.2 | US-5.1 | **Performance** — Render cache, payload limits, pagination review. | `mcp: improve performance of rendering and large documents (T5.1.2)` | ⬜ todo |
 | T5.1.3 | US-5.1 | **Reference docs & coverage** — TOOLS.md generated from the registry; COVERAGE.md mapping actions, menus and dialogs. | `mcp: add tool reference and coverage documentation (T5.1.3)` | ⬜ todo |
 | T5.1.4 | US-5.1 | **Release 1.0.0** — Client matrix results, CHANGELOG, tag. | `mcp: release 1.0.0 (T5.1.4)` | ⬜ todo |

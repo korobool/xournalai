@@ -15,6 +15,7 @@
 #include "McpConfig.h"
 #include "McpHttpServer.h"
 #include "McpServer.h"
+#include "NotesStore.h"
 #include "PathText.h"
 
 namespace xoj::mcp {
@@ -76,7 +77,11 @@ McpUi::~McpUi() {
 }
 
 gboolean McpUi::onTick(gpointer self) {
-    static_cast<McpUi*>(self)->update();
+    auto* ui = static_cast<McpUi*>(self);
+    if (ui->server.getNotes()) {
+        ui->server.getNotes()->sync();  // notes of an untitled document are written once the user saves it
+    }
+    ui->update();
     return G_SOURCE_CONTINUE;
 }
 
