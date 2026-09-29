@@ -728,7 +728,8 @@ void McpUi::buildTerminal() {
     };
     const auto& a = server.getConfig().assistant;
     eventPump = std::make_unique<assistant::EventPump>(
-            env, assistant::EventPump::Settings{a.autoImprove, a.wakeIdleMs, a.watchdogS, a.rules});
+            env, assistant::EventPump::Settings{a.autoImprove, a.wakeIdleMs, a.watchdogS, a.rules,
+                                                std::clamp(a.maxParallel, 1, 5)});
     if (auto* hub = server.getEvents()) {
         hub->addListener([this](const api::DocEvent& e) {
             if (eventPump) {
@@ -1141,6 +1142,10 @@ void McpUi::showSettings() {
     gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(agent), "codex", "Codex");
     gtk_combo_box_set_active_id(GTK_COMBO_BOX(agent), cfg.assistant.agent == "codex" ? "codex" : "claude");
     labelled("Serving a_gent", agent);
+    GtkWidget* par = named(gtk_spin_button_new_with_range(1, 5, 1), "mcpParallel");
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(par), std::clamp(cfg.assistant.maxParallel, 1, 5));
+    gtk_widget_set_tooltip_text(par, "How many subagents (and edit transactions) may work at the same time");
+    labelled("Parallel s_ubagents", par);
 
     GtkWidget* note = gtk_label_new(nullptr);
     std::string noteText = "Settings are stored in " + toUtf8(McpConfig::path()) + ".";
@@ -1196,6 +1201,7 @@ void McpUi::applySettings(GtkWidget* dialog) {
     next.assistant = cfg.assistant;  // keeps the advanced command override
     next.assistant.autostart = checked(dialog, "mcpAutostart");
     next.assistant.permissionMode = checked(dialog, "mcpBypass") ? "bypass" : "normal";
+    next.assistant.maxParallel = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(find(dialog, "mcpParallel")));
     if (const char* id = gtk_combo_box_get_active_id(GTK_COMBO_BOX(find(dialog, "mcpAgent")))) {
         next.assistant.agent = id;
     }

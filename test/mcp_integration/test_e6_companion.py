@@ -11,6 +11,10 @@ def test_companion_folder(app):
     assert (d / "AGENTS.md").read_text() == claude
     mcp = json.loads((d / ".mcp.json").read_text())["mcpServers"]["xournalai"]
     assert mcp["args"] == ["--mcp-stdio", f"--mcp-port={app.port}"] and mcp["command"].endswith("xournalpp")
+    for agent in ("canvas-quick", "canvas-artist"):
+        text = (d / ".claude" / "agents" / f"{agent}.md").read_text()
+        assert text.startswith(f"---\nname: {agent}\n") and "transaction_commit" in text
+    assert "## You coordinate" in claude and "## Transactions" in claude
     local = json.loads((d / ".claude" / "settings.local.json").read_text())
     assert local["enableAllProjectMcpServers"] is True and "xournalai" in local["enabledMcpjsonServers"]
     # the user's own notes below the managed block survive a refresh (the server re-provisions on restart)

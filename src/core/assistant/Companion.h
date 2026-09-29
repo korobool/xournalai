@@ -30,6 +30,9 @@ public:
     /// Creates or refreshes the folder's files; returns the folder (never throws, logs problems)
     static fs::path ensure(const CompanionSetup& setup);
 
+    /// The two subagents of the serving session (.claude/agents/*.md)
+    static std::string quickAgent();
+    static std::string artistAgent();
     /// The instructions for the serving session (the part the app owns)
     static std::string instructions(const CompanionSetup& setup);
 

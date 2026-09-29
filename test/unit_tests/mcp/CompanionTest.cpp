@@ -35,4 +35,14 @@ TEST(Companion, instructionsMentionPortMarkersAndRules) {
     }
 }
 
+TEST(Companion, subagentsHaveFrontmatterAndTheProtocol) {
+    for (const std::string& a: {Companion::quickAgent(), Companion::artistAgent()}) {
+        EXPECT_EQ(a.rfind("---\nname: canvas-", 0), 0u);
+        EXPECT_NE(a.find("\nmodel: "), std::string::npos);
+        EXPECT_NE(a.find("\n---\n"), std::string::npos);
+        EXPECT_NE(a.find("transaction_begin"), std::string::npos);
+        EXPECT_NE(a.find("\"animate\":true"), std::string::npos);
+    }
+}
+
 #endif  // ENABLE_MCP

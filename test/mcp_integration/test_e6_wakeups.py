@@ -50,6 +50,7 @@ def test_1_user_strokes_wake_it_after_a_pause(app):
     assert wait_for(lambda: len([g for g in got() if g.startswith("[xournalai]")]) == 1)
     msg = [g for g in got() if g.startswith("[xournalai]")][0]
     assert "the user wrote/drew" in msg and "page 1" in msg and "changes_get since=" in msg and "Auto-improve is ON" in msg
+    assert "Up to 5 subagents in parallel" in msg
 
 
 def test_2_busy_sessions_are_not_disturbed(app):

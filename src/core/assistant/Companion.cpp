@@ -48,6 +48,50 @@ void mergeJson(const fs::path& p, const mcp::json& managed) {
 }
 }  // namespace
 
+namespace {
+std::string transactionProtocol() {
+    return R"(
+## How you work (always)
+1. `transaction_begin(label, page, region, base_ids, zone)`: claim your area; base_ids = the user's strokes you
+   will replace or edit; zone = the number given to you. Keep the label short ("formula → LaTeX").
+2. Look only at your area (`page_elements` / `page_render` with `region`, modest dpi).
+3. Draw the new content into the returned `draft_layer` with the normal tools (never pass another layer).
+4. `transaction_commit(transaction, ops)`: ordered operations, one undo step. Draw strokes with
+   `{"op":"draw","animate":true}` so they appear like a stylus; delete the replaced originals after drawing.
+5. On a conflict: re-read your area, adjust, commit again (twice at most), else `transaction_abort` with a reason.
+6. Reply in one or two lines: what you changed, or why not.
+
+Rules: assist, don't redo (keep position, size, pose and layout; never add content unasked); text in the user's own
+handwriting (skill `xournal-conspect`); remove marker strokes (their ids are given) in the same transaction.
+)";
+}
+}  // namespace
+
+std::string Companion::quickAgent() {
+    return R"(---
+name: canvas-quick
+description: Quick canvas fixes in xournalai - formulas to LaTeX, handwriting rewritten in the user's own glyphs, consistent colours, *! stroke improvements, *w! web summaries. Use for small, local changes that should land in seconds.
+model: sonnet
+---
+<!-- managed by xournalai: edits here are replaced -->
+You make small, fast improvements on the user's xournalai canvas, in ONE area, through ONE transaction. Speed matters:
+a few seconds, a few tool calls.
+)" + transactionProtocol();
+}
+
+std::string Companion::artistAgent() {
+    return R"(---
+name: canvas-artist
+description: Careful drawing work in xournalai - professional illustrations (**!), real images (*r!), pencil sketches from reference pictures, clean diagrams, revising a page, larger *c! commands.
+model: opus
+---
+<!-- managed by xournalai: edits here are replaced -->
+You do the careful drawing work on the user's xournalai canvas, in ONE area, through ONE transaction: illustrations,
+sketches from a reference picture (skill `xournal-conspect`, `lib/pencil.py`), diagrams (lay them out cleanly, colour
+them consistently), images found on the web (PD/CC0) or generated with your session's image tools.
+)" + transactionProtocol();
+}
+
 fs::path Companion::folder() { return fs::path(g_get_user_data_dir()) / "xournalai" / "companion"; }
 
 std::string Companion::mergeManagedBlock(const std::string& existing, const std::string& block) {
@@ -96,6 +140,27 @@ connected to the running window, port )" +
 | `*c!` | What follows is a command for you |
 | `*r!` | A real image (a PD/CC0 photo, or a generated one if you have a generator) |
 
+## You coordinate; subagents do the work (in parallel)
+Stay responsive: while subagents work in the background you are idle, so the app can hand you the next request at
+once.
+- For each `[xournalai]` request: trivial things (a recolour, deleting a marker, a one-word answer) do yourself.
+  Everything else goes to a subagent (Agent tool; it runs in the background): **canvas-quick** for formulas,
+  handwriting, colours, `*!`, `*w!`, small fixes; **canvas-artist** for `**!`, `*r!`, sketches, diagrams, Revise
+  and bigger `*c!` commands. Give it the request text, the page, the area, the element ids and the zone number.
+  Then **end your turn**.
+- At most the number of subagents the wake-up line allows ("up to N in parallel"), and never two on overlapping
+  areas: check `transaction_list` first; wait for the other one (you'll be woken) if an area is taken.
+- When a subagent reports back, glance at the result (`page_render` of that region, small dpi) and end your turn.
+
+## Transactions: how every edit lands
+Edits never interleave: each change is a transaction, played as ONE ordered block and ONE undo step.
+1. `transaction_begin(label, page, region, base_ids=[the user's strokes you'll replace or edit], zone)`.
+2. Draw the new content into the returned `draft_layer` (invisible to the user until the commit).
+3. `transaction_commit(transaction, ops=[…])`, ordered: e.g. `[{"op":"draw","animate":true},
+   {"op":"delete","ids":[old strokes]}]` draws the new version like a stylus, then removes the rough one.
+4. A conflict means the user (or another edit) changed those strokes meanwhile: re-read the area, adjust, commit
+   again (twice at most), or `transaction_abort` with a reason.
+
 ## Your tools of the trade
 - The skill **`xournal-conspect`**: the user's own handwriting (v3 font) for any text you write, their conspect
   style (formulas in clouds, code in boxes, braces, connectors, mini plots), dense architecture pages, and
@@ -129,6 +194,9 @@ fs::path Companion::ensure(const CompanionSetup& setup) {
             const std::string existing = fs::exists(p) ? readFile(p) : std::string();
             writeIfChanged(p, mergeManagedBlock(existing, block));
         }
+        // The two subagents the serving session delegates to (app-managed files)
+        writeIfChanged(dir / ".claude" / "agents" / "canvas-quick.md", quickAgent());
+        writeIfChanged(dir / ".claude" / "agents" / "canvas-artist.md", artistAgent());
         // The xournalai MCP server of this app (stdio bridge; it finds the app on its port and reads the token)
         mergeJson(dir / ".mcp.json", {{"mcpServers",
                                        {{"xournalai",

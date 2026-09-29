@@ -44,6 +44,7 @@ public:
         int idleMs = 2500;
         int watchdogS = 20;
         std::vector<std::string> rules{"formulas", "text", "diagrams", "colours"};
+        int maxParallel = 5;
     };
 
     EventPump(Env env, Settings settings);
