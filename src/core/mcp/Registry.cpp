@@ -93,7 +93,8 @@ json ToolSpec::toListJson() const {
               {"readOnlyHint", readOnly},
               {"destructiveHint", destructive},
               {"idempotentHint", idempotent},
-              {"openWorldHint", false}}}};
+              {"openWorldHint", false}}},
+            {"_meta", {{"xournalai/tier", tierName(tier)}}}};
 }
 
 json PromptSpec::toListJson() const {
