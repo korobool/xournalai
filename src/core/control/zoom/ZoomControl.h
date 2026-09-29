@@ -165,6 +165,15 @@ public:
     bool isZoomSequenceActive() const;
 
     /**
+     * A pinch (two fingers on the touchscreen, or a touchpad pinch) is in progress. While it is, and briefly after,
+     * it owns the zoom: one-step zooms (keys, Ctrl+wheel, the zoom action) are ignored, as gesture daemons (e.g.
+     * Touchégg's default config on Pop!_OS) turn the same pinch into Ctrl+KP_Add / Ctrl+KP_Subtract keystrokes.
+     */
+    void setPinchActive(bool active);
+    bool isPinchActive() const;
+    static constexpr gint64 PINCH_GRACE_US = 400 * 1000;
+
+    /**
      * Zoom to correct position on zooming.
      * This function should only be called during a zoom sequence.
      */
@@ -221,6 +230,9 @@ private:
 
     /// Base zoom on start, for relative zoom (Gesture)
     double zoomSequenceStart = -1;
+
+    bool pinchActive = false;
+    gint64 pinchEndUs = 0;  ///< when the last pinch ended (monotonic time)
 
     /// Zoom center position in widget coordinate space, will not be zoomed!
     xoj::util::Point<double> zoomWidgetPos;

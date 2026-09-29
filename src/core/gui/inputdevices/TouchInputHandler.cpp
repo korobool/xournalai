@@ -16,6 +16,7 @@
 #include "gui/inputdevices/InputEvents.h"           // for InputEvent, BUTTO...
 
 #include "InputContext.h"  // for InputContext
+#include "TouchTrace.h"    // for touchTrace
 
 TouchInputHandler::TouchInputHandler(InputContext* inputContext): AbstractInputHandler(inputContext) {}
 
@@ -48,6 +49,10 @@ auto TouchInputHandler::handleImpl(InputEvent const& event) -> bool {
                 sequenceStart(event);
                 if (secondarySequence) {
                     startZoomReady = true;
+                    if (zoomGesturesEnabled) {
+                        // Two fingers down: the pinch owns the zoom (zoom keys synthesised from it are ignored)
+                        inputContext->getView()->getControl()->getZoomControl()->setPinchActive(true);
+                    }
                 }
             }
         } else {
@@ -83,6 +88,10 @@ auto TouchInputHandler::handleImpl(InputEvent const& event) -> bool {
         if (zooming && primarySequence && secondarySequence &&
             (event.sequence == primarySequence || event.sequence == secondarySequence)) {
             zoomEnd();
+        }
+        if (primarySequence && secondarySequence &&
+            (event.sequence == primarySequence || event.sequence == secondarySequence)) {
+            inputContext->getView()->getControl()->getZoomControl()->setPinchActive(false);
         }
 
         if (event.sequence == primarySequence) {
@@ -157,6 +166,8 @@ void TouchInputHandler::zoomStart() {
     this->lastZoomScrollCenter = center;
 
     zoomControl->startZoomSequence(center);
+    xoj::input::touchTrace("zoomStart distance=%.1f zoom=%.4f center=%.1f,%.1f", startZoomDistance,
+                           zoomControl->getZoom(), center.x, center.y);
 
     this->startZoomReady = false;
 }
@@ -166,6 +177,15 @@ void TouchInputHandler::zoomMotion(InputEvent const& event) {
         this->priLastAbs = event.absolute;
     } else {
         this->secLastAbs = event.absolute;
+    }
+
+    ZoomControl* zoomControl = this->inputContext->getView()->getControl()->getZoomControl();
+    if (!zoomControl->isZoomSequenceActive()) {
+        // Something else ended the zoom sequence (e.g. a zoom action): re-anchor at the current fingers, rather than
+        // applying the gesture's factor to an already changed zoom (which compounds)
+        xoj::input::touchTrace("zoom sequence lost: re-anchoring");
+        zoomStart();
+        return;
     }
 
     double distance = this->priLastAbs.distance(this->secLastAbs);
@@ -183,13 +203,14 @@ void TouchInputHandler::zoomMotion(InputEvent const& event) {
         this->canBlockZoom = false;
     }
 
-    ZoomControl* zoomControl = this->inputContext->getView()->getControl()->getZoomControl();
     const auto center = (this->priLastAbs + this->secLastAbs) / 2;
+    xoj::input::touchTrace("zoomMotion distance=%.1f factor=%.4f", distance, zoom);
     zoomControl->zoomSequenceChange(zoom, true, center - lastZoomScrollCenter);
     lastZoomScrollCenter = center;
 }
 
 void TouchInputHandler::zoomEnd() {
+    xoj::input::touchTrace("zoomEnd");
     this->zooming = false;
     ZoomControl* zoomControl = this->inputContext->getView()->getControl()->getZoomControl();
     zoomControl->endZoomSequence();
@@ -199,6 +220,7 @@ void TouchInputHandler::onBlock() {
     if (this->zooming) {
         zoomEnd();
     }
+    this->inputContext->getView()->getControl()->getZoomControl()->setPinchActive(false);
 }
 
 void TouchInputHandler::onUnblock() {

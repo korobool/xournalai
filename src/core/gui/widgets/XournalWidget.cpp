@@ -17,6 +17,7 @@
 #include "gui/Shadow.h"                     // for Shadow
 #include "gui/XournalView.h"                // for XournalView
 #include "gui/inputdevices/InputContext.h"  // for InputContext
+#include "gui/inputdevices/TouchTrace.h"    // for touchTrace
 #include "gui/scroll/ScrollHandling.h"      // for ScrollHandling
 #include "util/Color.h"                     // for cairo_set_source_rgbi
 #include "util/Rectangle.h"                 // for Rectangle
@@ -292,6 +293,13 @@ static auto gtk_xournal_draw(GtkWidget* widget, cairo_t* cr) -> gboolean {
                round_cast<int>(x2 - x1), round_cast<int>(y2 - y1), round_cast<int>(x1), round_cast<int>(y1));
     }
 #endif
+
+    struct DrawTimer {
+        gint64 t0 = g_get_monotonic_time();
+        ~DrawTimer() {
+            xoj::input::touchTrace("draw took=%lldus", static_cast<long long>(g_get_monotonic_time() - t0));
+        }
+    } drawTimer;
 
     GtkXournal* xournal = GTK_XOURNAL(widget);
 

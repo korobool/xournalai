@@ -11,13 +11,14 @@
 #include "control/zoom/ZoomListener.h"  // for ZoomListener
 #include "gui/Layout.h"                 // for Layout
 #include "gui/MainWindow.h"
-#include "gui/PageView.h"               // for XojPageView
-#include "gui/XournalView.h"            // for XournalView
-#include "gui/scroll/ScrollHandling.h"  // for ScrollHandling
-#include "util/Assert.h"                // for xoj_assert
-#include "util/Util.h"                  // for execInUiThread
-#include "util/gdk4_helper.h"           // for gdk_event_get_modifier_state
-#include "util/glib_casts.h"            // for wrap_for_g_callback
+#include "gui/PageView.h"                 // for XojPageView
+#include "gui/XournalView.h"              // for XournalView
+#include "gui/inputdevices/TouchTrace.h"  // for touchTrace
+#include "gui/scroll/ScrollHandling.h"    // for ScrollHandling
+#include "util/Assert.h"                  // for xoj_assert
+#include "util/Util.h"                    // for execInUiThread
+#include "util/gdk4_helper.h"             // for gdk_event_get_modifier_state
+#include "util/glib_casts.h"              // for wrap_for_g_callback
 
 using xoj::util::Rectangle;
 
@@ -54,17 +55,21 @@ auto onTouchpadPinchEvent(GtkWidget* widget, GdkEventTouchpadPinch* event, ZoomC
                 }
                 xoj::util::Point<double> center;
                 gdk_event_get_coords((GdkEvent*)event, &center.x, &center.y);
+                zoom->setPinchActive(true);
                 zoom->startZoomSequence(center);
                 break;
             }
             case GDK_TOUCHPAD_GESTURE_PHASE_UPDATE:
+                xoj::input::touchTrace("touchpadPinch scale=%.4f", event->scale);
                 zoom->zoomSequenceChange(event->scale, true);
                 break;
             case GDK_TOUCHPAD_GESTURE_PHASE_END:
                 zoom->endZoomSequence();
+                zoom->setPinchActive(false);
                 break;
             case GDK_TOUCHPAD_GESTURE_PHASE_CANCEL:
                 zoom->cancelZoomSequence();
+                zoom->setPinchActive(false);
                 break;
         }
         return true;
@@ -89,6 +94,10 @@ void ZoomControl::zoomOneStep(ZoomDirection direction, xoj::util::Point<double> 
     if (this->zoomPresentationMode) {
         return;
     }
+    if (isPinchActive()) {
+        xoj::input::touchTrace("zoom step ignored (pinch)");
+        return;
+    }
     this->setZoomFitMode(false);
 
     double newZoom = this->withZoomStep(direction, this->zoomStep);
@@ -106,6 +115,10 @@ void ZoomControl::zoomOneStep(ZoomDirection direction) {
 
 void ZoomControl::zoomScroll(ZoomDirection direction, xoj::util::Point<double> zoomCenter) {
     if (this->zoomPresentationMode) {
+        return;
+    }
+    if (isPinchActive()) {
+        xoj::input::touchTrace("zoom scroll ignored (pinch)");
         return;
     }
 
@@ -186,6 +199,18 @@ void ZoomControl::cancelZoomSequence() {
 
 auto ZoomControl::isZoomSequenceActive() const -> bool { return zoomSequenceStart != -1; }
 
+void ZoomControl::setPinchActive(bool active) {
+    if (pinchActive && !active) {
+        pinchEndUs = g_get_monotonic_time();
+    }
+    pinchActive = active;
+    xoj::input::touchTrace("pinch %s", active ? "on" : "off");
+}
+
+auto ZoomControl::isPinchActive() const -> bool {
+    return pinchActive || (pinchEndUs > 0 && g_get_monotonic_time() - pinchEndUs < PINCH_GRACE_US);
+}
+
 auto ZoomControl::getVisibleRect() -> Rectangle<double> { return view->getLayout()->getVisibleRect(); }
 
 auto ZoomControl::getScrollPositionAfterZoom() const -> xoj::util::Point<double> {
@@ -230,6 +255,16 @@ void ZoomControl::initZoomHandler(GtkWidget* window, GtkWidget* widget, XournalV
                      this);
 
     registerListener(this->control);
+
+    if (xoj::input::touchTraceOn()) {
+        for (auto* adj: {v->getScrollHandling()->getHorizontal(), v->getScrollHandling()->getVertical()}) {
+            g_signal_connect(adj, "value-changed", G_CALLBACK(+[](GtkAdjustment* a, gpointer) {
+                                 xoj::input::touchTrace("scroll value=%.1f upper=%.1f", gtk_adjustment_get_value(a),
+                                                        gtk_adjustment_get_upper(a));
+                             }),
+                             nullptr);
+        }
+    }
 }
 
 void ZoomControl::fireZoomChanged() {
@@ -254,8 +289,10 @@ void ZoomControl::setZoom(double zoomI) {
         return;
     }
     this->zoom = zoomI;
+    const gint64 t0 = g_get_monotonic_time();
     this->control->getActionDatabase()->setActionState(Action::ZOOM, getZoomReal());
     fireZoomChanged();
+    xoj::input::touchTrace("setZoom %.4f took=%lldus", zoomI, static_cast<long long>(g_get_monotonic_time() - t0));
 }
 
 void ZoomControl::setZoom100Value(double zoom100Val) {

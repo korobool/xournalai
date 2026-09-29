@@ -455,6 +455,9 @@ struct ActionProperties<Action::ZOOM> {
         double scale = g_variant_get_double(p);
         xoj_assert(scale >= DEFAULT_ZOOM_MIN && scale <= DEFAULT_ZOOM_MAX);
         Util::execInUiThread([scale, zoomctrl = ctrl->getZoomControl()]() {
+            if (zoomctrl->isPinchActive()) {
+                return;  // the user's pinch owns the zoom
+            }
             double newZoom = zoomctrl->getZoom100Value() * scale;
             zoomctrl->setZoomFitMode(false);
             zoomctrl->startZoomSequence();

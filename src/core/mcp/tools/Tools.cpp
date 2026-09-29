@@ -30,6 +30,7 @@ void registerAll(McpServer& server) {
     registerNoteTools(server);
     registerThinkingTools(server);
     registerTransactionTools(server);
+    registerTestTools(server);  // only with XOURNALAI_TEST_HOOKS=1
 }
 
 }  // namespace xoj::mcp::tools

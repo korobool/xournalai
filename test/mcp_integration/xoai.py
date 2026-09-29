@@ -34,10 +34,11 @@ def free_port():
 class App:
     """Runs xournalpp under Xvfb with its own XDG directories. Use as a context manager."""
 
-    def __init__(self, *args, binary=BINARY, permissions=None, config=None):
+    def __init__(self, *args, binary=BINARY, permissions=None, config=None, env=None):
         self.args = [str(a) for a in args]
         self.permissions = permissions
         self.config = config or {}
+        self.extra_env = env or {}
         self.binary = str(binary)
         self.port = free_port()
         self.tmp = tempfile.TemporaryDirectory(prefix="xoai-")
@@ -51,6 +52,7 @@ class App:
             d = self.home / key.lower()
             d.mkdir(exist_ok=True)
             env[f"XDG_{key}_HOME"] = str(d)
+        env.update(self.extra_env)
         return env
 
     @property

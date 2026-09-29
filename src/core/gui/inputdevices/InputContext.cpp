@@ -21,6 +21,7 @@
 #include "gui/inputdevices/StylusInputHandler.h"        // for StylusInputHa...
 #include "gui/inputdevices/TouchDrawingInputHandler.h"  // for TouchDrawingI...
 #include "gui/inputdevices/TouchInputHandler.h"         // for TouchInputHan...
+#include "gui/inputdevices/TouchTrace.h"                // for touchTrace
 #include "util/Assert.h"                                // for xoj_assert
 #include "util/gdk4_helper.h"
 #include "util/glib_casts.h"  // for wrap_for_g_callback
@@ -144,6 +145,16 @@ auto InputContext::handle(GdkEvent* sourceEvent) -> bool {
     }
 
     GdkInputSource inputSource = gdk_device_get_source(sourceDevice);
+    if (xoj::input::touchTraceOn() && inputSource == GDK_SOURCE_TOUCHSCREEN) {
+        static const char* const names[] = {"begin", "update", "end", "cancel"};
+        auto type = gdk_event_get_event_type(sourceEvent);
+        double x = 0, y = 0;
+        gdk_event_get_coords(sourceEvent, &x, &y);
+        const bool touch = type >= GDK_TOUCH_BEGIN && type <= GDK_TOUCH_CANCEL;
+        xoj::input::touchTrace("event %s seq=%p x=%.1f y=%.1f t=%u%s", touch ? names[type - GDK_TOUCH_BEGIN] : "other",
+                               static_cast<void*>(gdk_event_get_event_sequence(sourceEvent)), x, y,
+                               gdk_event_get_time(sourceEvent), sourceEvent->any.send_event ? " emulated" : "");
+    }
     if (inputSource == GDK_SOURCE_KEYBOARD) {
         // Keyboard events are handled via the GtkEventControllerKey instance
         return false;

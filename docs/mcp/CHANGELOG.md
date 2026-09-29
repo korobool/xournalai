@@ -6,6 +6,18 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+## 1.3.1 — Pinch owns the zoom (epoch E8)
+- **Touchscreen pinch zoom follows the fingers 1:1.** Gesture daemons such as Touchégg (default config on
+  Pop!_OS) turn the same 2-finger pinch into repeated Ctrl+KP_Add / Ctrl+KP_Subtract keystrokes. Each 10% step
+  ended the pinch's zoom sequence, after which the pinch factor multiplied the already changed zoom, so the zoom
+  raced to 700% or 30%. Now, while two fingers are down (and 0.4 s after), one-step zooms (keys, Ctrl+wheel, the
+  zoom action) are ignored, and a pinch whose sequence was ended elsewhere re-anchors instead of compounding.
+- **Touch/zoom trace** for diagnosis on real hardware: create `~/.cache/xournalai/trace-touch` (or set
+  `XOURNALAI_TRACE_TOUCH=<file>`) to log touch events, zoom steps, redraw times and scrolling to
+  `~/.cache/xournalai/touch-trace.log`.
+- **Test hook** `test_touch` (only with `XOURNALAI_TEST_HOOKS=1`): synthetic touchscreen events through GTK's normal
+  event path; `test_e8_pinch.py` replays a pinch with Touchégg-style keystrokes in the middle.
+
 ## 1.3.0 — Parallel serving session (epoch E7)
 The serving session coordinates up to five background subagents: they think in parallel, and each one's edits
 land as one ordered transaction.
