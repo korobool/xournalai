@@ -47,7 +47,24 @@ private:
     void clearLayer(bool merge);
     void applySettings(GtkWidget* dialog);
 
+    /// Tracks a GObject without owning it: `ptr` becomes null when the object is destroyed (the main window is
+    /// destroyed before Control, and so before this class, when the application quits)
+    template <typename T>
+    void watch(T*& ptr) {
+        if (ptr) {
+            g_object_add_weak_pointer(G_OBJECT(ptr), reinterpret_cast<gpointer*>(&ptr));
+        }
+    }
+    template <typename T>
+    void unwatch(T*& ptr) {
+        if (ptr) {
+            g_object_remove_weak_pointer(G_OBJECT(ptr), reinterpret_cast<gpointer*>(&ptr));
+        }
+    }
+
     McpServer& server;
+    GtkWidget* window = nullptr;    ///< weak
+    GMenuModel* menubar = nullptr;  ///< weak
     GtkWidget* strip = nullptr;
     GtkWidget* label = nullptr;
     GtkWidget* pauseButton = nullptr;
@@ -56,7 +73,7 @@ private:
     guint timer = 0;
     guint menuIdle = 0;
     std::string lastText;
-    GtkWidget* settings = nullptr;
+    GtkWidget* settings = nullptr;  ///< weak (strip, label, pauseButton too)
 };
 
 }  // namespace xoj::mcp

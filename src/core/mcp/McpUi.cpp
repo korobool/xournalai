@@ -24,7 +24,13 @@ namespace {
 constexpr const char* AI_LAYER_HINT = "AI";
 constexpr const char* MENU_LABEL = "_AI Agent";
 
-/// Index (1-based) of the "AI" layer on a page, or 0
+/// The agent's own layer the AI Agent menu acts on: the configured default layer if it is a named layer, else "AI"
+std::string agentLayerName(const McpConfig& cfg) {
+    const std::string& l = cfg.defaultLayer;
+    return l.empty() || l == "current" || l.rfind('#', 0) == 0 ? std::string("AI") : l;
+}
+
+/// Index (1-based) of the layer called `name` on a page, or 0
 size_t aiLayerIndex(const PageRef& page, const std::string& name) {
     const auto& layers = page->getLayers();
     for (size_t i = 0; i < layers.size(); i++) {
@@ -59,19 +65,26 @@ McpUi::~McpUi() {
     if (menuIdle) {
         g_source_remove(menuIdle);
     }
+    // Only what still exists: when the application quits, the main window (and all of this) is already gone
     if (settings) {
-        gtk_widget_destroy(settings);
+        GtkWidget* s = settings;
+        unwatch(settings);
+        gtk_widget_destroy(s);
     }
     removeMenu();
+    unwatch(label);
+    unwatch(pauseButton);
     if (strip) {
-        gtk_widget_destroy(strip);
+        GtkWidget* s = strip;
+        unwatch(strip);
+        gtk_widget_destroy(s);
     }
-    GtkWidget* win = server.getControl()->getWindow() ? server.getControl()->getWindow()->getWindow() : nullptr;
-    if (win) {
+    if (window) {
         for (const char* name:
              {"mcp-paused", "mcp-ai-accept", "mcp-ai-clear", "mcp-ai-toggle", "mcp-copy-command", "mcp-settings"}) {
-            g_action_map_remove_action(G_ACTION_MAP(win), name);
+            g_action_map_remove_action(G_ACTION_MAP(window), name);
         }
+        unwatch(window);
     }
     api::AgentGate::setPaused(false);
 }
@@ -88,6 +101,8 @@ gboolean McpUi::onTick(gpointer self) {
 void McpUi::installActions() {
     Control* ctrl = server.getControl();
     GtkWidget* win = ctrl->getWindow()->getWindow();
+    window = win;
+    watch(window);
     auto add = [&](GSimpleAction* a) {
         g_action_map_add_action(G_ACTION_MAP(win), G_ACTION(a));
         g_object_unref(a);
@@ -111,7 +126,7 @@ void McpUi::installActions() {
                            [](McpUi* ui) {
                                Control* c = ui->server.getControl();
                                PageRef page = c->getCurrentPage();
-                               const size_t idx = aiLayerIndex(page, ui->server.getConfig().defaultLayer);
+                               const size_t idx = aiLayerIndex(page, agentLayerName(ui->server.getConfig()));
                                if (idx) {
                                    const auto layer = static_cast<Layer::Index>(idx);
                                    c->getLayerController()->setLayerVisible(layer, !page->isLayerVisible(layer));
@@ -143,7 +158,7 @@ void McpUi::installActions() {
 void McpUi::clearLayer(bool merge) {
     Control* ctrl = server.getControl();
     PageRef page = ctrl->getCurrentPage();
-    const size_t idx = aiLayerIndex(page, server.getConfig().defaultLayer);
+    const size_t idx = aiLayerIndex(page, agentLayerName(server.getConfig()));
     if (!idx) {
         return;
     }
@@ -160,10 +175,15 @@ void McpUi::clearLayer(bool merge) {
 
 /// The "AI Agent" main menu, inserted before "Help" (not in mainmenubar.xml: it only exists with the MCP server)
 void McpUi::buildMenu() {
+    if (!window) {
+        return;
+    }
     GMenuModel* model = server.getControl()->getWindow()->getMenuModel();
     if (!model || !G_IS_MENU(model)) {
         return;
     }
+    menubar = model;
+    watch(menubar);
     GMenu* sub = g_menu_new();
     auto section = [&](std::initializer_list<std::pair<const char*, const char*>> items, const char* accel = nullptr) {
         GMenu* s = g_menu_new();
@@ -189,11 +209,11 @@ void McpUi::buildMenu() {
 }
 
 void McpUi::removeMenu() {
-    Control* ctrl = server.getControl();
-    GMenuModel* model = ctrl->getWindow() ? ctrl->getWindow()->getMenuModel() : nullptr;
+    GMenuModel* model = menubar;
     if (!model || !G_IS_MENU(model)) {
         return;
     }
+    unwatch(menubar);
     for (int i = g_menu_model_get_n_items(model) - 1; i >= 0; i--) {
         gchar* label = nullptr;
         if (g_menu_model_get_item_attribute(model, i, G_MENU_ATTRIBUTE_LABEL, "s", &label)) {
@@ -226,6 +246,9 @@ void McpUi::buildStrip() {
     gtk_box_pack_end(GTK_BOX(strip), pauseButton, FALSE, FALSE, 0);
     gtk_box_pack_end(GTK_BOX(mainBox), strip, FALSE, FALSE, 0);
     gtk_widget_show_all(strip);
+    watch(strip);
+    watch(label);
+    watch(pauseButton);
 }
 
 void McpUi::toolStarted(const std::string& name) {
@@ -270,6 +293,9 @@ void McpUi::update() {
 }
 
 void McpUi::flash(size_t page, const xoj::util::Rectangle<double>& area) {
+    if (!window) {
+        return;
+    }
     Control* ctrl = server.getControl();
     XournalView* xv = ctrl->getWindow()->getXournal();
     XojPageView* view = xv->getViewFor(page);
@@ -343,11 +369,15 @@ void McpUi::showSettings() {
         gtk_window_present(GTK_WINDOW(settings));
         return;
     }
+    if (!window) {
+        return;
+    }
     const McpConfig cfg = McpConfig::load();  // the file, not this run's command line overrides
     GtkWindow* parent = GTK_WINDOW(server.getControl()->getWindow()->getWindow());
     settings = gtk_dialog_new_with_buttons("AI Agent Settings", parent, GTK_DIALOG_DESTROY_WITH_PARENT, "_Cancel",
                                            GTK_RESPONSE_CANCEL, "_Save", GTK_RESPONSE_OK, nullptr);
     gtk_buildable_set_name(GTK_BUILDABLE(settings), api::AgentGate::SETTINGS_DIALOG);
+    watch(settings);
     gtk_dialog_set_default_response(GTK_DIALOG(settings), GTK_RESPONSE_OK);
 
     GtkWidget* grid = gtk_grid_new();
@@ -442,6 +472,7 @@ void McpUi::showSettings() {
                          if (response == GTK_RESPONSE_OK) {
                              ui->applySettings(GTK_WIDGET(d));
                          }
+                         ui->unwatch(ui->settings);
                          ui->settings = nullptr;
                          gtk_widget_destroy(GTK_WIDGET(d));
                      }),
@@ -469,7 +500,7 @@ void McpUi::applySettings(GtkWidget* dialog) {
         }
     }
     const std::string layer = gtk_entry_get_text(GTK_ENTRY(find(dialog, "mcpLayer")));
-    next.defaultLayer = layer.empty() ? "AI" : layer;
+    next.defaultLayer = layer.empty() ? "current" : layer;
     next.animate = checked(dialog, "mcpAnimate");
     next.backups = checked(dialog, "mcpBackups");
     next.save();
