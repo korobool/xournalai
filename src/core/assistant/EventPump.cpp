@@ -57,8 +57,11 @@ void EventPump::onDocEvent(const api::DocEvent& e) {
     lastEditUs = g_get_monotonic_time();
 }
 
-void EventPump::addIntent(const std::string& description) {
+void EventPump::addIntent(const std::string& description, int zone) {
     intents.push_back(description);
+    if (zone) {
+        intentZones.push_back(zone);
+    }
     tick();
 }
 
@@ -190,6 +193,10 @@ void EventPump::tick() {
                 return G_SOURCE_REMOVE;
             },
             this);
+    if (env.delivered) {
+        env.delivered(intentZones, editCount > 0, editPages.empty() ? 0 : editPages.front(), editArea);
+    }
+    intentZones.clear();
     lastMessage = msg;
     sentUs = now;
     awaitingBusy = hooks;

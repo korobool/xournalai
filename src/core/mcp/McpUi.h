@@ -36,7 +36,8 @@ class McpServer;
 
 namespace xoj::assistant {
 class AiToolbar;
-}
+class ThinkingOverlay;
+}  // namespace xoj::assistant
 namespace xoj::api {
 struct DocEvent;
 }
@@ -66,6 +67,11 @@ public:
     /// An AI toolbar action: improve | illustrate | web | image | command | revise (text: the typed command).
     /// Becomes an intent for the selection (or the last piece drawn, or the page); returns its description.
     std::string aiAction(const std::string& kind, const std::string& text);
+
+    /// Visible thinking on the canvas (null if the window has no overlay)
+    assistant::ThinkingOverlay* thinking() const { return thinkingOverlay.get(); }
+    /// The whole page's area in page points (for page-level zones)
+    xoj::util::Rectangle<double> pageArea(size_t page) const;
 
 #ifdef ENABLE_AI_TERMINAL
     /// The AI terminal dock (null if the window has no place for it)
@@ -116,6 +122,10 @@ private:
     GtkWidget* settings = nullptr;  ///< weak (strip, label, pauseButton too)
     void buildToolbar();
     std::unique_ptr<assistant::AiToolbar> aiToolbar;
+    void buildThinking();
+    void onServingChanged();
+    std::unique_ptr<assistant::ThinkingOverlay> thinkingOverlay;
+    int lastServingState = 0;
 
     // Handwritten markers (*! **! *w! *c! *r!) among the user's fresh strokes
     void noteUserStroke(const api::DocEvent& e);

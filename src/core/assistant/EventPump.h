@@ -34,6 +34,10 @@ public:
         std::function<gint64()> lastTerminalInputUs;   ///< when the user last typed into the terminal
         std::function<bool(const std::string&)> type;  ///< types text into the serving terminal
         std::function<void()> changed;                 ///< the status text changed
+        /// A wake-up was delivered: the zones of its intents, and (if the user's edits were part of it) their area
+        std::function<void(const std::vector<int>& zones, bool edits, size_t page,
+                           const xoj::util::Rectangle<double>& area)>
+                delivered;
     };
     struct Settings {
         bool autoImprove = false;
@@ -50,7 +54,7 @@ public:
     /// Receives the document's change events (the user's edits)
     void onDocEvent(const api::DocEvent& e);
     /// An explicit request (toolbar button, marker): delivered as soon as the session is idle
-    void addIntent(const std::string& description);
+    void addIntent(const std::string& description, int zone = 0);
 
     void setAutoImprove(bool on);
     void setRules(std::vector<std::string> rules);
@@ -81,6 +85,7 @@ private:
     uint64_t firstCursor = 0;
     gint64 lastEditUs = 0;
     std::vector<std::string> intents;
+    std::vector<int> intentZones;
 
     // delivery
     std::string lastMessage;

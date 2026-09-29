@@ -28,6 +28,7 @@
 #include "api/EventHub.h"     // for EventHub
 #include "assistant/AiToolbar.h"
 #include "assistant/Markers.h"            // for findMarkers          // for AiToolbar
+#include "assistant/ThinkingOverlay.h"    // for ThinkingOverlay
 #include "control/tools/EditSelection.h"  // for EditSelection
 #include "model/Element.h"                // for Element
 #include "model/Stroke.h"                 // for Stroke
@@ -63,7 +64,10 @@ size_t aiLayerIndex(const PageRef& page, const std::string& name) {
 }  // namespace
 
 McpUi::McpUi(McpServer& server): server(server) {
-    server.serving().setListener([this] { update(); });
+    server.serving().setListener([this] {
+        onServingChanged();
+        update();
+    });
     installActions();
     // The main menu is populated after the server starts (Control::initWindow runs before MainWindow::populate)
     // (high priority: before the first agent request is served)
@@ -78,6 +82,7 @@ McpUi::McpUi(McpServer& server): server(server) {
             this, nullptr);
     buildStrip();
     buildToolbar();
+    buildThinking();
     if (auto* hub = server.getEvents()) {
         hub->addListener([this](const api::DocEvent& e) { noteUserStroke(e); });
     }
@@ -106,6 +111,7 @@ McpUi::~McpUi() {
     }
     removeMenu();
     aiToolbar.reset();
+    thinkingOverlay.reset();
 #ifdef ENABLE_AI_TERMINAL
     eventPump.reset();
     dock.reset();
@@ -676,6 +682,18 @@ void McpUi::buildTerminal() {
     env.lastTerminalInputUs = [this] { return dock ? dock->lastInputUs() : gint64{0}; };
     env.type = [this](const std::string& text) { return dock && dock->feed(servingTab, text); };
     env.changed = [this] { update(); };
+    env.delivered = [this](const std::vector<int>& zones, bool edits, size_t page,
+                           const xoj::util::Rectangle<double>& area) {
+        if (!thinkingOverlay) {
+            return;
+        }
+        for (int z: zones) {
+            thinkingOverlay->set(z, assistant::ThinkingOverlay::State::Thinking);
+        }
+        if (edits && (area.width > 0 || area.height > 0)) {
+            thinkingOverlay->add(page, area, "improving what you wrote…", assistant::ThinkingOverlay::State::Thinking);
+        }
+    };
     const auto& a = server.getConfig().assistant;
     eventPump = std::make_unique<assistant::EventPump>(
             env, assistant::EventPump::Settings{a.autoImprove, a.wakeIdleMs, a.watchdogS, a.rules});
@@ -786,9 +804,18 @@ std::string McpUi::aiAction(const std::string& kind, const std::string& text) {
     if (hub) {
         hub->pushIntent(page, ids, area, desc);
     }
+    int zone = 0;
+    if (thinkingOverlay) {
+        static const std::map<std::string, std::string> labels = {
+                {"improve", "improving strokes…"}, {"illustrate", "illustrating…"}, {"web", "searching the web…"},
+                {"image", "finding an image…"},    {"command", "working on it…"},   {"revise", "revising the page…"}};
+        const auto zoneArea = (area.width > 0 || area.height > 0) ? area : pageArea(page);
+        zone = thinkingOverlay->add(page, zoneArea, labels.count(kind) ? labels.at(kind) : "working…",
+                                    assistant::ThinkingOverlay::State::Queued);
+    }
 #ifdef ENABLE_AI_TERMINAL
     if (eventPump) {
-        eventPump->addIntent(desc);
+        eventPump->addIntent(desc, zone);
     }
 #endif
     return desc;
@@ -863,9 +890,14 @@ void McpUi::scanMarkers() {
             if (hub) {
                 hub->pushIntent(page, m.ids, m.area, desc);
             }
+            int zone = 0;
+            if (thinkingOverlay) {
+                zone = thinkingOverlay->add(page, m.area, "marker " + m.kind + " seen…",
+                                            assistant::ThinkingOverlay::State::Queued);
+            }
 #ifdef ENABLE_AI_TERMINAL
             if (eventPump) {
-                eventPump->addIntent(desc);
+                eventPump->addIntent(desc, zone);
             }
 #endif
         }
@@ -873,6 +905,88 @@ void McpUi::scanMarkers() {
     if (markerIdsDone.size() > 2000) {
         markerIdsDone.erase(markerIdsDone.begin(), markerIdsDone.begin() + 1000);
     }
+}
+
+xoj::util::Rectangle<double> McpUi::pageArea(size_t page) const {
+    Document* doc = server.getControl()->getDocument();
+    std::shared_lock lock(*doc);
+    if (page >= doc->getPageCount()) {
+        return {0, 0, 0, 0};
+    }
+    PageRef p = doc->getPage(page);
+    return {0, 0, p->getWidth(), p->getHeight()};
+}
+
+void McpUi::buildThinking() {
+    GtkWidget* overlay = server.getControl()->getWindow()->get("mainOverlay");
+    if (!overlay || !GTK_IS_OVERLAY(overlay)) {
+        return;
+    }
+    auto mapper = [this, overlay](size_t page,
+                                  const xoj::util::Rectangle<double>& area) -> std::optional<GdkRectangle> {
+        if (!window) {
+            return std::nullopt;
+        }
+        Control* ctrl = server.getControl();
+        XournalView* xv = ctrl->getWindow()->getXournal();
+        XojPageView* view = xv->getViewFor(page);
+        GtkWidget* widget = xv->getWidget();
+        if (!view || !gtk_widget_get_mapped(widget)) {
+            return std::nullopt;
+        }
+        GtkXournal* xw = GTK_XOURNAL(widget);
+        const double zoom = ctrl->getZoomControl()->getZoom();
+        const auto pos = view->getPixelPosition();
+        const double x = pos.x + area.x * zoom - gtk_adjustment_get_value(xw->hadjustment);
+        const double y = pos.y + area.y * zoom - gtk_adjustment_get_value(xw->vadjustment);
+        int ox = 0, oy = 0;
+        if (!gtk_widget_translate_coordinates(widget, overlay, static_cast<int>(x), static_cast<int>(y), &ox, &oy)) {
+            return std::nullopt;
+        }
+        GdkRectangle r{ox, oy, std::max(8, static_cast<int>(area.width * zoom)),
+                       std::max(8, static_cast<int>(area.height * zoom))};
+        // clipped to the canvas: zones scrolled out of view aren't drawn
+        int cx = 0, cy = 0;
+        gtk_widget_translate_coordinates(widget, overlay, 0, 0, &cx, &cy);
+        const int cw = gtk_widget_get_allocated_width(widget), ch = gtk_widget_get_allocated_height(widget);
+        if (r.x + r.width < cx || r.y + r.height < cy || r.x > cx + cw || r.y > cy + ch) {
+            return std::nullopt;
+        }
+        return r;
+    };
+    auto bounds = [this, overlay]() -> std::optional<GdkRectangle> {
+        if (!window) {
+            return std::nullopt;
+        }
+        GtkWidget* widget = server.getControl()->getWindow()->getXournal()->getWidget();
+        int cx = 0, cy = 0;
+        if (!gtk_widget_get_mapped(widget) || !gtk_widget_translate_coordinates(widget, overlay, 0, 0, &cx, &cy)) {
+            return std::nullopt;
+        }
+        return GdkRectangle{cx, cy, gtk_widget_get_allocated_width(widget), gtk_widget_get_allocated_height(widget)};
+    };
+    thinkingOverlay = std::make_unique<assistant::ThinkingOverlay>(
+            overlay, mapper,
+            [this](int zone) {
+                // T6.4.2 interrupts the session; for now the zone is closed
+                if (thinkingOverlay) {
+                    thinkingOverlay->set(zone, assistant::ThinkingOverlay::State::Failed, "stopped");
+                }
+            },
+            bounds);
+}
+
+void McpUi::onServingChanged() {
+    using S = assistant::ServingState::State;
+    const auto st = server.serving().state();
+    // the session finished a turn: what it was thinking about is done
+    if (thinkingOverlay && (st == S::Idle || st == S::NotRunning) && lastServingState == static_cast<int>(S::Busy)) {
+        for (int z: thinkingOverlay->inState(assistant::ThinkingOverlay::State::Thinking)) {
+            thinkingOverlay->set(z, st == S::Idle ? assistant::ThinkingOverlay::State::Done :
+                                                    assistant::ThinkingOverlay::State::Failed);
+        }
+    }
+    lastServingState = static_cast<int>(st);
 }
 
 void McpUi::showSettings() {
