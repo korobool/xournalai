@@ -2,7 +2,7 @@
 
 #include <algorithm>  // for find
 #include <cstdio>     // for fwrite, fflush
-#include <string>  // for string
+#include <string>     // for string
 
 #include <gio/gio.h>
 #include <gio/gunixinputstream.h>
@@ -167,8 +167,8 @@ bool answerOffline(Bridge* b, const std::string& method, const json& id) {
 }
 
 void notifyListsChanged() {
-    for (const char* m:
-         {"notifications/tools/list_changed", "notifications/prompts/list_changed", "notifications/resources/list_changed"}) {
+    for (const char* m: {"notifications/tools/list_changed", "notifications/prompts/list_changed",
+                         "notifications/resources/list_changed"}) {
         writeLine(json({{"jsonrpc", "2.0"}, {"method", m}}).dump());
     }
 }
@@ -180,12 +180,14 @@ gboolean poll(gpointer data) {
         b->pollSource = 0;
         return G_SOURCE_REMOVE;
     }
-    json init = {{"jsonrpc", "2.0"}, {"id", "xournalai-bridge-init"}, {"method", "initialize"},
-                 {"params", b->clientInit.is_object() ? b->clientInit :
-                                                         json{{"protocolVersion", McpProtocol::LATEST_PROTOCOL_VERSION},
-                                                              {"capabilities", json::object()},
-                                                              {"clientInfo", {{"name", "xournalai-bridge"},
-                                                                              {"version", "1"}}}}}};
+    json init = {{"jsonrpc", "2.0"},
+                 {"id", "xournalai-bridge-init"},
+                 {"method", "initialize"},
+                 {"params", b->clientInit.is_object() ?
+                                    b->clientInit :
+                                    json{{"protocolVersion", McpProtocol::LATEST_PROTOCOL_VERSION},
+                                         {"capabilities", json::object()},
+                                         {"clientInfo", {{"name", "xournalai-bridge"}, {"version", "1"}}}}}};
     SoupMessage* msg = soup_message_new("POST", b->url.c_str());
     auto* h = soup_message_get_request_headers(msg);
     soup_message_headers_replace(h, "Authorization", ("Bearer " + b->cfg.token).c_str());
@@ -205,8 +207,9 @@ gboolean poll(gpointer data) {
         g_object_unref(msg);
         g_bytes_unref(reply);
         // complete the handshake, then let the client fetch the real tools
-        auto* note = new Pending{b, json({{"jsonrpc", "2.0"}, {"method", "notifications/initialized"}}).dump(),
-                                 json(), 0, nullptr, "notifications/initialized"};
+        auto* note = new Pending{b,       json({{"jsonrpc", "2.0"}, {"method", "notifications/initialized"}}).dump(),
+                                 json(),  0,
+                                 nullptr, "notifications/initialized"};
         b->inflight++;
         send(note);
         log("xournalai is running: tools are available");
