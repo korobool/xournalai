@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.2.1**
+Current version: **1.2.2**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -388,8 +388,8 @@ The serving session coordinates up to 5 background subagents: they think in para
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T7.2.1 | US-7.2 | **Subagents and coordinator** — Companion .claude/agents/canvas-quick.md and canvas-artist.md; coordinator rules in CLAUDE.md; setting max_parallel (1-5, default 5) in wake-ups. | `ai: coordinate background subagents (T7.2.1)` | 🔨 doing |
-| T7.2.2 | US-7.2 | **Zones and subagent status** — Zones bound to transactions; the coordinator going idle no longer closes them; subagent count from PreToolUse(Agent) / SubagentStop hooks; Stop aborts transactions. | `ai: show parallel work (T7.2.2)` | ⬜ todo |
+| T7.2.1 | US-7.2 | **Subagents and coordinator** — Companion .claude/agents/canvas-quick.md and canvas-artist.md; coordinator rules in CLAUDE.md; setting max_parallel (1-5, default 5) in wake-ups. | `ai: coordinate background subagents (T7.2.1)` | ✅ done `2a43e646e` |
+| T7.2.2 | US-7.2 | **Zones and subagent status** — Zones bound to transactions; the coordinator going idle no longer closes them; subagent count from PreToolUse(Agent) / SubagentStop hooks; Stop aborts transactions. | `ai: show parallel work (T7.2.2)` | ✅ done `c291c1f2d` |
 
 ### S7.3 — Release → v1.3.0
 
