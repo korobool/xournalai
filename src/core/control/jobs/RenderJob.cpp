@@ -1,6 +1,7 @@
 #include "RenderJob.h"
 
-#include <mutex>    // for mutex
+#include <mutex>         // for mutex
+#include <shared_mutex>  // for shared_lock
 #include <utility>  // for move
 #include <vector>   // for vector
 
@@ -93,17 +94,29 @@ void RenderJob::run() {
     }
 }
 
-static void repaintWidgetArea(GtkWidget* widget, int x1, int y1, int x2, int y2) {
-    Util::execInUiThread([=]() { gtk_xournal_repaint_area(widget, x1, y1, x2, y2); });
-}
-
 void RenderJob::repaintPage() const { repaintPageArea(0, 0, view->getWidth(), view->getHeight()); }
 
 void RenderJob::repaintPageArea(double x1, double y1, double x2, double y2) const {
-    double zoom = view->xournal->getZoom();
-    auto p = this->view->getPixelPosition();
-    repaintWidgetArea(view->xournal->getWidget(), p.x + floor_cast<int>(zoom * x1), p.y + floor_cast<int>(zoom * y1),
-                      p.x + ceil_cast<int>(zoom * x2), p.y + ceil_cast<int>(zoom * y2));
+    // The page position comes from the layout, which the UI thread changes when pages are inserted, moved or
+    // deleted: compute it there, for the view that shows this page then (this job's view may be gone already).
+    XournalView* xournal = view->xournal;
+    PageRef page = view->getPage();
+    Util::execInUiThread([=]() {
+        size_t index = npos;
+        {
+            std::shared_lock<Document> lock(*xournal->getDocument());
+            index = xournal->getDocument()->indexOf(page);
+        }
+        XojPageView* v = index == npos ? nullptr : xournal->getViewFor(index);
+        if (!v) {
+            return;
+        }
+        const double zoom = xournal->getZoom();
+        const auto p = v->getPixelPosition();
+        gtk_xournal_repaint_area(xournal->getWidget(), p.x + floor_cast<int>(zoom * x1),
+                                 p.y + floor_cast<int>(zoom * y1), p.x + ceil_cast<int>(zoom * x2),
+                                 p.y + ceil_cast<int>(zoom * y2));
+    });
 }
 
 void RenderJob::renderToBuffer(cairo_t* cr) const {
