@@ -12,6 +12,7 @@
 #include <optional>  // for optional
 #include <set>       // for set
 #include <string>    // for string
+#include <vector>    // for vector
 
 #include "Registry.h"  // for Tier
 #include "filesystem.h"
@@ -34,8 +35,10 @@ struct McpConfig {
         std::string permissionMode = "bypass";  ///< "bypass" (skip all permission prompts) or "normal"
         std::string command;                    ///< overrides the command line (advanced; tests use a fake agent)
         bool autoImprove = false;               ///< improve everything the user writes (the toolbar toggle)
-        int wakeIdleMs = 2500;                  ///< wake the session this long after the user stopped drawing
-        int watchdogS = 20;                     ///< resend a wake-up the session didn't react to after this long
+        /// What Auto-improve does: any of "formulas", "text", "diagrams", "colours"
+        std::vector<std::string> rules{"formulas", "text", "diagrams", "colours"};
+        int wakeIdleMs = 2500;  ///< wake the session this long after the user stopped drawing
+        int watchdogS = 20;     ///< resend a wake-up the session didn't react to after this long
     } assistant;
     fs::path backupDir;  ///< where those copies go
 

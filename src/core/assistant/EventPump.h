@@ -39,6 +39,7 @@ public:
         bool autoImprove = false;
         int idleMs = 2500;
         int watchdogS = 20;
+        std::vector<std::string> rules{"formulas", "text", "diagrams", "colours"};
     };
 
     EventPump(Env env, Settings settings);
@@ -52,6 +53,8 @@ public:
     void addIntent(const std::string& description);
 
     void setAutoImprove(bool on);
+    void setRules(std::vector<std::string> rules);
+    const std::vector<std::string>& rules() const { return settings.rules; }
     bool autoImprove() const { return settings.autoImprove; }
 
     /// One line for the status strip ("" when there is nothing to say)

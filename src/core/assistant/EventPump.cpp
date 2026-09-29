@@ -74,6 +74,13 @@ void EventPump::setAutoImprove(bool on) {
     }
 }
 
+void EventPump::setRules(std::vector<std::string> r) {
+    settings.rules = std::move(r);
+    if (env.changed) {
+        env.changed();
+    }
+}
+
 size_t EventPump::pending() const { return (editCount > 0 ? 1 : 0) + intents.size(); }
 
 std::string EventPump::message() const {
@@ -95,7 +102,15 @@ std::string EventPump::message() const {
     for (size_t i = 0; i < parts.size(); i++) {
         msg += (i ? "; " : "") + parts[i];
     }
-    msg += ". Auto-improve is " + std::string(settings.autoImprove ? "ON" : "OFF") + ".";
+    msg += ". Auto-improve is " + std::string(settings.autoImprove ? "ON" : "OFF");
+    if (settings.autoImprove) {
+        std::string rules;
+        for (const auto& r: settings.rules) {
+            rules += (rules.empty() ? "" : ", ") + r;
+        }
+        msg += " (rules: " + (rules.empty() ? std::string("none") : rules) + ")";
+    }
+    msg += ".";
     return msg;
 }
 

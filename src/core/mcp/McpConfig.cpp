@@ -58,6 +58,14 @@ McpConfig McpConfig::load() {
                 cfg.assistant.permissionMode = a.value("permission_mode", cfg.assistant.permissionMode);
                 cfg.assistant.command = a.value("command", cfg.assistant.command);
                 cfg.assistant.autoImprove = a.value("auto_improve", cfg.assistant.autoImprove);
+                if (a.contains("rules") && a["rules"].is_array()) {
+                    cfg.assistant.rules.clear();
+                    for (const auto& r: a["rules"]) {
+                        if (r.is_string()) {
+                            cfg.assistant.rules.push_back(r.get<std::string>());
+                        }
+                    }
+                }
                 cfg.assistant.wakeIdleMs = a.value("wake_idle_ms", cfg.assistant.wakeIdleMs);
                 cfg.assistant.watchdogS = a.value("watchdog_s", cfg.assistant.watchdogS);
             }
@@ -118,6 +126,7 @@ void McpConfig::save() const {
                 {"permission_mode", assistant.permissionMode},
                 {"command", assistant.command},
                 {"auto_improve", assistant.autoImprove},
+                {"rules", assistant.rules},
                 {"wake_idle_ms", assistant.wakeIdleMs},
                 {"watchdog_s", assistant.watchdogS}}},
               {"backup_dir", toUtf8(backupDir)},

@@ -84,7 +84,7 @@ connected to the running window, port )" +
 ## Modes
 - **Auto-improve ON**: improve everything the user writes as they go: formulas → LaTeX, text rewritten in their
   own handwriting (skill `xournal-conspect`, v3 font) with spelling fixed, diagrams redrawn accurately, a
-  consistent colour palette.
+  consistent colour palette. Only the rules listed in the wake-up line apply ("rules: formulas, text, …").
 - **Auto-improve OFF**: act only on markers, commands and toolbar buttons.
 
 ## Markers (written next to an object; remove the marker strokes after acting)

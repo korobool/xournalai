@@ -96,6 +96,24 @@ AiToolbar::AiToolbar(GtkWidget* mainBox, int position, ActionHandler h): handler
     gtk_tool_button_set_label(GTK_TOOL_BUTTON(autoItem), "Auto-improve");
     actionItem(autoItem, "win.ai-auto-improve", "starred-symbolic",
                "On: the AI improves everything you write. Off: only markers and commands.", "aiAutoImprove");
+    // the rules of Auto-improve, right next to it
+    {
+        GMenu* rules = g_menu_new();
+        g_menu_append(rules, "Formulas → LaTeX", "win.ai-rule-formulas");
+        g_menu_append(rules, "Text in my handwriting", "win.ai-rule-text");
+        g_menu_append(rules, "Diagrams redrawn", "win.ai-rule-diagrams");
+        g_menu_append(rules, "Consistent colours", "win.ai-rule-colours");
+        GtkWidget* mb = gtk_menu_button_new();
+        gtk_menu_button_set_menu_model(GTK_MENU_BUTTON(mb), G_MENU_MODEL(rules));
+        g_object_unref(rules);
+        gtk_button_set_relief(GTK_BUTTON(mb), GTK_RELIEF_NONE);
+        gtk_widget_set_tooltip_text(mb, "What Auto-improve does");
+        gtk_widget_set_can_focus(mb, FALSE);
+        gtk_buildable_set_name(GTK_BUILDABLE(mb), "aiRulesMenu");
+        GtkToolItem* holder = gtk_tool_item_new();
+        gtk_container_add(GTK_CONTAINER(holder), mb);
+        gtk_toolbar_insert(GTK_TOOLBAR(toolbar), holder, -1);
+    }
     GtkToolItem* pause = gtk_toggle_tool_button_new();
     gtk_tool_button_set_label(GTK_TOOL_BUTTON(pause), "Pause");
     actionItem(pause, "win.mcp-paused", "media-playback-pause-symbolic", "Stop the AI at once (Ctrl+Alt+Esc)",

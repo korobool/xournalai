@@ -1,5 +1,7 @@
 #include "McpUi.h"
 
+#include <algorithm>  // for find, remove
+
 #include "api/AgentGate.h"                  // for AgentGate
 #include "control/Control.h"                // for Control
 #include "control/layer/LayerController.h"  // for LayerController
@@ -106,8 +108,10 @@ McpUi::~McpUi() {
         gtk_widget_destroy(s);
     }
     if (window) {
-        for (const char* name: {"mcp-paused", "mcp-ai-accept", "mcp-ai-clear", "mcp-ai-toggle", "mcp-copy-command",
-                                "mcp-settings", "ai-terminal", "ai-terminal-open", "ai-act", "ai-toolbar"}) {
+        for (const char* name:
+             {"mcp-paused", "mcp-ai-accept", "mcp-ai-clear", "mcp-ai-toggle", "mcp-copy-command", "mcp-settings",
+              "ai-terminal", "ai-terminal-open", "ai-act", "ai-toolbar", "ai-auto-improve", "ai-rule-formulas",
+              "ai-rule-text", "ai-rule-diagrams", "ai-rule-colours"}) {
             g_action_map_remove_action(G_ACTION_MAP(window), name);
         }
         unwatch(window);
@@ -200,6 +204,53 @@ void McpUi::installActions() {
                      }),
                      this);
     add(tb);
+    // Auto-improve: on = improve everything the user writes; off = markers and commands only (remembered)
+    const auto& assistantCfg = server.getConfig().assistant;
+    GSimpleAction* autoImp =
+            g_simple_action_new_stateful("ai-auto-improve", nullptr, g_variant_new_boolean(assistantCfg.autoImprove));
+    g_signal_connect(autoImp, "change-state", G_CALLBACK(+[](GSimpleAction* a, GVariant* v, gpointer self) {
+                         g_simple_action_set_state(a, v);
+                         auto* ui = static_cast<McpUi*>(self);
+                         const bool on = g_variant_get_boolean(v);
+                         McpConfig cfg = McpConfig::load();
+                         cfg.assistant.autoImprove = on;
+                         cfg.save();
+#ifdef ENABLE_AI_TERMINAL
+                         if (ui->eventPump) {
+                             ui->eventPump->setAutoImprove(on);
+                         }
+#endif
+                         ui->update();
+                     }),
+                     this);
+    add(autoImp);
+    for (const char* rule: {"formulas", "text", "diagrams", "colours"}) {
+        const bool enabled =
+                std::find(assistantCfg.rules.begin(), assistantCfg.rules.end(), rule) != assistantCfg.rules.end();
+        GSimpleAction* ra = g_simple_action_new_stateful((std::string("ai-rule-") + rule).c_str(), nullptr,
+                                                         g_variant_new_boolean(enabled));
+        g_object_set_data_full(G_OBJECT(ra), "rule", g_strdup(rule), g_free);
+        g_signal_connect(ra, "change-state", G_CALLBACK(+[](GSimpleAction* a, GVariant* v, gpointer self) {
+                             g_simple_action_set_state(a, v);
+                             auto* ui = static_cast<McpUi*>(self);
+                             const std::string name = static_cast<const char*>(g_object_get_data(G_OBJECT(a), "rule"));
+                             McpConfig cfg = McpConfig::load();
+                             auto& rules = cfg.assistant.rules;
+                             rules.erase(std::remove(rules.begin(), rules.end(), name), rules.end());
+                             if (g_variant_get_boolean(v)) {
+                                 rules.push_back(name);
+                             }
+                             cfg.save();
+#ifdef ENABLE_AI_TERMINAL
+                             if (ui->eventPump) {
+                                 ui->eventPump->setRules(rules);
+                             }
+#endif
+                             ui->update();
+                         }),
+                         this);
+        add(ra);
+    }
 #ifdef ENABLE_AI_TERMINAL
     GSimpleAction* term = g_simple_action_new("ai-terminal", nullptr);
     g_signal_connect(term, "activate", G_CALLBACK(+[](GSimpleAction*, GVariant*, gpointer self) {
@@ -220,6 +271,8 @@ void McpUi::installActions() {
     GtkApplication* app = gtk_window_get_application(GTK_WINDOW(win));
     const char* pauseAccel[] = {"<Ctrl><Alt>Escape", nullptr};
     gtk_application_set_accels_for_action(app, "win.mcp-paused", pauseAccel);
+    const char* autoAccel[] = {"<Ctrl><Alt>i", nullptr};
+    gtk_application_set_accels_for_action(app, "win.ai-auto-improve", autoAccel);
 #ifdef ENABLE_AI_TERMINAL
     const char* termAccel[] = {"<Ctrl>grave", nullptr};
     gtk_application_set_accels_for_action(app, "win.ai-terminal", termAccel);
@@ -271,6 +324,22 @@ void McpUi::buildMenu() {
     };
     section({{"Pause AI agent", "win.mcp-paused"}}, "<Ctrl><Alt>Escape");
     section({{"Show AI toolbar", "win.ai-toolbar"}});
+    {
+        GMenu* s = g_menu_new();
+        GMenuItem* item = g_menu_item_new("Auto-_improve", "win.ai-auto-improve");
+        g_menu_item_set_attribute(item, "accel", "s", "<Ctrl><Alt>i");
+        g_menu_append_item(s, item);
+        g_object_unref(item);
+        GMenu* rules = g_menu_new();
+        g_menu_append(rules, "Formulas → LaTeX", "win.ai-rule-formulas");
+        g_menu_append(rules, "Text in my handwriting", "win.ai-rule-text");
+        g_menu_append(rules, "Diagrams redrawn", "win.ai-rule-diagrams");
+        g_menu_append(rules, "Consistent colours", "win.ai-rule-colours");
+        g_menu_append_submenu(s, "Auto-improve rules", G_MENU_MODEL(rules));
+        g_object_unref(rules);
+        g_menu_append_section(sub, nullptr, G_MENU_MODEL(s));
+        g_object_unref(s);
+    }
     section({{"Accept AI layer (merge down)", "win.mcp-ai-accept"},
              {"Show or hide AI layer", "win.mcp-ai-toggle"},
              {"Clear AI layer", "win.mcp-ai-clear"}});
@@ -405,8 +474,11 @@ void McpUi::update() {
                 break;
         }
 #ifdef ENABLE_AI_TERMINAL
-        if (eventPump && !eventPump->status().empty()) {
-            text += "  |  " + eventPump->status();
+        if (eventPump) {
+            text += std::string("  |  Auto-improve ") + (eventPump->autoImprove() ? "ON" : "off");
+            if (!eventPump->status().empty()) {
+                text += "  |  " + eventPump->status();
+            }
         }
 #endif
     }
@@ -596,7 +668,7 @@ void McpUi::buildTerminal() {
     env.changed = [this] { update(); };
     const auto& a = server.getConfig().assistant;
     eventPump = std::make_unique<assistant::EventPump>(
-            env, assistant::EventPump::Settings{a.autoImprove, a.wakeIdleMs, a.watchdogS});
+            env, assistant::EventPump::Settings{a.autoImprove, a.wakeIdleMs, a.watchdogS, a.rules});
     if (auto* hub = server.getEvents()) {
         hub->addListener([this](const api::DocEvent& e) {
             if (eventPump) {
