@@ -70,7 +70,7 @@ void registerResources(McpServer& server) {
                                           }
                                           const auto path = doc->getFilepath();
                                           return text(uri, {{"path", path.empty() ? json(nullptr) : json(toUtf8(path))},
-                                                            {"current_page", ctrl->getCurrentPageNo() + 1},
+                                                            {"current_page", api::currentPageIndex(ctrl) + 1},
                                                             {"pages", pages}});
                                       }});
     server.getRegistry().addResource({"xournal://changes", "changes",

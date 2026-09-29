@@ -2,14 +2,21 @@
 
 #include <stdexcept>  // for invalid_argument
 
-#include "model/Document.h"  // for Document
-#include "model/Layer.h"     // for Layer
-#include "model/XojPage.h"   // for XojPage
+#include "control/Control.h"  // for Control
+#include "model/Document.h"   // for Document
+#include "model/Layer.h"      // for Layer
+#include "model/XojPage.h"    // for XojPage
 
 #include "ElementIds.h"
 #include "Geometry.h"
 
 namespace xoj::api {
+
+size_t currentPageIndex(Control* ctrl) {
+    const size_t count = ctrl->getDocument()->getPageCount();
+    const size_t page = ctrl->getCurrentPageNo();
+    return count == 0 ? 0 : std::min(page, count - 1);
+}
 
 std::optional<ElementLocation> locate(Document* doc, const Element* e) {
     if (!e) {

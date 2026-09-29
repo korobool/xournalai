@@ -4,6 +4,7 @@
 #include <shared_mutex>  // for shared_lock
 
 #include "api/AgentGate.h"
+#include "api/DocumentApi.h"      // for currentPageIndex
 #include "control/Control.h"      // for Control
 #include "control/ToolEnums.h"    // for toolTypeToString
 #include "control/ToolHandler.h"  // for ToolHandler
@@ -33,7 +34,7 @@ json documentSummary(Control* ctrl) {
             {"pdf_background", pdf.empty() ? json(nullptr) : json(toUtf8(pdf))},
             {"modified", ctrl->getUndoRedoHandler()->isChanged()},
             {"page_count", doc->getPageCount()},
-            {"current_page", ctrl->getCurrentPageNo() + 1}};
+            {"current_page", api::currentPageIndex(ctrl) + 1}};
 }
 
 json toolSummary(Control* ctrl) {

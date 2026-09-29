@@ -17,6 +17,7 @@
 #include "model/PageRef.h"   // for PageRef
 #include "util/Rectangle.h"  // for Rectangle
 
+class Control;
 class Document;
 
 namespace xoj::api {
@@ -31,6 +32,10 @@ struct ElementLocation {
 
 /// Finds an element in the document (scans all pages); std::nullopt if it is not part of the document
 std::optional<ElementLocation> locate(Document* doc, const Element* e);
+
+/// The page the user is on (0-based), always a valid index: right after pages are removed the application may
+/// still point past the end for a moment
+size_t currentPageIndex(Control* ctrl);
 
 /**
  * @brief Resolves an element id ("e42") to its location.

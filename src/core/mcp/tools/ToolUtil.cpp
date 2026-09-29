@@ -7,6 +7,7 @@
 
 #include <glib.h>  // for g_timeout_add
 
+#include "api/DocumentApi.h"                   // for currentPageIndex
 #include "control/Control.h"                   // for Control
 #include "control/pagetype/PageTypeHandler.h"  // for PageTypeHandler
 #include "model/Document.h"                    // for Document
@@ -104,7 +105,7 @@ Color parseColor(const json& value, const std::string& what) {
 size_t resolvePageIndex(Control* ctrl, const Args& args, const std::string& key) {
     const size_t count = ctrl->getDocument()->getPageCount();
     if (!args.has(key) || (args.raw(key).is_string() && args.str(key) == "current")) {
-        return ctrl->getCurrentPageNo();
+        return api::currentPageIndex(ctrl);
     }
     const auto page = args.integer(key);
     if (page < 1 || static_cast<size_t>(page) > count) {

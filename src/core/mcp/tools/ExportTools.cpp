@@ -37,7 +37,7 @@ std::vector<size_t> parsePages(Control* ctrl, const std::string& spec) {
         return pages;
     }
     if (spec == "current") {
-        return {ctrl->getCurrentPageNo()};
+        return {api::currentPageIndex(ctrl)};
     }
     PageRangeVector ranges;
     try {

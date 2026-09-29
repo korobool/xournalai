@@ -2,6 +2,7 @@
 
 #include <shared_mutex>  // for shared_lock
 
+#include "api/DocumentApi.h"        // for currentPageIndex
 #include "control/Control.h"        // for Control
 #include "control/RecentManager.h"  // for getRecentFiles
 #include "control/ScrollHandler.h"  // for ScrollHandler
@@ -28,7 +29,7 @@ json fileInfo(Control* ctrl) {
             {"pdf_background", pdf.empty() ? json(nullptr) : json(toUtf8(pdf))},
             {"modified", ctrl->getUndoRedoHandler()->isChanged()},
             {"page_count", doc->getPageCount()},
-            {"current_page", ctrl->getCurrentPageNo() + 1}};
+            {"current_page", api::currentPageIndex(ctrl) + 1}};
 }
 
 fs::path absolutePath(const std::string& s) {

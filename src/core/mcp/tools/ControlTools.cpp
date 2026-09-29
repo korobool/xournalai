@@ -4,6 +4,7 @@
 
 #include <gtk/gtk.h>
 
+#include "api/DocumentApi.h"              // for currentPageIndex
 #include "api/EditApi.h"                  // for EditApi
 #include "api/ElementIds.h"               // for ElementIds
 #include "api/Geometry.h"                 // for roundTo
@@ -123,7 +124,7 @@ json selectionJson(Control* ctrl) {
 }
 
 json viewJson(Control* ctrl) {
-    const size_t page = ctrl->getCurrentPageNo();
+    const size_t page = api::currentPageIndex(ctrl);
     json out = {{"current_page", page + 1},
                 {"zoom", ctrl->getZoomControl()->getZoomReal()},
                 {"fullscreen", actionState(ctrl, "fullscreen")},
@@ -329,7 +330,7 @@ void registerControlTools(McpServer& server) {
         }
         // paste: report what appeared on the current page
         ctrl->clearSelectionEndText();
-        const size_t page = ctrl->getCurrentPageNo();
+        const size_t page = api::currentPageIndex(ctrl);
         auto snapshot = [ctrl, page] {
             std::set<const Element*> s;
             std::shared_lock lock(*ctrl->getDocument());

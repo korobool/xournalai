@@ -3,6 +3,7 @@
 #include <cmath>         // for lround
 #include <shared_mutex>  // for shared_lock
 
+#include "api/DocumentApi.h"      // for currentPageIndex
 #include "api/ElementIds.h"       // for ElementIds
 #include "api/Geometry.h"         // for roundTo
 #include "api/Placement.h"        // for appendPage
@@ -249,7 +250,7 @@ UserSample sampleUserStrokes(Control* ctrl) {
     std::optional<Color> color;
     Document* doc = ctrl->getDocument();
     std::shared_lock lock(*doc);
-    const size_t current = ctrl->getCurrentPageNo();
+    const size_t current = api::currentPageIndex(ctrl);
     std::vector<size_t> order = {current};
     for (size_t i = 0; i < doc->getPageCount(); i++) {
         if (i != current) {

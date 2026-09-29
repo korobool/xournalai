@@ -1,5 +1,6 @@
 // Tool: changes_get
 
+#include "api/DocumentApi.h"  // for currentPageIndex
 #include "api/EventHub.h"     // for EventHub
 #include "api/PenEngine.h"    // for userInputActive
 #include "api/RenderApi.h"    // for renderPage
@@ -159,7 +160,7 @@ void registerEventTools(McpServer& server) {
                     json out = {{"cursor", hub->lastSeq()}, {"timed_out", events.empty()}};
                     json list = json::array();
                     std::optional<xoj::util::Rectangle<double>> area;
-                    size_t page = events.empty() ? c->ctrl->getCurrentPageNo() : events.back().page;
+                    size_t page = events.empty() ? api::currentPageIndex(c->ctrl) : events.back().page;
                     for (const auto& e: events) {
                         list.push_back(eventJson(e));
                         if (e.page == page && (e.area.width > 0 || e.area.height > 0)) {
@@ -175,7 +176,7 @@ void registerEventTools(McpServer& server) {
                     }
                     out["events"] = std::move(list);
                     out["page"] = page + 1;
-                    out["current_page"] = c->ctrl->getCurrentPageNo() + 1;
+                    out["current_page"] = api::currentPageIndex(c->ctrl) + 1;
                     ToolResult result;
                     if (area) {
                         out["area"] = bboxJson(area->x, area->y, area->width, area->height);

@@ -2,6 +2,7 @@
 
 #include <gtk/gtk.h>
 
+#include "api/DocumentApi.h"                         // for currentPageIndex
 #include "control/Control.h"                         // for Control
 #include "control/PageBackgroundChangeController.h"  // for PageBackgroundChangeController
 #include "control/ScrollHandler.h"                   // for ScrollHandler
@@ -64,7 +65,7 @@ json pageState(Control* ctrl, size_t index) {
     std::shared_lock lock(*ctrl->getDocument());
     json out = pageSummary(ctrl->getDocument()->getPage(index), index);
     out["page_count"] = pageCount(ctrl);
-    out["current_page"] = ctrl->getCurrentPageNo() + 1;
+    out["current_page"] = api::currentPageIndex(ctrl) + 1;
     return out;
 }
 
@@ -112,7 +113,7 @@ void registerStructureTools(McpServer& server) {
         ctrl->clearSelectionEndText();
         if (op == "insert") {
             const auto after =
-                    static_cast<size_t>(args.integer("page", static_cast<int64_t>(ctrl->getCurrentPageNo() + 1), 0,
+                    static_cast<size_t>(args.integer("page", static_cast<int64_t>(api::currentPageIndex(ctrl) + 1), 0,
                                                      static_cast<int64_t>(pageCount(ctrl))));
             gotoPage(ctrl, after == 0 ? 0 : after - 1);
             runWinAction(ctrl, after == 0 ? "new-page-before" : "new-page-after");
