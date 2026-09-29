@@ -45,14 +45,16 @@ size_t aiLayerIndex(const PageRef& page, const std::string& name) {
 McpUi::McpUi(McpServer& server): server(server) {
     installActions();
     // The main menu is populated after the server starts (Control::initWindow runs before MainWindow::populate)
-    menuIdle = g_idle_add(
+    // (high priority: before the first agent request is served)
+    menuIdle = g_idle_add_full(
+            G_PRIORITY_HIGH,
             [](gpointer self) -> gboolean {
                 auto* ui = static_cast<McpUi*>(self);
                 ui->menuIdle = 0;
                 ui->buildMenu();
                 return G_SOURCE_REMOVE;
             },
-            this);
+            this, nullptr);
     buildStrip();
     timer = g_timeout_add_seconds(2, &McpUi::onTick, this);
     update();
