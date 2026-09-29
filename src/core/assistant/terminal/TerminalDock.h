@@ -53,6 +53,8 @@ public:
     void toggle();
     bool isVisible() const;
 
+    /// When the user last pressed a key in any terminal tab (monotonic µs; 0 if never)
+    gint64 lastInputUs() const { return lastInput; }
     /// Called with the tab index when a tab's process exits
     void setExitHandler(std::function<void(int index, int status)> handler) { onExit = std::move(handler); }
     /// Entries of the "+" menu: title → spec
@@ -72,6 +74,7 @@ private:
     std::vector<TerminalSpec> choices;
     std::function<void(int, int)> onExit;
     int lastHeight = 260;
+    gint64 lastInput = 0;
 };
 
 }  // namespace xoj::assistant

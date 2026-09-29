@@ -77,6 +77,9 @@ void EventHub::push(DocEvent e) {
     if (listener) {
         listener(log.back());
     }
+    for (const auto& l: extraListeners) {
+        l(log.back());
+    }
 }
 
 void EventHub::scheduleDiff(const PageRef& page) {

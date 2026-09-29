@@ -13,9 +13,12 @@
 #include "model/XojPage.h"                  // for XojPage
 
 #ifdef ENABLE_AI_TERMINAL
+#include "api/EventHub.h"  // for EventHub
 #include "assistant/Companion.h"
+#include "assistant/EventPump.h"
 #include "assistant/terminal/TerminalDock.h"
 #endif
+
 
 #include "McpConfig.h"
 #include "McpHttpServer.h"
@@ -84,6 +87,7 @@ McpUi::~McpUi() {
     }
     removeMenu();
 #ifdef ENABLE_AI_TERMINAL
+    eventPump.reset();
     dock.reset();
 #endif
     unwatch(label);
@@ -371,6 +375,11 @@ void McpUi::update() {
             case S::NotRunning:
                 break;
         }
+#ifdef ENABLE_AI_TERMINAL
+        if (eventPump && !eventPump->status().empty()) {
+            text += "  |  " + eventPump->status();
+        }
+#endif
     }
     if (strip) {
         GtkStyleContext* ctx = gtk_widget_get_style_context(strip);
@@ -547,6 +556,25 @@ void McpUi::buildTerminal() {
             server.serving().processExited();
         }
     });
+    // The app watches, the serving session works: canvas events wake it
+    assistant::EventPump::Env env;
+    env.paused = [] { return api::AgentGate::paused(); };
+    env.state = [this] { return server.serving().state(); };
+    env.hooksSeen = [this] { return server.serving().hooksSeen(); };
+    env.processRunning = [this] { return dock && servingTab >= 0 && dock->isRunning(servingTab); };
+    env.lastTerminalInputUs = [this] { return dock ? dock->lastInputUs() : gint64{0}; };
+    env.type = [this](const std::string& text) { return dock && dock->feed(servingTab, text); };
+    env.changed = [this] { update(); };
+    const auto& a = server.getConfig().assistant;
+    eventPump = std::make_unique<assistant::EventPump>(
+            env, assistant::EventPump::Settings{a.autoImprove, a.wakeIdleMs, a.watchdogS});
+    if (auto* hub = server.getEvents()) {
+        hub->addListener([this](const api::DocEvent& e) {
+            if (eventPump) {
+                eventPump->onDocEvent(e);
+            }
+        });
+    }
     dock->setNewTabChoices({terminalSpec("claude", false), terminalSpec("codex", false),
                             terminalSpec("opencode", false), terminalSpec("shell", false)});
 }

@@ -57,6 +57,9 @@ McpConfig McpConfig::load() {
                 cfg.assistant.agent = a.value("agent", cfg.assistant.agent);
                 cfg.assistant.permissionMode = a.value("permission_mode", cfg.assistant.permissionMode);
                 cfg.assistant.command = a.value("command", cfg.assistant.command);
+                cfg.assistant.autoImprove = a.value("auto_improve", cfg.assistant.autoImprove);
+                cfg.assistant.wakeIdleMs = a.value("wake_idle_ms", cfg.assistant.wakeIdleMs);
+                cfg.assistant.watchdogS = a.value("watchdog_s", cfg.assistant.watchdogS);
             }
             if (j.contains("backup_dir") && j["backup_dir"].is_string() &&
                 !j["backup_dir"].get<std::string>().empty()) {
@@ -113,7 +116,10 @@ void McpConfig::save() const {
                {{"autostart", assistant.autostart},
                 {"agent", assistant.agent},
                 {"permission_mode", assistant.permissionMode},
-                {"command", assistant.command}}},
+                {"command", assistant.command},
+                {"auto_improve", assistant.autoImprove},
+                {"wake_idle_ms", assistant.wakeIdleMs},
+                {"watchdog_s", assistant.watchdogS}}},
               {"backup_dir", toUtf8(backupDir)},
               {"_help",
                {{"url", url()},

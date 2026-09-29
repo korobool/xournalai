@@ -33,6 +33,9 @@ struct McpConfig {
         std::string agent = "claude";           ///< "claude" or "codex"
         std::string permissionMode = "bypass";  ///< "bypass" (skip all permission prompts) or "normal"
         std::string command;                    ///< overrides the command line (advanced; tests use a fake agent)
+        bool autoImprove = false;               ///< improve everything the user writes (the toolbar toggle)
+        int wakeIdleMs = 2500;                  ///< wake the session this long after the user stopped drawing
+        int watchdogS = 20;                     ///< resend a wake-up the session didn't react to after this long
     } assistant;
     fs::path backupDir;  ///< where those copies go
 

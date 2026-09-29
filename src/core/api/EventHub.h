@@ -70,6 +70,8 @@ public:
 
     /// Called for every new event (e.g. to push notifications)
     void setListener(std::function<void(const DocEvent&)> l) { listener = std::move(l); }
+    /// Additional listeners (e.g. the assistant's event pump); called after the main one
+    void addListener(std::function<void(const DocEvent&)> l) { extraListeners.push_back(std::move(l)); }
 
     // UndoRedoListener
     void undoRedoChanged() override {}
@@ -99,6 +101,7 @@ private:
     int agentDepth = 0;
     gint64 lastUserUs = 0;
     std::function<void(const DocEvent&)> listener;
+    std::vector<std::function<void(const DocEvent&)>> extraListeners;
     std::vector<std::pair<PageRef, std::string>> pending;  ///< page, origin at notification time
     guint idleSource = 0;
 };

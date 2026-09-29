@@ -174,10 +174,12 @@ int TerminalDock::openTab(const TerminalSpec& spec, bool focus) {
 
     // Ctrl+` hides the dock even while the terminal has the keyboard
     g_signal_connect(term, "key-press-event", G_CALLBACK(+[](GtkWidget*, GdkEventKey* e, gpointer d) -> gboolean {
+                         auto* self = static_cast<TerminalDock*>(d);
                          if (isToggleKey(e)) {
-                             static_cast<TerminalDock*>(d)->hide();
+                             self->hide();
                              return TRUE;
                          }
+                         self->lastInput = g_get_monotonic_time();
                          return FALSE;
                      }),
                      this);

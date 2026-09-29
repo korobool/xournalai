@@ -21,6 +21,7 @@
 
 namespace xoj::assistant {
 class TerminalDock;
+class EventPump;
 struct TerminalSpec;
 }  // namespace xoj::assistant
 #endif
@@ -49,6 +50,7 @@ public:
     /// Opens the MCP settings dialog (user only; agents cannot operate it)
     void showSettings();
 
+
 #ifdef ENABLE_AI_TERMINAL
     /// The AI terminal dock (null if the window has no place for it)
     assistant::TerminalDock* terminal() const { return dock.get(); }
@@ -56,6 +58,8 @@ public:
     void openTerminal(const std::string& kind);
     /// Starts the serving session (Claude Code or Codex in the companion folder) unless it runs already
     void startServing();
+    /// Delivers canvas events to the serving session (null without the terminal)
+    assistant::EventPump* pump() const { return eventPump.get(); }
 #endif
 
 private:
@@ -99,6 +103,7 @@ private:
     assistant::TerminalSpec terminalSpec(const std::string& kind, bool serving) const;
     std::unique_ptr<assistant::TerminalDock> dock;
     int servingTab = -1;
+    std::unique_ptr<assistant::EventPump> eventPump;
 #endif
 };
 

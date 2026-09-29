@@ -32,6 +32,8 @@ public:
     const std::string& tool() const { return currentTool; }
     const std::string& sessionId() const { return session; }
     gint64 changedUs() const { return changed; }
+    /// The current process has reported through hooks (Claude Code does; Codex doesn't)
+    bool hooksSeen() const { return sawHook; }
     static const char* name(State s);
     mcp::json toJson() const;
 
@@ -45,6 +47,7 @@ private:
     std::string currentTool;
     std::string session;
     gint64 changed = 0;
+    bool sawHook = false;
     std::function<void()> listener;
 };
 

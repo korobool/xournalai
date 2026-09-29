@@ -33,12 +33,19 @@ void ServingState::set(State s, std::string tool) {
     }
 }
 
-void ServingState::processStarted() { set(State::Idle); }
+void ServingState::processStarted() {
+    sawHook = false;
+    set(State::Idle);
+}
 
-void ServingState::processExited() { set(State::NotRunning); }
+void ServingState::processExited() {
+    sawHook = false;
+    set(State::NotRunning);
+}
 
 void ServingState::apply(const mcp::json& report) {
     const std::string event = report.value("event", "");
+    sawHook = true;
     const mcp::json payload = report.value("payload", mcp::json::object());
     if (payload.is_object() && payload.contains("session_id") && payload["session_id"].is_string()) {
         session = payload["session_id"].get<std::string>();
