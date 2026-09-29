@@ -48,6 +48,7 @@ size_t aiLayerIndex(const PageRef& page, const std::string& name) {
 }  // namespace
 
 McpUi::McpUi(McpServer& server): server(server) {
+    server.serving().setListener([this] { update(); });
     installActions();
     // The main menu is populated after the server starts (Control::initWindow runs before MainWindow::populate)
     // (high priority: before the first agent request is served)
@@ -354,6 +355,22 @@ void McpUi::update() {
         if (!currentTool.empty()) {
             text += "  |  working: " + currentTool;
         }
+        using S = assistant::ServingState::State;
+        const auto& sv = server.serving();
+        const std::string who = server.getConfig().assistant.agent == "codex" ? "Codex" : "Claude";
+        switch (sv.state()) {
+            case S::Idle:
+                text += "  |  " + who + ": idle";
+                break;
+            case S::Busy:
+                text += "  |  " + who + ": thinking" + (sv.tool().empty() ? "" : " (" + sv.tool() + ")");
+                break;
+            case S::Waiting:
+                text += "  |  " + who + ": waiting for you in the AI terminal";
+                break;
+            case S::NotRunning:
+                break;
+        }
     }
     if (strip) {
         GtkStyleContext* ctx = gtk_widget_get_style_context(strip);
@@ -525,6 +542,11 @@ void McpUi::buildTerminal() {
         return;
     }
     dock = std::make_unique<assistant::TerminalDock>(mainBox, content);
+    dock->setExitHandler([this](int index, int) {
+        if (index == servingTab) {
+            server.serving().processExited();
+        }
+    });
     dock->setNewTabChoices({terminalSpec("claude", false), terminalSpec("codex", false),
                             terminalSpec("opencode", false), terminalSpec("shell", false)});
 }
@@ -549,6 +571,7 @@ void McpUi::startServing() {
         return;
     }
     servingTab = dock->openTab(spec, true);  // shown: its first start may ask you something (e.g. folder trust)
+    server.serving().processStarted();
 }
 #endif
 

@@ -51,8 +51,9 @@
 #include "config.h"           // for GETTEXT_PACKAGE, ENABLE_NLS
 #include "filesystem.h"       // for path, operator/, exists
 #ifdef ENABLE_MCP
-#include "mcp/McpConfig.h"       // for McpConfig
-#include "mcp/McpStdioBridge.h"  // for runStdioBridge
+#include "assistant/ServingState.h"  // for runHook
+#include "mcp/McpConfig.h"           // for McpConfig
+#include "mcp/McpStdioBridge.h"      // for runStdioBridge
 #endif
 
 namespace {
@@ -286,6 +287,7 @@ struct XournalMainPrivate {
         g_free(pdfFilename);
         g_free(imgFilename);
         g_free(docFilename);
+        g_free(aiHook);
     }
 
     gchar** optFilename{};  ///< Array of paths, in GFilename encoding
@@ -308,6 +310,7 @@ struct XournalMainPrivate {
     gboolean mcpDisable = false;
     gboolean mcpStdio = false;
     int mcpPort = -1;
+    gchar* aiHook{};  ///< xournalai: report a serving-session hook event to the running app
     gchar* exportPdfBackend{};
     std::unique_ptr<GladeSearchpath> gladePath;
     std::unique_ptr<Control> control;
@@ -546,6 +549,9 @@ auto on_handle_local_options(GApplication*, GVariantDict*, XMPtr app_data) -> gi
     if (app_data->mcpStdio) {
         return xoj::mcp::runStdioBridge(nullptr);
     }
+    if (app_data->aiHook) {
+        return xoj::assistant::runHook(app_data->aiHook);
+    }
 #endif
 
     if (app_data->pdfFilename && app_data->optFilename && *app_data->optFilename) {
@@ -659,6 +665,9 @@ auto XournalMain::run(int argc, char** argv) -> int {
                          _("Enable the embedded MCP server for AI agents in this session"), nullptr},
             GOptionEntry{"no-mcp", 0, 0, G_OPTION_ARG_NONE, &app_data.mcpDisable,
                          _("Disable the embedded MCP server in this session"), nullptr},
+            GOptionEntry{"ai-hook", 0, G_OPTION_FLAG_HIDDEN, G_OPTION_ARG_STRING, &app_data.aiHook,
+                         "Report a Claude Code hook event of the serving session to the running app (internal)",
+                         "EVENT"},
             GOptionEntry{"mcp-stdio", 0, 0, G_OPTION_ARG_NONE, &app_data.mcpStdio,
                          _("Run as a stdio MCP server that forwards to the running application (starting it if "
                            "needed). For MCP clients that can only launch stdio servers."),

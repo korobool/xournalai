@@ -57,6 +57,8 @@ public:
 
     /// Sends a notification on the SSE streams of all sessions accepted by `filter` (all if empty)
     void broadcast(const json& notification, const std::function<bool(const Session&)>& filter = {});
+    /// Receives reports from the serving session's hooks (POST /ai-hook, same token)
+    void setHookHandler(std::function<void(const json&)> handler) { hookHandler = std::move(handler); }
 
 private:
     struct SessionState;
@@ -78,6 +80,7 @@ private:
     SoupServer* server = nullptr;
     guint keepaliveSource = 0;
     std::map<std::string, std::unique_ptr<SessionState>> sessions;
+    std::function<void(const json&)> hookHandler;
 };
 
 }  // namespace xoj::mcp

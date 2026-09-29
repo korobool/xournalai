@@ -13,6 +13,8 @@
 
 #include <glib.h>  // for guint
 
+#include "assistant/ServingState.h"
+
 #include "McpConfig.h"
 #include "Registry.h"
 
@@ -64,6 +66,8 @@ public:
     const McpConfig& getConfig() const { return config; }
     /// In-app status strip, menu actions and highlights (null before start)
     McpUi* getUi() const { return ui.get(); }
+    /// What the serving session (in the AI terminal) is doing, from its hooks
+    assistant::ServingState& serving() { return servingState; }
     /// Notes memory of the open document (created when the server starts)
     NotesStore* getNotes() const { return notes.get(); }
 
@@ -91,6 +95,7 @@ private:
     std::unique_ptr<api::EventHub> events;
     std::unique_ptr<McpUi> ui;
     std::unique_ptr<NotesStore> notes;
+    assistant::ServingState servingState;
     std::string waiting;
     guint retrySource = 0;
     static constexpr guint RETRY_SECONDS = 2;

@@ -145,6 +145,22 @@ void McpHttpServer::onRequest(SoupServer*, SoupServerMessage* msg, const char* p
         soup_server_message_set_response(msg, "text/plain", SOUP_MEMORY_STATIC, info.data(), info.size());
         return;
     }
+    if (p == "/ai-hook" && method == "POST") {
+        if (!self->checkAccess(msg)) {
+            return;
+        }
+        auto* body = soup_server_message_get_request_body(msg);
+        GBytes* bytes = soup_message_body_flatten(body);
+        gsize size = 0;
+        const auto* data = static_cast<const char*>(g_bytes_get_data(bytes, &size));
+        json report = json::parse(data, data + size, nullptr, false);
+        g_bytes_unref(bytes);
+        if (report.is_object() && self->hookHandler) {
+            self->hookHandler(report);
+        }
+        soup_server_message_set_status(msg, report.is_object() ? 204 : 400, nullptr);
+        return;
+    }
     if (p != "/mcp") {
         soup_server_message_set_status(msg, 404, nullptr);
         return;

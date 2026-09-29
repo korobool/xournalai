@@ -125,9 +125,16 @@ fs::path Companion::ensure(const CompanionSetup& setup) {
                                        {{"xournalai",
                                          {{"command", setup.executable},
                                           {"args", {"--mcp-stdio", "--mcp-port=" + std::to_string(setup.port)}}}}}}});
-        // Approve the folder's MCP server without the "pending approval" step
+        // Approve the folder's MCP server without the "pending approval" step, and report the session's state to
+        // the app through hooks (xournalpp --ai-hook <event>)
+        mcp::json hooks = mcp::json::object();
+        for (const char* ev: {"SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "Stop", "SubagentStop",
+                              "Notification", "SessionEnd"}) {
+            const std::string cmd = "\"" + setup.executable + "\" --ai-hook " + ev;
+            hooks[ev] = {{{"hooks", {{{"type", "command"}, {"command", cmd}, {"timeout", 5}}}}}};
+        }
         mergeJson(dir / ".claude" / "settings.local.json",
-                  {{"enableAllProjectMcpServers", true}, {"enabledMcpjsonServers", {"xournalai"}}});
+                  {{"enableAllProjectMcpServers", true}, {"enabledMcpjsonServers", {"xournalai"}}, {"hooks", hooks}});
     } catch (const std::exception& e) {
         g_warning("xournalai: could not prepare the companion folder %s: %s", mcp::toUtf8(dir).c_str(), e.what());
     }
