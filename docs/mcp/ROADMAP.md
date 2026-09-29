@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.2.0**
+Current version: **1.2.1**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -355,4 +355,49 @@ Your canvas workflow inside xournalai: an embedded terminal running the serving 
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T6.5.1 | US-6.5 | **Milestone 1 release** — Integration tests (fake companion script in the dock; wake-ups, hooks, toolbar intents, overlay), docs, CHANGELOG, tag ai-v1.2.0. | `ai: release 1.2.0 (Assistant Milestone 1) (T6.5.1)` | ✅ done |
+| T6.5.1 | US-6.5 | **Milestone 1 release** — Integration tests (fake companion script in the dock; wake-ups, hooks, toolbar intents, overlay), docs, CHANGELOG, tag ai-v1.2.0. | `ai: release 1.2.0 (Assistant Milestone 1) (T6.5.1)` | ✅ done `e93410ccb` |
+
+## E7 — Parallel serving session (transactions) (release 1.3.0)
+
+The serving session coordinates up to 5 background subagents: they think in parallel, and each one's edits land as one ordered, optionally stylus-like transaction (one undo step), with conflict checks, claims and leases.
+
+### S7.1 — Transactions → v1.2.1
+
+**US-7.1** — As the owner, I want every AI change to land as one ordered transaction, played instantly or like a stylus, so that parallel AI work never produces half-done or interleaved edits.
+
+- [ ] a transaction is a draft plus an ordered list of operations (draw instant/stylus, delete, restyle, move)
+- [ ] commit plays it in order as ONE undo step
+- [ ] commits are serialized; the check refuses changes to strokes that changed since begin
+- [ ] claims: no two open transactions on overlapping areas; at most 5 open; 10 min lease
+- [ ] Stop finishes a playback instantly and aborts open transactions
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T7.1.1 | US-7.1 | **Undo sinks and hurry** — DrawApi and EditApi can hand their undo actions to a collector instead of registering them; AgentGate::hurry() finishes playbacks at once. | `ai: collect undo actions for transactions (T7.1.1)` | ✅ done `670d00741` |
+| T7.1.2 | US-7.1 | **Transaction engine and tools** — api/Transactions (begin with page/region/base ids/zone, claims, leases, max 5, conflict check against the change log, ordered playback queue, one undo step, abort); MCP tools transaction_begin / transaction_commit / transaction_abort / transaction_list. | `ai: add edit transactions (T7.1.2)` | ✅ done `9b0e66e74` |
+
+### S7.2 — Coordinator and subagents → v1.2.2
+
+**US-7.2** — As the owner, I want the serving session to stay responsive while up to five subagents work in parallel, and to see and stop them.
+
+- [ ] companion subagents: canvas-quick (fast model) and canvas-artist (strong model)
+- [ ] coordinator instructions: delegate in the background, end the turn, small fixes itself, max_parallel from settings
+- [ ] zones follow transactions (begin → thinking, commit → done, refused → failed)
+- [ ] the status strip counts working subagents (hooks)
+- [ ] Stop aborts all open transactions
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T7.2.1 | US-7.2 | **Subagents and coordinator** — Companion .claude/agents/canvas-quick.md and canvas-artist.md; coordinator rules in CLAUDE.md; setting max_parallel (1-5, default 5) in wake-ups. | `ai: coordinate background subagents (T7.2.1)` | 🔨 doing |
+| T7.2.2 | US-7.2 | **Zones and subagent status** — Zones bound to transactions; the coordinator going idle no longer closes them; subagent count from PreToolUse(Agent) / SubagentStop hooks; Stop aborts transactions. | `ai: show parallel work (T7.2.2)` | ⬜ todo |
+
+### S7.3 — Release → v1.3.0
+
+**US-7.3** — As the owner, I want parallel serving tested and documented.
+
+- [ ] tests: parallel transactions, conflicts, claims, leases, undo, stylus playback, Stop
+- [ ] CHANGELOG, tag ai-v1.3.0
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T7.3.1 | US-7.3 | **Release 1.3.0** — Tests, docs, CHANGELOG, tag. | `ai: release 1.3.0 (parallel serving session) (T7.3.1)` | ⬜ todo |
