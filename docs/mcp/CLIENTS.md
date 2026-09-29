@@ -14,10 +14,15 @@ Replace `<token>` below with the value from `mcp.json`. Client configuration for
 snippet is rejected, check that client's MCP documentation. The endpoint, header and stdio command stay the same.
 
 ## Claude Code
+Recommended: the stdio bridge, once, for all projects. It reads the token itself, answers for the app while it isn't
+running (no tools; nothing is launched) and announces the tools as soon as you start xournalai:
 ```sh
-claude mcp add --transport http xournalai http://127.0.0.1:7474/mcp --header "Authorization: Bearer <token>"
-# or, without handling the token yourself:
-claude mcp add xournalai -- xournalpp --mcp-stdio
+claude mcp add -s user xournalai -- /path/to/build/install/bin/xournalpp --mcp-stdio
+```
+HTTP instead (the agent stays connected across app restarts; if the app isn't running when the agent starts,
+reconnect with `/mcp`):
+```sh
+claude mcp add -s user --transport http xournalai http://127.0.0.1:7474/mcp --header "Authorization: Bearer <token>"
 ```
 
 ## Gemini CLI — `~/.gemini/settings.json`

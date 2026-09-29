@@ -6,6 +6,16 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+### 1.1.0 — Always available
+- The stdio bridge follows the app: while xournalai is not running it answers the handshake itself (no tools,
+  nothing launched), polls, and sends `list_changed` notifications when the app starts or quits. Configure an agent
+  once and it works whenever you run xournalai. A tool call while the app is closed starts it.
+- The HTTP server adopts session ids it does not know (app restarted, settings applied) instead of answering 404,
+  so connected agents simply continue.
+- xournalai has its own app id (`io.github.korobool.xournalai`), launcher entry and icon; `tools/register-desktop.sh`.
+- Fixed: a normal quit crashed (see 1.0.1 notes); the AI Agent menu is built before the first request is served.
+- README describes the features.
+
 ### 1.0.1 — Draw into the current layer by default
 - `default_layer` now defaults to `"current"`: agent drawings land in the layer you have selected, so the eraser
   and selection work on them immediately. `"AI"` (a separate layer) stays available in the settings or per call
