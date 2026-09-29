@@ -156,12 +156,12 @@ class App:
         env = dict(os.environ, DISPLAY=display)
         if self._xauthority:
             env["XAUTHORITY"] = self._xauthority
-        subprocess.run(["xdotool", *map(str, a)], env=env, check=True)
+        subprocess.run(["xdotool", *map(str, a)], env=env, check=True, timeout=30)
 
     def user_key(self, *keys, window=None):
         """Presses keys like the user (xdotool key names, e.g. "ctrl+alt+Escape") in the app's main window, or in
         the window whose title is `window`."""
-        match = ["--name", f"^{window}$"] if window else ["--class", "xournalpp"]
+        match = ["--name", f"^{window}$"] if window else ["--class", "xournal"]  # io.github.korobool.xournalai
         self._xdo("search", "--sync", "--limit", "1", "--pid", self.proc.pid, "--onlyvisible", *match,
                   "windowfocus", "--sync", "key", "--clearmodifiers", *keys)
 

@@ -190,11 +190,22 @@ McpHttpServer::SessionState* McpHttpServer::lookupSession(SoupServerMessage* msg
     std::string key = id ? id : DEFAULT_SESSION;
     auto it = sessions.find(key);
     if (it == sessions.end()) {
-        if (id || !createDefault) {
+        if (!createDefault) {
             return nullptr;
         }
+        if (id && (key.empty() || key.size() > 128)) {
+            return nullptr;
+        }
+        // A session id we don't know: the app was restarted (or the server re-applied its settings) while the agent
+        // stayed connected. The caller holds the token, so adopt the id instead of answering 404: many clients do
+        // not re-initialize and would otherwise stay disconnected until the user restarts them.
         auto state = std::make_unique<SessionState>();
         state->session.id = key;
+        if (id) {
+            state->session.initialized = true;
+            state->session.protocolVersion = McpProtocol::supportedProtocolVersions().front();
+            g_message("MCP: resumed session %s after a restart", key.c_str());
+        }
         it = sessions.emplace(key, std::move(state)).first;
     }
     it->second->lastSeen = g_get_monotonic_time();
