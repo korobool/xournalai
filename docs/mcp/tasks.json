@@ -1117,8 +1117,9 @@
               "title": "Thinking overlay",
               "details": "Canvas overlay: a translucent grey veil plus animated outline over the zone, an icon, and a one-line status; follows zoom and scroll; the session sets it via intent_update / a thinking tool, the app sets it for its own intents.",
               "commit": "ai: show thinking zones on the canvas",
-              "status": "doing",
-              "started": "2026-09-29T15:00:47+01:00"
+              "status": "done",
+              "started": "2026-09-29T15:00:47+01:00",
+              "finished": "2026-09-29T15:05:04+01:00"
             },
             {
               "id": "T6.4.2",
@@ -1126,7 +1127,8 @@
               "title": "Status and cancel",
               "details": "The status strip shows the session state, active tasks and the mode; clicking a thinking icon or Stop interrupts the session (Esc into its terminal) and clears the zone.",
               "commit": "ai: show assistant status and allow cancel",
-              "status": "todo"
+              "status": "doing",
+              "started": "2026-09-29T15:05:04+01:00"
             }
           ]
         },

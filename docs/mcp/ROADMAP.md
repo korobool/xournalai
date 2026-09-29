@@ -342,8 +342,8 @@ Your canvas workflow inside xournalai: an embedded terminal running the serving 
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T6.4.1 | US-6.4 | **Thinking overlay** — Canvas overlay: a translucent grey veil plus animated outline over the zone, an icon, and a one-line status; follows zoom and scroll; the session sets it via intent_update / a thinking tool, the app sets it for its own intents. | `ai: show thinking zones on the canvas (T6.4.1)` | 🔨 doing |
-| T6.4.2 | US-6.4 | **Status and cancel** — The status strip shows the session state, active tasks and the mode; clicking a thinking icon or Stop interrupts the session (Esc into its terminal) and clears the zone. | `ai: show assistant status and allow cancel (T6.4.2)` | ⬜ todo |
+| T6.4.1 | US-6.4 | **Thinking overlay** — Canvas overlay: a translucent grey veil plus animated outline over the zone, an icon, and a one-line status; follows zoom and scroll; the session sets it via intent_update / a thinking tool, the app sets it for its own intents. | `ai: show thinking zones on the canvas (T6.4.1)` | ✅ done `50be0137a` |
+| T6.4.2 | US-6.4 | **Status and cancel** — The status strip shows the session state, active tasks and the mode; clicking a thinking icon or Stop interrupts the session (Esc into its terminal) and clears the zone. | `ai: show assistant status and allow cancel (T6.4.2)` | 🔨 doing |
 
 ### S6.5 — Milestone 1 release → v1.2.0
 
