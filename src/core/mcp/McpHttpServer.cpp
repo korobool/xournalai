@@ -57,14 +57,26 @@ bool isLocal(std::string value) {
     return value == "127.0.0.1" || value == "localhost";
 }
 
-/// Pending reply to a POST, kept alive until the protocol answers or the client disconnects
+/// Pending reply to a POST, kept alive until the protocol answers or the client disconnects. The server may be
+/// stopped (settings applied) while a tool is still working: `server` is a weak pointer, null once it is gone.
 struct PendingReply {
-    SoupServer* server;
-    SoupServerMessage* msg;
+    SoupServer* server = nullptr;
+    SoupServerMessage* msg = nullptr;
     bool paused = false;
     bool replied = false;
     bool gone = false;
     gulong finishedHandler = 0;
+
+    explicit PendingReply(SoupServer* s): server(s) {
+        g_object_add_weak_pointer(G_OBJECT(server), reinterpret_cast<gpointer*>(&server));
+    }
+    ~PendingReply() {
+        if (server) {
+            g_object_remove_weak_pointer(G_OBJECT(server), reinterpret_cast<gpointer*>(&server));
+        }
+    }
+    PendingReply(const PendingReply&) = delete;
+    PendingReply& operator=(const PendingReply&) = delete;
 };
 
 }  // namespace
@@ -238,8 +250,7 @@ void McpHttpServer::handlePost(SoupServerMessage* msg) {
         }
     }
 
-    auto pending = std::make_shared<PendingReply>();
-    pending->server = server;
+    auto pending = std::make_shared<PendingReply>(server);
     pending->msg = msg;
     g_object_ref(msg);
     // "finished" fires when the exchange ends, including when the client disconnects early
@@ -256,7 +267,7 @@ void McpHttpServer::handlePost(SoupServerMessage* msg) {
             return;
         }
         pending->replied = true;
-        if (!pending->gone) {
+        if (!pending->gone && pending->server) {  // not if the client left or the server was restarted
             respondJson(pending->msg, 200, response);
             if (pending->paused) {
                 soup_server_unpause_message(pending->server, pending->msg);

@@ -115,3 +115,31 @@ def test_settings_dialog_is_user_only_and_applies(app):
     # The server restarted with the same port and token: a new session works
     c2 = app.client()
     assert c2.call("app_status")["app"] == "xournalai"
+
+
+def test_settings_restart_with_a_call_in_flight(app):
+    import threading
+
+    c = app.client()
+    out = {}
+
+    def waiter():
+        try:
+            out["r"] = app.client().call_raw("wait_for_user", idle_ms=300, timeout_s=4)
+        except Exception as e:  # the connection may be cut by the restart: that is fine
+            out["error"] = str(e)
+
+    th = threading.Thread(target=waiter)
+    th.start()
+    time.sleep(0.5)
+    app.user_key("alt+a")
+    time.sleep(0.4)
+    app.user_key("s")
+    time.sleep(0.8)
+    app.user_key("alt+s", window="AI Agent Settings")  # save unchanged: the server restarts
+    th.join(timeout=15)
+    assert not th.is_alive()
+    time.sleep(4.5)  # the interrupted wait_for_user times out and answers into the closed connection
+    c2 = app.client()
+    assert c2.call("app_status")["app"] == "xournalai"
+    assert c2.call("wait_for_user", idle_ms=100, timeout_s=1)["timed_out"]
