@@ -40,6 +40,10 @@ auto TouchInputHandler::handleImpl(InputEvent const& event) -> bool {
                 // All touches become invalid
                 g_debug("All touches become invalid");
                 xoj::input::touchTrace("three touches: all invalid until they end");
+                if (zooming) {
+                    zoomEnd();
+                }
+                inputContext->getView()->getControl()->getZoomControl()->setPinchActive(false);
                 invalidActive.insert({primarySequence, secondarySequence, event.sequence});
                 primarySequence = secondarySequence = nullptr;
             } else {
@@ -208,6 +212,7 @@ void TouchInputHandler::zoomMotion(InputEvent const& event) {
 
     const auto center = (this->priLastAbs + this->secLastAbs) / 2;
     xoj::input::touchTrace("zoomMotion distance=%.1f factor=%.4f", distance, zoom);
+    zoomControl->setPinchActive(true);  // still pinching (keeps the guard from expiring)
     zoomControl->zoomSequenceChange(zoom, true, center - lastZoomScrollCenter);
     lastZoomScrollCenter = center;
 }

@@ -180,6 +180,8 @@ public:
     void setPinchActive(bool active);
     bool isPinchActive() const;
     static constexpr gint64 PINCH_GRACE_US = 400 * 1000;
+    /// A pinch with no finger movement for this long no longer blocks zoom steps (in case its end was never seen)
+    static constexpr gint64 PINCH_IDLE_US = 3 * 1000 * 1000;
 
     /**
      * Zoom to correct position on zooming.
@@ -240,7 +242,8 @@ private:
     double zoomSequenceStart = -1;
 
     bool pinchActive = false;
-    gint64 pinchEndUs = 0;  ///< when the last pinch ended (monotonic time)
+    gint64 pinchSeenUs = 0;  ///< the last pinch event (monotonic time)
+    gint64 pinchEndUs = 0;   ///< when the last pinch ended (monotonic time)
 
     /// Zoom center position in widget coordinate space, will not be zoomed!
     xoj::util::Point<double> zoomWidgetPos;

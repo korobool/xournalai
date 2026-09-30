@@ -8,6 +8,7 @@
 #include "mcp/ElementJson.h"
 #include "mcp/McpServer.h"
 #include "mcp/Media.h"
+#include "mcp/OffUi.h"  // for runOffUi
 #include "mcp/Schema.h"
 
 #include "EventCommon.h"
@@ -177,31 +178,35 @@ void registerEventTools(McpServer& server) {
                     out["events"] = std::move(list);
                     out["page"] = page + 1;
                     out["current_page"] = api::currentPageIndex(c->ctrl) + 1;
-                    ToolResult result;
                     if (area) {
                         out["area"] = bboxJson(area->x, area->y, area->width, area->height);
-                        if (s.render) {
-                            try {
-                                api::RenderOptions o;
-                                o.page = page;
-                                o.region = xoj::util::Rectangle<double>(area->x - 30, area->y - 30, area->width + 60,
-                                                                        area->height + 60);
-                                o.dpi = 150;
-                                o.maxPixels = 1200;
-                                const auto img = api::renderPage(c->ctrl->getDocument(), o);
-                                out["image_region"] =
-                                        bboxJson(img.region.x, img.region.y, img.region.width, img.region.height);
-                                result = ToolResult::structured(out);
-                                result.addImage(base64Encode(img.png), "image/png");
-                            } catch (const std::exception&) {
-                                result = ToolResult::structured(out);
-                            }
-                        }
                     }
-                    if (result.content().empty()) {
-                        result = ToolResult::structured(out);
+                    if (area && s.render) {
+                        // The picture of what changed is rendered off the UI thread: the user may be writing again
+                        api::RenderOptions o;
+                        o.page = page;
+                        o.region = xoj::util::Rectangle<double>(area->x - 30, area->y - 30, area->width + 60,
+                                                                area->height + 60);
+                        o.dpi = 150;
+                        o.maxPixels = 1200;
+                        runOffUi(
+                                c->ctrl,
+                                [doc = c->ctrl->getDocument(), o, out]() mutable {
+                                    try {
+                                        const auto img = api::renderPage(doc, o);
+                                        out["image_region"] = bboxJson(img.region.x, img.region.y, img.region.width,
+                                                                       img.region.height);
+                                        ToolResult result = ToolResult::structured(out);
+                                        result.addImage(base64Encode(img.png), "image/png");
+                                        return result;
+                                    } catch (const std::exception&) {
+                                        return ToolResult::structured(out);
+                                    }
+                                },
+                                s.respond);
+                    } else {
+                        s.respond(ToolResult::structured(out));
                     }
-                    s.respond(std::move(result));
                     delete c->st;
                     delete c;
                     return G_SOURCE_REMOVE;

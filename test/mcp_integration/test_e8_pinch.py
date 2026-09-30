@@ -60,3 +60,20 @@ def test_3_zoom_keys_work_again_after_the_pinch(app):
     app.user_key("ctrl+KP_Add")
     time.sleep(0.5)
     assert close(zoom(c), z0 * 1.1), (z0, zoom(c))
+
+
+def test_4_a_third_touch_does_not_leave_zoom_keys_blocked(app):
+    # a palm (third touch) mid-pinch makes all touches invalid; the pinch guard must end with them
+    c = app.client()
+    c.call("test_touch", op="begin", finger=0, x=X, y=CY - 100)
+    c.call("test_touch", op="begin", finger=1, x=X, y=CY + 100)
+    c.call("test_touch", op="update", finger=0, x=X, y=CY - 100)
+    c.call("test_touch", op="update", finger=0, x=X, y=CY - 110)
+    c.call("test_touch", op="begin", finger=2, x=X + 200, y=CY)  # the palm
+    for f in (0, 1, 2):
+        c.call("test_touch", op="end", finger=f, x=X, y=CY)
+    time.sleep(0.8)
+    z0 = zoom(c)
+    app.user_key("ctrl+KP_Add")
+    time.sleep(0.5)
+    assert close(zoom(c), z0 * 1.1), (z0, zoom(c))

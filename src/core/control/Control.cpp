@@ -1070,6 +1070,7 @@ void Control::setViewPresentationMode(bool enabled) {
     this->actionDB->enableAction(Action::ZOOM_FIT, !enabled);
     this->actionDB->enableAction(Action::ZOOM_100, !enabled);
     this->actionDB->enableAction(Action::ZOOM, !enabled);
+    this->actionDB->enableAction(Action::ZOOM_DEEP, !enabled);
 
     // TODO Figure out how to replace this
     // fireEnableAction(ACTION_FOOTER_ZOOM_SLIDER, !enabled);

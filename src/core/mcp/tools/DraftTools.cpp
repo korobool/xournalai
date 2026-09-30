@@ -8,6 +8,7 @@
 #include "api/RenderApi.h"    // for renderPage
 #include "control/Control.h"  // for Control
 #include "mcp/McpServer.h"
+#include "mcp/OffUi.h"  // for runOffUi
 #include "mcp/Schema.h"
 #include "model/Document.h"  // for Document
 #include "model/Layer.h"     // for Layer
@@ -104,9 +105,15 @@ void registerDraftTools(McpServer& server) {
             }
             layers.push_back(draftIndex);
             o.layers = layers;
-            const auto img = api::renderPage(ctrl->getDocument(), o);
-            respond(renderResult(srv->getConfig().exportDir, img, pageIndex, args.boolean("save", false),
-                                 "draft-" + id));
+            // Off the UI thread (a subagent checks its draft while the user keeps drawing)
+            runOffUi(
+                    ctrl,
+                    [doc = ctrl->getDocument(), exportDir = srv->getConfig().exportDir, o, pageIndex,
+                     save = args.boolean("save", false), id]() {
+                        const auto img = api::renderPage(doc, o);
+                        return renderResult(exportDir, img, pageIndex, save, "draft-" + id);
+                    },
+                    std::move(respond));
             return;
         }
         if (op == "discard") {

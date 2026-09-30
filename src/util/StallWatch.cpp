@@ -48,7 +48,13 @@ void watch() {
     std::vector<std::string> seen;
     std::vector<std::string> seenBackground;
     while (running) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        // Not stalled: sleep until a stall could have started (few wake-ups: this runs all the time, on laptops);
+        // stalled: look often, to see what the UI thread is doing
+        int64_t sleepUs = 10 * 1000;
+        if (stallSince == 0) {
+            sleepUs = std::max<int64_t>(sleepUs, lastBeat + THRESHOLD_US + BEAT_US - g_get_monotonic_time() + 1000);
+        }
+        std::this_thread::sleep_for(std::chrono::microseconds(sleepUs));
         const int64_t beat = lastBeat;
         const int64_t now = g_get_monotonic_time();
         if (stallSince == 0) {

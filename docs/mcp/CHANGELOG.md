@@ -6,6 +6,15 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+## 1.5.2 — Review fixes
+- **Zoom keys no longer stay blocked after a palm touch:** the pinch guard (1.3.1) could stay on after a third touch
+  or a lost touch end, ignoring zoom keys, Ctrl+wheel, the slider and agents' zoom. It now ends with the touches,
+  and expires after 3 s without pinch movement.
+- **The UI stall watchdog wakes up rarely:** it slept only 5 ms at a time, about 200 wake-ups per second on a
+  laptop. It now sleeps until a stall could have started.
+- **`wait_for_user` and `draft(op="render")` render off the UI thread**, like the other reading tools.
+- The deep zoom toggle is disabled in presentation mode, like the other zoom controls.
+
 ## 1.5.1 — Fixes
 - **"PDF background missing" on every page (1.5.0 regression):** the copy of a page used for rendering became a PDF
   page. Its background is now copied as it is; `test_e9_backgrounds.py` and `PageSnapshotTest` check it.

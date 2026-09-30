@@ -61,6 +61,7 @@ auto onTouchpadPinchEvent(GtkWidget* widget, GdkEventTouchpadPinch* event, ZoomC
             }
             case GDK_TOUCHPAD_GESTURE_PHASE_UPDATE:
                 xoj::input::touchTrace("touchpadPinch scale=%.4f", event->scale);
+                zoom->setPinchActive(true);
                 zoom->zoomSequenceChange(event->scale, true);
                 break;
             case GDK_TOUCHPAD_GESTURE_PHASE_END:
@@ -200,15 +201,21 @@ void ZoomControl::cancelZoomSequence() {
 auto ZoomControl::isZoomSequenceActive() const -> bool { return zoomSequenceStart != -1; }
 
 void ZoomControl::setPinchActive(bool active) {
-    if (pinchActive && !active) {
-        pinchEndUs = g_get_monotonic_time();
+    const gint64 now = g_get_monotonic_time();
+    if (active) {
+        pinchSeenUs = now;
+    } else if (pinchActive) {
+        pinchEndUs = now;
+    }
+    if (pinchActive != active) {
+        xoj::input::touchTrace("pinch %s", active ? "on" : "off");
     }
     pinchActive = active;
-    xoj::input::touchTrace("pinch %s", active ? "on" : "off");
 }
 
 auto ZoomControl::isPinchActive() const -> bool {
-    return pinchActive || (pinchEndUs > 0 && g_get_monotonic_time() - pinchEndUs < PINCH_GRACE_US);
+    const gint64 now = g_get_monotonic_time();
+    return (pinchActive && now - pinchSeenUs < PINCH_IDLE_US) || (pinchEndUs > 0 && now - pinchEndUs < PINCH_GRACE_US);
 }
 
 auto ZoomControl::getVisibleRect() -> Rectangle<double> { return view->getLayout()->getVisibleRect(); }
