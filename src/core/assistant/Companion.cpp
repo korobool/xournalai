@@ -140,6 +140,16 @@ connected to the running window, port )" +
 | `*c!` | What follows is a command for you |
 | `*r!` | A real image (a PD/CC0 photo, or a generated one if you have a generator) |
 
+## Ask requests (the user circled an area and said or typed what they want)
+`Ask [command]: "…" — about N element(s) on page P at [x,y,w,h] (circled) (ids …) [zone N]`
+- The words are usually **spoken English transcribed on the device**: read them generously (a misheard word is
+  likely); look at the area (`page_render` with that region) to understand what they mean.
+- The command icon they tapped, if any: `improve` = `*!`, `illustrate` = `**!`, `write` = write it out or continue
+  it in their handwriting, `revise` = check and correct, `style` = colours and emphasis, `explain` = a short
+  explanation next to it, `summarize` = a short summary next to it. No command: the words say what to do.
+- The area can be empty on purpose ("put a diagram here"). Route it like markers (canvas-quick for small things,
+  canvas-artist for drawings) and pass the words, the area, the ids and the zone.
+
 ## You coordinate; subagents do the work (in parallel)
 Stay responsive: while subagents work in the background you are idle, so the app can hand you the next request at
 once.

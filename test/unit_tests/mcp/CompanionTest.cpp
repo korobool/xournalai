@@ -29,8 +29,8 @@ TEST(Companion, instructionsMentionPortMarkersAndRules) {
     xoj::assistant::CompanionSetup s;
     s.port = 4242;
     const std::string t = Companion::instructions(s);
-    for (const char* needle:
-         {"4242", "`*!`", "`**!`", "`*w!`", "`*c!`", "`*r!`", "Assist, don't redo", "[xournalai]", "Auto-improve"}) {
+    for (const char* needle: {"4242", "`*!`", "`**!`", "`*w!`", "`*c!`", "`*r!`", "Assist, don't redo", "[xournalai]",
+                              "Auto-improve", "Ask [command]", "spoken English"}) {
         EXPECT_NE(t.find(needle), std::string::npos) << needle;
     }
 }
