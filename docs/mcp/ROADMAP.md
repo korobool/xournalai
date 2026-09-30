@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.6.3**
+Current version: **1.7.0**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -535,6 +535,6 @@ When a Xournal++ audio recording ends, the serving session hears about it (file,
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T11.1.1 | US-11.1 | **Recording notification and stroke audio times** — Recording observer in AudioController::stopRecording; EventHub audio_recorded; EventPump line; ElementJson audio {file, t}; test hook. | `ai: tell the serving session about recordings (T11.1.1)` | ⬜ todo |
-| T11.1.2 | US-11.1 | **audio_transcribe (local fallback)** — xournalai-stt reads any libsndfile format, long files, timestamped segments; a separate helper process per file. | `ai: audio_transcribe (local fallback) (T11.1.2)` | ⬜ todo |
-| T11.1.3 | US-11.1 | **Release 1.7.0** — Companion instructions, tests, docs, CHANGELOG, tag. | `ai: release 1.7.0 (recordings for the AI) (T11.1.3)` | ⬜ todo |
+| T11.1.1 | US-11.1 | **Recording notification and stroke audio times** — Recording observer in AudioController::stopRecording; EventHub audio_recorded; EventPump line; ElementJson audio {file, t}; test hook. | `ai: tell the serving session about recordings (T11.1.1)` | ✅ done `e569140c0` |
+| T11.1.2 | US-11.1 | **audio_transcribe (local fallback)** — xournalai-stt reads any libsndfile format, long files, timestamped segments; a separate helper process per file. | `ai: audio_transcribe (local fallback) (T11.1.2)` | ✅ done `148855bce` |
+| T11.1.3 | US-11.1 | **Release 1.7.0** — Companion instructions, tests, docs, CHANGELOG, tag. | `ai: release 1.7.0 (recordings for the AI) (T11.1.3)` | ✅ done |

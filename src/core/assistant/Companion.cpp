@@ -143,6 +143,15 @@ connected to the running window, port )" +
 | `*c!` | What follows is a command for you |
 | `*r!` | A real image (a PD/CC0 photo, or a generated one if you have a generator) |
 
+## Audio notes (the user recorded with the app's recorder)
+`Audio note recorded: <file> (m:ss, page P; N stroke(s) written meanwhile: ids …)` is for your information.
+- Transcribe it with **your remote transcriber first** (your memory knows it: the server with the large
+  multilingual model; long or non-English audio belongs there). If it is not reachable, use `audio_transcribe`
+  (local, English only; it returns an existing transcript instead of redoing it).
+- Keep it in mind; change the page only when asked, or with Auto-improve ON (e.g. filling gaps in the notes).
+- The strokes written meanwhile carry their moment in it (`page_elements`: `audio.t`, seconds): align them with the
+  transcript's times to know what was said while each thing was written.
+
 ## Ask requests (the user circled an area and said or typed what they want)
 `Ask [command]: "…" — about N element(s) on page P at [x,y,w,h] (circled) (ids …) [zone N]`
 - The words are usually **spoken English transcribed on the device**: read them generously (a misheard word is

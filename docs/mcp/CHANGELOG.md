@@ -6,6 +6,19 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+## 1.7.0 — Recordings for the AI (epoch E11)
+- **The serving session hears about your recordings.** When the Xournal++ recorder stops, it gets a
+  for-your-information line, and agents an `audio_recorded` event: the file, its length, the page, and the strokes
+  written meanwhile. It transcribes the recording with your remote transcriber (its memory knows the server:
+  faster-whisper large-v3, multilingual), falling back to the local one, and changes the page only when asked or
+  with Auto-improve. Setting: `assistant.share_recordings` (on).
+- **Ink and speech line up.** Strokes and texts written during a recording show their moment in it in
+  `page_elements` (`audio: {file, t}`), so a transcript's times match what was written when.
+- **`audio_transcribe`,** the local fallback: whisper.cpp, English only, with timestamped segments. It reads the
+  recorder's Ogg files, runs in its own process (Ask keeps working), and keeps `<name>.local.txt` / `.local.json`
+  in the recordings' `transcripts/` folder. An existing transcript is returned instead of redone, the remote
+  `<name>.txt` first.
+
 ## 1.6.3 — Reliable speech
 - **"Nothing heard" while the level bars moved:** the speech check wanted sound three times louder than the
   quietest part of the clip, and at least 0.012 RMS. Speaking from start to end made even the quietest part voice,
