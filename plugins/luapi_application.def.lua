@@ -1198,6 +1198,7 @@ function app.setFont(font) end
 ---| "zoom-100"
 ---| "zoom-fit"
 ---| "zoom"
+---| "zoom-deep"
 ---| "goto-first"
 ---| "goto-previous"
 ---| "goto-page"

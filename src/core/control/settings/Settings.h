@@ -154,6 +154,10 @@ public:
     bool isZoomGesturesEnabled() const;
     void setZoomGesturesEnabled(bool enable);
 
+    /// Deep zoom: zoom up to 3000% instead of 700%
+    bool isDeepZoom() const;
+    void setDeepZoom(bool on);
+
     /**
      * The last used font
      */
@@ -651,6 +655,7 @@ private:
      * If the touch zoom gestures are enabled
      */
     bool zoomGesturesEnabled{};
+    bool deepZoom{};
 
     /**
      *  If fullscreen is active

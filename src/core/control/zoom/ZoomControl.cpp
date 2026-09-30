@@ -255,6 +255,7 @@ void ZoomControl::initZoomHandler(GtkWidget* window, GtkWidget* widget, XournalV
                      this);
 
     registerListener(this->control);
+    setDeepZoom(c->getSettings()->isDeepZoom());
 
     if (xoj::input::touchTraceOn()) {
         for (auto* adj: {v->getScrollHandling()->getHorizontal(), v->getScrollHandling()->getVertical()}) {
@@ -294,6 +295,24 @@ void ZoomControl::setZoom(double zoomI) {
     fireZoomChanged();
     xoj::input::touchTrace("setZoom %.4f took=%lldus", zoomI, static_cast<long long>(g_get_monotonic_time() - t0));
 }
+
+void ZoomControl::setDeepZoom(bool on) {
+    const double max = (on ? DEEP_ZOOM_MAX : DEFAULT_ZOOM_MAX) * this->zoom100Value;
+    if (max == this->zoomMax) {
+        return;
+    }
+    this->zoomMax = max;
+    if (this->view && this->zoom > this->zoomMax) {
+        startZoomSequence();
+        zoomSequenceChange(this->zoomMax, false);
+        endZoomSequence();
+    }
+    fireZoomRangeValueChanged();
+}
+
+auto ZoomControl::getZoomMinReal() const -> double { return this->zoomMin / this->zoom100Value; }
+
+auto ZoomControl::getZoomMaxReal() const -> double { return this->zoomMax / this->zoom100Value; }
 
 void ZoomControl::setZoom100Value(double zoom100Val) {
     auto setWithRelZoom = [zoomOld = this->zoom100Value, zoom100Val](double& val) { val = val / zoomOld * zoom100Val; };

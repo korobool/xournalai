@@ -16,6 +16,7 @@
 #include "util/Interval.h"                // for Interval
 #include "util/Rectangle.h"               // for Rectangle
 #include "util/Util.h"                    // for cairo_set_dash_from_vector
+#include "view/RenderBudget.h"            // for clippedToTarget
 
 #include "Mask.h"          // for Mask
 #include "StrokeView.h"    // for StrokeView, StrokeView::CAI...
@@ -97,7 +98,9 @@ void ErasableStrokeView::draw(cairo_t* cr) const {
                 cairo_line_to(cr, it->x, it->y);
             }
             endIt = std::next(data.cbegin(), (std::ptrdiff_t)first.max.index + 1);
-            for (auto it = data.cbegin(); it != endIt; ++it) { cairo_line_to(cr, it->x, it->y); }
+            for (auto it = data.cbegin(); it != endIt; ++it) {
+                cairo_line_to(cr, it->x, it->y);
+            }
 
             Point q = stroke.getPoint(first.max);
             cairo_line_to(cr, q.x, q.y);
@@ -170,7 +173,9 @@ void ErasableStrokeView::drawFilling(cairo_t* cr) const {
             cairo_line_to(cr, it->x, it->y);
         }
         endIt = std::next(data.cbegin(), (std::ptrdiff_t)first.max.index + 1);
-        for (auto it = data.cbegin(); it != endIt; ++it) { cairo_line_to(cr, it->x, it->y); }
+        for (auto it = data.cbegin(); it != endIt; ++it) {
+            cairo_line_to(cr, it->x, it->y);
+        }
 
         Point q = stroke.getPoint(first.max);
         cairo_line_to(cr, q.x, q.y);
@@ -256,7 +261,9 @@ void ErasableStrokeView::paintFilledHighlighter(cairo_t* cr) const {
             cairo_line_to(crMask, it->x, it->y);
         }
         endIt = std::next(data.cbegin(), (std::ptrdiff_t)first.max.index + 1);
-        for (auto it = data.cbegin(); it != endIt; ++it) { cairo_line_to(crMask, it->x, it->y); }
+        for (auto it = data.cbegin(); it != endIt; ++it) {
+            cairo_line_to(crMask, it->x, it->y);
+        }
 
         Point q = stroke.getPoint(first.max);
         cairo_line_to(crMask, q.x, q.y);
@@ -297,7 +304,7 @@ void ErasableStrokeView::paintFilledHighlighter(cairo_t* cr) const {
 }
 
 auto ErasableStrokeView::createMask(cairo_t* target, const Range& box, double zoom) const -> Mask {
-    Mask mask(cairo_get_target(target), box, zoom);
+    Mask mask(cairo_get_target(target), clippedToTarget(target, box, zoom), zoom);
 
     cairo_t* crMask = mask.get();
     cairo_set_line_join(crMask, CAIRO_LINE_JOIN_ROUND);

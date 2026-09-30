@@ -23,6 +23,7 @@
 #include "util/safe_casts.h"            // for strict_cast, as_signed, as_si...
 #include "view/DocumentView.h"          // for DocumentView
 #include "view/Mask.h"                  // for Mask
+#include "view/RenderBudget.h"          // for fitsInOneBuffer, partialExtent
 
 #if defined(__has_cpp_attribute) && __has_cpp_attribute(likely)
 #define XOJ_CPP20_UNLIKELY [[unlikely]]
@@ -47,6 +48,16 @@ void RenderJob::rerenderRectangle(Rectangle<double> const& rect) {
 
     Range maskRange(rect);
     maskRange.addPadding(RENDER_PADDING);
+    {
+        std::lock_guard lock(this->view->drawingMutex);
+        if (view->bufferExtent) {
+            // Deep zoom: only the rendered part of the page is kept
+            maskRange = maskRange.intersect(*view->bufferExtent);
+            if (!maskRange.isValid() || maskRange.empty()) {
+                return;
+            }
+        }
+    }
     xoj::view::Mask newMask(view->xournal->getDpiScaleFactor(), maskRange, view->xournal->getZoom(),
                             CAIRO_CONTENT_COLOR_ALPHA);
 
@@ -71,14 +82,26 @@ void RenderJob::run() {
     this->view->repaintRectMutex.unlock();
 
     if (rerenderComplete) {
-        xoj::view::Mask newMask(view->xournal->getDpiScaleFactor(),
-                                Range(0, 0, view->page->getWidth(), view->page->getHeight()), view->xournal->getZoom(),
-                                CAIRO_CONTENT_COLOR_ALPHA);
+        const int dpi = view->xournal->getDpiScaleFactor();
+        const double zoom = view->xournal->getZoom();
+        const Range page(0, 0, view->page->getWidth(), view->page->getHeight());
+        std::optional<Range> extent;  // nullopt: the whole page
+        if (!xoj::view::fitsInOneBuffer(page, zoom * dpi)) {
+            // Deep zoom: render the visible part (and a margin) only
+            Range visible;
+            {
+                std::lock_guard lock(this->view->repaintRectMutex);
+                visible = this->view->visibleRange;
+            }
+            extent = xoj::view::partialExtent(page, visible, zoom * dpi);
+        }
+        xoj::view::Mask newMask(dpi, extent ? *extent : page, zoom, CAIRO_CONTENT_COLOR_ALPHA);
 
         renderToBuffer(newMask.get());
         {
             std::lock_guard lock(this->view->drawingMutex);
             std::swap(this->view->buffer, newMask);
+            this->view->bufferExtent = extent;
         }
         if (sizeChanged) {
             // We do not have any control on what portion of the widget needs to be redrawn. Redraw it all.

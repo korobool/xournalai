@@ -46,6 +46,7 @@ constexpr const char* ACTION_NAMES[] = {  // Action to string conversion map
         "zoom-100",
         "zoom-fit",
         "zoom",
+        "zoom-deep",
         "goto-first",
         "goto-previous",
         "goto-page",

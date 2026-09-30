@@ -5,12 +5,13 @@
 
 #include <glib.h>  // for g_warning
 
-#include "model/Stroke.h"    // for Stroke, StrokeTool::HIGHLIGHTER
-#include "util/Assert.h"     // for xoj_assert
-#include "util/Color.h"      // for cairo_set_source_rgbi
-#include "util/Rectangle.h"  // for Rectangle
-#include "view/Mask.h"       // for Mask
-#include "view/View.h"       // for Context, OPACITY_NO_AUDIO, view
+#include "model/Stroke.h"       // for Stroke, StrokeTool::HIGHLIGHTER
+#include "util/Assert.h"        // for xoj_assert
+#include "util/Color.h"         // for cairo_set_source_rgbi
+#include "util/Rectangle.h"     // for Rectangle
+#include "view/Mask.h"          // for Mask
+#include "view/RenderBudget.h"  // for clippedToTarget
+#include "view/View.h"          // for Context, OPACITY_NO_AUDIO, view
 
 #include "ErasableStrokeView.h"  // for ErasableStrokeView
 #include "StrokeViewHelper.h"
@@ -72,7 +73,7 @@ void StrokeView::draw(const Context& ctx) const {
         /**
          * Create a mask tailored to the stroke's bounding box
          */
-        mask = Mask(cairo_get_target(ctx.cr), Range(s->getBoundingBox()), zoom);
+        mask = Mask(cairo_get_target(ctx.cr), clippedToTarget(ctx.cr, Range(s->getBoundingBox()), zoom), zoom);
         cr = mask.get();
     }
 

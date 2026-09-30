@@ -59,6 +59,7 @@ void Settings::loadDefault() {
     this->pressureMultiplier = 1.0;
     this->pressureGuessing = false;
     this->zoomGesturesEnabled = true;
+    this->deepZoom = false;
 
     this->maximized = false;
     this->showPairedPages = false;
@@ -415,6 +416,8 @@ void Settings::parseItem(xmlDocPtr doc, xmlNodePtr cur) {
         this->pressureMultiplier = g_ascii_strtod(reinterpret_cast<const char*>(value), nullptr);
     } else if (xmlStrcmp(name, reinterpret_cast<const xmlChar*>("zoomGesturesEnabled")) == 0) {
         this->zoomGesturesEnabled = xmlStrcmp(value, reinterpret_cast<const xmlChar*>("true")) == 0;
+    } else if (xmlStrcmp(name, reinterpret_cast<const xmlChar*>("deepZoom")) == 0) {
+        this->deepZoom = xmlStrcmp(value, reinterpret_cast<const xmlChar*>("true")) == 0;
     } else if (xmlStrcmp(name, reinterpret_cast<const xmlChar*>("selectedToolbar")) == 0) {
         this->selectedToolbar = reinterpret_cast<const char*>(value);
     } else if (xmlStrcmp(name, reinterpret_cast<const xmlChar*>("lastSavePath")) == 0) {
@@ -1017,6 +1020,7 @@ void Settings::save() {
     SAVE_DOUBLE_PROP(pressureMultiplier);
 
     SAVE_BOOL_PROP(zoomGesturesEnabled);
+    SAVE_BOOL_PROP(deepZoom);
 
     SAVE_STRING_PROP(selectedToolbar);
 
@@ -1328,6 +1332,16 @@ void Settings::setZoomGesturesEnabled(bool enable) {
         return;
     }
     this->zoomGesturesEnabled = enable;
+    save();
+}
+
+auto Settings::isDeepZoom() const -> bool { return this->deepZoom; }
+
+void Settings::setDeepZoom(bool on) {
+    if (this->deepZoom == on) {
+        return;
+    }
+    this->deepZoom = on;
     save();
 }
 

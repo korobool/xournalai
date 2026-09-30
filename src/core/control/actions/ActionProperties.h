@@ -453,7 +453,7 @@ struct ActionProperties<Action::ZOOM> {
     static void callback(GSimpleAction* ga, GVariant* p, Control* ctrl) {
         g_simple_action_set_state(ga, p);
         double scale = g_variant_get_double(p);
-        xoj_assert(scale >= DEFAULT_ZOOM_MIN && scale <= DEFAULT_ZOOM_MAX);
+        xoj_assert(scale >= DEFAULT_ZOOM_MIN && scale <= DEEP_ZOOM_MAX);
         Util::execInUiThread([scale, zoomctrl = ctrl->getZoomControl()]() {
             if (zoomctrl->isPinchActive()) {
                 return;  // the user's pinch owns the zoom
@@ -464,6 +464,18 @@ struct ActionProperties<Action::ZOOM> {
             zoomctrl->zoomSequenceChange(newZoom, false);
             zoomctrl->endZoomSequence();
         });
+    }
+};
+
+template <>
+struct ActionProperties<Action::ZOOM_DEEP> {
+    using state_type = bool;
+    static state_type initialState(Control* ctrl) { return ctrl->getSettings()->isDeepZoom(); }
+    static void callback(GSimpleAction* ga, GVariant* p, Control* ctrl) {
+        g_simple_action_set_state(ga, p);
+        const bool on = g_variant_get_boolean(p);
+        ctrl->getSettings()->setDeepZoom(on);
+        ctrl->getZoomControl()->setDeepZoom(on);  // now: a zoom requested right after must see the new range
     }
 };
 

@@ -76,7 +76,8 @@ enum class Action : size_t {
     ZOOM_OUT,
     ZOOM_100,
     ZOOM_FIT,
-    ZOOM,  ///< Action whose state is the current zoom value
+    ZOOM,       ///< Action whose state is the current zoom value
+    ZOOM_DEEP,  ///< Toggle: raises the maximum zoom from 700% to 3000%
 
     // Menu navigation
     GOTO_FIRST,

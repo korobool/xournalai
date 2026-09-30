@@ -44,6 +44,13 @@ auto ToolZoomSlider::createItem(bool horizontal) -> xoj::util::WidgetSPtr {
         ~Listener() override { zoomCtrl->removeZoomListener(this); }
         void zoomChanged() override {}  // No need to do anything here. Handled by the GAction
         void zoomRangeValuesChanged() override {
+            // The range follows the maximum (deep zoom on/off); resizing it must not change the zoom
+            auto* cb = reinterpret_cast<gpointer>(SliderItemCreationHelper<ToolZoomSlider>::valueChangedCb);
+            g_signal_handlers_block_matched(slider, G_SIGNAL_MATCH_FUNC, 0, 0, nullptr, cb, nullptr);
+            gtk_range_set_range(GTK_RANGE(slider), scaleFunction(zoomCtrl->getZoomMinReal()),
+                                scaleFunction(zoomCtrl->getZoomMaxReal()));
+            gtk_range_set_value(GTK_RANGE(slider), scaleFunction(zoomCtrl->getZoomReal()));
+            g_signal_handlers_unblock_matched(slider, G_SIGNAL_MATCH_FUNC, 0, 0, nullptr, cb, nullptr);
             gtk_scale_clear_marks(slider);
             auto position = gtk_orientable_get_orientation(GTK_ORIENTABLE(slider)) == GTK_ORIENTATION_HORIZONTAL ?
                                     GTK_POS_BOTTOM :

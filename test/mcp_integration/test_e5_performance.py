@@ -39,7 +39,8 @@ def test_backups_do_not_block(app):
     c.call("page_manage", op="insert", page=2)
     t0 = time.time()
     r = c.call("page_manage", op="delete", page=1)  # 1M points: the safety copy is written in the background
-    assert time.time() - t0 < 1.5
+    took = time.time() - t0
+    assert took < 1.5, f"{took:.2f}s"
     assert xoai.wait_for_file(r["backup"], timeout=30)
     c.call("undo")
 

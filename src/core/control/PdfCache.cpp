@@ -16,6 +16,7 @@
 #include "util/i18n.h"                  // for _
 #include "util/safe_casts.h"            // for as_unsigned
 #include "view/Mask.h"                  // for Mask
+#include "view/RenderBudget.h"          // for fitsInOneBuffer
 
 class PdfCacheEntry {
 public:
@@ -112,6 +113,21 @@ auto PdfCache::cache(XojPdfPageSPtr popplerPage, xoj::view::Mask&& buffer) -> co
 
 void PdfCache::render(cairo_t* cr, size_t pdfPageNo, double zoom, double pageWidth, double pageHeight) {
     std::lock_guard<std::mutex> lock(this->renderMutex);
+
+    {
+        double sx = 1, sy = 1;
+        cairo_surface_get_device_scale(cairo_get_target(cr), &sx, &sy);
+        if (!xoj::view::fitsInOneBuffer(Range(0, 0, pageWidth, pageHeight), std::max(zoom, 1.0) * std::max(sx, sy))) {
+            // Deep zoom: a whole-page cache would be huge; render straight into the target (which holds only the
+            // visible part of the page)
+            if (auto popplerPage = pdfDocument.getPage(pdfPageNo)) {
+                popplerPage->render(cr);
+            } else {
+                renderMissingPdfPage(cr, pageWidth, pageHeight);
+            }
+            return;
+        }
+    }
 
     const PdfCacheEntry* cacheResult = lookup(pdfPageNo);
 

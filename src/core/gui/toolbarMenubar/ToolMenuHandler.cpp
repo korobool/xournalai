@@ -328,6 +328,8 @@ void ToolMenuHandler::initToolItems() {
     emplaceStockItem("ZOOM_IN", Cat::NAVIGATION, Action::ZOOM_IN, "zoom-in", _("Zoom in"));
     emplaceStockItemTgl("ZOOM_FIT", Cat::NAVIGATION, Action::ZOOM_FIT, "zoom-fit-best", _("Zoom fit to screen"));
     emplaceStockItem("ZOOM_100", Cat::NAVIGATION, Action::ZOOM_100, "zoom-original", _("Zoom to 100%"));
+    emplaceCustomItemTgl("ZOOM_DEEP", Cat::NAVIGATION, Action::ZOOM_DEEP, "zoom-deep",
+                         _("Deep zoom: zoom up to 3000% (instead of 700%)"));
 
     /*
      * Menu Navigation

@@ -239,7 +239,7 @@ void registerControlTools(McpServer& server) {
               schema::withDefault(schema::enumeration("Operation", {"get", "zoom", "zoom_fit", "zoom_100", "scroll",
                                                                     "fullscreen", "presentation", "sidebar"}),
                                   "get")},
-             {"factor", schema::number("zoom: 1 = 100%")},
+             {"factor", schema::number("zoom: 1 = 100%; 0.3 to 7 (to 30 with deep zoom on, the zoom-deep action)")},
              {"page", schema::integer("scroll: page (1-based)")},
              {"region", schema::array("scroll: area to show [x, y, width, height]", schema::number("coordinate"))},
              {"on", schema::boolean("fullscreen/presentation/sidebar: on or off")}});
@@ -253,8 +253,8 @@ void registerControlTools(McpServer& server) {
                 "op", {"get", "zoom", "zoom_fit", "zoom_100", "scroll", "fullscreen", "presentation", "sidebar"},
                 "get");
         if (op == "zoom") {
-            g_action_group_change_action_state(win(ctrl), "zoom",
-                                               g_variant_new_double(args.number("factor", 1, 0.1, 10)));
+            g_action_group_change_action_state(
+                    win(ctrl), "zoom", g_variant_new_double(args.number("factor", 1, DEFAULT_ZOOM_MIN, DEEP_ZOOM_MAX)));
         } else if (op == "zoom_fit") {
             g_action_group_activate_action(win(ctrl), "zoom-fit", nullptr);
         } else if (op == "zoom_100") {

@@ -11,11 +11,12 @@
 
 #pragma once
 
-#include <cstddef>  // for size_t
-#include <memory>   // for unique_ptr, shared_ptr
-#include <mutex>    // for mutex
-#include <string>   // for string
-#include <vector>   // for vector
+#include <cstddef>   // for size_t
+#include <memory>    // for unique_ptr, shared_ptr
+#include <mutex>     // for mutex
+#include <optional>  // for optional
+#include <string>    // for string
+#include <vector>    // for vector
 
 #include <cairo.h>    // for cairo_t
 #include <gdk/gdk.h>  // for GdkEventKey, GdkRGBA, GdkRectangle
@@ -25,6 +26,7 @@
 #include "gui/inputdevices/InputEvents.h"
 #include "model/PageListener.h"       // for PageListener
 #include "model/PageRef.h"            // for PageRef
+#include "util/Range.h"               // for Range
 #include "util/Rectangle.h"           // for Rectangle
 #include "util/raii/CairoWrappers.h"  // for CairoSurfaceSPtr
 #include "view/Mask.h"                // for Mask
@@ -265,6 +267,9 @@ private:
     bool selected = false;
 
     xoj::view::Mask buffer;
+    /// The part of the page in `buffer` when it holds only part of it (deep zoom); nullopt: the whole page.
+    /// Guarded by drawingMutex
+    std::optional<Range> bufferExtent;
     std::mutex drawingMutex;
 
     bool inEraser = false;
@@ -284,6 +289,7 @@ private:
 
     std::mutex repaintRectMutex;
     std::vector<xoj::util::Rectangle<double>> rerenderRects;
+    Range visibleRange;  ///< the part of the page last seen on screen (page units); guarded by repaintRectMutex
     bool rerenderComplete = false;
     bool sizeChanged = false;
 

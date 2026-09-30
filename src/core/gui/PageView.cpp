@@ -1099,6 +1099,19 @@ auto XojPageView::paintPage(cairo_t* cr, GdkRectangle* rect) -> bool {
     xoj::util::CairoSaveGuard saveGuard(cr);
     cairo_scale(cr, zoom, zoom);
 
+    // The part of the page on screen: at deep zoom only (about) that is rendered
+    const Range pageRange(0, 0, page->getWidth(), page->getHeight());
+    Range visible;
+    {
+        const auto vis = xournal->getLayout()->getVisibleRect();
+        const auto p = getPixelPosition();
+        visible = Range((vis.x - p.x) / zoom, (vis.y - p.y) / zoom, (vis.x + vis.width - p.x) / zoom,
+                        (vis.y + vis.height - p.y) / zoom)
+                          .intersect(pageRange);
+        std::lock_guard lock(this->repaintRectMutex);
+        this->visibleRange = visible;
+    }
+
     {
         std::lock_guard lock(this->drawingMutex);  // Lock the mutex first
         xoj::util::CairoSaveGuard saveGuard(cr);   // see comment at the end of the scope
@@ -1110,6 +1123,17 @@ auto XojPageView::paintPage(cairo_t* cr, GdkRectangle* rect) -> bool {
         if (this->buffer.getZoom() != zoom) {
             rerenderPage();
             cairo_pattern_set_filter(cairo_get_source(cr), CAIRO_FILTER_FAST);
+        } else if (this->bufferExtent && visible.isValid() && !visible.empty() &&
+                   (visible.minX < bufferExtent->minX || visible.minY < bufferExtent->minY ||
+                    visible.maxX > bufferExtent->maxX || visible.maxY > bufferExtent->maxY)) {
+            rerenderPage();  // scrolled beyond the rendered part
+        }
+        if (this->bufferExtent) {
+            // Paper white where the partial buffer does not reach (until it is rendered)
+            xoj::util::CairoSaveGuard g(cr);
+            cairo_set_source_rgb(cr, 1, 1, 1);
+            cairo_rectangle(cr, 0, 0, page->getWidth(), page->getHeight());
+            cairo_fill(cr);
         }
         this->buffer.paintTo(cr);
     }  // Restore the state of cr and then release the mutex

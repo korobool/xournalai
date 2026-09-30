@@ -6,6 +6,15 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+## 1.4.0 — Deep zoom (epoch E8)
+- **Deep zoom toggle** on the toolbar, next to Zoom in (magnifier icon; the `ZOOM_DEEP` toolbar item, action
+  `zoom-deep`): raises the maximum zoom from 700% to 3000%, remembered in the settings. Turning it off brings a deeper
+  zoom back to 700%. The zoom slider, the zoom action and the MCP `view` tool follow the current range.
+- **Rendering only what is visible** when a whole page no longer fits one buffer (about 32 megapixels): the visible
+  part plus a margin is rendered, and scrolling beyond it renders the new part. PDF backgrounds render straight into
+  that part instead of a whole-page cache. Memory stays flat at any zoom (about 140 MB at 3000% in the tests,
+  where a whole A4 page would need gigabytes).
+
 ## 1.3.1 — Pinch owns the zoom (epoch E8)
 - **Touchscreen pinch zoom follows the fingers 1:1.** Gesture daemons such as Touchégg (default config on
   Pop!_OS) turn the same 2-finger pinch into repeated Ctrl+KP_Add / Ctrl+KP_Subtract keystrokes. Each 10% step

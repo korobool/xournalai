@@ -22,6 +22,7 @@
 #include "util/Rectangle.h"          // for Rectangle
 
 constexpr auto DEFAULT_ZOOM_MAX{7};
+constexpr auto DEEP_ZOOM_MAX{30};  ///< the maximum with deep zoom on (pages are then rendered partially)
 constexpr auto DEFAULT_ZOOM_MIN{0.3};
 constexpr auto DEFAULT_ZOOM_STEP{0.1};
 constexpr auto DEFAULT_ZOOM_STEP_SCROLL{0.01};
@@ -103,6 +104,13 @@ public:
      * @return zoom value for zoom 100% depending zoom100Value
      */
     double getZoom100Value() const;
+
+    /// Deep zoom: the maximum zoom is DEEP_ZOOM_MAX instead of DEFAULT_ZOOM_MAX (a zoom beyond the new maximum is
+    /// brought back to it)
+    void setDeepZoom(bool on);
+    /// The zoom range, in the units of getZoomReal() (1 = 100%)
+    double getZoomMinReal() const;
+    double getZoomMaxReal() const;
 
     /**
      * Updates when, the window size changes
