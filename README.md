@@ -45,7 +45,7 @@ laptop.
 - Page and preview rendering never hold up your strokes.
 - **Fine graph** paper by default: 2.5 mm squares with light, thin lines.
 - **Recording indicator** in the status line while the audio recorder is on: a pulsing dot, the live level, the time
-  and a Stop button.
+  and a Stop button. While Ask listens, it animates with your voice too.
 
 ## What any agent can do
 

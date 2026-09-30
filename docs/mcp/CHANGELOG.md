@@ -6,6 +6,11 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+## 1.7.2 — Ask in the status line
+- **The status line's recording pill animates for Ask too:** while Ask listens it shows "Ask: listening" with the
+  time and teal bars moving with your voice, like the pill next to the pen. There is no Stop button: releasing the
+  pen button ends it. When the recorder is on as well, the pill shows the recorder.
+
 ## 1.7.1 — Paper and recording comfort
 - **Fine graph paper, the new default:** squares half the size of Graph (2.5 mm) with light, thin lines, so the grid
   stays in the background. It is in the paper list as "Fine graph (2.5 mm, light)"; documents keep their own paper.
