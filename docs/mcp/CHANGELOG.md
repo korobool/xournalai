@@ -6,6 +6,13 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+## 1.7.1 — Paper and recording comfort
+- **Fine graph paper, the new default:** squares half the size of Graph (2.5 mm) with light, thin lines, so the grid
+  stays in the background. It is in the paper list as "Fine graph (2.5 mm, light)"; documents keep their own paper.
+- **You can't forget the recorder:** while the Xournal++ recorder records, the status line shows a pulsing red dot,
+  the live microphone level, the time so far and a Stop button. It sits in the AI status line, or at the bottom of
+  the window when the AI part is not there.
+
 ## 1.7.0 — Recordings for the AI (epoch E11)
 - **The serving session hears about your recordings.** When the Xournal++ recorder stops, it gets a
   for-your-information line, and agents an `audio_recorded` event: the file, its length, the page, and the strokes

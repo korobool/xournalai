@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.7.0**
+Current version: **1.7.1**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -550,5 +550,5 @@ When a Xournal++ audio recording ends, the serving session hears about it (file,
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
 | T11.2.1 | US-11.2 | **Fine graph paper, the default** — pagetemplates.ini: graph with r1=7.087, lw=0.35, f1=#e0e0e0; the default page template. | `ai: fine graph paper, the default (T11.2.1)` | ✅ done `b13a94eb9` |
-| T11.2.2 | US-11.2 | **Recording indicator in the status line** — gui/RecordingIndicator (dot, level, time, Stop); PortAudioProducer peak level; AudioController recording listener; McpUi status line takes it in; test hook test_recorder. | `ai: the status line shows that the recorder is on (T11.2.2)` | ✅ done |
-| T11.2.3 | US-11.2 | **Release 1.7.1** — Changelog, version, full tests. | `ai: release 1.7.1 (T11.2.3)` | ⬜ todo |
+| T11.2.2 | US-11.2 | **Recording indicator in the status line** — gui/RecordingIndicator (dot, level, time, Stop); PortAudioProducer peak level; AudioController recording listener; McpUi status line takes it in; test hook test_recorder. | `ai: the status line shows that the recorder is on (T11.2.2)` | ✅ done `cb4abfdb2` |
+| T11.2.3 | US-11.2 | **Release 1.7.1** — Changelog, version, full tests. | `ai: release 1.7.1 (T11.2.3)` | ✅ done |

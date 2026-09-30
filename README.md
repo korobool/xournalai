@@ -43,6 +43,9 @@ laptop.
 - **Pinch zoom** on touchscreens follows your fingers, also with gesture daemons (Touchégg) that send zoom keys.
 - **Deep zoom** toggle next to *Zoom in*: up to 3000%, rendering only the visible part so memory stays flat.
 - Page and preview rendering never hold up your strokes.
+- **Fine graph** paper by default: 2.5 mm squares with light, thin lines.
+- **Recording indicator** in the status line while the audio recorder is on: a pulsing dot, the live level, the time
+  and a Stop button.
 
 ## What any agent can do
 
