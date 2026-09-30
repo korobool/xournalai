@@ -362,7 +362,8 @@ def make_xopp(path, pages):
             width = str(s["width"])
             if s.get("widths"):  # file format: base width followed by one width per point (after the first)
                 width += " " + " ".join(f"{w:.3f}" for w in s["widths"][:-1])
-            parts.append(f'<stroke tool="{s["tool"]}" color="{s["color"]}" width="{width}">{coords}</stroke>')
+            audio = f' fn="{s["audio"][0]}" ts="{int(s["audio"][1] * 1000)}"' if s.get("audio") else ""  # (file, seconds)
+            parts.append(f'<stroke tool="{s["tool"]}" color="{s["color"]}" width="{width}"{audio}>{coords}</stroke>')
         parts.append("</layer></page>")
     parts.append("</xournal>")
     with gzip.open(path, "wt") as f:

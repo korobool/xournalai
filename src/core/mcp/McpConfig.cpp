@@ -72,6 +72,7 @@ McpConfig McpConfig::load() {
                 cfg.assistant.maxParallel = a.value("max_parallel", cfg.assistant.maxParallel);
                 cfg.assistant.speech = a.value("speech", cfg.assistant.speech);
                 cfg.assistant.speechModel = a.value("speech_model", cfg.assistant.speechModel);
+                cfg.assistant.shareRecordings = a.value("share_recordings", cfg.assistant.shareRecordings);
             }
             if (j.contains("backup_dir") && j["backup_dir"].is_string() &&
                 !j["backup_dir"].get<std::string>().empty()) {
@@ -136,7 +137,8 @@ void McpConfig::save() const {
                 {"watchdog_s", assistant.watchdogS},
                 {"max_parallel", assistant.maxParallel},
                 {"speech", assistant.speech},
-                {"speech_model", assistant.speechModel}}},
+                {"speech_model", assistant.speechModel},
+                {"share_recordings", assistant.shareRecordings}}},
               {"backup_dir", toUtf8(backupDir)},
               {"_help",
                {{"url", url()},

@@ -172,6 +172,16 @@ private:
     /// Pen button held while the lasso is armed or the popover is open: dictation into it
     void dictate(bool pressed);
     void onAsk(const assistant::AskCapture& c);
+    /// A Xournal++ recording ended: tell the serving session (file, length, page, strokes written meanwhile)
+    void onRecordingFinished(const std::string& file, const std::string& name, int64_t durationMs);
+
+public:
+    /// (tests) as if a recording ended
+    void recordingFinished(const std::string& file, const std::string& name, int64_t durationMs) {
+        onRecordingFinished(file, name, durationMs);
+    }
+
+private:
     /// Opens the Ask popover for `c` with `text`
     void showAsk(const assistant::AskCapture& c, const std::string& text);
     /// Ask about the selection (or the visible part of the page): the toolbar's Command…

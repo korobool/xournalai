@@ -62,6 +62,11 @@ const char* strokeToolName(const Stroke* s) {
 }
 }  // namespace
 
+std::function<fs::path()>& audioFolderProvider() {
+    static std::function<fs::path()> provider;
+    return provider;
+}
+
 json elementToJson(const api::ElementLocation& loc, Detail detail, double tolerance, const std::string* id) {
     const Element* e = loc.element;
     const auto& bb = e->getBoundingBox();
@@ -117,6 +122,17 @@ json elementToJson(const api::ElementLocation& loc, Detail detail, double tolera
         case ELEMENT_IMAGE:
             out.erase("color");
             break;
+    }
+    // Written during an audio recording: which one, and when in it (the transcript can be aligned with the ink)
+    const AudioContent* audio =
+            e->getType() == ELEMENT_STROKE ? static_cast<const AudioContent*>(static_cast<const Stroke*>(e)) :
+            e->getType() == ELEMENT_TEXT   ? static_cast<const AudioContent*>(static_cast<const Text*>(e)) :
+                                             nullptr;
+    if (audio && !audio->getAudioFilename().empty()) {
+        const fs::path folder = audioFolderProvider() ? audioFolderProvider()() : fs::path();
+        out["audio"] = {
+                {"file", (folder.empty() ? audio->getAudioFilename() : folder / audio->getAudioFilename()).string()},
+                {"t", roundTo(static_cast<double>(audio->getTimestamp()) / 1000.0, 2)}};
     }
     return out;
 }

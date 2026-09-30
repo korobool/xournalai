@@ -6,8 +6,11 @@
 #include "api/Backup.h"
 #include "api/EventHub.h"
 #include "assistant/Companion.h"
+#include "control/Control.h"            // for Control
+#include "control/settings/Settings.h"  // for Settings
 #include "tools/Tools.h"
 
+#include "ElementJson.h"  // for audioFolderProvider
 #include "McpHttpServer.h"
 #include "McpProtocol.h"
 #include "McpUi.h"
@@ -20,6 +23,7 @@
 namespace xoj::mcp {
 
 McpServer::McpServer(Control* control): control(control), txns(std::make_unique<Transactions>(*this)) {
+    audioFolderProvider() = [ctrl = control] { return ctrl->getSettings()->getAudioFolder(); };
     registerTools();
     ServerInfo info;
     info.version = XOURNALAI_VERSION;

@@ -11,6 +11,7 @@
 #include "audio/AudioRecorder.h"                 // for AudioRecorder
 #include "audio/DeviceInfo.h"                    // for DeviceInfo
 #include "control/Control.h"                     // for Control
+#include "control/RecordingObserver.h"           // for recordingObserver
 #include "control/actions/ActionDatabase.h"      // for ActionDatabase
 #include "control/settings/Settings.h"           // for Settings
 #include "gui/MainWindow.h"                      // for MainWindow
@@ -66,12 +67,18 @@ auto AudioController::startRecording() -> bool {
 
 auto AudioController::stopRecording() -> bool {
     if (this->audioRecorder->isRecording()) {
+        const xoj::audio::RecordingFinished finished{
+                getAudioFolder() / audioFilename, audioFilename.string(),
+                static_cast<int64_t>(g_get_monotonic_time() / 1000) - static_cast<int64_t>(this->timestamp)};
         audioFilename = "";
         this->timestamp = 0;
 
         g_message("Stop recording");
 
-        this->audioRecorder->stop();
+        this->audioRecorder->stop();  // (waits until the file is written)
+        if (const auto observer = xoj::audio::recordingObserver()) {
+            observer(finished);  // xournalai: the assistant hears about it
+        }
     }
     return true;
 }

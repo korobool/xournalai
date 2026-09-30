@@ -8,11 +8,13 @@
 
 #pragma once
 
-#include <string>  // for string
+#include <functional>  // for function
+#include <string>      // for string
 
 #include "api/DocumentApi.h"  // for ElementLocation
 
 #include "Json.h"
+#include "filesystem.h"  // for fs::path
 
 class Element;
 
@@ -32,6 +34,10 @@ Detail detailFromName(const std::string& name);
  * Stroke points are [x, y] or, when the stroke has pressure, [x, y, w] where w is the stroke width in points at
  * that point. Coordinates are page points rounded to 0.01.
  */
+/// Where recordings are (the settings' audio folder): elements written during a recording carry "audio":
+/// {file, t (seconds into it)}
+std::function<fs::path()>& audioFolderProvider();
+
 /// `id`: the element's id when `loc.element` is a copy (e.g. serialized off the UI thread); default: its own id
 json elementToJson(const api::ElementLocation& loc, Detail detail, double tolerance, const std::string* id = nullptr);
 

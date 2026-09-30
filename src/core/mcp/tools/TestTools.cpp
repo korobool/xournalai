@@ -9,6 +9,7 @@
 
 #include "assistant/SpeechToText.h"          // for SpeechToText
 #include "control/Control.h"                 // for Control
+#include "control/RecordingObserver.h"       // for recordingObserver
 #include "control/settings/Settings.h"       // for Settings
 #include "control/settings/SettingsEnums.h"  // for InputDeviceTypeOption
 #include "control/zoom/ZoomControl.h"        // for ZoomControl
@@ -197,6 +198,27 @@ void registerTestTools(McpServer& server) {
         });
     };
     server.getRegistry().addTool(std::move(speech));
+
+    ToolSpec rec;
+    rec.name = "test_recording";
+    rec.title = "Test hook: a recording ended";
+    rec.description = "Test hook (XOURNALAI_TEST_HOOKS=1 only): as if the Xournal++ recorder stopped: file (full "
+                      "path), name (the file name strokes refer to), duration_ms.";
+    rec.inputSchema = schema::object({{"file", schema::string("the recording")},
+                                      {"name", schema::string("its file name")},
+                                      {"duration_ms", schema::integer("length")}},
+                                     {"file", "name", "duration_ms"});
+    rec.tier = Tier::Ui;
+    rec.handler = [srv](const json& j) {
+        Args args(j);
+        // Through the recorder's observer, like the real thing (nobody listens if sharing recordings is off)
+        const auto observer = xoj::audio::recordingObserver();
+        if (observer) {
+            observer({fs::path(args.str("file")), args.str("name"), args.integer("duration_ms")});
+        }
+        return ToolResult::structured({{"observed", static_cast<bool>(observer)}});
+    };
+    server.getRegistry().addTool(std::move(rec));
 }
 
 }  // namespace xoj::mcp::tools

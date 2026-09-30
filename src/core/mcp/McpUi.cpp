@@ -32,11 +32,13 @@
 #include "assistant/Markers.h"                   // for findMarkers          // for AiToolbar
 #include "assistant/SpeechToText.h"              // for SpeechToText
 #include "assistant/ThinkingOverlay.h"           // for ThinkingOverlay
+#include "control/RecordingObserver.h"           // for setRecordingObserver
 #include "control/tools/EditSelection.h"         // for EditSelection
 #include "gui/inputdevices/PenButtonObserver.h"  // for setPenButtonObserver
 #include "gui/inputdevices/StrokeInterceptor.h"  // for setStrokeInterceptor
 #include "model/Element.h"                       // for Element
 #include "model/Stroke.h"                        // for Stroke
+#include "model/Text.h"                          // for Text
 
 #include "McpConfig.h"
 #include "McpHttpServer.h"
@@ -161,6 +163,11 @@ McpUi::McpUi(McpServer& server): server(server) {
         }
     }
 #endif
+    if (server.getConfig().assistant.shareRecordings) {
+        xoj::audio::setRecordingObserver([this](const xoj::audio::RecordingFinished& r) {
+            onRecordingFinished(r.file.string(), r.name, r.durationMs);
+        });
+    }
     timer = g_timeout_add_seconds(2, &McpUi::onTick, this);
     update();
 }
@@ -169,6 +176,7 @@ McpUi::~McpUi() {
     if (timer) {
         g_source_remove(timer);
     }
+    xoj::audio::setRecordingObserver(nullptr);
     if (speechWarmUp) {
         g_source_remove(speechWarmUp);
     }
@@ -599,6 +607,61 @@ void McpUi::showAsk(const assistant::AskCapture& c, const std::string& text) {
                             1};
     }
     askPopover->show(*rect, text);
+}
+
+void McpUi::onRecordingFinished(const std::string& file, const std::string& name, int64_t durationMs) {
+    Control* ctrl = server.getControl();
+    // The strokes and texts written during it (they know their moment in it)
+    std::vector<std::string> ids;
+    std::map<size_t, size_t> perPage;
+    {
+        Document* doc = ctrl->getDocument();
+        std::shared_lock lock(*doc);
+        for (size_t p = 0; p < doc->getPageCount(); p++) {
+            for (const auto& loc: api::elementsOnPage(doc->getPage(p), p, std::nullopt, std::nullopt)) {
+                const Element* e = loc.element;
+                const AudioContent* a = e->getType() == ELEMENT_STROKE ?
+                                                static_cast<const AudioContent*>(static_cast<const Stroke*>(e)) :
+                                        e->getType() == ELEMENT_TEXT ?
+                                                static_cast<const AudioContent*>(static_cast<const Text*>(e)) :
+                                                nullptr;
+                if (a && !name.empty() && a->getAudioFilename() == fs::path(name)) {
+                    ids.push_back(api::ElementIds::get().idOf(e));
+                    perPage[p]++;
+                }
+            }
+        }
+    }
+    size_t page = api::currentPageIndex(ctrl);
+    size_t best = 0;
+    for (const auto& [p, n]: perPage) {
+        if (n > best) {
+            page = p, best = n;
+        }
+    }
+    const int64_t s = std::max<int64_t>(0, durationMs / 1000);
+    char length[16];
+    snprintf(length, sizeof length, "%lld:%02lld", static_cast<long long>(s / 60), static_cast<long long>(s % 60));
+    std::string desc = "Audio note recorded: " + file + " (" + length + ", page " + std::to_string(page + 1) + "; " +
+                       std::to_string(ids.size()) + " stroke(s) written meanwhile";
+    if (!ids.empty()) {
+        std::string list;
+        for (size_t i = 0; i < ids.size() && i < 12; i++) {
+            list += (i ? "," : "") + ids[i];
+        }
+        desc += ": " + list + (ids.size() > 12 ? ",…" : "") +
+                "; page_elements shows each one's moment in it as audio.t";
+    }
+    desc += "). For your information: transcribe it (your remote transcriber first; audio_transcribe is the local "
+            "English fallback) and keep it in mind; change the page only if asked or with Auto-improve.";
+    if (auto* hub = server.getEvents()) {
+        hub->pushEvent("audio_recorded", page, ids, {0, 0, 0, 0}, desc);
+    }
+#ifdef ENABLE_AI_TERMINAL
+    if (eventPump) {
+        eventPump->addIntent(desc, 0);
+    }
+#endif
 }
 
 void McpUi::dictate(bool pressed) {

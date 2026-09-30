@@ -32,7 +32,8 @@ struct DocEvent {
     uint64_t seq = 0;
     gint64 timeUs = 0;   ///< g_get_monotonic_time()
     std::string type;    ///< element_added | element_removed | element_changed | page_inserted | page_deleted |
-                         ///< document_replaced | intent (a request from the AI toolbar or a marker)
+                         ///< document_replaced | intent (a request from the AI toolbar or a marker) |
+                         ///< audio_recorded (a recording ended; the description has its file)
     std::string origin;  ///< "user" or "agent"
     size_t page = 0;     ///< 0-based
     std::vector<std::string> ids;
@@ -75,6 +76,11 @@ public:
     void pushIntent(size_t page, std::vector<std::string> ids, const xoj::util::Rectangle<double>& area,
                     const std::string& description) {
         push({0, 0, "intent", "user", page, std::move(ids), area, description});
+    }
+    /// Another kind of event (e.g. "audio_recorded": a recording ended)
+    void pushEvent(const std::string& type, size_t page, std::vector<std::string> ids,
+                   const xoj::util::Rectangle<double>& area, const std::string& description) {
+        push({0, 0, type, "user", page, std::move(ids), area, description});
     }
     /// The user's most recent addition (the "last piece" toolbar actions apply to without a selection)
     std::optional<DocEvent> lastUserAddition() const {
