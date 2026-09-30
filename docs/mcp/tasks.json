@@ -1596,7 +1596,7 @@
     {
       "id": "E11",
       "title": "Recordings for the AI",
-      "release": "1.7.0",
+      "release": "1.7.1",
       "goal": "When a Xournal++ audio recording ends, the serving session hears about it (file, length, page, the strokes written meanwhile with their moment in the audio) and transcribes it with the owner's remote transcriber, or the local English-only one as a fallback.",
       "stages": [
         {
@@ -1645,6 +1645,50 @@
               "status": "done",
               "started": "2026-09-30T13:43:18+01:00",
               "finished": "2026-09-30T13:51:53+01:00"
+            }
+          ]
+        },
+        {
+          "id": "S11.2",
+          "title": "Paper and recording comfort",
+          "version": "1.7.1",
+          "stories": [
+            {
+              "id": "US-11.2",
+              "text": "As the owner, I want a quieter default paper and to always see that the recorder is on.",
+              "acceptance": [
+                "a 'Fine graph' paper: squares half the size of Graph (2.5 mm), light thin lines; the default for new documents",
+                "while the Xournal++ recorder records, the status line shows it: a pulsing red dot, the live microphone level, the time and a Stop button; hidden otherwise",
+                "it works without the AI too (its own place at the bottom), and sits in the AI status line when that is there"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T11.2.1",
+              "story": "US-11.2",
+              "title": "Fine graph paper, the default",
+              "details": "pagetemplates.ini: graph with r1=7.087, lw=0.35, f1=#e0e0e0; the default page template.",
+              "commit": "ai: fine graph paper, the default",
+              "status": "done",
+              "started": "2026-09-30T19:51:54+01:00",
+              "finished": "2026-09-30T19:51:54+01:00"
+            },
+            {
+              "id": "T11.2.2",
+              "story": "US-11.2",
+              "title": "Recording indicator in the status line",
+              "details": "gui/RecordingIndicator (dot, level, time, Stop); PortAudioProducer peak level; AudioController recording listener; McpUi status line takes it in; test hook test_recorder.",
+              "commit": "ai: the status line shows that the recorder is on",
+              "status": "todo"
+            },
+            {
+              "id": "T11.2.3",
+              "story": "US-11.2",
+              "title": "Release 1.7.1",
+              "details": "Changelog, version, full tests.",
+              "commit": "ai: release 1.7.1",
+              "status": "todo"
             }
           ]
         }

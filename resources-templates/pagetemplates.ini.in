@@ -25,6 +25,11 @@ format=staves
 name=Graph
 format=graph
 
+[fineGraph]
+name=Fine graph (2.5 mm, light)
+format=graph
+config=r1=7.087,lw=0.35,f1=0xe0e0e0,af1=0x383838
+
 [predefinedDotted]
 name=Dotted
 format=dotted
