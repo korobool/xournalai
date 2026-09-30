@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.5.0**
+Current version: **1.5.1**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -432,7 +432,7 @@ Pinch zoom on a touchscreen follows the fingers 1:1, even when a gesture daemon 
 |---|---|---|---|---|
 | T8.2.1 | US-8.2 | **Deep zoom toggle and partial rendering** — Action ZOOM_DEEP + settings deepZoom; ZoomControl::setDeepZoom; view/RenderBudget.h; XojPageView keeps the visible range and a partial buffer extent; RenderJob renders partial buffers; PdfCache renders directly when a full page would not fit; icons xopp-zoom-deep; toolbar.ini.in. | `ai: deep zoom (T8.2.1)` | ✅ done `98f16e306` |
 
-## E9 — No freezes (release 1.5.0)
+## E9 — No freezes (release 1.5.1)
 
 Agents thinking never freeze the user's pen; agents drawing freeze it no longer than the drawing itself.
 
@@ -448,4 +448,16 @@ Agents thinking never freeze the user's pen; agents drawing freeze it no longer 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
 | T9.1.1 | US-9.1 | **Watchdog, agent reads off the UI thread, snapshot rendering** — Measured on a 1M-point page: page_render froze the UI 1.4 s, page_elements 0.25 s, the pen waited 0.38 s for preview rendering, an edit after a zoom ~3 s for page rendering. util/StallWatch; mcp/OffUi (render thread) + ToolResult::prepare + Response text; model/PageSnapshot for RenderJob, PreviewJob, api::renderPage; test_e9_responsiveness.py. | `ai: no freezes while agents work (T9.1.1)` | ✅ done `ce8ad5921` |
-| T9.1.2 | US-9.1 | **Release 1.5.0** — Tests, docs, CHANGELOG, tag. | `ai: release 1.5.0 (no freezes) (T9.1.2)` | ✅ done |
+| T9.1.2 | US-9.1 | **Release 1.5.0** — Tests, docs, CHANGELOG, tag. | `ai: release 1.5.0 (no freezes) (T9.1.2)` | ✅ done `daf9739c7` |
+
+### S9.2 — Fixes → v1.5.1
+
+**US-9.2** — As the owner, I want 1.5.0's rendering to look right and page changes never to wait for other pages' rendering.
+
+- [ ] page snapshots keep the page background (not "PDF background missing")
+- [ ] removing a page view waits only for its own render job
+- [ ] touch trace logs the touch handler's decisions (invalid touches, resets, blocking)
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T9.2.1 | US-9.2 | **Snapshot backgrounds, scheduler waits, touch decisions** — snapshotPage used setBackgroundPdfPageNr, which makes any page a PDF page: every normal page showed 'PDF background missing' (1.5.0). XournalScheduler::removeSource waited for any running job: deleting a page froze the UI while another page rendered (3-4 s on a 1M-point page); now it waits on runningDoneCond only for a job of that source. Tests: PageSnapshotTest, test_e9_backgrounds.py. | `ai: fix page snapshot backgrounds and scheduler waits (T9.2.1)` | ✅ done `88d6fe516` |
