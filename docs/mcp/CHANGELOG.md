@@ -6,6 +6,13 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+## 1.8.1 — The mouse cursor comes back
+- **After the stylus, the mouse finds its cursor again.** Moving the mouse, touchpad or TrackPoint after the pen or
+  a touch applies the cursor again, even when the app believed it was already shown (something else may have hidden
+  it meanwhile). Pressing Ctrl does the same.
+- **Diagnosable:** with the touch trace on (`~/.cache/xournalai/trace-touch`), `touch-trace.log` also records each
+  device switch and each cursor applied.
+
 ## 1.8.0 — Recordings: you decide (epoch E12)
 - **Nothing is sent before you choose.** When a recording stops, a chooser with big buttons for a finger or a
   stylus asks what it is:
