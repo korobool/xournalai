@@ -11,7 +11,8 @@
 
 #pragma once
 
-#include <atomic>  // for atomic
+#include <atomic>   // for atomic
+#include <cstdint>  // for int64_t
 #include <memory>  // for unique_ptr
 #include <vector>  // for vector
 
@@ -43,6 +44,8 @@ public:
 
     /// xournalai: the loudest sample (0..1) since the last call, for a level meter
     float takePeak() { return peak.exchange(0.0f); }
+    /// xournalai: when (g_get_monotonic_time, µs) the recording's first sample was captured; 0 until known
+    int64_t firstSampleTime() const { return firstSampleUs.load(); }
 
 private:
     portaudio::System& sys{portaudio::System::instance()};
@@ -53,6 +56,8 @@ private:
     std::unique_ptr<portaudio::MemFunCallbackStream<PortAudioProducer>> inputStream;
 
     int inputChannels = 0;
+    double sampleRate = 44100;
 
     std::atomic<float> peak{0.0f};
+    std::atomic<int64_t> firstSampleUs{0};
 };

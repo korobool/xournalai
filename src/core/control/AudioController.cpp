@@ -1,6 +1,7 @@
 #include "AudioController.h"
 
-#include <array>   // for array
+#include <algorithm>  // for max
+#include <array>      // for array
 #include <cstdio>  // for snprintf
 #include <ctime>   // for tm, localtime, time
 #include <string>  // for string, allocator
@@ -73,6 +74,11 @@ auto AudioController::stopRecording() -> bool {
         const xoj::audio::RecordingFinished finished{
                 getAudioFolder() / audioFilename, audioFilename.string(),
                 static_cast<int64_t>(g_get_monotonic_time() / 1000) - static_cast<int64_t>(this->timestamp)};
+        if (const int64_t first = this->audioRecorder->firstSampleTime(); first > 0) {
+            // (xournalai) strokes count from the first sample: how late it came after Record was pressed
+            g_message("Recording: the first sample came %lld ms after Record",
+                      static_cast<long long>(first / 1000 - static_cast<int64_t>(this->timestamp)));
+        }
         audioFilename = "";
         this->timestamp = 0;
 
@@ -93,6 +99,11 @@ auto AudioController::isRecording() -> bool { return this->audioRecorder->isReco
 
 void AudioController::setRecordingListener(std::function<void(bool)> listener) {
     recordingListener = std::move(listener);
+}
+
+auto AudioController::currentRecordingTime() const -> size_t {
+    return static_cast<size_t>(xoj::audio::recordingTimeMs(
+            g_get_monotonic_time(), this->audioRecorder->firstSampleTime(), static_cast<int64_t>(this->timestamp)));
 }
 
 auto AudioController::takeRecordingLevel() -> float { return this->audioRecorder->takeLevel(); }

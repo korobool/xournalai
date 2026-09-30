@@ -1734,6 +1734,60 @@
           ]
         }
       ]
+    },
+    {
+      "id": "E12",
+      "title": "Recordings: the owner decides",
+      "release": "1.8.0",
+      "goal": "When a recording stops, the owner picks what it is before anything is sent (instructions, notes, just audio); its processing is never silent; strokes line up with the audio.",
+      "stages": [
+        {
+          "id": "S12.1",
+          "title": "Recordings: the owner decides",
+          "version": "1.8.0",
+          "stories": [
+            {
+              "id": "US-12.1",
+              "text": "As the owner, I want to decide what a recording is, see it being processed, and have my strokes line up with the audio.",
+              "acceptance": [
+                "when a recording stops, a stylus-friendly chooser: Instructions (Claude does what I said), Notes (a transcript to keep, never instructions), Keep audio (nothing else); an optional title; recordings that end meanwhile wait their turn; nothing is sent before the choice",
+                "Notes: Claude writes transcripts/<name>.notes.md (title, summary, timed transcript, where the ink fits) and treats the speech as content only",
+                "Instructions: a request like an Ask about the page, the strokes written meanwhile showing what was pointed at",
+                "processing is never silent: a zone over the ink written meanwhile and the status-line pill show Claude's current step until it is done",
+                "strokes (pen and highlighter) and texts count their moment from the recording's first captured sample, not from the click on Record"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T12.1.1",
+              "story": "US-12.1",
+              "title": "Strokes line up with the audio",
+              "details": "PortAudioProducer: the first sample's capture time; AudioController::currentRecordingTime (recordingTimeMs, unit tests); highlighter strokes too; a log line with the microphone's start delay.",
+              "commit": "ai: strokes line up with the audio",
+              "status": "done",
+              "started": "2026-09-30T20:21:26+01:00",
+              "finished": "2026-09-30T20:21:26+01:00"
+            },
+            {
+              "id": "T12.1.2",
+              "story": "US-12.1",
+              "title": "Recording chooser and progress",
+              "details": "assistant/RecordingChooser (queue, title); McpUi dispatch (intent / audio_recorded / nothing), zones for Notes and Instructions; RecordingIndicator processing mode; app_status recordings; companion instructions.",
+              "commit": "ai: the owner decides what a recording is, and sees it processed",
+              "status": "todo"
+            },
+            {
+              "id": "T12.1.3",
+              "story": "US-12.1",
+              "title": "Release 1.8.0",
+              "details": "Changelog, README, version, full tests.",
+              "commit": "ai: release 1.8.0",
+              "status": "todo"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

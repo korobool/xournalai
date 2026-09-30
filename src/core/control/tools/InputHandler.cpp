@@ -31,20 +31,16 @@ auto InputHandler::createStroke(Control* control) -> std::unique_ptr<Stroke> {
     s->setFill(h->getFill());
     s->setLineStyle(h->getLineStyle());
 
-    if (h->getToolType() == TOOL_PEN) {
-        s->setToolType(StrokeTool::PEN);
+    if (h->getToolType() == TOOL_PEN || h->getToolType() == TOOL_HIGHLIGHTER) {
+        s->setToolType(h->getToolType() == TOOL_PEN ? StrokeTool::PEN : StrokeTool::HIGHLIGHTER);
 
 #ifdef ENABLE_AUDIO
+        // Its moment in the recording (xournalai: highlighting too, measured from the file's first sample)
         if (auto* audioController = control->getAudioController(); audioController && audioController->isRecording()) {
-            fs::path audioFilename = audioController->getAudioFilename();
-            size_t sttime = audioController->getStartTime();
-            size_t milliseconds = (as_unsigned(g_get_monotonic_time() / 1000) - sttime);
-            s->setTimestamp(milliseconds);
-            s->setAudioFilename(audioFilename);
+            s->setTimestamp(audioController->currentRecordingTime());
+            s->setAudioFilename(audioController->getAudioFilename());
         }
 #endif
-    } else if (h->getToolType() == TOOL_HIGHLIGHTER) {
-        s->setToolType(StrokeTool::HIGHLIGHTER);
     } else if (h->getToolType() == TOOL_ERASER) {
         s->setToolType(StrokeTool::ERASER);
         s->setColor(Colors::white);

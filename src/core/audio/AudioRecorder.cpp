@@ -27,6 +27,8 @@ void AudioRecorder::stop() {
 
 auto AudioRecorder::isRecording() const -> bool { return this->portAudioProducer->isRecording(); }
 
+auto AudioRecorder::firstSampleTime() const -> int64_t { return this->portAudioProducer->firstSampleTime(); }
+
 auto AudioRecorder::takeLevel() -> float { return this->portAudioProducer->takePeak(); }
 
 auto AudioRecorder::getInputDevices() const -> std::vector<DeviceInfo> {

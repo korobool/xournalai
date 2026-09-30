@@ -28,4 +28,12 @@ using RecordingObserver = std::function<void(const RecordingFinished&)>;
 void setRecordingObserver(RecordingObserver observer);  ///< null: nobody is told
 const RecordingObserver& recordingObserver();
 
+/// Where in the recording `nowUs` is, in ms from the file's first sample (`firstSampleUs`, 0 until captured; before
+/// that, from `startedMs`, when recording was started). Never negative. All g_get_monotonic_time based.
+constexpr int64_t recordingTimeMs(int64_t nowUs, int64_t firstSampleUs, int64_t startedMs) {
+    const int64_t startMs = firstSampleUs > 0 ? firstSampleUs / 1000 : startedMs;
+    const int64_t t = nowUs / 1000 - startMs;
+    return t > 0 ? t : 0;
+}
+
 }  // namespace xoj::audio

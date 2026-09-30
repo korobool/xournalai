@@ -11,8 +11,9 @@
 
 #pragma once
 
-#include <memory>  // for make_unique, unique_ptr
-#include <vector>  // for vector
+#include <cstdint>  // for int64_t
+#include <memory>   // for make_unique, unique_ptr
+#include <vector>   // for vector
 
 #include "filesystem.h"  // for path
 
@@ -36,6 +37,8 @@ public:
     void stop();
     [[nodiscard]] bool isRecording() const;
     float takeLevel();  ///< xournalai: the loudest sample (0..1) since the last call
+    /// xournalai: when (g_get_monotonic_time, µs) the first sample was captured; 0 until known
+    int64_t firstSampleTime() const;
     std::vector<DeviceInfo> getInputDevices() const;
 
 private:

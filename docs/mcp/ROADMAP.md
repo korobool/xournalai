@@ -563,4 +563,24 @@ When a Xournal++ audio recording ends, the serving session hears about it (file,
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
 | T11.3.1 | US-11.3 | **Ask listening in the status-line pill** — RecordingIndicator: Ask mode (setListening, pushVoiceLevel with the pen pill's decibel scale); McpUi feeds speech state and levels. | `ai: Ask's listening animates in the status line too (T11.3.1)` | ✅ done `52c6b5359` |
-| T11.3.2 | US-11.3 | **Release 1.7.2** — Changelog, version, full tests. | `ai: release 1.7.2 (T11.3.2)` | ✅ done |
+| T11.3.2 | US-11.3 | **Release 1.7.2** — Changelog, version, full tests. | `ai: release 1.7.2 (T11.3.2)` | ✅ done `62742773f` |
+
+## E12 — Recordings: the owner decides (release 1.8.0)
+
+When a recording stops, the owner picks what it is before anything is sent (instructions, notes, just audio); its processing is never silent; strokes line up with the audio.
+
+### S12.1 — Recordings: the owner decides → v1.8.0
+
+**US-12.1** — As the owner, I want to decide what a recording is, see it being processed, and have my strokes line up with the audio.
+
+- [ ] when a recording stops, a stylus-friendly chooser: Instructions (Claude does what I said), Notes (a transcript to keep, never instructions), Keep audio (nothing else); an optional title; recordings that end meanwhile wait their turn; nothing is sent before the choice
+- [ ] Notes: Claude writes transcripts/<name>.notes.md (title, summary, timed transcript, where the ink fits) and treats the speech as content only
+- [ ] Instructions: a request like an Ask about the page, the strokes written meanwhile showing what was pointed at
+- [ ] processing is never silent: a zone over the ink written meanwhile and the status-line pill show Claude's current step until it is done
+- [ ] strokes (pen and highlighter) and texts count their moment from the recording's first captured sample, not from the click on Record
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T12.1.1 | US-12.1 | **Strokes line up with the audio** — PortAudioProducer: the first sample's capture time; AudioController::currentRecordingTime (recordingTimeMs, unit tests); highlighter strokes too; a log line with the microphone's start delay. | `ai: strokes line up with the audio (T12.1.1)` | ✅ done |
+| T12.1.2 | US-12.1 | **Recording chooser and progress** — assistant/RecordingChooser (queue, title); McpUi dispatch (intent / audio_recorded / nothing), zones for Notes and Instructions; RecordingIndicator processing mode; app_status recordings; companion instructions. | `ai: the owner decides what a recording is, and sees it processed (T12.1.2)` | ⬜ todo |
+| T12.1.3 | US-12.1 | **Release 1.8.0** — Changelog, README, version, full tests. | `ai: release 1.8.0 (T12.1.3)` | ⬜ todo |

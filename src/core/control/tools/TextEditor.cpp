@@ -1250,11 +1250,8 @@ void TextEditor::initializeEditionAt(double x, double y) {
 
 #ifdef ENABLE_AUDIO
         if (auto audioController = control->getAudioController(); audioController && audioController->isRecording()) {
-            fs::path audioFilename = audioController->getAudioFilename();
-            size_t sttime = audioController->getStartTime();
-            size_t milliseconds = (as_unsigned(g_get_monotonic_time() / 1000) - sttime);
-            this->textElement->setTimestamp(milliseconds);
-            this->textElement->setAudioFilename(audioFilename);
+            this->textElement->setTimestamp(audioController->currentRecordingTime());
+            this->textElement->setAudioFilename(audioController->getAudioFilename());
         }
 #endif
         this->originalTextElement = nullptr;

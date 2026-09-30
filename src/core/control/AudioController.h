@@ -42,6 +42,8 @@ public:
     /// xournalai: told when a recording starts (true) or stops (false); null to stop telling
     void setRecordingListener(std::function<void(bool)> listener);
     float takeRecordingLevel();  ///< the loudest sample (0..1) since the last call
+    /// xournalai: where in the recording "now" is (ms from the file's first sample), for strokes written meanwhile
+    size_t currentRecordingTime() const;
 
     bool isPlaying();
     bool startPlayback(fs::path const& file, unsigned int timestamp);

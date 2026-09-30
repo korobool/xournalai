@@ -73,6 +73,9 @@ auto PortAudioProducer::startRecording() -> bool {
     this->audioQueue.setAudioAttributes(this->settings.getAudioSampleRate(),
                                         static_cast<unsigned int>(this->inputChannels));
 
+    this->sampleRate = this->settings.getAudioSampleRate();
+    this->firstSampleUs = 0;
+
     // Specify the callback used for buffering the recorded data
     try {
         this->inputStream = std::make_unique<portaudio::MemFunCallbackStream<PortAudioProducer>>(
@@ -95,7 +98,21 @@ auto PortAudioProducer::startRecording() -> bool {
 }
 
 auto PortAudioProducer::recordCallback(const void* inputBuffer, void* /*outputBuffer*/, unsigned long framesPerBuffer,
-                                       const PaStreamCallbackTimeInfo*, PaStreamCallbackFlags statusFlags) -> int {
+                                       const PaStreamCallbackTimeInfo* timeInfo, PaStreamCallbackFlags statusFlags)
+        -> int {
+    if (this->firstSampleUs.load(std::memory_order_relaxed) == 0) {
+        // xournalai: the moment the file's time 0 was captured, so strokes line up with the audio. PortAudio knows
+        // how long ago this buffer's first sample was taken; else assume one buffer's duration.
+        double ago = static_cast<double>(framesPerBuffer) / this->sampleRate;
+        if (timeInfo && timeInfo->currentTime > 0 && timeInfo->inputBufferAdcTime > 0) {
+            const double d = timeInfo->currentTime - timeInfo->inputBufferAdcTime;
+            if (d >= 0 && d < 1.0) {
+                ago = d;
+            }
+        }
+        this->firstSampleUs.store(g_get_monotonic_time() - static_cast<int64_t>(ago * 1e6));
+    }
+
     if (statusFlags) {
         g_message("PortAudioProducer: statusFlag: %s", std::to_string(statusFlags).c_str());
     }
