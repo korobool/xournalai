@@ -7,6 +7,7 @@
 > [official releases](https://github.com/xournalpp/xournalpp/releases).
 
 <img src="readme/demo.gif" width=450px title="xournalai at work: a handwritten poem completed in the same hand, a butterfly sketch turned into an illustration by voice (Ask), a Transformer explainer, and a Gym at home mind map completed and illustrated"/>
+<img src="readme/demo2.gif" width=450px title="xournalai at work: a hand-drawn Learn Neural Networks mind map, each topic explained in place (Perceptron, Basics, Back Propagation, CNN, Transformer, Attention) by marking and asking by voice, then the whole map redrawn and zoomed through"/>
 
 ## About
 
