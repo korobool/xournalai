@@ -81,7 +81,7 @@ RecordingIndicator::~RecordingIndicator() {
     if (timer) {
         g_source_remove(timer);
     }
-    g_signal_handlers_disconnect_by_data(wave, this);
+    // (If the window went first, it destroyed the children: only the two refs held here are left to drop)
     if (GtkWidget* parent = gtk_widget_get_parent(widget)) {
         gtk_container_remove(GTK_CONTAINER(parent), widget);
     }
