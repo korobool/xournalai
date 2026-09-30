@@ -462,3 +462,46 @@ Agents thinking never freeze the user's pen; agents drawing freeze it no longer 
 |---|---|---|---|---|
 | T9.2.1 | US-9.2 | **Snapshot backgrounds, scheduler waits, touch decisions** — snapshotPage used setBackgroundPdfPageNr, which makes any page a PDF page: every normal page showed 'PDF background missing' (1.5.0). XournalScheduler::removeSource waited for any running job: deleting a page froze the UI while another page rendered (3-4 s on a 1M-point page); now it waits on runningDoneCond only for a job of that source. Tests: PageSnapshotTest, test_e9_backgrounds.py. | `ai: fix page snapshot backgrounds and scheduler waits (T9.2.1)` | ✅ done `88d6fe516` |
 | T9.2.2 | US-9.2 | **Review fixes** — Deep review of 1.3.1-1.5.1. Pinch guard could stay on after a third touch (palm) or a lost touch end, silently ignoring zoom keys, Ctrl+wheel, the slider and agents' zoom (test_e8_pinch test_4, failed before); now cleared on invalidation and expiring after 3 s without pinch movement. Watchdog polled every 5 ms (200 wake-ups/s on a laptop); now sleeps until a stall could have started. wait_for_user and draft(op=render) rendered on the UI thread; now off it. ZOOM_DEEP disabled in presentation mode like the other zoom actions. Checked and accepted: snapshot cost with 60 LaTeX formulas (no stalls), bbox-based partial copies (stroke bbox includes width), text-in-editing flag copied, prepared results not read afterwards. | `ai: review fixes (pinch guard, watchdog wake-ups, off-UI renders) (T9.2.2)` | ✅ done `0cb3399a9` |
+
+## E10 — Ask: lasso + voice (experimental) (release 1.6.0)
+
+Point and say: hold the pen's barrel button, speak, circle an area; a popover next to it shows the transcript (editable) and command icons; the request goes to the serving session as a zone. Speech-to-text runs locally (whisper.cpp).
+
+### S10.1 — Local speech to text → v1.5.3
+
+**US-10.1** — As the owner, I want my spoken requests transcribed locally, quickly and privately.
+
+- [ ] xournalai-stt helper: whisper.cpp (pinned), microphone capture, JSON lines over stdin/stdout
+- [ ] the app keeps it warm and restarts it; the model is downloaded once
+- [ ] English (base.en/small.en); ~1-2 s for a short phrase on the owner's laptop
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T10.1.1 | US-10.1 | **STT helper (whisper.cpp)** — tools/stt or src/stt: FetchContent whisper.cpp v1.9.4, PortAudio capture, protocol start/stop/cancel/transcribe(wav); jfk.wav test; model benchmark. | `ai: local speech-to-text helper (T10.1.1)` | ⬜ todo |
+| T10.1.2 | US-10.1 | **STT client in the app** — Spawn lazily, keep warm, restart on crash; model download to ~/.local/share/xournalai/models; settings assistant.stt_model. | `ai: speech-to-text client (T10.1.2)` | ⬜ todo |
+
+### S10.2 — Ask → v1.5.4
+
+**US-10.2** — As the owner, I want to circle an area with the pen while holding its button and say what I want.
+
+- [ ] barrel button 1 held: listen; lasso points recorded; silent → the normal lasso selection only
+- [ ] speech → popover at the lasso: transcript (editable), command icons (Improve, Illustrate, Write, Revise, Style, Explain, Summarize), Send, Esc
+- [ ] AI toolbar Ask button: the same popover for the selection (or the visible page), with a hold-to-talk mic button
+- [ ] the request becomes a zone and wakes the serving session; ask_get returns text, command, region, elements, crop
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T10.2.1 | US-10.2 | **Pen button listening and lasso capture** — A pen-button observer in the input system (no change to the normal tools); test_stylus hook. | `ai: pen button listening and lasso capture (T10.2.1)` | ⬜ todo |
+| T10.2.2 | US-10.2 | **Ask popover and toolbar button** — GtkPopover at the lasso; command icons; mic hold button; toolbar Ask. | `ai: ask popover (T10.2.2)` | ⬜ todo |
+| T10.2.3 | US-10.2 | **Ask requests to the serving session** — AskStore, ask_get tool, EventPump line, zone, Companion instructions. | `ai: ask requests (T10.2.3)` | ⬜ todo |
+
+### S10.3 — Release → v1.6.0
+
+**US-10.3** — As the owner, I want Ask tested and documented.
+
+- [ ] tests: STT on a sample, pen-button flow with synthetic events, silence keeps selection, popover, ask_get
+- [ ] CHANGELOG, tag ai-v1.6.0
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T10.3.1 | US-10.3 | **Release 1.6.0** — Tests, docs, CHANGELOG, tag. | `ai: release 1.6.0 (ask: lasso + voice) (T10.3.1)` | ⬜ todo |

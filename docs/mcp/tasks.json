@@ -1428,6 +1428,116 @@
           ]
         }
       ]
+    },
+    {
+      "id": "E10",
+      "title": "Ask: lasso + voice (experimental)",
+      "release": "1.6.0",
+      "goal": "Point and say: hold the pen's barrel button, speak, circle an area; a popover next to it shows the transcript (editable) and command icons; the request goes to the serving session as a zone. Speech-to-text runs locally (whisper.cpp).",
+      "stages": [
+        {
+          "id": "S10.1",
+          "title": "Local speech to text",
+          "version": "1.5.3",
+          "stories": [
+            {
+              "id": "US-10.1",
+              "text": "As the owner, I want my spoken requests transcribed locally, quickly and privately.",
+              "acceptance": [
+                "xournalai-stt helper: whisper.cpp (pinned), microphone capture, JSON lines over stdin/stdout",
+                "the app keeps it warm and restarts it; the model is downloaded once",
+                "English (base.en/small.en); ~1-2 s for a short phrase on the owner's laptop"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T10.1.1",
+              "story": "US-10.1",
+              "title": "STT helper (whisper.cpp)",
+              "details": "tools/stt or src/stt: FetchContent whisper.cpp v1.9.4, PortAudio capture, protocol start/stop/cancel/transcribe(wav); jfk.wav test; model benchmark.",
+              "commit": "ai: local speech-to-text helper",
+              "status": "todo"
+            },
+            {
+              "id": "T10.1.2",
+              "story": "US-10.1",
+              "title": "STT client in the app",
+              "details": "Spawn lazily, keep warm, restart on crash; model download to ~/.local/share/xournalai/models; settings assistant.stt_model.",
+              "commit": "ai: speech-to-text client",
+              "status": "todo"
+            }
+          ]
+        },
+        {
+          "id": "S10.2",
+          "title": "Ask",
+          "version": "1.5.4",
+          "stories": [
+            {
+              "id": "US-10.2",
+              "text": "As the owner, I want to circle an area with the pen while holding its button and say what I want.",
+              "acceptance": [
+                "barrel button 1 held: listen; lasso points recorded; silent → the normal lasso selection only",
+                "speech → popover at the lasso: transcript (editable), command icons (Improve, Illustrate, Write, Revise, Style, Explain, Summarize), Send, Esc",
+                "AI toolbar Ask button: the same popover for the selection (or the visible page), with a hold-to-talk mic button",
+                "the request becomes a zone and wakes the serving session; ask_get returns text, command, region, elements, crop"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T10.2.1",
+              "story": "US-10.2",
+              "title": "Pen button listening and lasso capture",
+              "details": "A pen-button observer in the input system (no change to the normal tools); test_stylus hook.",
+              "commit": "ai: pen button listening and lasso capture",
+              "status": "todo"
+            },
+            {
+              "id": "T10.2.2",
+              "story": "US-10.2",
+              "title": "Ask popover and toolbar button",
+              "details": "GtkPopover at the lasso; command icons; mic hold button; toolbar Ask.",
+              "commit": "ai: ask popover",
+              "status": "todo"
+            },
+            {
+              "id": "T10.2.3",
+              "story": "US-10.2",
+              "title": "Ask requests to the serving session",
+              "details": "AskStore, ask_get tool, EventPump line, zone, Companion instructions.",
+              "commit": "ai: ask requests",
+              "status": "todo"
+            }
+          ]
+        },
+        {
+          "id": "S10.3",
+          "title": "Release",
+          "version": "1.6.0",
+          "stories": [
+            {
+              "id": "US-10.3",
+              "text": "As the owner, I want Ask tested and documented.",
+              "acceptance": [
+                "tests: STT on a sample, pen-button flow with synthetic events, silence keeps selection, popover, ask_get",
+                "CHANGELOG, tag ai-v1.6.0"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T10.3.1",
+              "story": "US-10.3",
+              "title": "Release 1.6.0",
+              "details": "Tests, docs, CHANGELOG, tag.",
+              "commit": "ai: release 1.6.0 (ask: lasso + voice)",
+              "status": "todo"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
