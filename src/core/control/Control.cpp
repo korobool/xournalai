@@ -1,8 +1,8 @@
 #include "Control.h"
 
-#include <algorithm>  // for max
-#include <cstdlib>    // for size_t
-#include <exception>  // for exce...
+#include <algorithm>   // for max
+#include <cstdlib>     // for size_t
+#include <exception>   // for exce...
 #include <functional>  // for bind
 #include <iterator>    // for end
 #include <memory>      // for make...
@@ -43,6 +43,7 @@
 #include "gui/MainWindow.h"                                      // for Main...
 #include "gui/PageView.h"                                        // for XojP...
 #include "gui/PdfFloatingToolbox.h"                              // for PdfF...
+#include "gui/RecordingIndicator.h"                              // for RecordingIndicator
 #include "gui/SearchBar.h"                                       // for Sear...
 #include "gui/XournalView.h"                                     // for Xour...
 #include "gui/XournalppCursor.h"                                 // for Xour...
@@ -185,6 +186,12 @@ Control::~Control() {
     delete this->mcpServer;  // stop serving agents before anything is torn down
     this->mcpServer = nullptr;
 #endif
+#ifdef ENABLE_AUDIO
+    if (audioController) {
+        audioController->setRecordingListener(nullptr);
+    }
+#endif
+    this->recordingIndicator.reset();
     g_source_remove(this->changeTimout);
     this->enableAutosave(false);
 
@@ -330,6 +337,19 @@ void Control::initWindow(MainWindow* win) {
     this->clipboardHandler = new ClipboardHandler(this, win->getXournal()->getWidget());
 
     this->enableAutosave(settings->isAutosaveEnabled());
+
+#ifdef ENABLE_AUDIO
+    if (audioController) {  // before the MCP server: its status line takes the indicator in
+        this->recordingIndicator = std::make_unique<xoj::gui::RecordingIndicator>(
+                win->get("mainBox"), xoj::gui::RecordingIndicator::Source{
+                                             [this]() { return audioController->takeRecordingLevel(); },
+                                             [this]() {
+                                                 actionDB->fireChangeActionState(Action::AUDIO_RECORD, false);
+                                                 recordingIndicator->setRecording(audioController->isRecording());
+                                             }});
+        audioController->setRecordingListener([this](bool on) { recordingIndicator->setRecording(on); });
+    }
+#endif
 
 #ifdef ENABLE_MCP
     this->mcpServer = new xoj::mcp::McpServer(this);

@@ -75,6 +75,9 @@ class NavigationHistory;
 namespace xoj::mcp {
 class McpServer;
 }
+namespace xoj::gui {
+class RecordingIndicator;
+}
 
 class Control:
         public ToolListener,
@@ -376,6 +379,8 @@ public:
 
     /// The embedded MCP server, or nullptr if built without ENABLE_MCP
     xoj::mcp::McpServer* getMcpServer() const { return mcpServer; }
+    /// xournalai: shows that the audio recorder is on (null without audio)
+    xoj::gui::RecordingIndicator* getRecordingIndicator() const { return recordingIndicator.get(); }
     void loadPaletteFromSettings();
 
 protected:
@@ -580,4 +585,6 @@ private:
 
     // Keep after the ActionDatabase so it is destroyed first: ~AudioController refers to the ActionDatabase
     std::unique_ptr<AudioController> audioController;
+
+    std::unique_ptr<xoj::gui::RecordingIndicator> recordingIndicator;
 };

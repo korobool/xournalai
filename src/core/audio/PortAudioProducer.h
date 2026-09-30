@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <atomic>  // for atomic
 #include <memory>  // for unique_ptr
 #include <vector>  // for vector
 
@@ -40,6 +41,9 @@ public:
 
     void stopRecording();
 
+    /// xournalai: the loudest sample (0..1) since the last call, for a level meter
+    float takePeak() { return peak.exchange(0.0f); }
+
 private:
     portaudio::System& sys{portaudio::System::instance()};
     Settings& settings;
@@ -49,4 +53,6 @@ private:
     std::unique_ptr<portaudio::MemFunCallbackStream<PortAudioProducer>> inputStream;
 
     int inputChannels = 0;
+
+    std::atomic<float> peak{0.0f};
 };

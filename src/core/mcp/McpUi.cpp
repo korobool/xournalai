@@ -34,6 +34,7 @@
 #include "assistant/ThinkingOverlay.h"           // for ThinkingOverlay
 #include "control/RecordingObserver.h"           // for setRecordingObserver
 #include "control/tools/EditSelection.h"         // for EditSelection
+#include "gui/RecordingIndicator.h"              // for RecordingIndicator
 #include "gui/inputdevices/PenButtonObserver.h"  // for setPenButtonObserver
 #include "gui/inputdevices/StrokeInterceptor.h"  // for setStrokeInterceptor
 #include "model/Element.h"                       // for Element
@@ -205,6 +206,9 @@ McpUi::~McpUi() {
     unwatch(label);
     unwatch(pauseButton);
     if (strip) {
+        if (auto* rec = server.getControl()->getRecordingIndicator()) {
+            rec->detach();  // (back to its own place before the strip goes)
+        }
         GtkWidget* s = strip;
         unwatch(strip);
         gtk_widget_destroy(s);
@@ -520,6 +524,9 @@ void McpUi::buildStrip() {
     gtk_widget_set_tooltip_text(pauseButton, "Stop the AI agent immediately (Ctrl+Alt+Esc)");
     gtk_box_pack_start(GTK_BOX(strip), pauseButton, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(strip), label, TRUE, TRUE, 0);
+    if (auto* rec = server.getControl()->getRecordingIndicator()) {
+        rec->attachTo(GTK_BOX(strip), 1);  // one status line: right after the pause button
+    }
     // Paused must be impossible to miss
     GtkCssProvider* css = gtk_css_provider_new();
     gtk_css_provider_load_from_data(css,

@@ -1680,7 +1680,9 @@
               "title": "Recording indicator in the status line",
               "details": "gui/RecordingIndicator (dot, level, time, Stop); PortAudioProducer peak level; AudioController recording listener; McpUi status line takes it in; test hook test_recorder.",
               "commit": "ai: the status line shows that the recorder is on",
-              "status": "todo"
+              "status": "done",
+              "started": "2026-09-30T19:54:14+01:00",
+              "finished": "2026-09-30T19:54:14+01:00"
             },
             {
               "id": "T11.2.3",

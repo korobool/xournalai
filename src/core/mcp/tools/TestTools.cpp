@@ -14,6 +14,7 @@
 #include "control/settings/SettingsEnums.h"  // for InputDeviceTypeOption
 #include "control/zoom/ZoomControl.h"        // for ZoomControl
 #include "gui/MainWindow.h"                  // for MainWindow
+#include "gui/RecordingIndicator.h"          // for RecordingIndicator
 #include "gui/XournalView.h"                 // for XournalView
 #include "mcp/McpServer.h"
 #include "mcp/McpUi.h"  // for McpUi
@@ -219,6 +220,24 @@ void registerTestTools(McpServer& server) {
         return ToolResult::structured({{"observed", static_cast<bool>(observer)}});
     };
     server.getRegistry().addTool(std::move(rec));
+
+    ToolSpec recOn;
+    recOn.name = "test_recorder";
+    recOn.title = "Test hook: the recorder is on or off";
+    recOn.description = "Test hook (XOURNALAI_TEST_HOOKS=1 only): shows or hides the recording indicator as if the "
+                        "Xournal++ recorder started (on=true) or stopped, without opening the microphone.";
+    recOn.inputSchema = schema::object({{"on", schema::boolean("recording")}}, {"on"});
+    recOn.tier = Tier::Ui;
+    recOn.handler = [srv](const json& j) {
+        Args args(j);
+        auto* ind = srv->getControl()->getRecordingIndicator();
+        if (!ind) {
+            throw ToolError("no recording indicator (audio is disabled)");
+        }
+        ind->setRecording(args.boolean("on", false));
+        return ToolResult::structured({{"recording", ind->isRecording()}});
+    };
+    server.getRegistry().addTool(std::move(recOn));
 }
 
 }  // namespace xoj::mcp::tools

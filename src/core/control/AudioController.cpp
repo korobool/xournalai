@@ -4,6 +4,7 @@
 #include <cstdio>  // for snprintf
 #include <ctime>   // for tm, localtime, time
 #include <string>  // for string, allocator
+#include <utility>  // for move
 
 #include <glib.h>  // for g_get_monotonic_time
 
@@ -58,6 +59,8 @@ auto AudioController::startRecording() -> bool {
         if (!isRecording) {
             audioFilename = "";
             this->timestamp = 0;
+        } else if (recordingListener) {
+            recordingListener(true);
         }
 
         return isRecording;
@@ -79,11 +82,20 @@ auto AudioController::stopRecording() -> bool {
         if (const auto observer = xoj::audio::recordingObserver()) {
             observer(finished);  // xournalai: the assistant hears about it
         }
+        if (recordingListener) {
+            recordingListener(false);
+        }
     }
     return true;
 }
 
 auto AudioController::isRecording() -> bool { return this->audioRecorder->isRecording(); }
+
+void AudioController::setRecordingListener(std::function<void(bool)> listener) {
+    recordingListener = std::move(listener);
+}
+
+auto AudioController::takeRecordingLevel() -> float { return this->audioRecorder->takeLevel(); }
 
 auto AudioController::isPlaying() -> bool { return this->audioPlayer->isPlaying(); }
 

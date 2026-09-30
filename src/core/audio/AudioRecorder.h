@@ -35,6 +35,7 @@ public:
     bool start(fs::path const& file);
     void stop();
     [[nodiscard]] bool isRecording() const;
+    float takeLevel();  ///< xournalai: the loudest sample (0..1) since the last call
     std::vector<DeviceInfo> getInputDevices() const;
 
 private:

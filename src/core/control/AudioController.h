@@ -14,7 +14,8 @@
 #include "config-features.h"  // for ENABLE_AUDIO
 #ifdef ENABLE_AUDIO
 
-#include <cstddef>  // for size_t
+#include <cstddef>     // for size_t
+#include <functional>  // for function
 #include <memory>   // for make_unique, unique_ptr
 #include <vector>   // for vector
 
@@ -38,6 +39,10 @@ public:
     bool stopRecording();
     bool isRecording();
 
+    /// xournalai: told when a recording starts (true) or stops (false); null to stop telling
+    void setRecordingListener(std::function<void(bool)> listener);
+    float takeRecordingLevel();  ///< the loudest sample (0..1) since the last call
+
     bool isPlaying();
     bool startPlayback(fs::path const& file, unsigned int timestamp);
     void pausePlayback();
@@ -55,6 +60,7 @@ public:
 private:
     Settings& settings;
     Control& control;
+    std::function<void(bool)> recordingListener;
 
     /**
      * RAII initializer don't move below the portaudio::System::instance() calls in

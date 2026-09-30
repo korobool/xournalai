@@ -1,6 +1,7 @@
 #include "PortAudioProducer.h"
 
 #include <algorithm>  // for min, max
+#include <cmath>      // for abs
 #include <cstddef>    // for size_t
 #include <iterator>   // for next
 #include <string>     // for to_string, string
@@ -102,6 +103,13 @@ auto PortAudioProducer::recordCallback(const void* inputBuffer, void* /*outputBu
     if (inputBuffer != nullptr) {
         size_t providedFrames = framesPerBuffer * as_unsigned(this->inputChannels);
         auto begI = static_cast<float const*>(inputBuffer);
+        float loudest = 0.0f;
+        for (size_t i = 0; i < providedFrames; i++) {
+            loudest = std::max(loudest, std::abs(begI[i]));
+        }
+        if (loudest > this->peak.load(std::memory_order_relaxed)) {
+            this->peak.store(loudest, std::memory_order_relaxed);
+        }
         this->audioQueue.emplace(begI, std::next(begI, as_signed(providedFrames)));
     }
     return paContinue;
