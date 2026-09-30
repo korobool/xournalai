@@ -60,11 +60,13 @@ void ServingState::apply(const mcp::json& report) {
     } else if (event == "Stop") {
         set(State::Idle);
     } else if (event == "UserPromptSubmit") {
+        delegatedThisTurn = false;
         set(State::Busy);
     } else if (event == "PreToolUse") {
         std::string tool = payload.is_object() ? payload.value("tool_name", "") : "";
         if (tool == "Agent" || tool == "Task") {
             subagentCount++;  // a subagent starts (it reports SubagentStop when it's done)
+            delegatedThisTurn = true;
         }
         if (tool.rfind("mcp__xournalai__", 0) == 0) {
             tool = tool.substr(16);

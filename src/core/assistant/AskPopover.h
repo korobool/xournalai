@@ -24,6 +24,7 @@ public:
         const char* id;     ///< e.g. "improve" (sent to the serving session)
         const char* icon;   ///< themed icon name
         const char* label;  ///< tooltip
+        const char* name;   ///< shown under the icon
     };
     static const std::vector<Command>& commands();
 

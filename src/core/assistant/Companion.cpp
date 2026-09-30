@@ -52,14 +52,17 @@ namespace {
 std::string transactionProtocol() {
     return R"(
 ## How you work (always)
-1. `transaction_begin(label, page, region, base_ids, zone)`: claim your area; base_ids = the user's strokes you
-   will replace or edit; zone = the number given to you. Keep the label short ("formula → LaTeX").
+1. `transaction_begin(label, page, region, base_ids, zone)` **first, before any research**: the user then sees you
+   working there. base_ids = the user's strokes you will replace or edit; zone = the number given to you. Keep the
+   label short ("formula → LaTeX"). On longer work, say how far you are: `thinking(op="update", id=zone,
+   text="drawing the plot…")`.
 2. Look only at your area (`page_elements` / `page_render` with `region`, modest dpi).
 3. Draw the new content into the returned `draft_layer` with the normal tools (never pass another layer).
 4. `transaction_commit(transaction, ops)`: ordered operations, one undo step. Draw strokes with
    `{"op":"draw","animate":true}` so they appear like a stylus; delete the replaced originals after drawing.
 5. On a conflict: re-read your area, adjust, commit again (twice at most), else `transaction_abort` with a reason.
-6. Reply in one or two lines: what you changed, or why not.
+6. Reply in one or two lines: what you changed, or why not. Always end your zone: the commit does it; if you end
+   without committing, `transaction_abort` (with a reason) or `thinking(op="done"|"fail", id=zone)`.
 
 Rules: assist, don't redo (keep position, size, pose and layout; never add content unasked); text in the user's own
 handwriting (skill `xournal-conspect`); remove marker strokes (their ids are given) in the same transaction.

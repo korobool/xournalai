@@ -38,6 +38,7 @@ const Draft& Drafts::begin(Control* control, size_t pageIndex) {
     const auto selected = page->getSelectedLayerId();
     control->getLayerController()->insertLayer(page, d.layer, static_cast<Layer::Index>(page->getLayerCount()));
     page->setSelectedLayerId(selected);
+    control->getLayerController()->fireRebuildLayerMenu();  // shows the user's layer again (not the hidden draft)
     return drafts.emplace(d.id, d).first->second;
 }
 
@@ -74,6 +75,7 @@ void Drafts::close(Control* control, const std::string& id) {
     const auto selected = page->getSelectedLayerId();
     control->getLayerController()->removeLayer(page, layer);
     page->setSelectedLayerId(std::min<size_t>(selected, page->getLayerCount()));
+    control->getLayerController()->fireRebuildLayerMenu();
     drafts.erase(id);
     {
         std::unique_lock lock(*control->getDocument());

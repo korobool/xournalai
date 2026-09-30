@@ -6,6 +6,19 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+## 1.6.2 — Visible thinking, a popover for the stylus
+- **An ask stays visible while it is worked on.** The serving session hands an ask to a background subagent and
+  ends its turn at once, and that closed the zone: you saw nothing while the subagent worked. Now a turn that
+  delegated keeps its zones until their transaction ends, the agent reports done or failed, you press Stop, or
+  10 minutes pass. Subagents claim their zone before any research, report progress in it, and always end it.
+- **Every zone has an animated status pill** above it, in the style of the recording indicator: waiting (a
+  breathing dot), thinking (orbiting teal dots), done (a green tick), failed (a red cross), each with its status
+  text. This covers markers and the toolbar actions too.
+- **The Ask popover is sized for a stylus:** labelled command buttons (64×56), a larger text field (16 px), and big
+  microphone and Send buttons.
+- Fix: the layer selector showed an agent's hidden draft layer as the current one. It was display only: your
+  strokes went into your layer.
+
 ## 1.6.1 — Ask: the button and the recording indicator
 - **Ask button** on the AI toolbar (the first one; Ctrl+Alt+A). The next stroke, with the pen or the mouse, draws a
   dashed lasso instead of ink; the popover opens there. Type, tap a command, or hold the pen button (or the

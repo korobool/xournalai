@@ -3,7 +3,7 @@
     "project": "xournalai: embedded MCP server and assistant",
     "branch": "mcp",
     "plan": "docs/mcp/PLAN.md, docs/assistant/ASSISTANT-PLAN.md",
-    "version": "1.6.1",
+    "version": "1.6.2",
     "versioning": [
       "The fork has its own semantic version, XOURNALAI_VERSION, kept in CMakeLists.txt. The application version string becomes <upstream>+ai.<XOURNALAI_VERSION>, e.g. 1.3.7+ai.0.2.0.",
       "Each task is exactly one commit. The commit message is '<planned message> (<task id>)'.",
@@ -1432,7 +1432,7 @@
     {
       "id": "E10",
       "title": "Ask: lasso + voice (experimental)",
-      "release": "1.6.1",
+      "release": "1.6.2",
       "goal": "Point and say: hold the pen's barrel button, speak, circle an area; a popover next to it shows the transcript (editable) and command icons; the request goes to the serving session as a zone. Speech-to-text runs locally (whisper.cpp).",
       "stages": [
         {
@@ -1552,7 +1552,7 @@
         {
           "id": "S10.4",
           "title": "Ask: the button and the recording indicator",
-          "version": "1.6.1",
+          "version": "1.6.2",
           "stories": [
             {
               "id": "US-10.4",
@@ -1571,6 +1571,14 @@
               "title": "Ask button, lasso and recording indicator",
               "details": "Stroke interceptor in AbstractInputHandler (pen / mouse only, consumed); dashed lasso on the overlay; pen button decides on release (lasso → new ask, else dictation); xournalai-stt level events (~20/s; the fake mic plays in real time); ThinkingOverlay recording pill. Fixes: the interceptor removed itself while running (crash); ui_interact clicks tool buttons' inner button (toggles).",
               "commit": "ai: ask button and recording indicator",
+              "status": "done"
+            },
+            {
+              "id": "T10.4.2",
+              "story": "US-10.4",
+              "title": "Visible thinking for asks, stylus-sized popover",
+              "details": "An ask delegated to a background subagent lost its zone when the coordinator ended its turn (the owner saw nothing while it worked): a turn that delegated (PreToolUse Agent/Task) keeps its zones until their transaction ends, thinking done/fail, Stop or 10 min; subagents claim their zone first and always end it. Zones get an animated status pill (waiting: breathing dot; thinking: orbiting dots; done: tick; failed: cross). The Ask popover is sized for a stylus (labelled 64x56 command buttons, 16 px text). The layer selector showed an agent's hidden draft layer as current (display only).",
+              "commit": "ai: visible thinking for asks, stylus-sized popover",
               "status": "done"
             }
           ]

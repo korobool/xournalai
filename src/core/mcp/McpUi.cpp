@@ -1427,8 +1427,10 @@ void McpUi::onServingChanged() {
     using S = assistant::ServingState::State;
     const auto st = server.serving().state();
     // the session finished a turn: what it was thinking about is done
+    // (not if it handed the work to a subagent: those zones end with the subagent's transaction, or its thinking
+    // done/fail, or Stop — a background subagent works on long after the coordinator's turn)
     if (thinkingOverlay && (st == S::Idle || st == S::NotRunning) && lastServingState == static_cast<int>(S::Busy) &&
-        (st == S::NotRunning || server.serving().subagents() == 0)) {
+        (st == S::NotRunning || (server.serving().subagents() == 0 && !server.serving().delegated()))) {
         const auto owned = server.transactions().openZones();  // they end with their transaction
         for (int z: thinkingOverlay->inState(assistant::ThinkingOverlay::State::Thinking)) {
             if (std::find(owned.begin(), owned.end(), z) != owned.end()) {

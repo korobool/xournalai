@@ -6,13 +6,13 @@ namespace xoj::assistant {
 
 const std::vector<AskPopover::Command>& AskPopover::commands() {
     static const std::vector<Command> list = {
-            {"improve", "edit-clear-all-symbolic", "Improve: tidy it up (handwriting, formulas, layout)"},
-            {"illustrate", "insert-image-symbolic", "Illustrate: add a sketch or diagram"},
-            {"write", "document-edit-symbolic", "Write: continue or write it out"},
-            {"revise", "emblem-ok-symbolic", "Revise: check and correct"},
-            {"style", "applications-graphics-symbolic", "Style: colours and emphasis"},
-            {"explain", "dialog-information-symbolic", "Explain: add an explanation next to it"},
-            {"summarize", "view-list-symbolic", "Summarize: sum it up"},
+            {"improve", "edit-clear-all-symbolic", "Improve: tidy it up (handwriting, formulas, layout)", "Improve"},
+            {"illustrate", "insert-image-symbolic", "Illustrate: add a sketch or diagram", "Illustrate"},
+            {"write", "document-edit-symbolic", "Write: continue or write it out", "Write"},
+            {"revise", "emblem-ok-symbolic", "Revise: check and correct", "Revise"},
+            {"style", "applications-graphics-symbolic", "Style: colours and emphasis", "Style"},
+            {"explain", "dialog-information-symbolic", "Explain: add an explanation next to it", "Explain"},
+            {"summarize", "view-list-symbolic", "Summarize: sum it up", "Summarize"},
     };
     return list;
 }
@@ -22,13 +22,33 @@ AskPopover::AskPopover(GtkWidget* canvas, Submit submit, Mic mic): onSubmit(std:
     gtk_buildable_set_name(GTK_BUILDABLE(popover), "ask-popover");
     gtk_popover_set_modal(GTK_POPOVER(popover), false);  // the pen keeps drawing elsewhere
     gtk_popover_set_position(GTK_POPOVER(popover), GTK_POS_RIGHT);
+    // Sized for a stylus: big targets, big text
+    static GtkCssProvider* css = [] {
+        GtkCssProvider* p = gtk_css_provider_new();
+        gtk_css_provider_load_from_data(p,
+                                        ".xoai-ask entry { font-size: 16px; min-height: 44px; }"
+                                        ".xoai-ask .xoai-cmd { min-width: 64px; min-height: 56px; padding: 2px 4px; }"
+                                        ".xoai-ask .xoai-cmd label { font-size: 11px; }"
+                                        ".xoai-ask .xoai-big { min-width: 52px; min-height: 48px; }",
+                                        -1, nullptr);
+        return p;
+    }();
+    gtk_style_context_add_provider_for_screen(gdk_screen_get_default(), GTK_STYLE_PROVIDER(css),
+                                              GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+    gtk_style_context_add_class(gtk_widget_get_style_context(popover), "xoai-ask");
 
-    GtkWidget* box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);
-    gtk_container_set_border_width(GTK_CONTAINER(box), 6);
+    GtkWidget* box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+    gtk_container_set_border_width(GTK_CONTAINER(box), 10);
 
-    GtkWidget* icons = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
+    GtkWidget* icons = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
     for (const auto& c: commands()) {
-        GtkWidget* b = gtk_button_new_from_icon_name(c.icon, GTK_ICON_SIZE_BUTTON);
+        GtkWidget* b = gtk_button_new();
+        GtkWidget* inner = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
+        gtk_box_pack_start(GTK_BOX(inner), gtk_image_new_from_icon_name(c.icon, GTK_ICON_SIZE_LARGE_TOOLBAR), false,
+                           false, 0);
+        gtk_box_pack_start(GTK_BOX(inner), gtk_label_new(c.name), false, false, 0);
+        gtk_container_add(GTK_CONTAINER(b), inner);
+        gtk_style_context_add_class(gtk_widget_get_style_context(b), "xoai-cmd");
         gtk_buildable_set_name(GTK_BUILDABLE(b), (std::string("ask-") + c.id).c_str());
         gtk_widget_set_tooltip_text(b, c.label);
         gtk_button_set_relief(GTK_BUTTON(b), GTK_RELIEF_NONE);
@@ -40,7 +60,8 @@ AskPopover::AskPopover(GtkWidget* canvas, Submit submit, Mic mic): onSubmit(std:
                          this);
         gtk_box_pack_start(GTK_BOX(icons), b, false, false, 0);
     }
-    GtkWidget* closeButton = gtk_button_new_from_icon_name("window-close-symbolic", GTK_ICON_SIZE_BUTTON);
+    GtkWidget* closeButton = gtk_button_new_from_icon_name("window-close-symbolic", GTK_ICON_SIZE_LARGE_TOOLBAR);
+    gtk_widget_set_valign(closeButton, GTK_ALIGN_START);
     gtk_buildable_set_name(GTK_BUILDABLE(closeButton), "ask-close");
     gtk_widget_set_tooltip_text(closeButton, "Close (Esc)");
     gtk_button_set_relief(GTK_BUTTON(closeButton), GTK_RELIEF_NONE);
@@ -49,16 +70,18 @@ AskPopover::AskPopover(GtkWidget* canvas, Submit submit, Mic mic): onSubmit(std:
     gtk_box_pack_end(GTK_BOX(icons), closeButton, false, false, 0);
     gtk_box_pack_start(GTK_BOX(box), icons, false, false, 0);
 
-    GtkWidget* row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
+    GtkWidget* row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
     entry = gtk_entry_new();
     gtk_buildable_set_name(GTK_BUILDABLE(entry), "ask-text");
     gtk_entry_set_placeholder_text(GTK_ENTRY(entry), "Say (hold the mic or the pen button) or type what you want");
-    gtk_entry_set_width_chars(GTK_ENTRY(entry), 44);
+    gtk_entry_set_width_chars(GTK_ENTRY(entry), 48);
     g_signal_connect(entry, "activate",
                      G_CALLBACK(+[](GtkEntry*, gpointer self) { static_cast<AskPopover*>(self)->submit(""); }), this);
     gtk_box_pack_start(GTK_BOX(row), entry, true, true, 0);
 
-    GtkWidget* micButton = gtk_button_new_from_icon_name("audio-input-microphone-symbolic", GTK_ICON_SIZE_BUTTON);
+    GtkWidget* micButton =
+            gtk_button_new_from_icon_name("audio-input-microphone-symbolic", GTK_ICON_SIZE_LARGE_TOOLBAR);
+    gtk_style_context_add_class(gtk_widget_get_style_context(micButton), "xoai-big");
     gtk_buildable_set_name(GTK_BUILDABLE(micButton), "ask-mic");
     gtk_widget_set_tooltip_text(micButton, "Hold to talk");
     g_signal_connect(micButton, "button-press-event", G_CALLBACK(+[](GtkWidget*, GdkEvent*, gpointer self) -> gboolean {
@@ -74,7 +97,8 @@ AskPopover::AskPopover(GtkWidget* canvas, Submit submit, Mic mic): onSubmit(std:
                      this);
     gtk_box_pack_start(GTK_BOX(row), micButton, false, false, 0);
 
-    GtkWidget* send = gtk_button_new_from_icon_name("mail-send-symbolic", GTK_ICON_SIZE_BUTTON);
+    GtkWidget* send = gtk_button_new_from_icon_name("mail-send-symbolic", GTK_ICON_SIZE_LARGE_TOOLBAR);
+    gtk_style_context_add_class(gtk_widget_get_style_context(send), "xoai-big");
     gtk_buildable_set_name(GTK_BUILDABLE(send), "ask-send");
     gtk_widget_set_tooltip_text(send, "Send (Enter)");
     gtk_style_context_add_class(gtk_widget_get_style_context(send), "suggested-action");

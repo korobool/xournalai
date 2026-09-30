@@ -195,3 +195,50 @@ def test_8_a_recording_indicator_shows_listening_then_transcribing(app):
     while time.time() < deadline and c.call("app_status")["ask"]["recording"] != "off":
         time.sleep(0.1)
     assert c.call("app_status")["ask"]["recording"] == "off"
+
+
+def hook(app, event, payload=None):
+    import json as _json
+    import subprocess
+    env = dict(app.app_env(), XOURNALAI_PORT=str(app.port))
+    r = subprocess.run([app.binary, "--ai-hook", event], input=_json.dumps(payload or {"session_id": "s"}), env=env,
+                       text=True, capture_output=True, timeout=10)
+    assert r.returncode == 0
+
+
+def zone_state(c, zone):
+    return {z["id"]: z["state"] for z in c.call("thinking_list")["zones"]}.get(zone)
+
+
+def test_9_a_delegated_ask_stays_visible_until_its_work_ends(app):
+    # The serving session hands an ask to a background subagent and ends its turn at once: the zone must stay
+    # (it used to be closed right then, so the user saw nothing while the subagent worked)
+    c = app.client()
+    close_popover(c)
+    c.call("action_run", action="win.ai-ask", state=True)
+    lasso(c, 330, 300, r=40)
+    c.call("ui_interact", op="set_value", target=widget(c, "ask-text")["id"], value="explain logistic regression")
+    c.call("ui_interact", op="activate", target=widget(c, "ask-text")["id"])
+    zone = c.call("app_status")["ask"]["last"]["submitted"]["zone"]
+    hook(app, "SessionStart")
+    hook(app, "UserPromptSubmit")
+    c.call("thinking", op="update", id=zone, text="explaining…")  # (delivered: thinking)
+    hook(app, "PreToolUse", {"session_id": "s", "tool_name": "Agent"})
+    hook(app, "PostToolUse", {"session_id": "s", "tool_name": "Agent"})
+    hook(app, "SubagentStop")  # (a background launch may be reported like this at once)
+    hook(app, "Stop")  # the coordinator ends its turn
+    time.sleep(0.5)
+    assert zone_state(c, zone) == "thinking", c.call("thinking_list")
+    t = c.call("transaction_begin", label="logistic regression", zone=zone)
+    c.call("transaction_commit", transaction=t["transaction"], ops=[])
+    assert zone_state(c, zone) in ("done", None)
+
+
+def test_10_the_layer_selector_never_shows_an_ai_draft(app):
+    c = app.client()
+    t = c.call("transaction_begin", label="x", page=1)
+    time.sleep(0.3)
+    shown = [w for w in c.call("ui_inspect", max_depth=80, all=True)["widgets"]
+             if "AI draft" in (w.get("label") or w.get("value") or w.get("text") or "") and w.get("visible", True)]
+    c.call("transaction_abort", transaction=t["transaction"], reason="test")
+    assert not shown, shown

@@ -85,6 +85,7 @@ private:
     std::optional<std::pair<size_t, xoj::util::Point<double>>> recAnchor;
     std::vector<float> levels;  ///< recent levels, oldest first
     void drawRecording(cairo_t* cr);
+    void drawZonePill(cairo_t* cr, const Zone& z, double zx, double zy, double zw, double zh, double alpha);
     void ensureTimer();
     size_t lassoPage = 0;
     std::vector<xoj::util::Point<double>> lasso;

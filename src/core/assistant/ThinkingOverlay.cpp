@@ -9,7 +9,7 @@ namespace {
 constexpr guint FRAME_MS = 50;
 constexpr gint64 DONE_FADE_US = 1500 * 1000;
 constexpr gint64 FAILED_KEEP_US = 5 * G_USEC_PER_SEC;
-constexpr gint64 MAX_AGE_US = 5 * 60 * G_USEC_PER_SEC;  ///< a zone nobody finished disappears after this
+constexpr gint64 MAX_AGE_US = 10 * 60 * G_USEC_PER_SEC;  ///< a zone nobody finished disappears after this (the lease)
 }  // namespace
 
 struct ThinkingOverlay::Zone {
@@ -280,6 +280,95 @@ void ThinkingOverlay::pushLevel(float rms) {
     }
 }
 
+namespace {
+void pillPath(cairo_t* cr, double x, double y, double w, double h) {
+    const double r = h / 2;
+    cairo_new_sub_path(cr);
+    cairo_arc(cr, x + r, y + r, r, M_PI / 2, 3 * M_PI / 2);
+    cairo_arc(cr, x + w - r, y + r, r, -M_PI / 2, M_PI / 2);
+    cairo_close_path(cr);
+}
+}  // namespace
+
+void ThinkingOverlay::drawZonePill(cairo_t* cr, const Zone& z, double zx, double zy, double zw, double zh,
+                                   double alpha) {
+    constexpr double H = 32;
+    std::string text = z.text.empty() ? (z.state == State::Queued ? "waiting for the AI…" : "working…") : z.text;
+    if (z.state == State::Done) {
+        text = "done";
+    }
+    cairo_save(cr);
+    cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
+    cairo_set_font_size(cr, 13);
+    cairo_text_extents_t ext;
+    cairo_text_extents(cr, text.c_str(), &ext);
+    while (ext.x_advance > 280 && text.size() > 4) {  // long statuses are cut
+        text = text.substr(0, text.size() - 4) + "…";
+        cairo_text_extents(cr, text.c_str(), &ext);
+    }
+    const double W = ext.x_advance + 50;
+    double x = zx, y = zy - H - 6;
+    const auto area = bounds ? bounds() : std::nullopt;
+    if (area && y < area->y + 4) {
+        y = zy + zh + 6;  // no room above: below the zone
+    }
+    if (area) {
+        x = std::clamp(x, area->x + 4.0, std::max(area->x + 4.0, area->x + area->width - W - 4.0));
+    }
+    cairo_push_group(cr);
+    pillPath(cr, x + 1, y + 3, W, H);
+    cairo_set_source_rgba(cr, 0, 0, 0, 0.22);
+    cairo_fill(cr);
+    pillPath(cr, x, y, W, H);
+    cairo_set_source_rgba(cr, 0.11, 0.12, 0.14, 0.92);
+    cairo_fill_preserve(cr);
+    cairo_set_source_rgba(cr, 1, 1, 1, 0.12);
+    cairo_set_line_width(cr, 1);
+    cairo_stroke(cr);
+    const double cx = x + 18, cy = y + H / 2;
+    switch (z.state) {
+        case State::Queued: {
+            const double breathe = 0.5 + 0.5 * std::sin(phase / 3.0);  // waiting: a slow breathing dot
+            cairo_arc(cr, cx, cy, 4 + 2 * breathe, 0, 2 * M_PI);
+            cairo_set_source_rgba(cr, 0.75, 0.77, 0.8, 0.6 + 0.4 * breathe);
+            cairo_fill(cr);
+            break;
+        }
+        case State::Thinking:  // thinking: three teal dots orbiting
+            for (int i = 0; i < 3; i++) {
+                const double a = phase / 2.2 + i * 2 * M_PI / 3;
+                cairo_new_sub_path(cr);
+                cairo_arc(cr, cx + 7 * std::cos(a), cy + 7 * std::sin(a), 2.6 - 0.5 * i, 0, 2 * M_PI);
+            }
+            cairo_set_source_rgb(cr, 0.35, 0.85, 0.78);
+            cairo_fill(cr);
+            break;
+        case State::Done:  // a green tick
+            cairo_set_line_width(cr, 3);
+            cairo_set_source_rgb(cr, 0.35, 0.8, 0.35);
+            cairo_move_to(cr, cx - 6, cy);
+            cairo_line_to(cr, cx - 1, cy + 5);
+            cairo_line_to(cr, cx + 7, cy - 6);
+            cairo_stroke(cr);
+            break;
+        case State::Failed:  // a red cross
+            cairo_set_line_width(cr, 3);
+            cairo_set_source_rgb(cr, 0.95, 0.3, 0.3);
+            cairo_move_to(cr, cx - 5, cy - 5);
+            cairo_line_to(cr, cx + 5, cy + 5);
+            cairo_move_to(cr, cx + 5, cy - 5);
+            cairo_line_to(cr, cx - 5, cy + 5);
+            cairo_stroke(cr);
+            break;
+    }
+    cairo_set_source_rgba(cr, 1, 1, 1, 0.95);
+    cairo_move_to(cr, x + 36, cy + 5);
+    cairo_show_text(cr, text.c_str());
+    cairo_pop_group_to_source(cr);
+    cairo_paint_with_alpha(cr, alpha);
+    cairo_restore(cr);
+}
+
 void ThinkingOverlay::drawRecording(cairo_t* cr) {
     constexpr double W = 190, H = 40, R = H / 2;
     // Where: next to the pen (not under the hand), else at the top of the canvas; always inside the canvas
@@ -296,12 +385,7 @@ void ThinkingOverlay::drawRecording(cairo_t* cr) {
         x = std::clamp(x, area->x + 6.0, area->x + area->width - W - 6.0);
         y = std::clamp(y, area->y + 6.0, area->y + area->height - H - 6.0);
     }
-    auto pill = [&](double px, double py) {
-        cairo_new_sub_path(cr);
-        cairo_arc(cr, px + R, py + R, R, M_PI / 2, 3 * M_PI / 2);
-        cairo_arc(cr, px + W - R, py + R, R, -M_PI / 2, M_PI / 2);
-        cairo_close_path(cr);
-    };
+    auto pill = [&](double px, double py) { pillPath(cr, px, py, W, H); };
     // shadow, body, hairline
     pill(x + 1, y + 3);
     cairo_set_source_rgba(cr, 0, 0, 0, 0.25);
@@ -422,40 +506,8 @@ gboolean ThinkingOverlay::onDraw(GtkWidget*, cairo_t* cr, gpointer data) {
         cairo_rectangle(cr, x, y, w, h);
         cairo_stroke(cr);
         cairo_set_dash(cr, nullptr, 0, 0);
-        // the one-line status, above the zone (drawn: it lets the pen through)
-        if (!z->text.empty() && z->state != State::Done) {
-            cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
-            cairo_set_font_size(cr, 12);
-            cairo_text_extents_t ext;
-            cairo_text_extents(cr, z->text.c_str(), &ext);
-            const double tx = x + 2, ty = (y - 8 > 14) ? y - 6 : y + h + 16;
-            cairo_set_source_rgba(cr, 1, 1, 1, 0.85);
-            cairo_rectangle(cr, tx - 3, ty - ext.height - 4, ext.x_advance + 6, ext.height + 8);
-            cairo_fill(cr);
-            if (z->state == State::Failed) {
-                cairo_set_source_rgba(cr, 0.7, 0.1, 0.1, 1);
-            } else {
-                cairo_set_source_rgba(cr, 0.05, 0.45, 0.42, 1);
-            }
-            cairo_move_to(cr, tx, ty);
-            cairo_show_text(cr, z->text.c_str());
-        }
-        // done: a tick; failed: a cross (top-right corner)
-        if (z->state == State::Done || z->state == State::Failed) {
-            const double cx = x + w - 10, cy = y + 10;
-            cairo_set_line_width(cr, 3);
-            if (z->state == State::Done) {
-                cairo_move_to(cr, cx - 6, cy);
-                cairo_line_to(cr, cx - 1, cy + 5);
-                cairo_line_to(cr, cx + 7, cy - 6);
-            } else {
-                cairo_move_to(cr, cx - 5, cy - 5);
-                cairo_line_to(cr, cx + 5, cy + 5);
-                cairo_move_to(cr, cx + 5, cy - 5);
-                cairo_line_to(cr, cx - 5, cy + 5);
-            }
-            cairo_stroke(cr);
-        }
+        // The status pill above the zone (drawn: it lets the pen through): an animated sign of what is going on
+        self->drawZonePill(cr, *z, x, y, w, h, alpha);
     }
     if (self->rec != Recording::Off) {  // on top of everything
         cairo_save(cr);

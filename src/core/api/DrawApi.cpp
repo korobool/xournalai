@@ -131,6 +131,7 @@ LayerChoice DrawApi::resolveLayer(const PageRef& page, const std::string& wanted
         const auto position = static_cast<Layer::Index>(page->getLayerCount());  // on top
         control->getLayerController()->insertLayer(page, out.layer, position);   // locks the document itself
         page->setSelectedLayerId(selected);                                      // keep the user's layer selected
+        control->getLayerController()->fireRebuildLayerMenu();                  // and show it
         out.index = page->getLayerCount();
         out.created = true;
         out.undo = std::make_unique<InsertLayerUndoAction>(control->getLayerController(), page, out.layer, position);
