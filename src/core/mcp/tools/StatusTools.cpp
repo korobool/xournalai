@@ -4,13 +4,15 @@
 #include <shared_mutex>  // for shared_lock
 
 #include "api/AgentGate.h"
-#include "api/DocumentApi.h"      // for currentPageIndex
-#include "control/Control.h"      // for Control
-#include "control/ToolEnums.h"    // for toolTypeToString
-#include "control/ToolHandler.h"  // for ToolHandler
+#include "api/DocumentApi.h"         // for currentPageIndex
+#include "assistant/SpeechToText.h"  // for SpeechToText
+#include "control/Control.h"         // for Control
+#include "control/ToolEnums.h"       // for toolTypeToString
+#include "control/ToolHandler.h"     // for ToolHandler
 #include "mcp/McpConfig.h"
 #include "mcp/McpHttpServer.h"
 #include "mcp/McpServer.h"
+#include "mcp/McpUi.h"  // for McpUi
 #include "mcp/PathText.h"
 #include "mcp/Schema.h"
 #include "model/Document.h"        // for Document
@@ -60,6 +62,19 @@ static json uiStalls() {
     return {{"stalls", sum.count}, {"longest_stall_ms", sum.maxUs / 1000}, {"recent_stalls", recent}};
 }
 
+/// Local speech to text for Ask: state (unavailable, downloading, starting, ready, listening, transcribing), model
+static json speechStatus(McpServer* srv) {
+    auto* sp = srv->getUi() ? srv->getUi()->speech() : nullptr;
+    if (!sp) {
+        return {{"state", "off"}};
+    }
+    json j = {{"state", assistant::SpeechToText::name(sp->state())}, {"model", sp->model()}};
+    if (!sp->problem().empty()) {
+        j["problem"] = sp->problem();
+    }
+    return j;
+}
+
 void registerStatusTools(McpServer& server) {
     Control* ctrl = server.getControl();
     McpServer* srv = &server;
@@ -96,6 +111,7 @@ void registerStatusTools(McpServer& server) {
                     {"document", documentSummary(ctrl)},
                     {"user_tool", toolSummary(ctrl)},
                     {"ui", uiStalls()},
+                    {"speech", speechStatus(srv)},
                     {"coordinates", "page points (1/72 inch), origin top-left of each page, pages numbered from 1"}};
         return ToolResult::structured(std::move(out));
     };

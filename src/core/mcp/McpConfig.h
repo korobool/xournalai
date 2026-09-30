@@ -38,9 +38,11 @@ struct McpConfig {
         bool autoImprove = false;               ///< improve everything the user writes (the toolbar toggle)
         /// What Auto-improve does: any of "formulas", "text", "diagrams", "colours"
         std::vector<std::string> rules{"formulas", "text", "diagrams", "colours"};
-        int wakeIdleMs = 2500;  ///< wake the session this long after the user stopped drawing
-        int watchdogS = 20;     ///< resend a wake-up the session didn't react to after this long
-        int maxParallel = 5;    ///< subagents / open edit transactions at once (1-5)
+        int wakeIdleMs = 2500;                ///< wake the session this long after the user stopped drawing
+        int watchdogS = 20;                   ///< resend a wake-up the session didn't react to after this long
+        int maxParallel = 5;                  ///< subagents / open edit transactions at once (1-5)
+        bool speech = true;                   ///< Ask: listen while the pen's button is held (local speech to text)
+        std::string speechModel = "base.en";  ///< whisper.cpp model (ggml-<name>.bin in the models folder)
     } assistant;
     fs::path backupDir;  ///< where those copies go
 

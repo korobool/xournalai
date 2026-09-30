@@ -20,6 +20,7 @@
 #include "api/EventHub.h"  // for EventHub
 #include "assistant/Companion.h"
 #include "assistant/EventPump.h"
+#include "assistant/SpeechToText.h"  // for SpeechToText
 #include "assistant/terminal/TerminalDock.h"
 #endif
 
@@ -90,6 +91,21 @@ McpUi::McpUi(McpServer& server): server(server) {
 #ifdef ENABLE_AI_TERMINAL
     buildTerminal();
 #endif
+#ifdef ENABLE_STT
+    if (server.getConfig().assistant.speech) {
+        speechToText = std::make_unique<assistant::SpeechToText>(server.getConfig().assistant.speechModel);
+        // Load the model soon (not during startup), so the first press of the pen button is answered at once
+        speechWarmUp = g_timeout_add_seconds(
+                3,
+                [](gpointer self) -> gboolean {
+                    auto* ui = static_cast<McpUi*>(self);
+                    ui->speechWarmUp = 0;
+                    ui->speechToText->warmUp();
+                    return G_SOURCE_REMOVE;
+                },
+                this);
+    }
+#endif
     timer = g_timeout_add_seconds(2, &McpUi::onTick, this);
     update();
 }
@@ -97,6 +113,9 @@ McpUi::McpUi(McpServer& server): server(server) {
 McpUi::~McpUi() {
     if (timer) {
         g_source_remove(timer);
+    }
+    if (speechWarmUp) {
+        g_source_remove(speechWarmUp);
     }
     if (menuIdle) {
         g_source_remove(menuIdle);

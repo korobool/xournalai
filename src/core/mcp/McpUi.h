@@ -37,6 +37,7 @@ class McpServer;
 namespace xoj::assistant {
 class AiToolbar;
 class ThinkingOverlay;
+class SpeechToText;
 }  // namespace xoj::assistant
 namespace xoj::api {
 struct DocEvent;
@@ -85,6 +86,8 @@ public:
     /// Delivers canvas events to the serving session (null without the terminal)
     assistant::EventPump* pump() const { return eventPump.get(); }
 #endif
+    /// Local speech to text for Ask (null if disabled or not built)
+    assistant::SpeechToText* speech() const { return speechToText.get(); }
 
 private:
     static gboolean onTick(gpointer self);
@@ -140,6 +143,8 @@ private:
     std::vector<RecentStroke> recentStrokes;
     std::vector<std::string> markerIdsDone;
     guint markerTimer = 0;
+    std::unique_ptr<assistant::SpeechToText> speechToText;
+    guint speechWarmUp = 0;
 #ifdef ENABLE_AI_TERMINAL
     void buildTerminal();
     assistant::TerminalSpec terminalSpec(const std::string& kind, bool serving) const;

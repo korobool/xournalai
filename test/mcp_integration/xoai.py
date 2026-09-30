@@ -64,8 +64,15 @@ class App:
             self.env  # creates the XDG directories
             self.config_file.parent.mkdir(parents=True, exist_ok=True)
             # never start a real Claude Code / Codex from tests (it would use the owner's subscription)
-            seed = {"assistant": {"autostart": False}}
-            seed.update(self.config)
+            # no speech helper either (a test that needs it turns it on); nested settings are merged, so a test's own
+            # "assistant" settings never drop autostart=false
+            seed = {"assistant": {"autostart": False, "speech": False}}
+            for key, value in self.config.items():
+                if isinstance(value, dict) and isinstance(seed.get(key), dict):
+                    seed[key] = {**seed[key], **value}
+                else:
+                    seed[key] = value
+            seed["assistant"]["autostart"] = self.config.get("assistant", {}).get("autostart", False)
             if self.permissions is not None:
                 seed["permissions"] = self.permissions
             existing = {}

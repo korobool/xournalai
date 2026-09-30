@@ -7,6 +7,7 @@
 
 #include <gtk/gtk.h>
 
+#include "assistant/SpeechToText.h"          // for SpeechToText
 #include "control/Control.h"                 // for Control
 #include "control/settings/Settings.h"       // for Settings
 #include "control/settings/SettingsEnums.h"  // for InputDeviceTypeOption
@@ -14,6 +15,7 @@
 #include "gui/MainWindow.h"                  // for MainWindow
 #include "gui/XournalView.h"                 // for XournalView
 #include "mcp/McpServer.h"
+#include "mcp/McpUi.h"  // for McpUi
 #include "mcp/Schema.h"
 #include "util/StallWatch.h"  // for stall::Activity
 
@@ -115,6 +117,31 @@ void registerTestTools(McpServer& server) {
         return ToolResult::structured({{"blocked_ms", ms}});
     };
     server.getRegistry().addTool(std::move(block));
+
+    McpServer* srv = &server;
+    ToolSpec speech;
+    speech.name = "test_speech";
+    speech.title = "Test hook: speech to text";
+    speech.description = "Test hook (XOURNALAI_TEST_HOOKS=1 only): op=start begins listening, op=stop returns the "
+                         "transcript (with XOURNALAI_STT_FAKE_MIC the helper 'hears' that WAV file).";
+    speech.inputSchema = schema::object({{"op", schema::enumeration("start | stop", {"start", "stop"})}}, {"op"});
+    speech.tier = Tier::Ui;
+    speech.asyncHandler = [srv](const json& j, Responder respond) {
+        Args args(j);
+        auto* sp = srv->getUi() ? srv->getUi()->speech() : nullptr;
+        if (!sp) {
+            throw ToolError("speech is off");
+        }
+        if (args.choice("op", {"start", "stop"}, "") == "start") {
+            sp->start();
+            respond(ToolResult::structured({{"state", assistant::SpeechToText::name(sp->state())}}));
+            return;
+        }
+        sp->stop([respond](const std::string& text, bool silent, const std::string& error) {
+            respond(ToolResult::structured({{"text", text}, {"silent", silent}, {"error", error}}));
+        });
+    };
+    server.getRegistry().addTool(std::move(speech));
 }
 
 }  // namespace xoj::mcp::tools
