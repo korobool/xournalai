@@ -1592,6 +1592,57 @@
           ]
         }
       ]
+    },
+    {
+      "id": "E11",
+      "title": "Recordings for the AI",
+      "release": "1.7.0",
+      "goal": "When a Xournal++ audio recording ends, the serving session hears about it (file, length, page, the strokes written meanwhile with their moment in the audio) and transcribes it with the owner's remote transcriber, or the local English-only one as a fallback.",
+      "stages": [
+        {
+          "id": "S11.1",
+          "title": "Recordings for the AI",
+          "version": "1.7.0",
+          "stories": [
+            {
+              "id": "US-11.1",
+              "text": "As the owner, I want the embedded Claude session to know about my audio recordings and use them.",
+              "acceptance": [
+                "a recording that ends becomes an audio_recorded event and a for-your-information line for the serving session (setting assistant.share_recordings, on)",
+                "strokes and texts written during a recording show their moment in it (audio: file, t)",
+                "audio_transcribe: the local fallback (English, timestamped segments, off the UI and apart from Ask), transcripts kept in ~/Music/transcripts",
+                "the companion instructions: the remote transcriber first, then the fallback; align with the strokes; act only when asked or with Auto-improve"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T11.1.1",
+              "story": "US-11.1",
+              "title": "Recording notification and stroke audio times",
+              "details": "Recording observer in AudioController::stopRecording; EventHub audio_recorded; EventPump line; ElementJson audio {file, t}; test hook.",
+              "commit": "ai: tell the serving session about recordings",
+              "status": "todo"
+            },
+            {
+              "id": "T11.1.2",
+              "story": "US-11.1",
+              "title": "audio_transcribe (local fallback)",
+              "details": "xournalai-stt reads any libsndfile format, long files, timestamped segments; a separate helper process per file.",
+              "commit": "ai: audio_transcribe (local fallback)",
+              "status": "todo"
+            },
+            {
+              "id": "T11.1.3",
+              "story": "US-11.1",
+              "title": "Release 1.7.0",
+              "details": "Companion instructions, tests, docs, CHANGELOG, tag.",
+              "commit": "ai: release 1.7.0 (recordings for the AI)",
+              "status": "todo"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

@@ -518,4 +518,23 @@ Point and say: hold the pen's barrel button, speak, circle an area; a popover ne
 |---|---|---|---|---|
 | T10.4.1 | US-10.4 | **Ask button, lasso and recording indicator** — Stroke interceptor in AbstractInputHandler (pen / mouse only, consumed); dashed lasso on the overlay; pen button decides on release (lasso → new ask, else dictation); xournalai-stt level events (~20/s; the fake mic plays in real time); ThinkingOverlay recording pill. Fixes: the interceptor removed itself while running (crash); ui_interact clicks tool buttons' inner button (toggles). | `ai: ask button and recording indicator (T10.4.1)` | ✅ done `a704dc14c` |
 | T10.4.2 | US-10.4 | **Visible thinking for asks, stylus-sized popover** — An ask delegated to a background subagent lost its zone when the coordinator ended its turn (the owner saw nothing while it worked): a turn that delegated (PreToolUse Agent/Task) keeps its zones until their transaction ends, thinking done/fail, Stop or 10 min; subagents claim their zone first and always end it. Zones get an animated status pill (waiting: breathing dot; thinking: orbiting dots; done: tick; failed: cross). The Ask popover is sized for a stylus (labelled 64x56 command buttons, 16 px text). The layer selector showed an agent's hidden draft layer as current (display only). | `ai: visible thinking for asks, stylus-sized popover (T10.4.2)` | ✅ done `db62f8e3b` |
-| T10.4.3 | US-10.4 | **Reliable speech: silence check, instant microphone, feedback, log** — The owner's microphone is quiet (voice peaks ~0.015 RMS): the speech check (3x the quietest 20% of the clip, at least 0.012) judged continuous or quiet speech silent while the level bars moved. Now 3x the quietest 10%, capped to 0.005..0.02, and clearly loud clips go to whisper. The helper transcribes on a worker queue, so the microphone opens at once after a previous request. The client's state follows the facts (a late transcript no longer hides Listening). "Didn't catch that" in the pill. Diagnostics: ~/.cache/xournalai/speech.log and last-silent.wav. The fake microphone plays in real time (tests speak for 3 s). | `ai: reliable speech (silence check, instant microphone, feedback, log) (T10.4.3)` | ✅ done |
+| T10.4.3 | US-10.4 | **Reliable speech: silence check, instant microphone, feedback, log** — The owner's microphone is quiet (voice peaks ~0.015 RMS): the speech check (3x the quietest 20% of the clip, at least 0.012) judged continuous or quiet speech silent while the level bars moved. Now 3x the quietest 10%, capped to 0.005..0.02, and clearly loud clips go to whisper. The helper transcribes on a worker queue, so the microphone opens at once after a previous request. The client's state follows the facts (a late transcript no longer hides Listening). "Didn't catch that" in the pill. Diagnostics: ~/.cache/xournalai/speech.log and last-silent.wav. The fake microphone plays in real time (tests speak for 3 s). | `ai: reliable speech (silence check, instant microphone, feedback, log) (T10.4.3)` | ✅ done `39048bd34` |
+
+## E11 — Recordings for the AI (release 1.7.0)
+
+When a Xournal++ audio recording ends, the serving session hears about it (file, length, page, the strokes written meanwhile with their moment in the audio) and transcribes it with the owner's remote transcriber, or the local English-only one as a fallback.
+
+### S11.1 — Recordings for the AI → v1.7.0
+
+**US-11.1** — As the owner, I want the embedded Claude session to know about my audio recordings and use them.
+
+- [ ] a recording that ends becomes an audio_recorded event and a for-your-information line for the serving session (setting assistant.share_recordings, on)
+- [ ] strokes and texts written during a recording show their moment in it (audio: file, t)
+- [ ] audio_transcribe: the local fallback (English, timestamped segments, off the UI and apart from Ask), transcripts kept in ~/Music/transcripts
+- [ ] the companion instructions: the remote transcriber first, then the fallback; align with the strokes; act only when asked or with Auto-improve
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T11.1.1 | US-11.1 | **Recording notification and stroke audio times** — Recording observer in AudioController::stopRecording; EventHub audio_recorded; EventPump line; ElementJson audio {file, t}; test hook. | `ai: tell the serving session about recordings (T11.1.1)` | ⬜ todo |
+| T11.1.2 | US-11.1 | **audio_transcribe (local fallback)** — xournalai-stt reads any libsndfile format, long files, timestamped segments; a separate helper process per file. | `ai: audio_transcribe (local fallback) (T11.1.2)` | ⬜ todo |
+| T11.1.3 | US-11.1 | **Release 1.7.0** — Companion instructions, tests, docs, CHANGELOG, tag. | `ai: release 1.7.0 (recordings for the AI) (T11.1.3)` | ⬜ todo |
