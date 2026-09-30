@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.5.2**
+Current version: **1.5.3**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -477,8 +477,8 @@ Point and say: hold the pen's barrel button, speak, circle an area; a popover ne
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T10.1.1 | US-10.1 | **STT helper (whisper.cpp)** — tools/stt or src/stt: FetchContent whisper.cpp v1.9.4, PortAudio capture, protocol start/stop/cancel/transcribe(wav); jfk.wav test; model benchmark. | `ai: local speech-to-text helper (T10.1.1)` | ⬜ todo |
-| T10.1.2 | US-10.1 | **STT client in the app** — Spawn lazily, keep warm, restart on crash; model download to ~/.local/share/xournalai/models; settings assistant.stt_model. | `ai: speech-to-text client (T10.1.2)` | ⬜ todo |
+| T10.1.1 | US-10.1 | **STT helper (whisper.cpp)** — tools/stt or src/stt: FetchContent whisper.cpp v1.9.4, PortAudio capture, protocol start/stop/cancel/transcribe(wav); jfk.wav test; model benchmark. | `ai: local speech-to-text helper (T10.1.1)` | ✅ done `0f33feed0` |
+| T10.1.2 | US-10.1 | **STT client in the app** — Spawn lazily, keep warm, restart on crash; model download to ~/.local/share/xournalai/models; settings assistant.stt_model. | `ai: speech-to-text client (T10.1.2)` | ✅ done `399699f97` |
 
 ### S10.2 — Ask → v1.5.4
 
