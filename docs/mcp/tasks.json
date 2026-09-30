@@ -3,7 +3,7 @@
     "project": "xournalai: embedded MCP server and assistant",
     "branch": "mcp",
     "plan": "docs/mcp/PLAN.md, docs/assistant/ASSISTANT-PLAN.md",
-    "version": "1.3.1",
+    "version": "1.4.0",
     "versioning": [
       "The fork has its own semantic version, XOURNALAI_VERSION, kept in CMakeLists.txt. The application version string becomes <upstream>+ai.<XOURNALAI_VERSION>, e.g. 1.3.7+ai.0.2.0.",
       "Each task is exactly one commit. The commit message is '<planned message> (<task id>)'.",
@@ -1280,9 +1280,9 @@
     },
     {
       "id": "E8",
-      "title": "Touch zoom",
-      "release": "1.3.1",
-      "goal": "Pinch zoom on a touchscreen follows the fingers 1:1, even when a gesture daemon (Touchégg on Pop!_OS) turns the same pinch into zoom keystrokes.",
+      "title": "Touch zoom and deep zoom",
+      "release": "1.4.0",
+      "goal": "Pinch zoom on a touchscreen follows the fingers 1:1, even when a gesture daemon (Touchégg on Pop!_OS) turns the same pinch into zoom keystrokes. A toolbar toggle raises the maximum zoom to 3000%, with pages rendered only where visible.",
       "stages": [
         {
           "id": "S8.1",
@@ -1310,6 +1310,35 @@
               "status": "done",
               "started": "2026-09-29T23:09:50+01:00",
               "finished": "2026-09-29T23:16:32+01:00"
+            }
+          ]
+        },
+        {
+          "id": "S8.2",
+          "title": "Deep zoom",
+          "version": "1.4.0",
+          "stories": [
+            {
+              "id": "US-8.2",
+              "text": "As the owner, I want to zoom much deeper than 700% when I need to, with a toggle button on the panel.",
+              "acceptance": [
+                "ZOOM_DEEP toolbar toggle (next to Zoom in), remembered in settings: maximum 700% ↔ 3000%",
+                "turning it off brings a deeper zoom back to 700%; slider, zoom action and MCP view follow the range",
+                "beyond one buffer's budget pages and PDF backgrounds render only the visible part (plus a margin); memory stays flat",
+                "tests: toggle and range, rendering at 3000%, scrolling renders the new part, memory; unit tests for the budget"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T8.2.1",
+              "story": "US-8.2",
+              "title": "Deep zoom toggle and partial rendering",
+              "details": "Action ZOOM_DEEP + settings deepZoom; ZoomControl::setDeepZoom; view/RenderBudget.h; XojPageView keeps the visible range and a partial buffer extent; RenderJob renders partial buffers; PdfCache renders directly when a full page would not fit; icons xopp-zoom-deep; toolbar.ini.in.",
+              "commit": "ai: deep zoom",
+              "status": "done",
+              "started": "2026-09-30T07:05:47+01:00",
+              "finished": "2026-09-30T07:40:19+01:00"
             }
           ]
         }

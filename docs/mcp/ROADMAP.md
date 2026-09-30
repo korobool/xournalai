@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.3.1**
+Current version: **1.4.0**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -402,9 +402,9 @@ The serving session coordinates up to 5 background subagents: they think in para
 |---|---|---|---|---|
 | T7.3.1 | US-7.3 | **Release 1.3.0** — Tests, docs, CHANGELOG, tag. | `ai: release 1.3.0 (parallel serving session) (T7.3.1)` | ✅ done `7848a9783` |
 
-## E8 — Touch zoom (release 1.3.1)
+## E8 — Touch zoom and deep zoom (release 1.4.0)
 
-Pinch zoom on a touchscreen follows the fingers 1:1, even when a gesture daemon (Touchégg on Pop!_OS) turns the same pinch into zoom keystrokes.
+Pinch zoom on a touchscreen follows the fingers 1:1, even when a gesture daemon (Touchégg on Pop!_OS) turns the same pinch into zoom keystrokes. A toolbar toggle raises the maximum zoom to 3000%, with pages rendered only where visible.
 
 ### S8.1 — Pinch owns the zoom → v1.3.1
 
@@ -418,3 +418,16 @@ Pinch zoom on a touchscreen follows the fingers 1:1, even when a gesture daemon 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
 | T8.1.1 | US-8.1 | **Pinch owns the zoom** — Root cause from a trace on the owner's laptop: Touchégg's default config maps a 2-finger pinch to repeated Ctrl+KP_Add/KP_Subtract; each 10% step ended the touch zoom sequence, after which the pinch factor multiplied the current zoom (compounding to 700%/30%). Fix in ZoomControl/TouchInputHandler; test hook test_touch (XOURNALAI_TEST_HOOKS=1). | `ai: pinch owns the zoom (T8.1.1)` | ✅ done `a16b038d0` |
+
+### S8.2 — Deep zoom → v1.4.0
+
+**US-8.2** — As the owner, I want to zoom much deeper than 700% when I need to, with a toggle button on the panel.
+
+- [ ] ZOOM_DEEP toolbar toggle (next to Zoom in), remembered in settings: maximum 700% ↔ 3000%
+- [ ] turning it off brings a deeper zoom back to 700%; slider, zoom action and MCP view follow the range
+- [ ] beyond one buffer's budget pages and PDF backgrounds render only the visible part (plus a margin); memory stays flat
+- [ ] tests: toggle and range, rendering at 3000%, scrolling renders the new part, memory; unit tests for the budget
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T8.2.1 | US-8.2 | **Deep zoom toggle and partial rendering** — Action ZOOM_DEEP + settings deepZoom; ZoomControl::setDeepZoom; view/RenderBudget.h; XojPageView keeps the visible range and a partial buffer extent; RenderJob renders partial buffers; PdfCache renders directly when a full page would not fit; icons xopp-zoom-deep; toolbar.ini.in. | `ai: deep zoom (T8.2.1)` | ✅ done `98f16e306` |
