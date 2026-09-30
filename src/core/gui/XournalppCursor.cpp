@@ -16,6 +16,7 @@
 #include "control/settings/SettingsEnums.h"  // for STYLUS_CURSOR_BIG, STYLU...
 #include "control/zoom/ZoomControl.h"        // for ZoomControl
 #include "gui/MainWindow.h"                  // for MainWindow
+#include "gui/inputdevices/TouchTrace.h"     // for touchTrace
 #include "util/Color.h"                      // for argb_to_GdkRGBA, rgb_to_...
 #include "util/safe_casts.h"                 // for ceil_cast
 
@@ -117,7 +118,24 @@ constexpr auto RESIZE_CURSOR_HASH_PRECISION = 1000;
 XournalppCursor::~XournalppCursor() = default;
 
 
-void XournalppCursor::setInputDeviceClass(InputDeviceClass device) { this->inputDevice = device; }
+void XournalppCursor::setInputDeviceClass(InputDeviceClass device) {
+    if (device == this->inputDevice) {
+        return;
+    }
+    static constexpr const char* names[] = {"mouse", "pen", "eraser", "touchscreen", "ignored"};
+    xoj::input::touchTrace("cursor: device %s -> %s", names[this->inputDevice], names[device]);
+    this->inputDevice = device;
+    if (device == INPUT_DEVICE_MOUSE) {
+        forceRefresh();  // the mouse, touchpad or TrackPoint is back: it must see its cursor
+    }
+}
+
+void XournalppCursor::forceRefresh() {
+    this->currentCursor = FORCE_REAPPLY;
+    this->currentCursorFlavour = 0;
+    this->invisible = false;
+    updateCursor();
+}
 
 
 // pen or hi-light cursor will be a DrawDir cursor instead
@@ -340,6 +358,7 @@ void XournalppCursor::updateCursor() {
     GdkWindow* window = gtk_widget_get_window(xournal->getWidget());
     if (window) {
         if (cursor != nullptr) {
+            xoj::input::touchTrace("cursor: set custom #%u", this->currentCursor);
             gdk_window_set_cursor(window, cursor);
         }
         gtk_widget_set_sensitive(xournal->getWidget(), !this->busy);
@@ -581,6 +600,7 @@ void XournalppCursor::setCursor(guint cursorID) {
     }
 
     this->currentCursor = cursorID;
+    xoj::input::touchTrace("cursor: set %s", cssCursors[cursorID].cssName);
     gdk_window_set_cursor(gtk_widget_get_window(xournal->getWidget()), cursor);
     gdk_window_set_cursor(window, cursor);
     if (cursor) {

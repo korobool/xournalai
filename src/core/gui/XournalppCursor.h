@@ -35,6 +35,9 @@ public:
     void setIsLinkHighlighted(bool higlighted);
     void activateDrawDirCursor(bool enable, bool shift = false, bool ctrl = false);
     void setInputDeviceClass(InputDeviceClass inputDevice);
+    /// (xournalai) Applies the cursor again even if it looks unchanged: after the pen or a touch, the mouse (or Ctrl)
+    /// brings a visible cursor back, whatever hid it meanwhile
+    void forceRefresh();
     void setRotationAngle(double angle);
     void setMirror(bool mirror);
 
@@ -69,6 +72,7 @@ private:
 
     // avoid re-assigning same cursor
     guint currentCursor = 0;        // enum AVAILABLECURSORS
+    static constexpr guint FORCE_REAPPLY = G_MAXUINT;  ///< matches no cursor: the next one is applied for sure
     gulong currentCursorFlavour{};  // for different flavours of a cursor (i.e. drawdir, pen and highlighter custom
                                     // cursors)
 

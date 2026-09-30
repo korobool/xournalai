@@ -565,7 +565,7 @@ When a Xournal++ audio recording ends, the serving session hears about it (file,
 | T11.3.1 | US-11.3 | **Ask listening in the status-line pill** — RecordingIndicator: Ask mode (setListening, pushVoiceLevel with the pen pill's decibel scale); McpUi feeds speech state and levels. | `ai: Ask's listening animates in the status line too (T11.3.1)` | ✅ done `52c6b5359` |
 | T11.3.2 | US-11.3 | **Release 1.7.2** — Changelog, version, full tests. | `ai: release 1.7.2 (T11.3.2)` | ✅ done `62742773f` |
 
-## E12 — Recordings: the owner decides (release 1.8.0)
+## E12 — Recordings: the owner decides (release 1.8.1)
 
 When a recording stops, the owner picks what it is before anything is sent (instructions, notes, just audio); its processing is never silent; strokes line up with the audio.
 
@@ -583,4 +583,17 @@ When a recording stops, the owner picks what it is before anything is sent (inst
 |---|---|---|---|---|
 | T12.1.1 | US-12.1 | **Strokes line up with the audio** — PortAudioProducer: the first sample's capture time; AudioController::currentRecordingTime (recordingTimeMs, unit tests); highlighter strokes too; a log line with the microphone's start delay. | `ai: strokes line up with the audio (T12.1.1)` | ✅ done `b0f43a37a` |
 | T12.1.2 | US-12.1 | **Recording chooser and progress** — assistant/RecordingChooser (queue, title); McpUi dispatch (intent / audio_recorded / nothing), zones for Notes and Instructions; RecordingIndicator processing mode; app_status recordings; companion instructions. | `ai: the owner decides what a recording is, and sees it processed (T12.1.2)` | ✅ done `4f0d7f803` |
-| T12.1.3 | US-12.1 | **Release 1.8.0** — Changelog, README, version, full tests. | `ai: release 1.8.0 (T12.1.3)` | ✅ done |
+| T12.1.3 | US-12.1 | **Release 1.8.0** — Changelog, README, version, full tests. | `ai: release 1.8.0 (T12.1.3)` | ✅ done `8261b2973` |
+
+### S12.2 — The mouse cursor comes back → v1.8.1
+
+**US-12.2** — As the owner, after writing with the stylus I want to see the mouse cursor again as soon as I use the mouse, touchpad or TrackPoint.
+
+- [ ] moving a mouse-class device after the pen or a touch re-applies a visible cursor, even if the app thinks it is already set
+- [ ] Ctrl re-applies it too
+- [ ] the touch trace records device switches and each cursor applied
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T12.2.1 | US-12.2 | **Re-apply the cursor when the mouse returns** — XournalppCursor::forceRefresh (cache bypass) on the device switch to a mouse and on Ctrl; cursor lines in the touch trace; test_e12_cursor. | `ai: the mouse gets its cursor back after the pen (T12.2.1)` | ✅ done |
+| T12.2.2 | US-12.2 | **Release 1.8.1** — Changelog, version, full tests. | `ai: release 1.8.1 (T12.2.2)` | ⬜ todo |

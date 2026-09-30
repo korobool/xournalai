@@ -1738,7 +1738,7 @@
     {
       "id": "E12",
       "title": "Recordings: the owner decides",
-      "release": "1.8.0",
+      "release": "1.8.1",
       "goal": "When a recording stops, the owner picks what it is before anything is sent (instructions, notes, just audio); its processing is never silent; strokes line up with the audio.",
       "stages": [
         {
@@ -1788,6 +1788,42 @@
               "status": "done",
               "started": "2026-09-30T20:29:02+01:00",
               "finished": "2026-09-30T20:29:02+01:00"
+            }
+          ]
+        },
+        {
+          "id": "S12.2",
+          "title": "The mouse cursor comes back",
+          "version": "1.8.1",
+          "stories": [
+            {
+              "id": "US-12.2",
+              "text": "As the owner, after writing with the stylus I want to see the mouse cursor again as soon as I use the mouse, touchpad or TrackPoint.",
+              "acceptance": [
+                "moving a mouse-class device after the pen or a touch re-applies a visible cursor, even if the app thinks it is already set",
+                "Ctrl re-applies it too",
+                "the touch trace records device switches and each cursor applied"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T12.2.1",
+              "story": "US-12.2",
+              "title": "Re-apply the cursor when the mouse returns",
+              "details": "XournalppCursor::forceRefresh (cache bypass) on the device switch to a mouse and on Ctrl; cursor lines in the touch trace; test_e12_cursor.",
+              "commit": "ai: the mouse gets its cursor back after the pen",
+              "status": "done",
+              "started": "2026-09-30T21:00:09+01:00",
+              "finished": "2026-09-30T21:00:09+01:00"
+            },
+            {
+              "id": "T12.2.2",
+              "story": "US-12.2",
+              "title": "Release 1.8.1",
+              "details": "Changelog, version, full tests.",
+              "commit": "ai: release 1.8.1",
+              "status": "todo"
             }
           ]
         }
