@@ -16,6 +16,7 @@
 
 #include "util/Rectangle.h"
 
+#include "Json.h"             // for json
 #include "config-features.h"  // for ENABLE_AI_TERMINAL
 
 #ifdef ENABLE_AI_TERMINAL
@@ -38,6 +39,8 @@ namespace xoj::assistant {
 class AiToolbar;
 class ThinkingOverlay;
 class SpeechToText;
+class AskController;
+struct AskCapture;
 }  // namespace xoj::assistant
 namespace xoj::api {
 struct DocEvent;
@@ -88,6 +91,8 @@ public:
 #endif
     /// Local speech to text for Ask (null if disabled or not built)
     assistant::SpeechToText* speech() const { return speechToText.get(); }
+    /// Ask (pen button held: listen; the lasso tells where): its state and the last request, for app_status
+    json askStatus() const;
 
 private:
     static gboolean onTick(gpointer self);
@@ -145,6 +150,10 @@ private:
     guint markerTimer = 0;
     std::unique_ptr<assistant::SpeechToText> speechToText;
     guint speechWarmUp = 0;
+    std::unique_ptr<assistant::AskController> ask;  ///< after speechToText: destroyed before it
+    std::string askStatusText;
+    json lastAsk;
+    void onAsk(const assistant::AskCapture& c);
 #ifdef ENABLE_AI_TERMINAL
     void buildTerminal();
     assistant::TerminalSpec terminalSpec(const std::string& kind, bool serving) const;

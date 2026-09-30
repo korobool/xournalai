@@ -25,15 +25,15 @@
 namespace xoj::mcp::tools {
 
 namespace {
-/// A slave pointer device to attribute the touches to (mapped to "touchscreen" in the settings on first use)
-GdkDevice* touchDevice(Control* ctrl) {
+/// A slave pointer device to attribute synthetic events to, mapped to `kind` in the settings
+GdkDevice* testDevice(Control* ctrl, InputDeviceTypeOption kind) {
     GdkSeat* seat = gdk_display_get_default_seat(gdk_display_get_default());
     GList* slaves = gdk_seat_get_slaves(seat, GDK_SEAT_CAPABILITY_ALL_POINTING);
     GdkDevice* device = slaves ? GDK_DEVICE(slaves->data) : gdk_seat_get_pointer(seat);
     g_list_free(slaves);
     Settings* settings = ctrl->getSettings();
-    if (settings->getDeviceClassForDevice(device) != InputDeviceTypeOption::Touchscreen) {
-        settings->setDeviceClassForDevice(device, InputDeviceTypeOption::Touchscreen);
+    if (settings->getDeviceClassForDevice(device) != kind) {
+        settings->setDeviceClassForDevice(device, kind);
     }
     return device;
 }
@@ -71,7 +71,7 @@ void registerTestTools(McpServer& server) {
         if (!window) {
             throw ToolError("The canvas is not realized");
         }
-        GdkDevice* device = touchDevice(ctrl);
+        GdkDevice* device = testDevice(ctrl, InputDeviceTypeOption::Touchscreen);
         const GdkEventType type = op == "begin" ? GDK_TOUCH_BEGIN : (op == "update" ? GDK_TOUCH_UPDATE : GDK_TOUCH_END);
         if (op == "begin") {
             down[finger] = down.empty();  // the first finger down emulates the pointer (as on X11)
@@ -117,6 +117,61 @@ void registerTestTools(McpServer& server) {
         return ToolResult::structured({{"blocked_ms", ms}});
     };
     server.getRegistry().addTool(std::move(block));
+
+    ToolSpec pen;
+    pen.name = "test_pen";
+    pen.title = "Test hook: the pen";
+    pen.description = "Test hook (XOURNALAI_TEST_HOOKS=1 only): a synthetic pen event on the canvas: op=hover | "
+                      "barrel_down | barrel_up (the first barrel button) | tip_down | move | tip_up, at (x, y) in "
+                      "canvas widget coordinates.";
+    pen.inputSchema = schema::object({{"op", schema::enumeration("Pen event", {"hover", "barrel_down", "barrel_up",
+                                                                               "tip_down", "move", "tip_up"})},
+                                      {"x", schema::number("x in canvas widget coordinates")},
+                                      {"y", schema::number("y in canvas widget coordinates")}},
+                                     {"op", "x", "y"});
+    pen.tier = Tier::Ui;
+    pen.handler = [ctrl](const json& j) {
+        Args args(j);
+        args.rejectUnknown({"op", "x", "y"});
+        static bool barrel = false, tip = false;
+        const std::string op =
+                args.choice("op", {"hover", "barrel_down", "barrel_up", "tip_down", "move", "tip_up"}, "");
+        const double x = args.number("x"), y = args.number("y");
+        GtkWidget* widget = ctrl->getWindow()->getXournal()->getWidget();
+        GdkWindow* window = gtk_widget_get_window(widget);
+        if (!window) {
+            throw ToolError("The canvas is not realized");
+        }
+        GdkDevice* device = testDevice(ctrl, InputDeviceTypeOption::Pen);
+        auto state = [&]() {
+            return static_cast<guint>((tip ? GDK_BUTTON1_MASK : 0) | (barrel ? GDK_BUTTON2_MASK : 0));
+        };
+        GdkEvent* ev = nullptr;
+        if (op == "hover" || op == "move") {
+            ev = gdk_event_new(GDK_MOTION_NOTIFY);
+            ev->motion.x = x;
+            ev->motion.y = y;
+            ev->motion.state = state();
+            ev->motion.time = static_cast<guint32>(g_get_monotonic_time() / 1000);
+        } else {
+            const bool press = op == "barrel_down" || op == "tip_down";
+            const guint button = (op == "barrel_down" || op == "barrel_up") ? 2 : 1;
+            ev = gdk_event_new(press ? GDK_BUTTON_PRESS : GDK_BUTTON_RELEASE);
+            ev->button.x = x;
+            ev->button.y = y;
+            ev->button.button = button;
+            ev->button.state = state();  // before this event, as GDK reports it
+            ev->button.time = static_cast<guint32>(g_get_monotonic_time() / 1000);
+            (button == 2 ? barrel : tip) = press;
+        }
+        ev->any.window = GDK_WINDOW(g_object_ref(window));
+        gdk_event_set_device(ev, gdk_seat_get_pointer(gdk_device_get_seat(device)));
+        gdk_event_set_source_device(ev, device);
+        gtk_main_do_event(ev);
+        gdk_event_free(ev);
+        return ToolResult::structured({{"barrel", barrel}, {"tip", tip}});
+    };
+    server.getRegistry().addTool(std::move(pen));
 
     McpServer* srv = &server;
     ToolSpec speech;

@@ -112,6 +112,7 @@ void registerStatusTools(McpServer& server) {
                     {"user_tool", toolSummary(ctrl)},
                     {"ui", uiStalls()},
                     {"speech", speechStatus(srv)},
+                    {"ask", srv->getUi() ? srv->getUi()->askStatus() : json({{"state", "off"}})},
                     {"coordinates", "page points (1/72 inch), origin top-left of each page, pages numbered from 1"}};
         return ToolResult::structured(std::move(out));
     };

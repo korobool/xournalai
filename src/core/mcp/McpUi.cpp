@@ -17,11 +17,13 @@
 #include "model/XojPage.h"                  // for XojPage
 
 #ifdef ENABLE_AI_TERMINAL
-#include "api/EventHub.h"  // for EventHub
+#include "api/EventHub.h"   // for EventHub
+#include "assistant/Ask.h"  // for AskController
 #include "assistant/Companion.h"
 #include "assistant/EventPump.h"
 #include "assistant/SpeechToText.h"  // for SpeechToText
 #include "assistant/terminal/TerminalDock.h"
+#include "gui/inputdevices/PenButtonObserver.h"  // for setPenButtonObserver
 #endif
 
 #include "api/DocumentApi.h"  // for currentPageIndex
@@ -104,6 +106,13 @@ McpUi::McpUi(McpServer& server): server(server) {
                     return G_SOURCE_REMOVE;
                 },
                 this);
+        ask = std::make_unique<assistant::AskController>(
+                speechToText.get(), [this](const assistant::AskCapture& c) { onAsk(c); },
+                [this](const std::string& status) {
+                    askStatusText = status;
+                    update();
+                });
+        xoj::input::setPenButtonObserver([this](const xoj::input::PenButtonEvent& e) { ask->onPen(e); });
     }
 #endif
     timer = g_timeout_add_seconds(2, &McpUi::onTick, this);
@@ -116,6 +125,9 @@ McpUi::~McpUi() {
     }
     if (speechWarmUp) {
         g_source_remove(speechWarmUp);
+    }
+    if (ask) {
+        xoj::input::setPenButtonObserver(nullptr);
     }
     if (menuIdle) {
         g_source_remove(menuIdle);
@@ -479,6 +491,26 @@ void McpUi::toolFinished() {
     update();
 }
 
+void McpUi::onAsk(const assistant::AskCapture& c) {
+    const size_t page = server.getControl()->getDocument()->indexOf(c.page);
+    lastAsk = {{"page", page == npos ? json(nullptr) : json(page + 1)},
+               {"area", {c.area.x, c.area.y, c.area.width, c.area.height}},
+               {"lasso_points", c.lasso.size()},
+               {"text", c.text}};
+    update();
+}
+
+json McpUi::askStatus() const {
+    if (!ask) {
+        return {{"state", "off"}};
+    }
+    json j = {{"state", ask->listening() ? "listening" : (askStatusText.empty() ? "idle" : askStatusText)}};
+    if (!lastAsk.is_null()) {
+        j["last"] = lastAsk;
+    }
+    return j;
+}
+
 void McpUi::update() {
     if (!label) {
         return;
@@ -522,6 +554,9 @@ void McpUi::update() {
 #ifdef ENABLE_AI_TERMINAL
         if (thinkingOverlay && thinkingOverlay->active() > 0) {
             text += "  |  " + std::to_string(thinkingOverlay->active()) + " in progress";
+        }
+        if (!askStatusText.empty()) {
+            text += "  |  Ask: " + askStatusText;
         }
         if (eventPump) {
             text += std::string("  |  Auto-improve ") + (eventPump->autoImprove() ? "ON" : "off");

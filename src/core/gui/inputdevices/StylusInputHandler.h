@@ -45,5 +45,7 @@ private:
      */
     int eventsToIgnore = -1;
 
+    /// Reports the first barrel button (held / released) and the pen's movement meanwhile to the assistant
+    void notifyPenButtonObserver(InputEvent const& event, bool barrelWasHeld);
     void setPressedState(InputEvent const& event);
 };

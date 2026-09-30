@@ -16,6 +16,7 @@
 #include "gui/XournalppCursor.h"                 // for XournalppCursor
 #include "gui/inputdevices/HandRecognition.h"    // for HandRecognition
 #include "gui/inputdevices/InputEvents.h"        // for InputEvent, BUTTON_P...
+#include "gui/inputdevices/PenButtonObserver.h"  // for penButtonObserver
 #include "gui/inputdevices/PenInputHandler.h"    // for PenInputHandler
 #include "gui/inputdevices/PositionInputData.h"  // for PositionInputData
 #include "gui/widgets/XournalWidget.h"           // for GtkXournal
@@ -32,7 +33,9 @@ auto StylusInputHandler::handleImpl(InputEvent const& event) -> bool {
     GtkXournal* xournal = inputContext->getXournal();
 
     // Determine the pressed states of devices and associate them to the current event
+    const bool barrelWasHeld = this->modifier2;
     setPressedState(event);
+    notifyPenButtonObserver(event, barrelWasHeld);
 
     // Trigger start of action when pen/mouse is pressed
     if (event.type == BUTTON_PRESS_EVENT) {
@@ -136,6 +139,33 @@ auto StylusInputHandler::handleImpl(InputEvent const& event) -> bool {
     }
 
     return false;
+}
+
+void StylusInputHandler::notifyPenButtonObserver(InputEvent const& event, bool barrelWasHeld) {
+    const auto& observer = xoj::input::penButtonObserver();
+    if (!observer || event.deviceClass != INPUT_DEVICE_PEN) {
+        return;
+    }
+    auto report = [&](xoj::input::PenButtonEvent::Kind kind) {
+        xoj::input::PenButtonEvent e{kind};
+        if (XojPageView* view = getPageAtCurrentPosition(event)) {
+            const PositionInputData pos = getInputDataRelativeToCurrentPage(view, event);
+            const double zoom = this->inputContext->getView()->getZoom();
+            e.page = view->getPage();
+            e.x = pos.x / zoom;
+            e.y = pos.y / zoom;
+        }
+        e.tipDown = this->deviceClassPressed;
+        observer(e);
+    };
+    const bool barrelHeld = this->modifier2 && event.type != LEAVE_EVENT;  // leaving the window releases it
+    if (!barrelWasHeld && barrelHeld) {
+        report(xoj::input::PenButtonEvent::Down);
+    } else if (barrelWasHeld && !barrelHeld) {
+        report(xoj::input::PenButtonEvent::Up);  // released, or the pen left the window
+    } else if (barrelHeld && event.type == MOTION_EVENT) {
+        report(xoj::input::PenButtonEvent::Point);
+    }
 }
 
 void StylusInputHandler::setPressedState(InputEvent const& event) {
