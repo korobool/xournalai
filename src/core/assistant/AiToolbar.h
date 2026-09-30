@@ -31,6 +31,8 @@ public:
     bool isVisible() const;
     /// Opens the one-line command prompt (the *c! button)
     void promptCommand();
+    /// If set, "Command…" opens this instead of the typing prompt (the Ask popover, with dictation)
+    void setCommandOpener(std::function<void()> opener) { commandOpener = std::move(opener); }
 
     /// The marker label of an action kind, e.g. "*!"
     static const char* marker(const std::string& kind);
@@ -39,6 +41,7 @@ private:
     GtkWidget* toolbar = nullptr;  ///< weak
     GtkToolItem* commandItem = nullptr;
     ActionHandler handler;
+    std::function<void()> commandOpener;
 };
 
 }  // namespace xoj::assistant

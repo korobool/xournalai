@@ -66,7 +66,9 @@ AiToolbar::AiToolbar(GtkWidget* mainBox, int position, ActionHandler h): handler
                              auto* self = static_cast<AiToolbar*>(d);
                              const std::string kind =
                                      static_cast<const char*>(g_object_get_data(G_OBJECT(btn), "ai-kind"));
-                             if (kind == "command") {
+                             if (kind == "command" && self->commandOpener) {
+                                 self->commandOpener();
+                             } else if (kind == "command") {
                                  self->promptCommand();
                              } else if (self->handler) {
                                  self->handler(kind, "");

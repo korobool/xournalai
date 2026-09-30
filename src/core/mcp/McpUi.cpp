@@ -17,8 +17,9 @@
 #include "model/XojPage.h"                  // for XojPage
 
 #ifdef ENABLE_AI_TERMINAL
-#include "api/EventHub.h"   // for EventHub
-#include "assistant/Ask.h"  // for AskController
+#include "api/EventHub.h"          // for EventHub
+#include "assistant/Ask.h"         // for AskController
+#include "assistant/AskPopover.h"  // for AskPopover
 #include "assistant/Companion.h"
 #include "assistant/EventPump.h"
 #include "assistant/SpeechToText.h"  // for SpeechToText
@@ -112,7 +113,15 @@ McpUi::McpUi(McpServer& server): server(server) {
                     askStatusText = status;
                     update();
                 });
-        xoj::input::setPenButtonObserver([this](const xoj::input::PenButtonEvent& e) { ask->onPen(e); });
+        xoj::input::setPenButtonObserver([this](const xoj::input::PenButtonEvent& e) {
+            if (e.kind == xoj::input::PenButtonEvent::Down && askPopover && askPopover->visible()) {
+                askPopover->close();  // a new ask replaces the open one
+            }
+            ask->onPen(e);
+        });
+        if (aiToolbar) {
+            aiToolbar->setCommandOpener([this] { openAskForSelection(); });  // Command… = Ask, with dictation
+        }
     }
 #endif
     timer = g_timeout_add_seconds(2, &McpUi::onTick, this);
@@ -497,6 +506,162 @@ void McpUi::onAsk(const assistant::AskCapture& c) {
                {"area", {c.area.x, c.area.y, c.area.width, c.area.height}},
                {"lasso_points", c.lasso.size()},
                {"text", c.text}};
+    showAsk(c, c.text);
+    update();
+}
+
+std::optional<GdkRectangle> McpUi::canvasRect(size_t page, const xoj::util::Rectangle<double>& area) const {
+    Control* ctrl = server.getControl();
+    XournalView* xv = ctrl->getWindow()->getXournal();
+    XojPageView* view = xv->getViewFor(page);
+    GtkWidget* widget = xv->getWidget();
+    if (!view || !gtk_widget_get_mapped(widget)) {
+        return std::nullopt;
+    }
+    GtkXournal* xw = GTK_XOURNAL(widget);
+    const double zoom = ctrl->getZoomControl()->getZoom();
+    const auto pos = view->getPixelPosition();
+    GdkRectangle r{static_cast<int>(pos.x + area.x * zoom - gtk_adjustment_get_value(xw->hadjustment)),
+                   static_cast<int>(pos.y + area.y * zoom - gtk_adjustment_get_value(xw->vadjustment)),
+                   std::max(1, static_cast<int>(area.width * zoom)), std::max(1, static_cast<int>(area.height * zoom))};
+    // Keep it on the canvas (the popover points at the visible part)
+    const int cw = gtk_widget_get_allocated_width(widget), ch = gtk_widget_get_allocated_height(widget);
+    const int x1 = std::clamp(r.x, 0, cw - 1), y1 = std::clamp(r.y, 0, ch - 1);
+    const int x2 = std::clamp(r.x + r.width, x1 + 1, cw), y2 = std::clamp(r.y + r.height, y1 + 1, ch);
+    return GdkRectangle{x1, y1, x2 - x1, y2 - y1};
+}
+
+void McpUi::showAsk(const assistant::AskCapture& c, const std::string& text) {
+    Control* ctrl = server.getControl();
+    GtkWidget* canvas = ctrl->getWindow()->getXournal()->getWidget();
+    if (!askPopover) {
+        askPopover = std::make_unique<assistant::AskPopover>(
+                canvas, [this](const std::string& command, const std::string& t) { submitAsk(command, t); },
+                [this](bool pressed) {
+                    if (!speechToText) {
+                        askPopover->setStatus("Speech is off (settings: assistant.speech)");
+                        return;
+                    }
+                    if (pressed) {
+                        micHeld = true;
+                        speechToText->start();
+                        askPopover->setStatus("listening…");
+                        return;
+                    }
+                    if (!micHeld) {
+                        return;
+                    }
+                    micHeld = false;
+                    askPopover->setStatus("transcribing…");
+                    speechToText->stop([this](const std::string& t, bool silent, const std::string& error) {
+                        if (!askPopover) {
+                            return;
+                        }
+                        askPopover->setStatus(error.empty() ? (silent ? "nothing heard" : "") : "speech: " + error);
+                        if (!silent && !t.empty()) {
+                            askPopover->appendText(t);
+                        }
+                    });
+                });
+    }
+    pendingAsk = std::make_unique<assistant::AskCapture>(c);
+    const size_t page = ctrl->getDocument()->indexOf(c.page);
+    auto rect = page == npos ? std::nullopt : canvasRect(page, c.area);
+    if (!rect) {
+        rect = GdkRectangle{gtk_widget_get_allocated_width(canvas) / 2, gtk_widget_get_allocated_height(canvas) / 3, 1,
+                            1};
+    }
+    askPopover->show(*rect, text);
+}
+
+void McpUi::openAskForSelection() {
+    Control* ctrl = server.getControl();
+    assistant::AskCapture c;
+    const size_t page = api::currentPageIndex(ctrl);
+    c.page = ctrl->getDocument()->getPage(page);
+    if (EditSelection* sel = ctrl->getWindow()->getXournal()->getSelection()) {
+        c.area = {sel->getXOnView(), sel->getYOnView(), sel->getWidth(), sel->getHeight()};
+    } else if (std::unique_ptr<xoj::util::Rectangle<double>> vis(ctrl->getWindow()->getXournal()->getVisibleRect(page));
+               vis) {
+        c.area = *vis;
+    } else {
+        c.area = pageArea(page);
+    }
+    showAsk(c, "");
+}
+
+void McpUi::submitAsk(const std::string& command, const std::string& text) {
+    if (!pendingAsk) {
+        return;
+    }
+    const assistant::AskCapture c = *pendingAsk;
+    pendingAsk.reset();
+    Control* ctrl = server.getControl();
+    const size_t page = ctrl->getDocument()->indexOf(c.page);
+    if (page == npos) {
+        return;  // the page is gone
+    }
+    // What it is about: the selection (a lasso with the selection tool takes the elements out of the page), plus
+    // the elements inside the lasso (or the area)
+    std::vector<std::string> ids;
+    if (EditSelection* sel = ctrl->getWindow()->getXournal()->getSelection()) {
+        for (const Element* e: sel->getElementsView()) {
+            ids.push_back(api::ElementIds::get().idOf(e));
+        }
+    }
+    auto inside = [&](double x, double y) {
+        if (c.lasso.size() < 3) {
+            return x >= c.area.x && x <= c.area.x + c.area.width && y >= c.area.y && y <= c.area.y + c.area.height;
+        }
+        bool in = false;
+        for (size_t i = 0, j = c.lasso.size() - 1; i < c.lasso.size(); j = i++) {
+            const auto& a = c.lasso[i];
+            const auto& b = c.lasso[j];
+            if ((a.y > y) != (b.y > y) && x < (b.x - a.x) * (y - a.y) / (b.y - a.y) + a.x) {
+                in = !in;
+            }
+        }
+        return in;
+    };
+    {
+        std::shared_lock lock(*ctrl->getDocument());
+        for (const auto& loc: api::elementsOnPage(c.page, page, std::nullopt, c.area, true)) {
+            const auto& bb = loc.element->getBoundingBox();
+            if (inside(bb.x + bb.width / 2, bb.y + bb.height / 2)) {
+                const std::string id = api::ElementIds::get().idOf(loc.element);
+                if (std::find(ids.begin(), ids.end(), id) == ids.end()) {
+                    ids.push_back(id);
+                }
+            }
+        }
+    }
+    auto r = [](double v) { return std::to_string(std::lround(v)); };
+    std::string desc = "Ask" + (command.empty() ? std::string() : " [" + command + "]") + ": \"" + text + "\" — ";
+    desc += ids.empty() ? std::string("about this area") : "about " + std::to_string(ids.size()) + " element(s)";
+    desc += " on page " + std::to_string(page + 1) + " at [" + r(c.area.x) + "," + r(c.area.y) + "," + r(c.area.width) +
+            "," + r(c.area.height) + "]" + (c.lasso.size() >= 3 ? " (circled)" : "");
+    if (!ids.empty()) {
+        std::string list;
+        for (size_t i = 0; i < ids.size() && i < 12; i++) {
+            list += (i ? "," : "") + ids[i];
+        }
+        desc += " (ids " + list + (ids.size() > 12 ? ",…" : "") + ")";
+    }
+    int zone = 0;
+    if (thinkingOverlay) {
+        zone = thinkingOverlay->add(page, c.area, command.empty() ? "working on it…" : command + "…",
+                                    assistant::ThinkingOverlay::State::Queued);
+        desc += " [zone " + std::to_string(zone) + "]";
+    }
+    if (auto* hub = server.getEvents()) {
+        hub->pushIntent(page, ids, c.area, desc);
+    }
+#ifdef ENABLE_AI_TERMINAL
+    if (eventPump) {
+        eventPump->addIntent(desc, zone);
+    }
+#endif
+    lastAsk["submitted"] = {{"command", command}, {"text", text}, {"zone", zone}, {"ids", ids}, {"desc", desc}};
     update();
 }
 

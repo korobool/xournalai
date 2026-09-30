@@ -83,3 +83,52 @@ def test_3_pointing_without_a_lasso(app):
     c.call("test_pen", op="barrel_up", x=505, y=352)
     ask = last_ask(c, before)
     assert ask and ask["lasso_points"] == 0 and ask["area"][2] == 200, ask
+
+
+def widget(c, name):
+    for w in c.call("ui_inspect", max_depth=80, all=True)["widgets"]:
+        if w.get("name") == name:
+            return w
+    return None
+
+
+def intents_since(c, cursor):
+    return [e for e in c.call("changes_get", since=cursor)["events"] if e["type"] == "intent"]
+
+
+def test_4_the_popover_shows_what_was_said_and_sends_a_command(app):
+    c = app.client()
+    ready(c)
+    cursor = c.call("changes_get")["cursor"]
+    before = c.call("app_status")["ask"].get("last")
+    c.call("test_pen", op="barrel_down", x=420, y=320)
+    lasso(c, 420, 320)
+    c.call("test_pen", op="barrel_up", x=420, y=320)
+    ask = last_ask(c, before)
+    x, y, w, h = ask["area"]
+    inner = c.call("create_strokes", strokes=[{"points": [[x + w / 2 - 5, y + h / 2], [x + w / 2 + 5, y + h / 2]]}],
+                   animate=False)["created"][0]["id"]
+    outer = c.call("create_strokes", strokes=[{"points": [[x + w + 40, y], [x + w + 60, y]]}],
+                   animate=False)["created"][0]["id"]
+    text = widget(c, "ask-text")
+    assert text and text.get("visible", True), text
+    assert "country" in (text.get("text") or text.get("value") or ""), text
+    c.call("ui_interact", op="click", target=widget(c, "ask-improve")["id"])
+    sent = c.call("app_status")["ask"]["last"]["submitted"]
+    assert sent["command"] == "improve" and sent["zone"] > 0 and inner in sent["ids"] and outer not in sent["ids"]
+    intents = intents_since(c, cursor)
+    assert intents and 'Ask [improve]: "' in intents[-1]["step"] and "(circled)" in intents[-1]["step"]
+    zones = {z["id"]: z for z in c.call("thinking_list")["zones"]}
+    assert sent["zone"] in zones
+
+
+def test_5_command_button_opens_ask_for_typing(app):
+    c = app.client()
+    cursor = c.call("changes_get")["cursor"]
+    c.call("ui_interact", op="click", target=widget(c, "aiAct-command")["id"])
+    time.sleep(0.3)
+    text = widget(c, "ask-text")
+    c.call("ui_interact", op="set_value", target=text["id"], value="make it red")
+    c.call("ui_interact", op="activate", target=text["id"])
+    intents = intents_since(c, cursor)
+    assert intents and 'Ask: "make it red"' in intents[-1]["step"], intents

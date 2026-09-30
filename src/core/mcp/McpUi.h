@@ -8,7 +8,8 @@
 
 #pragma once
 
-#include <memory>  // for unique_ptr
+#include <memory>    // for unique_ptr
+#include <optional>  // for optional
 #include <string>
 #include <vector>
 
@@ -41,6 +42,7 @@ class ThinkingOverlay;
 class SpeechToText;
 class AskController;
 struct AskCapture;
+class AskPopover;
 }  // namespace xoj::assistant
 namespace xoj::api {
 struct DocEvent;
@@ -153,7 +155,18 @@ private:
     std::unique_ptr<assistant::AskController> ask;  ///< after speechToText: destroyed before it
     std::string askStatusText;
     json lastAsk;
+    std::unique_ptr<assistant::AskPopover> askPopover;
+    std::unique_ptr<assistant::AskCapture> pendingAsk;  ///< what the open popover is about
+    bool micHeld = false;
     void onAsk(const assistant::AskCapture& c);
+    /// Opens the Ask popover for `c` with `text`
+    void showAsk(const assistant::AskCapture& c, const std::string& text);
+    /// Ask about the selection (or the visible part of the page): the toolbar's Command…
+    void openAskForSelection();
+    /// The popover's Send / command icons: the request goes to the serving session as a zone
+    void submitAsk(const std::string& command, const std::string& text);
+    /// `area` of `page` in canvas widget coordinates (null if not shown)
+    std::optional<GdkRectangle> canvasRect(size_t page, const xoj::util::Rectangle<double>& area) const;
 #ifdef ENABLE_AI_TERMINAL
     void buildTerminal();
     assistant::TerminalSpec terminalSpec(const std::string& kind, bool serving) const;
