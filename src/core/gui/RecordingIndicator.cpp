@@ -1,7 +1,7 @@
 #include "RecordingIndicator.h"
 
 #include <algorithm>  // for clamp, copy
-#include <cmath>      // for sin, sqrt, M_PI
+#include <cmath>      // for sin, sqrt, log10, M_PI
 #include <string>     // for string
 #include <utility>    // for move
 
@@ -33,7 +33,7 @@ RecordingIndicator::RecordingIndicator(GtkWidget* mainBox, Source src): source(s
     label = gtk_label_new("");
     named(label, "recordingIndicatorLabel");
 
-    GtkWidget* stop = gtk_button_new_with_label("Stop");
+    stop = gtk_button_new_with_label("Stop");
     named(stop, "recordingIndicatorStop");
     gtk_widget_set_can_focus(stop, FALSE);
     gtk_button_set_relief(GTK_BUTTON(stop), GTK_RELIEF_NONE);
@@ -98,21 +98,58 @@ void RecordingIndicator::setRecording(bool on) {
     }
     recording = on;
     if (on) {
-        startedUs = g_get_monotonic_time();
-        shownSeconds = -1;
-        levels.fill(0.0f);
+        recordingSinceUs = g_get_monotonic_time();
         if (source.level) {
             source.level();  // (forget what came before)
         }
-        updateLabel();
-        gtk_widget_show(widget);
-        timer = g_timeout_add(FRAME_MS, onTick, this);
-    } else {
+    }
+    refresh();
+}
+
+void RecordingIndicator::setListening(bool on) {
+    if (on == listening) {
+        return;
+    }
+    listening = on;
+    if (on) {
+        listeningSinceUs = g_get_monotonic_time();
+    }
+    refresh();
+}
+
+void RecordingIndicator::pushVoiceLevel(float rms) {
+    if (mode() != Mode::Ask) {
+        return;
+    }
+    // decibels, as next to the pen: quiet room (-50 dB) = flat, a normal voice about half, loud (-10 dB) = full
+    push(rms > 0 ? std::clamp((20 * std::log10(rms) + 50) / 40, 0.0f, 1.0f) : 0.0f);
+    gtk_widget_queue_draw(wave);
+}
+
+void RecordingIndicator::refresh() {
+    const Mode m = mode();
+    if (m == shown) {
+        return;
+    }
+    shown = m;
+    if (m == Mode::Off) {
         if (timer) {
             g_source_remove(timer);
             timer = 0;
         }
         gtk_widget_hide(widget);
+        return;
+    }
+    const bool rec = m == Mode::Recorder;
+    startedUs = rec ? recordingSinceUs : listeningSinceUs;
+    shownSeconds = -1;
+    levels.fill(0.0f);
+    gtk_widget_set_visible(stop, rec);
+    gtk_widget_set_tooltip_text(widget, rec ? "The audio recorder is on" : "Ask is listening (release the pen button)");
+    updateLabel();
+    gtk_widget_show(widget);
+    if (!timer) {
+        timer = g_timeout_add(FRAME_MS, onTick, this);
     }
 }
 
@@ -141,11 +178,17 @@ gboolean RecordingIndicator::onTick(gpointer self) {
 }
 
 void RecordingIndicator::tick() {
-    const float level = source.level ? source.level() : 0.0f;
-    std::copy(levels.begin() + 1, levels.end(), levels.begin());
-    levels.back() = std::clamp(std::sqrt(std::max(level, 0.0f)) * 1.3f, 0.0f, 1.0f);  // quiet mics still show
+    if (shown == Mode::Recorder) {  // (Ask's levels arrive with pushVoiceLevel)
+        const float level = source.level ? source.level() : 0.0f;
+        push(std::clamp(std::sqrt(std::max(level, 0.0f)) * 1.3f, 0.0f, 1.0f));  // quiet mics still show
+    }
     updateLabel();
-    gtk_widget_queue_draw(wave);
+    gtk_widget_queue_draw(wave);  // (the dot pulses)
+}
+
+void RecordingIndicator::push(float level) {
+    std::copy(levels.begin() + 1, levels.end(), levels.begin());
+    levels.back() = level;
 }
 
 void RecordingIndicator::updateLabel() {
@@ -154,9 +197,10 @@ void RecordingIndicator::updateLabel() {
         return;
     }
     shownSeconds = seconds;
+    const char* what = shown == Mode::Recorder ? "Recording" : "Ask: listening";
     gchar* text = seconds >= 3600 ?
-                          g_strdup_printf("Recording %d:%02d:%02d", seconds / 3600, seconds / 60 % 60, seconds % 60) :
-                          g_strdup_printf("Recording %d:%02d", seconds / 60, seconds % 60);
+                          g_strdup_printf("%s %d:%02d:%02d", what, seconds / 3600, seconds / 60 % 60, seconds % 60) :
+                          g_strdup_printf("%s %d:%02d", what, seconds / 60, seconds % 60);
     gtk_label_set_text(GTK_LABEL(label), text);
     g_free(text);
 }
@@ -181,10 +225,12 @@ gboolean RecordingIndicator::onDraw(GtkWidget* area, cairo_t* cr, gpointer self)
     constexpr double step = 3.7;
     cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
     cairo_set_line_width(cr, 2.2);
+    const bool ask = s->shown == Mode::Ask;  // teal for Ask, like its pill next to the pen
     for (int i = 0; i < BARS; i++) {
         const double v = s->levels[static_cast<size_t>(i)];
         const double half = std::max(1.0, v * (mid - 2));
-        cairo_set_source_rgba(cr, 0.86, 0.15, 0.15, 0.35 + 0.65 * (i + 1.0) / BARS);
+        const double a = 0.35 + 0.65 * (i + 1.0) / BARS;
+        ask ? cairo_set_source_rgba(cr, 0.08, 0.6, 0.55, a) : cairo_set_source_rgba(cr, 0.86, 0.15, 0.15, a);
         cairo_move_to(cr, x0 + i * step, mid - half);
         cairo_line_to(cr, x0 + i * step, mid + half);
         cairo_stroke(cr);

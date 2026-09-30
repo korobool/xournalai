@@ -132,10 +132,13 @@ McpUi::McpUi(McpServer& server): server(server) {
                 });
         // The recording indicator: on the instant listening starts, next to the pen; level bars move with the voice
         speechToText->setListener([this](assistant::SpeechToText::State s) {
+            using S = assistant::SpeechToText::State;
+            if (auto* rec = this->server.getControl()->getRecordingIndicator()) {
+                rec->setListening(s == S::Listening);  // and in the status line
+            }
             if (!thinkingOverlay) {
                 return;
             }
-            using S = assistant::SpeechToText::State;
             using R = assistant::ThinkingOverlay::Recording;
             thinkingOverlay->setRecording(s == S::Listening    ? R::Listening :
                                           s == S::Transcribing ? R::Transcribing :
@@ -145,6 +148,9 @@ McpUi::McpUi(McpServer& server): server(server) {
         speechToText->setLevelListener([this](float rms) {
             if (thinkingOverlay) {
                 thinkingOverlay->pushLevel(rms);
+            }
+            if (auto* rec = this->server.getControl()->getRecordingIndicator()) {
+                rec->pushVoiceLevel(rms);
             }
         });
         xoj::input::setPenButtonObserver([this](const xoj::input::PenButtonEvent& e) {
@@ -207,7 +213,8 @@ McpUi::~McpUi() {
     unwatch(pauseButton);
     if (strip) {
         if (auto* rec = server.getControl()->getRecordingIndicator()) {
-            rec->detach();  // (back to its own place before the strip goes)
+            rec->setListening(false);  // (Ask goes with the strip)
+            rec->detach();             // (back to its own place before the strip goes)
         }
         GtkWidget* s = strip;
         unwatch(strip);

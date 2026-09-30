@@ -249,3 +249,20 @@ def test_10_the_layer_selector_never_shows_an_ai_draft(app):
              if "AI draft" in (w.get("label") or w.get("value") or w.get("text") or "") and w.get("visible", True)]
     c.call("transaction_abort", transaction=t["transaction"], reason="test")
     assert not shown, shown
+
+
+def test_11_listening_shows_in_the_status_line(app):
+    # the status line's recording pill animates for Ask too: "Ask: listening", no Stop (releasing the button ends it)
+    c = app.client()
+    ready(c)
+    c.call("test_pen", op="hover", x=400, y=300)
+    c.call("test_pen", op="barrel_down", x=400, y=300)
+    time.sleep(0.5)
+    ind, lab = widget(c, "recordingIndicator"), widget(c, "recordingIndicatorLabel")
+    stop = widget(c, "recordingIndicatorStop")
+    c.call("test_pen", op="barrel_up", x=400, y=300)
+    assert ind and ind.get("visible", True), ind
+    assert lab["label"].startswith("Ask: listening 0:0"), lab
+    assert not stop.get("visible", True), stop
+    last_ask(c)
+    assert not widget(c, "recordingIndicator").get("visible", True)

@@ -520,7 +520,7 @@ Point and say: hold the pen's barrel button, speak, circle an area; a popover ne
 | T10.4.2 | US-10.4 | **Visible thinking for asks, stylus-sized popover** — An ask delegated to a background subagent lost its zone when the coordinator ended its turn (the owner saw nothing while it worked): a turn that delegated (PreToolUse Agent/Task) keeps its zones until their transaction ends, thinking done/fail, Stop or 10 min; subagents claim their zone first and always end it. Zones get an animated status pill (waiting: breathing dot; thinking: orbiting dots; done: tick; failed: cross). The Ask popover is sized for a stylus (labelled 64x56 command buttons, 16 px text). The layer selector showed an agent's hidden draft layer as current (display only). | `ai: visible thinking for asks, stylus-sized popover (T10.4.2)` | ✅ done `db62f8e3b` |
 | T10.4.3 | US-10.4 | **Reliable speech: silence check, instant microphone, feedback, log** — The owner's microphone is quiet (voice peaks ~0.015 RMS): the speech check (3x the quietest 20% of the clip, at least 0.012) judged continuous or quiet speech silent while the level bars moved. Now 3x the quietest 10%, capped to 0.005..0.02, and clearly loud clips go to whisper. The helper transcribes on a worker queue, so the microphone opens at once after a previous request. The client's state follows the facts (a late transcript no longer hides Listening). "Didn't catch that" in the pill. Diagnostics: ~/.cache/xournalai/speech.log and last-silent.wav. The fake microphone plays in real time (tests speak for 3 s). | `ai: reliable speech (silence check, instant microphone, feedback, log) (T10.4.3)` | ✅ done `39048bd34` |
 
-## E11 — Recordings for the AI (release 1.7.1)
+## E11 — Recordings for the AI (release 1.7.2)
 
 When a Xournal++ audio recording ends, the serving session hears about it (file, length, page, the strokes written meanwhile with their moment in the audio) and transcribes it with the owner's remote transcriber, or the local English-only one as a fallback.
 
@@ -551,4 +551,16 @@ When a Xournal++ audio recording ends, the serving session hears about it (file,
 |---|---|---|---|---|
 | T11.2.1 | US-11.2 | **Fine graph paper, the default** — pagetemplates.ini: graph with r1=7.087, lw=0.35, f1=#e0e0e0; the default page template. | `ai: fine graph paper, the default (T11.2.1)` | ✅ done `b13a94eb9` |
 | T11.2.2 | US-11.2 | **Recording indicator in the status line** — gui/RecordingIndicator (dot, level, time, Stop); PortAudioProducer peak level; AudioController recording listener; McpUi status line takes it in; test hook test_recorder. | `ai: the status line shows that the recorder is on (T11.2.2)` | ✅ done `cb4abfdb2` |
-| T11.2.3 | US-11.2 | **Release 1.7.1** — Changelog, version, full tests. | `ai: release 1.7.1 (T11.2.3)` | ✅ done |
+| T11.2.3 | US-11.2 | **Release 1.7.1** — Changelog, version, full tests. | `ai: release 1.7.1 (T11.2.3)` | ✅ done `18c0b91af` |
+
+### S11.3 — Ask in the status line → v1.7.2
+
+**US-11.3** — As the owner, I want the status line's recording pill to animate while Ask listens, too.
+
+- [ ] while Ask listens, the status line shows 'Ask: listening' with the time and teal bars moving with the voice; no Stop (releasing the pen button ends it)
+- [ ] the recorder wins when both are on; hidden again when Ask stops listening
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T11.3.1 | US-11.3 | **Ask listening in the status-line pill** — RecordingIndicator: Ask mode (setListening, pushVoiceLevel with the pen pill's decibel scale); McpUi feeds speech state and levels. | `ai: Ask's listening animates in the status line too (T11.3.1)` | ✅ done |
+| T11.3.2 | US-11.3 | **Release 1.7.2** — Changelog, version, full tests. | `ai: release 1.7.2 (T11.3.2)` | ⬜ todo |

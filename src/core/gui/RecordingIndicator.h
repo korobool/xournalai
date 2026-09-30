@@ -3,6 +3,8 @@
  *
  * Shows in the status line that the audio recorder is on, so it is not forgotten: a pulsing red dot, the live
  * microphone level, the time recorded so far and a Stop button. Hidden while nothing records.
+ * Ask's listening shows there too (teal voice bars, no Stop: releasing the pen button ends it); the recorder wins
+ * when both are on.
  *
  * It lives in a slot of its own at the bottom of the window; the AI status line takes it in while it exists
  * (attachTo) and gives it back before it goes away (detach).
@@ -36,6 +38,11 @@ public:
     void setRecording(bool on);
     bool isRecording() const { return recording; }
 
+    /// Ask listens (speech to text); its voice level (RMS) comes with pushVoiceLevel
+    void setListening(bool on);
+    bool isListening() const { return listening; }
+    void pushVoiceLevel(float rms);
+
     /// Moves the indicator into `box` at `position` (e.g. the AI status line); detach() brings it back
     void attachTo(GtkBox* box, int position);
     void detach();
@@ -43,6 +50,11 @@ public:
     GtkWidget* getWidget() const { return widget; }
 
 private:
+    enum class Mode { Off, Recorder, Ask };
+    Mode mode() const { return recording ? Mode::Recorder : listening ? Mode::Ask : Mode::Off; }
+    void refresh();
+    void push(float level);
+
     static gboolean onTick(gpointer self);
     static gboolean onDraw(GtkWidget* area, cairo_t* cr, gpointer self);
     void tick();
@@ -54,8 +66,14 @@ private:
     GtkWidget* wave = nullptr;
     GtkWidget* label = nullptr;
 
+    GtkWidget* stop = nullptr;
+
     bool recording = false;
-    int64_t startedUs = 0;
+    bool listening = false;
+    Mode shown = Mode::Off;
+    int64_t recordingSinceUs = 0;
+    int64_t listeningSinceUs = 0;
+    int64_t startedUs = 0;  ///< of what is shown
     int shownSeconds = -1;
     guint timer = 0;
 
