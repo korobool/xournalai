@@ -1775,7 +1775,9 @@
               "title": "Recording chooser and progress",
               "details": "assistant/RecordingChooser (queue, title); McpUi dispatch (intent / audio_recorded / nothing), zones for Notes and Instructions; RecordingIndicator processing mode; app_status recordings; companion instructions.",
               "commit": "ai: the owner decides what a recording is, and sees it processed",
-              "status": "todo"
+              "status": "done",
+              "started": "2026-09-30T20:21:29+01:00",
+              "finished": "2026-09-30T20:21:29+01:00"
             },
             {
               "id": "T12.1.3",

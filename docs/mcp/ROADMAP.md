@@ -581,6 +581,6 @@ When a recording stops, the owner picks what it is before anything is sent (inst
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T12.1.1 | US-12.1 | **Strokes line up with the audio** — PortAudioProducer: the first sample's capture time; AudioController::currentRecordingTime (recordingTimeMs, unit tests); highlighter strokes too; a log line with the microphone's start delay. | `ai: strokes line up with the audio (T12.1.1)` | ✅ done |
-| T12.1.2 | US-12.1 | **Recording chooser and progress** — assistant/RecordingChooser (queue, title); McpUi dispatch (intent / audio_recorded / nothing), zones for Notes and Instructions; RecordingIndicator processing mode; app_status recordings; companion instructions. | `ai: the owner decides what a recording is, and sees it processed (T12.1.2)` | ⬜ todo |
+| T12.1.1 | US-12.1 | **Strokes line up with the audio** — PortAudioProducer: the first sample's capture time; AudioController::currentRecordingTime (recordingTimeMs, unit tests); highlighter strokes too; a log line with the microphone's start delay. | `ai: strokes line up with the audio (T12.1.1)` | ✅ done `b0f43a37a` |
+| T12.1.2 | US-12.1 | **Recording chooser and progress** — assistant/RecordingChooser (queue, title); McpUi dispatch (intent / audio_recorded / nothing), zones for Notes and Instructions; RecordingIndicator processing mode; app_status recordings; companion instructions. | `ai: the owner decides what a recording is, and sees it processed (T12.1.2)` | ✅ done |
 | T12.1.3 | US-12.1 | **Release 1.8.0** — Changelog, README, version, full tests. | `ai: release 1.8.0 (T12.1.3)` | ⬜ todo |

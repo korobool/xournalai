@@ -113,6 +113,7 @@ void registerStatusTools(McpServer& server) {
                     {"ui", uiStalls()},
                     {"speech", speechStatus(srv)},
                     {"ask", srv->getUi() ? srv->getUi()->askStatus() : json({{"state", "off"}})},
+                    {"recordings", srv->getUi() ? srv->getUi()->recordingStatus() : json({{"pending", 0}})},
                     {"coordinates", "page points (1/72 inch), origin top-left of each page, pages numbered from 1"}};
         return ToolResult::structured(std::move(out));
     };

@@ -45,6 +45,7 @@ class SpeechToText;
 class AskController;
 struct AskCapture;
 class AskPopover;
+class RecordingChooser;
 }  // namespace xoj::assistant
 namespace xoj::api {
 struct DocEvent;
@@ -97,6 +98,8 @@ public:
     assistant::SpeechToText* speech() const { return speechToText.get(); }
     /// Ask (pen button held: listen; the lasso tells where): its state and the last request, for app_status
     json askStatus() const;
+    /// Recordings waiting for the owner's choice, and the last one chosen
+    json recordingStatus() const;
 
 private:
     static gboolean onTick(gpointer self);
@@ -172,8 +175,18 @@ private:
     /// Pen button held while the lasso is armed or the popover is open: dictation into it
     void dictate(bool pressed);
     void onAsk(const assistant::AskCapture& c);
-    /// A Xournal++ recording ended: tell the serving session (file, length, page, strokes written meanwhile)
+    /// A Xournal++ recording ended: the owner chooses what it is (instructions, notes, just audio) before anything
+    /// is sent
     void onRecordingFinished(const std::string& file, const std::string& name, int64_t durationMs);
+    /// The owner's choice: tell the serving session (file, length, page, strokes written meanwhile) accordingly
+    void onRecordingChosen(const std::string& file, const std::string& name, int64_t durationMs, int choice,
+                           const std::string& note);
+    std::unique_ptr<assistant::RecordingChooser> recordingChooser;
+    json lastRecording;  ///< the last choice (app_status)
+    /// Zones of handed-over recordings still being worked on, with "Notes" / "Instructions": the status line shows
+    /// their progress
+    std::vector<std::pair<int, std::string>> recordingZones;
+    void updateRecordingProgress();
 
 public:
     /// (tests) as if a recording ended

@@ -59,7 +59,10 @@ RecordingIndicator::RecordingIndicator(GtkWidget* mainBox, Source src): source(s
                                     "  border-radius: 12px; padding: 0 2px 0 10px; }"
                                     "#recordingIndicatorLabel { color: #dc2626; font-weight: bold; }"
                                     "#recordingIndicatorStop { color: #dc2626; font-weight: bold; padding: 0 8px;"
-                                    "  min-height: 0; }",
+                                    "  min-height: 0; }"
+                                    "#recordingIndicator.processing { background-color: rgba(13, 148, 136, 0.14);"
+                                    "  padding-right: 10px; }"
+                                    "#recordingIndicator.processing #recordingIndicatorLabel { color: #0f766e; }",
                                     -1, nullptr);
     gtk_style_context_add_provider_for_screen(gtk_widget_get_screen(widget), GTK_STYLE_PROVIDER(css),
                                               GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
@@ -117,6 +120,21 @@ void RecordingIndicator::setListening(bool on) {
     refresh();
 }
 
+void RecordingIndicator::setProcessing(const std::string& text) {
+    if (text == processing) {
+        return;
+    }
+    if (processing.empty()) {
+        processingSinceUs = g_get_monotonic_time();
+    }
+    processing = text;
+    if (shown == Mode::Processing && !text.empty()) {
+        shownSeconds = -1;  // (the step changed)
+        updateLabel();
+    }
+    refresh();
+}
+
 void RecordingIndicator::pushVoiceLevel(float rms) {
     if (mode() != Mode::Ask) {
         return;
@@ -141,11 +159,16 @@ void RecordingIndicator::refresh() {
         return;
     }
     const bool rec = m == Mode::Recorder;
-    startedUs = rec ? recordingSinceUs : listeningSinceUs;
+    startedUs = rec ? recordingSinceUs : m == Mode::Ask ? listeningSinceUs : processingSinceUs;
     shownSeconds = -1;
     levels.fill(0.0f);
     gtk_widget_set_visible(stop, rec);
-    gtk_widget_set_tooltip_text(widget, rec ? "The audio recorder is on" : "Ask is listening (release the pen button)");
+    gtk_widget_set_tooltip_text(widget, rec            ? "The audio recorder is on" :
+                                        m == Mode::Ask ? "Ask is listening (release the pen button)" :
+                                                         "Claude is working on your recording");
+    GtkStyleContext* ctx = gtk_widget_get_style_context(widget);
+    m == Mode::Processing ? gtk_style_context_add_class(ctx, "processing") :
+                            gtk_style_context_remove_class(ctx, "processing");
     updateLabel();
     gtk_widget_show(widget);
     if (!timer) {
@@ -197,7 +220,9 @@ void RecordingIndicator::updateLabel() {
         return;
     }
     shownSeconds = seconds;
-    const char* what = shown == Mode::Recorder ? "Recording" : "Ask: listening";
+    const char* what = shown == Mode::Recorder ? "Recording" :
+                       shown == Mode::Ask      ? "Ask: listening" :
+                                                 processing.c_str();
     gchar* text = seconds >= 3600 ?
                           g_strdup_printf("%s %d:%02d:%02d", what, seconds / 3600, seconds / 60 % 60, seconds % 60) :
                           g_strdup_printf("%s %d:%02d", what, seconds / 60, seconds % 60);
@@ -210,13 +235,15 @@ gboolean RecordingIndicator::onDraw(GtkWidget* area, cairo_t* cr, gpointer self)
     const double h = gtk_widget_get_allocated_height(area);
     const double mid = h / 2;
 
-    // The dot breathes once a second and a half
+    // The dot breathes once a second and a half (red: the microphone is on; teal: Claude is working)
     const double t = static_cast<double>(g_get_monotonic_time() - s->startedUs) / G_USEC_PER_SEC;
     const double pulse = 0.5 + 0.5 * std::sin(t * 2 * M_PI / 1.5);
-    cairo_set_source_rgba(cr, 0.86, 0.15, 0.15, 0.18 + 0.22 * pulse);
+    const bool working = s->shown == Mode::Processing;
+    const double dr = working ? 0.05 : 0.86, dg = working ? 0.58 : 0.15, db = working ? 0.53 : 0.15;
+    cairo_set_source_rgba(cr, dr, dg, db, 0.18 + 0.22 * pulse);
     cairo_arc(cr, 7, mid, 5 + 2 * pulse, 0, 2 * M_PI);
     cairo_fill(cr);
-    cairo_set_source_rgb(cr, 0.86, 0.15, 0.15);
+    cairo_set_source_rgb(cr, dr, dg, db);
     cairo_arc(cr, 7, mid, 4.5, 0, 2 * M_PI);
     cairo_fill(cr);
 
@@ -225,9 +252,11 @@ gboolean RecordingIndicator::onDraw(GtkWidget* area, cairo_t* cr, gpointer self)
     constexpr double step = 3.7;
     cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
     cairo_set_line_width(cr, 2.2);
-    const bool ask = s->shown == Mode::Ask;  // teal for Ask, like its pill next to the pen
+    const bool ask = s->shown == Mode::Ask || working;  // teal for Ask, like its pill next to the pen
     for (int i = 0; i < BARS; i++) {
-        const double v = s->levels[static_cast<size_t>(i)];
+        // processing: a wave travelling to the right (no microphone)
+        const double v = working ? 0.2 + 0.5 * (0.5 + 0.5 * std::sin(t * 2 * M_PI * 0.8 - i * 0.45)) :
+                                   s->levels[static_cast<size_t>(i)];
         const double half = std::max(1.0, v * (mid - 2));
         const double a = 0.35 + 0.65 * (i + 1.0) / BARS;
         ask ? cairo_set_source_rgba(cr, 0.08, 0.6, 0.55, a) : cairo_set_source_rgba(cr, 0.86, 0.15, 0.15, a);
