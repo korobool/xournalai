@@ -26,6 +26,9 @@
 // xournalai assistant terminal dock (vte)
 #cmakedefine ENABLE_AI_TERMINAL
 
+// Local speech-to-text helper (xournalai-stt) for the assistant's Ask
+#cmakedefine ENABLE_STT
+
 #cmakedefine01 ENABLE_FLOAT_FROM_CHARS
 
 /* --- Testing features --- */

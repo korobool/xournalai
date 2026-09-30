@@ -28,7 +28,7 @@ project(xournalpp
 # according to https://cmake.org/cmake/help/latest/command/project.html we must fix the suffix:
 # And https://gitlab.kitware.com/cmake/cmake/-/issues/16716 is still open:
 # xournalai fork version (semantic, independent of upstream). Bumped by `tools/monitor/track.py version <x.y.z>`.
-set(XOURNALAI_VERSION "1.5.2")
+set(XOURNALAI_VERSION "1.5.3")
 set(VERSION_SUFFIX "+ai.${XOURNALAI_VERSION}")
 set(XOURNALPP_BASE_VERSION "${PROJECT_VERSION}")  # the Xournal++ release xournalai is based on
 set(PROJECT_VERSION "${PROJECT_VERSION}${VERSION_SUFFIX}")
@@ -227,6 +227,17 @@ endif ()
 if (ENABLE_AI_TERMINAL)
     pkg_check_modules(Vte REQUIRED IMPORTED_TARGET "vte-2.91 >= 0.60")
     message(STATUS "Enable AI terminal dock")
+endif ()
+
+# xournalai Ask: a local speech-to-text helper (whisper.cpp) for spoken requests
+option(ENABLE_STT "Local speech-to-text helper for the assistant's Ask (whisper.cpp; xournalai)" ON)
+if (ENABLE_STT AND NOT ENABLE_AI_TERMINAL)
+    message(STATUS "Speech-to-text needs the AI assistant: disabled")
+    set(ENABLE_STT OFF)
+endif ()
+if (ENABLE_STT)
+    pkg_check_modules(PortAudio REQUIRED IMPORTED_TARGET "portaudio-2.0 >= 19")
+    message(STATUS "Enable local speech-to-text helper")
 endif ()
 
 option(ENABLE_GTK_SOURCEVIEW "Enable syntax highlighting in TeX editor" ON)
@@ -481,6 +492,7 @@ Configuration:
     X11 support enabled:        ${X11_FOUND}
     MCP server enabled:         ${ENABLE_MCP}
     AI terminal enabled:        ${ENABLE_AI_TERMINAL}
+    Speech-to-text enabled:     ${ENABLE_STT}
     GTEST enabled:              ${ENABLE_GTEST}
     GCOV enabled:               ${DEV_ENABLE_GCOV}
     Profiling enabled:          ${ENABLE_PROFILING}

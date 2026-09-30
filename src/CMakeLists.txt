@@ -37,6 +37,14 @@ add_subdirectory(util)
 add_subdirectory(core)
 
 ##############################
+# xournalai-stt: local speech to text (whisper.cpp)
+##############################
+
+if (ENABLE_STT)
+  add_subdirectory(stt)
+endif ()
+
+##############################
 # xournalpp-wrapper: catches crashes
 ##############################
 
