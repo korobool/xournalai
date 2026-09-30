@@ -6,6 +6,23 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+## 1.6.0 — Ask: lasso + voice (epoch E10, experimental)
+Point and say. **Hold the pen's first barrel button, speak, and circle the area with the tip; release.**
+- **Speech is transcribed locally** by `xournalai-stt`, a small helper built with whisper.cpp v1.9.4 (English,
+  `base.en`, ~1 s for a short request on an i7-1355U). Nothing leaves the laptop. The model (148 MB) is downloaded
+  once into `~/.local/share/xournalai/models`. Settings: `assistant.speech` and `assistant.speech_model` in
+  `mcp.json`.
+- **Silence changes nothing:** holding the button without speaking is still the button's usual tool (e.g. the lasso
+  selection).
+- **The Ask popover** opens next to the circled area. It holds the transcript (editable), one-tap command icons
+  (improve, illustrate, write, revise, style, explain, summarize), a hold-to-talk microphone button, Send (Enter)
+  and close (Esc). It does not grab the pen. With speech on, the toolbar's **Command…** opens it for the selection.
+- **The request** becomes a thinking zone on the area and wakes the serving session:
+  `Ask [command]: "…" — about N element(s) on page P at [x,y,w,h] (circled) (ids …) [zone N]`. The companion
+  instructions explain how to read it.
+- **Tests** (synthetic pen events, fake microphone): `test_e10_stt.py`, `test_e10_speech_client.py`,
+  `test_e10_ask.py`.
+
 ## 1.5.2 — Review fixes
 - **Zoom keys no longer stay blocked after a palm touch:** the pinch guard (1.3.1) could stay on after a third touch
   or a lost touch end, ignoring zoom keys, Ctrl+wheel, the slider and agents' zoom. It now ends with the touches,

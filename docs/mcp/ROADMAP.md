@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.5.3**
+Current version: **1.6.0**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -504,4 +504,4 @@ Point and say: hold the pen's barrel button, speak, circle an area; a popover ne
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T10.3.1 | US-10.3 | **Release 1.6.0** — Tests, docs, CHANGELOG, tag. | `ai: release 1.6.0 (ask: lasso + voice) (T10.3.1)` | ⬜ todo |
+| T10.3.1 | US-10.3 | **Release 1.6.0** — Tests, docs, CHANGELOG, tag. | `ai: release 1.6.0 (ask: lasso + voice) (T10.3.1)` | ✅ done |

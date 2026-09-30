@@ -17,25 +17,25 @@
 #include "model/XojPage.h"                  // for XojPage
 
 #ifdef ENABLE_AI_TERMINAL
-#include "api/EventHub.h"          // for EventHub
-#include "assistant/Ask.h"         // for AskController
-#include "assistant/AskPopover.h"  // for AskPopover
+#include "api/EventHub.h"  // for EventHub
 #include "assistant/Companion.h"
 #include "assistant/EventPump.h"
-#include "assistant/SpeechToText.h"  // for SpeechToText
 #include "assistant/terminal/TerminalDock.h"
-#include "gui/inputdevices/PenButtonObserver.h"  // for setPenButtonObserver
 #endif
 
 #include "api/DocumentApi.h"  // for currentPageIndex
 #include "api/ElementIds.h"   // for ElementIds
 #include "api/EventHub.h"     // for EventHub
 #include "assistant/AiToolbar.h"
-#include "assistant/Markers.h"            // for findMarkers          // for AiToolbar
-#include "assistant/ThinkingOverlay.h"    // for ThinkingOverlay
-#include "control/tools/EditSelection.h"  // for EditSelection
-#include "model/Element.h"                // for Element
-#include "model/Stroke.h"                 // for Stroke
+#include "assistant/Ask.h"                       // for AskController
+#include "assistant/AskPopover.h"                // for AskPopover
+#include "assistant/Markers.h"                   // for findMarkers          // for AiToolbar
+#include "assistant/SpeechToText.h"              // for SpeechToText
+#include "assistant/ThinkingOverlay.h"           // for ThinkingOverlay
+#include "control/tools/EditSelection.h"         // for EditSelection
+#include "gui/inputdevices/PenButtonObserver.h"  // for setPenButtonObserver
+#include "model/Element.h"                       // for Element
+#include "model/Stroke.h"                        // for Stroke
 
 #include "McpConfig.h"
 #include "McpHttpServer.h"
