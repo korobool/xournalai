@@ -5,6 +5,8 @@
 #include <memory>     // for make_shared
 #include <stdexcept>  // for invalid_argument
 
+#include "util/StallWatch.h"  // for stall::Activity
+
 namespace xoj::mcp {
 
 namespace rpc {
@@ -176,12 +178,17 @@ void McpProtocol::callTool(const json& id, const json& params, Reply reply) {
                     std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
             observer(name, !result.isError(), ms);
         }
-        reply(rpc::resultResponse(id, result.toJson()));
+        if (const auto& text = result.prepared()) {
+            reply(Response::text(R"({"jsonrpc":"2.0","id":)" + id.dump() + R"(,"result":)" + *text + "}"));
+        } else {
+            reply(rpc::resultResponse(id, result.toJson()));
+        }
     };
 
     if (callStarted) {
         callStarted(name);
     }
+    xoj::util::stall::Activity activity("tool " + name);
     // Error barrier: nothing a tool throws may escape into the GTK main loop
     try {
         if (tool->asyncHandler) {

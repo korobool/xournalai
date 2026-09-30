@@ -10,6 +10,7 @@
 #include "mcp/ElementJson.h"
 #include "mcp/McpServer.h"
 #include "mcp/Media.h"
+#include "mcp/OffUi.h"  // for runOffUi
 #include "mcp/PathText.h"
 #include "mcp/Schema.h"
 #include "model/Document.h"  // for Document
@@ -53,7 +54,7 @@ api::RenderOptions renderOptionsFromArgs(Control* ctrl, const Args& args) {
     return o;
 }
 
-ToolResult renderResult(McpServer& server, const api::RenderedImage& img, size_t pageIndex, bool save,
+ToolResult renderResult(const fs::path& exportDir, const api::RenderedImage& img, size_t pageIndex, bool save,
                         const std::string& stem) {
     json meta = {{"page", pageIndex + 1},
                  {"region", bboxJson(img.region.x, img.region.y, img.region.width, img.region.height)},
@@ -63,7 +64,7 @@ ToolResult renderResult(McpServer& server, const api::RenderedImage& img, size_t
                  {"to_page_coords", "page_x = region[0] + px / px_per_pt; page_y = region[1] + py / px_per_pt"}};
     ToolResult r;
     if (save) {
-        const auto file = writeExportFile(server.getConfig().exportDir / "renders", stem, "png", img.png);
+        const auto file = writeExportFile(exportDir / "renders", stem, "png", img.png);
         meta["file"] = toUtf8(file);
     }
     r = ToolResult::structured(meta);
@@ -96,7 +97,8 @@ void registerRenderTools(McpServer& server) {
     render.inputSchema = schema::object(std::move(props));
     render.readOnly = true;
     render.idempotent = true;
-    render.handler = [ctrl, srv](const json& j) {
+    // Off the UI thread: agents look at the page often, and a big page takes long to render and encode
+    render.asyncHandler = [ctrl, srv](const json& j, Responder respond) {
         requireDocument(ctrl);
         Args args(j);
         args.rejectUnknown(
@@ -111,8 +113,14 @@ void registerRenderTools(McpServer& server) {
             }
             o.layers = layers;
         }
-        const auto img = api::renderPage(ctrl->getDocument(), o);
-        return renderResult(*srv, img, o.page, args.boolean("save", true), "page" + std::to_string(o.page + 1));
+        const bool save = args.boolean("save", true);
+        runOffUi(
+                ctrl,
+                [doc = ctrl->getDocument(), exportDir = srv->getConfig().exportDir, o, save]() {
+                    const auto img = api::renderPage(doc, o);
+                    return renderResult(exportDir, img, o.page, save, "page" + std::to_string(o.page + 1));
+                },
+                std::move(respond));
     };
     server.getRegistry().addTool(std::move(render));
 }

@@ -73,7 +73,7 @@ private:
     bool checkAccess(SoupServerMessage* msg);
     SessionState* lookupSession(SoupServerMessage* msg, bool createDefault);
     void sendSse(SoupServerMessage* stream, const std::string& chunk);
-    static void respondJson(SoupServerMessage* msg, unsigned status, const json& body);
+    static void respondJson(SoupServerMessage* msg, unsigned status, const Response& body);
 
     McpProtocol& protocol;
     Options options;

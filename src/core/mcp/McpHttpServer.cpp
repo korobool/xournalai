@@ -126,8 +126,8 @@ void McpHttpServer::stop() {
     }
 }
 
-void McpHttpServer::respondJson(SoupServerMessage* msg, unsigned status, const json& body) {
-    const std::string text = body.is_null() ? std::string() : body.dump();
+void McpHttpServer::respondJson(SoupServerMessage* msg, unsigned status, const Response& body) {
+    const std::string text = body.dump();
     soup_server_message_set_status(msg, status, nullptr);
     if (!text.empty()) {
         soup_server_message_set_response(msg, "application/json", SOUP_MEMORY_COPY, text.data(), text.size());
@@ -289,7 +289,7 @@ void McpHttpServer::handlePost(SoupServerMessage* msg) {
             finishedFlag, +[](gpointer d, GClosure*) { delete static_cast<std::shared_ptr<PendingReply>*>(d); },
             static_cast<GConnectFlags>(0));
 
-    const bool willReply = protocol.handle(message, state->session, [pending](json response) {
+    const bool willReply = protocol.handle(message, state->session, [pending](Response response) {
         if (pending->replied) {
             return;
         }

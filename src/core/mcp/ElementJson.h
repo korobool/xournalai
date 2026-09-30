@@ -32,7 +32,8 @@ Detail detailFromName(const std::string& name);
  * Stroke points are [x, y] or, when the stroke has pressure, [x, y, w] where w is the stroke width in points at
  * that point. Coordinates are page points rounded to 0.01.
  */
-json elementToJson(const api::ElementLocation& loc, Detail detail, double tolerance);
+/// `id`: the element's id when `loc.element` is a copy (e.g. serialized off the UI thread); default: its own id
+json elementToJson(const api::ElementLocation& loc, Detail detail, double tolerance, const std::string* id = nullptr);
 
 /// "stroke", "text", "latex", "image" or "link"
 const char* elementTypeName(const Element* e);

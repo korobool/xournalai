@@ -16,7 +16,9 @@
 #include "model/Document.h"                                       // for Doc...
 #include "model/Layer.h"                                          // for Layer
 #include "model/PageRef.h"                                        // for Pag...
+#include "model/PageSnapshot.h"                                   // for snapshotPage
 #include "model/XojPage.h"                                        // for Xoj...
+#include "util/StallWatch.h"                                      // for stall::Activity
 #include "util/Util.h"                                            // for exe...
 #include "view/DocumentView.h"                                    // for Doc...
 #include "view/LayerView.h"                                       // for Lay...
@@ -59,7 +61,16 @@ void PreviewJob::drawPage() {
     PreviewRenderType type = this->sidebarPreview->getRenderType();
     Layer::Index layer = 0;
 
+    // Hold the document lock only to copy the page, not while drawing it (the UI thread needs the lock for the
+    // user's strokes); if a stroke is being erased right now, draw the page itself under the lock
+    xoj::util::stall::Activity activity("rendering a preview");
     doc->lock_shared();
+    bool locked = true;
+    if (PageRef snapshot = xoj::model::snapshotPage(*page)) {
+        page = snapshot;
+        doc->unlock_shared();
+        locked = false;
+    }
 
     // getLayer is not defined for page preview
     if (type != RENDER_TYPE_PAGE_PREVIEW) {
@@ -110,7 +121,9 @@ void PreviewJob::drawPage() {
             break;
     }
 
-    doc->unlock_shared();
+    if (locked) {
+        doc->unlock_shared();
+    }
 }
 
 void PreviewJob::clipToPage() {

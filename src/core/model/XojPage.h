@@ -23,7 +23,13 @@
 #include "BackgroundImage.h"  // for BackgroundImage
 #include "Layer.h"            // for Layer, Layer::Index
 #include "PageHandler.h"      // for PageHandler
+#include "PageRef.h"          // for PageRef
 #include "PageType.h"         // for PageType
+
+class Range;
+namespace xoj::model {
+PageRef snapshotPage(const XojPage& page, const Range* only);
+}
 
 class XojPage: public PageHandler {
 public:
@@ -138,4 +144,7 @@ private:
     // Allow LayerController to modify layers of a page
     // Notifications were be sent
     friend class LayerController;
+
+    // Builds copies of pages (model/PageSnapshot.h)
+    friend PageRef xoj::model::snapshotPage(const XojPage& page, const Range* only);
 };

@@ -1,5 +1,7 @@
 """E3: every application action is reachable."""
 
+import time
+
 
 def test_list_has_menu_labels_and_states(app):
     c = app.client()
@@ -22,6 +24,7 @@ def test_run_actions(app):
     assert c.call("doc_info")["page_count"] == pages
     r = c.call("action_run", action="win.zoom", state=1.5)
     assert abs(r["state"] - 1.5) < 0.01
+    time.sleep(0.3)  # the zoom applies from the main loop and may change the current page
     def current_layers():
         info = c.call("doc_info")
         return len(info["pages"][info["current_page"] - 1]["layers"])

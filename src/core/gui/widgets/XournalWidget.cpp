@@ -21,6 +21,7 @@
 #include "gui/scroll/ScrollHandling.h"      // for ScrollHandling
 #include "util/Color.h"                     // for cairo_set_source_rgbi
 #include "util/Rectangle.h"                 // for Rectangle
+#include "util/StallWatch.h"                // for stall::Activity
 
 #include "config-debug.h"  // for DEBUG_DRAW_WIDGET
 
@@ -294,6 +295,7 @@ static auto gtk_xournal_draw(GtkWidget* widget, cairo_t* cr) -> gboolean {
     }
 #endif
 
+    xoj::util::stall::Activity activity("redraw");
     struct DrawTimer {
         gint64 t0 = g_get_monotonic_time();
         ~DrawTimer() {

@@ -83,6 +83,12 @@ json ToolResult::toJson() const {
     return out;
 }
 
+void ToolResult::prepare() {
+    prepared_ = std::make_shared<const std::string>(toJson().dump());
+    content_ = json::array();
+    structured_.reset();
+}
+
 json ToolSpec::toListJson() const {
     return {{"name", name},
             {"title", title},

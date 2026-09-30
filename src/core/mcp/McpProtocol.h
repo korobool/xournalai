@@ -9,6 +9,7 @@
 #pragma once
 
 #include <functional>  // for function
+#include <memory>      // for shared_ptr
 #include <optional>    // for optional
 #include <set>         // for set
 #include <string>      // for string
@@ -50,9 +51,24 @@ struct ServerInfo {
     std::string instructions;
 };
 
+/// A JSON-RPC response: a value, or its text when a big tool result was serialized off the UI thread
+struct Response {
+    Response(json body): body(std::move(body)) {}  // NOLINT(google-explicit-constructor)
+    static Response text(std::string text) {
+        Response r(nullptr);
+        r.prepared = std::make_shared<const std::string>(std::move(text));
+        return r;
+    }
+    std::string dump() const { return prepared ? *prepared : (body.is_null() ? std::string() : body.dump()); }
+    operator json() const { return prepared ? json::parse(*prepared) : body; }  // NOLINT
+
+    json body;
+    std::shared_ptr<const std::string> prepared;
+};
+
 class McpProtocol {
 public:
-    using Reply = std::function<void(json response)>;
+    using Reply = std::function<void(Response response)>;
     /// Returns an error message if the tool may not be called (e.g. permission tier not granted)
     using PermissionCheck = std::function<std::optional<std::string>(const ToolSpec&)>;
     /// Observes finished tool calls (name, success, milliseconds); used for logging and the status indicator

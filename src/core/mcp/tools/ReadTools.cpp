@@ -4,9 +4,11 @@
 #include <shared_mutex>  // for shared_lock
 
 #include "api/DocumentApi.h"  // for elementsOnPage
+#include "api/ElementIds.h"   // for ElementIds
 #include "control/Control.h"  // for Control
 #include "mcp/ElementJson.h"
 #include "mcp/McpServer.h"
+#include "mcp/OffUi.h"  // for runOffUi
 #include "mcp/Schema.h"
 #include "model/Document.h"       // for Document
 #include "model/XojPage.h"        // for XojPage
@@ -73,18 +75,18 @@ void registerReadTools(McpServer& server) {
              {"limit", schema::withDefault(schema::integer("Maximum number of elements to return"), 200)}});
     elements.readOnly = true;
     elements.idempotent = true;
-    elements.handler = [ctrl](const json& j) {
+    // Off the UI thread: serializing a page full of strokes takes long. The document lock is held only to pick and
+    // copy the elements; they are serialized from the copies
+    elements.asyncHandler = [ctrl](const json& j, Responder respond) {
         requireDocument(ctrl);
         Args args(j);
         args.rejectUnknown({"page", "layer", "region", "detail", "tolerance", "types", "offset", "limit"});
         Document* doc = ctrl->getDocument();
-        std::shared_lock lock(*doc);
         const size_t pageIndex = resolvePageIndex(ctrl, args);
-        PageRef page = doc->getPage(pageIndex);
         std::optional<size_t> layer;
         if (args.has("layer")) {
-            layer = static_cast<size_t>(
-                    args.integer("layer", 1, 1, static_cast<int64_t>(std::max<size_t>(page->getLayerCount(), 1))));
+            const size_t layers = doc->getPage(pageIndex)->getLayerCount();
+            layer = static_cast<size_t>(args.integer("layer", 1, 1, static_cast<int64_t>(std::max<size_t>(layers, 1))));
         }
         const Detail detail = detailFromName(args.str("detail", "simplified"));
         const double tolerance = args.number("tolerance", 0.5, 0, 100);
@@ -96,32 +98,59 @@ void registerReadTools(McpServer& server) {
                 types.push_back(t.get<std::string>());
             }
         }
+        const auto region = regionArg(args);
 
-        json list = json::array();
-        size_t matching = 0;
-        size_t bytes = 0;
-        bool full = false;  // the response is big enough: the rest comes with next_offset
-        for (const auto& loc: api::elementsOnPage(page, pageIndex, layer, regionArg(args))) {
-            if (!types.empty() && std::find(types.begin(), types.end(), elementTypeName(loc.element)) == types.end()) {
-                continue;
-            }
-            if (matching >= offset && list.size() < limit && !full) {
-                json e = elementToJson(loc, detail, tolerance);
-                if (detail != Detail::Bbox) {
-                    bytes += e.dump().size();
-                    full = bytes > MAX_RESPONSE_BYTES && !list.empty();
-                }
-                list.push_back(std::move(e));
-            }
-            matching++;
-        }
-        json out = {{"page", pageIndex + 1},   {"page_size", {page->getWidth(), page->getHeight()}},
-                    {"total", matching},       {"offset", offset},
-                    {"returned", list.size()}, {"elements", std::move(list)}};
-        if (offset + out["returned"].get<size_t>() < matching) {
-            out["next_offset"] = offset + out["returned"].get<size_t>();
-        }
-        return ToolResult::structured(std::move(out));
+        runOffUi(
+                ctrl,
+                [=]() {
+                    struct Item {
+                        std::string id;
+                        api::ElementLocation loc;
+                        ElementPtr copy;
+                    };
+                    std::vector<Item> items;
+                    json list = json::array();
+                    size_t matching = 0;
+                    std::shared_lock lock(*doc);
+                    if (pageIndex >= doc->getPageCount()) {
+                        throw ToolError("Page " + std::to_string(pageIndex + 1) + " no longer exists");
+                    }
+                    PageRef page = doc->getPage(pageIndex);
+                    const json pageSize = {page->getWidth(), page->getHeight()};
+                    for (const auto& loc: api::elementsOnPage(page, pageIndex, layer, region)) {
+                        if (!types.empty() &&
+                            std::find(types.begin(), types.end(), elementTypeName(loc.element)) == types.end()) {
+                            continue;
+                        }
+                        if (matching >= offset && matching - offset < limit) {
+                            if (detail == Detail::Bbox) {
+                                list.push_back(elementToJson(loc, detail, tolerance));  // cheap: under the lock
+                            } else {
+                                items.push_back({api::ElementIds::get().idOf(loc.element), loc, loc.element->clone()});
+                            }
+                        }
+                        matching++;
+                    }
+                    lock.unlock();
+
+                    size_t bytes = 0;
+                    for (auto& item: items) {
+                        item.loc.element = item.copy.get();
+                        json e = elementToJson(item.loc, detail, tolerance, &item.id);
+                        bytes += e.dump().size();
+                        list.push_back(std::move(e));
+                        if (bytes > MAX_RESPONSE_BYTES) {
+                            break;  // big enough: the rest comes with next_offset
+                        }
+                    }
+                    json out = {{"page", pageIndex + 1}, {"page_size", pageSize},   {"total", matching},
+                                {"offset", offset},      {"returned", list.size()}, {"elements", std::move(list)}};
+                    if (offset + out["returned"].get<size_t>() < matching) {
+                        out["next_offset"] = offset + out["returned"].get<size_t>();
+                    }
+                    return ToolResult::structured(std::move(out));
+                },
+                std::move(respond));
     };
     server.getRegistry().addTool(std::move(elements));
 

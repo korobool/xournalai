@@ -14,6 +14,8 @@
 #include <cairo.h>    // for cairo_surface_t
 #include <gtk/gtk.h>  // for GtkWidget
 
+#include "util/Range.h"  // for Range
+
 #include "Job.h"  // for Job, JobType
 
 class XojPageView;
@@ -43,7 +45,7 @@ private:
 
     void rerenderRectangle(xoj::util::Rectangle<double> const& rect);
 
-    void renderToBuffer(cairo_t* cr) const;
+    void renderToBuffer(cairo_t* cr, const Range& area) const;
 
 private:
     XojPageView* view;

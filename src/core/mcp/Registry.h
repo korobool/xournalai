@@ -9,6 +9,7 @@
 #pragma once
 
 #include <functional>  // for function
+#include <memory>      // for shared_ptr
 #include <optional>    // for optional
 #include <stdexcept>   // for runtime_error
 #include <string>      // for string
@@ -54,10 +55,16 @@ public:
     const std::optional<json>& structuredContent() const { return structured_; }
     json toJson() const;
 
+    /// Serializes the result now (off the UI thread, for big results), so sending it costs the UI thread nothing;
+    /// content() and structuredContent() are empty afterwards
+    void prepare();
+    const std::shared_ptr<const std::string>& prepared() const { return prepared_; }
+
 private:
     json content_ = json::array();
     std::optional<json> structured_;
     bool error_ = false;
+    std::shared_ptr<const std::string> prepared_;
 };
 
 using Responder = std::function<void(ToolResult)>;

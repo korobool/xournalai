@@ -62,10 +62,10 @@ const char* strokeToolName(const Stroke* s) {
 }
 }  // namespace
 
-json elementToJson(const api::ElementLocation& loc, Detail detail, double tolerance) {
+json elementToJson(const api::ElementLocation& loc, Detail detail, double tolerance, const std::string* id) {
     const Element* e = loc.element;
     const auto& bb = e->getBoundingBox();
-    json out = {{"id", api::ElementIds::get().idOf(e)},
+    json out = {{"id", id ? *id : api::ElementIds::get().idOf(e)},
                 {"type", elementTypeName(e)},
                 {"layer", loc.layer},
                 {"bbox", bboxJson(bb.x, bb.y, bb.width, bb.height)},

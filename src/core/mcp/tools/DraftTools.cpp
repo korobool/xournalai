@@ -105,7 +105,8 @@ void registerDraftTools(McpServer& server) {
             layers.push_back(draftIndex);
             o.layers = layers;
             const auto img = api::renderPage(ctrl->getDocument(), o);
-            respond(renderResult(*srv, img, pageIndex, args.boolean("save", false), "draft-" + id));
+            respond(renderResult(srv->getConfig().exportDir, img, pageIndex, args.boolean("save", false),
+                                 "draft-" + id));
             return;
         }
         if (op == "discard") {

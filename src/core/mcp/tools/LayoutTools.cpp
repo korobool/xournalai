@@ -13,6 +13,7 @@
 #include "mcp/ElementJson.h"
 #include "mcp/McpServer.h"
 #include "mcp/Media.h"
+#include "mcp/OffUi.h"  // for runOffUi
 #include "mcp/PathText.h"
 #include "mcp/Schema.h"
 #include "model/Document.h"  // for Document
@@ -28,15 +29,11 @@
 
 namespace xoj::mcp::tools {
 
-PageLayout analyzePage(Control* ctrl, size_t pageIndex, std::optional<size_t> layer,
-                       std::optional<xoj::util::Rectangle<double>> region) {
-    PageLayout out;
-    PageRef page = ctrl->getDocument()->getPage(pageIndex);
-    out.elements = api::elementsOnPage(page, pageIndex, layer, region, true);
+std::vector<api::LayoutItem> layoutItems(const std::vector<api::ElementLocation>& elements) {
     std::vector<api::LayoutItem> items;
-    items.reserve(out.elements.size());
-    for (size_t i = 0; i < out.elements.size(); i++) {
-        const Element* e = out.elements[i].element;
+    items.reserve(elements.size());
+    for (size_t i = 0; i < elements.size(); i++) {
+        const Element* e = elements[i].element;
         api::LayoutItem it;
         it.index = i;
         it.bbox = e->getBoundingBox();
@@ -70,7 +67,15 @@ PageLayout analyzePage(Control* ctrl, size_t pageIndex, std::optional<size_t> la
         }
         items.push_back(it);
     }
-    out.layout = api::analyzeLayout(items);
+    return items;
+}
+
+PageLayout analyzePage(Control* ctrl, size_t pageIndex, std::optional<size_t> layer,
+                       std::optional<xoj::util::Rectangle<double>> region) {
+    PageLayout out;
+    PageRef page = ctrl->getDocument()->getPage(pageIndex);
+    out.elements = api::elementsOnPage(page, pageIndex, layer, region, true);
+    out.layout = api::analyzeLayout(layoutItems(out.elements));
     return out;
 }
 
@@ -111,68 +116,95 @@ void registerLayoutTools(McpServer& server) {
                              schema::withDefault(schema::boolean("List the element ids of every block"), false)}});
     layout.readOnly = true;
     layout.idempotent = true;
-    layout.handler = [ctrl](const json& j) {
+    // Off the UI thread: the document lock is held only to collect the elements' geometry (and ids, texts); the
+    // analysis runs without it
+    layout.asyncHandler = [ctrl](const json& j, Responder respond) {
         requireDocument(ctrl);
         Args args(j);
         args.rejectUnknown({"page", "layer", "region", "include_element_ids"});
-        std::shared_lock lock(*ctrl->getDocument());
         const size_t pageIndex = resolvePageIndex(ctrl, args);
         std::optional<size_t> layer;
         if (args.has("layer")) {
             layer = static_cast<size_t>(args.integer("layer", 1, 1, 1000));
         }
-        const PageLayout pl = analyzePage(ctrl, pageIndex, layer, parseRegion(args));
+        const auto region = parseRegion(args);
         const bool withIds = args.boolean("include_element_ids", false);
-        auto& ids = api::ElementIds::get();
+        Document* doc = ctrl->getDocument();
 
-        json blocks = json::array();
-        for (size_t i = 0; i < pl.layout.blocks.size(); i++) {
-            const auto& b = pl.layout.blocks[i];
-            json jb = {{"id", blockId(i)},
-                       {"kind", b.kind},
-                       {"bbox", bboxJson(b.bbox.x, b.bbox.y, b.bbox.width, b.bbox.height)},
-                       {"element_count", b.items.size()}};
-            if (!b.lines.empty() && b.lines.size() > 1) {
-                json lines = json::array();
-                for (const auto& l: b.lines) {
-                    lines.push_back(bboxJson(l.x, l.y, l.width, l.height));
-                }
-                jb["lines"] = std::move(lines);
-            }
-            if (b.parent) {
-                jb["parent"] = blockId(*b.parent);
-            }
-            const Element* first = pl.elements[b.items.front()].element;
-            if (b.kind == "typed_text") {
-                jb["text"] = static_cast<const Text*>(first)->getText();
-            } else if (b.kind == "latex") {
-                jb["latex"] = static_cast<const TexImage*>(first)->getText();
-            }
-            if (withIds) {
-                json list = json::array();
-                for (size_t k: b.items) {
-                    list.push_back(ids.idOf(pl.elements[k].element));
-                }
-                jb["element_ids"] = std::move(list);
-            }
-            blocks.push_back(std::move(jb));
-        }
-        json connectors = json::array();
-        for (const auto& c: pl.layout.connectors) {
-            json jc = {{"element_id", ids.idOf(pl.elements[c.item].element)},
-                       {"from", {api::roundTo(c.from.x), api::roundTo(c.from.y)}},
-                       {"to", {api::roundTo(c.to.x), api::roundTo(c.to.y)}}};
-            jc["from_block"] = c.fromBlock ? json(blockId(*c.fromBlock)) : json(nullptr);
-            jc["to_block"] = c.toBlock ? json(blockId(*c.toBlock)) : json(nullptr);
-            connectors.push_back(std::move(jc));
-        }
-        json out = {{"page", pageIndex + 1},
-                    {"typical_stroke_height", api::roundTo(pl.layout.typicalHeight)},
-                    {"block_count", blocks.size()},
-                    {"blocks", std::move(blocks)},
-                    {"connectors", std::move(connectors)},
-                    {"next", "Call blocks_render(page, block_ids) to see blocks at readable resolution."}};
-        return ToolResult::structured(std::move(out));
+        runOffUi(
+                ctrl,
+                [=]() {
+                    std::vector<api::LayoutItem> items;
+                    std::vector<std::string> ids;    // per element
+                    std::vector<std::string> texts;  // per element: typed text or LaTeX source
+                    {
+                        std::shared_lock lock(*doc);
+                        if (pageIndex >= doc->getPageCount()) {
+                            throw ToolError("Page " + std::to_string(pageIndex + 1) + " no longer exists");
+                        }
+                        const auto elements =
+                                api::elementsOnPage(doc->getPage(pageIndex), pageIndex, layer, region, true);
+                        items = layoutItems(elements);
+                        for (const auto& loc: elements) {
+                            ids.push_back(api::ElementIds::get().idOf(loc.element));
+                            const Element* e = loc.element;
+                            texts.push_back(e->getType() == ELEMENT_TEXT ? static_cast<const Text*>(e)->getText() :
+                                            e->getType() == ELEMENT_TEXIMAGE ?
+                                                                           static_cast<const TexImage*>(e)->getText() :
+                                                                           std::string());
+                        }
+                    }
+                    const api::Layout pl = api::analyzeLayout(items);
+
+                    json blocks = json::array();
+                    for (size_t i = 0; i < pl.blocks.size(); i++) {
+                        const auto& b = pl.blocks[i];
+                        json jb = {{"id", blockId(i)},
+                                   {"kind", b.kind},
+                                   {"bbox", bboxJson(b.bbox.x, b.bbox.y, b.bbox.width, b.bbox.height)},
+                                   {"element_count", b.items.size()}};
+                        if (!b.lines.empty() && b.lines.size() > 1) {
+                            json lines = json::array();
+                            for (const auto& l: b.lines) {
+                                lines.push_back(bboxJson(l.x, l.y, l.width, l.height));
+                            }
+                            jb["lines"] = std::move(lines);
+                        }
+                        if (b.parent) {
+                            jb["parent"] = blockId(*b.parent);
+                        }
+                        if (b.kind == "typed_text") {
+                            jb["text"] = texts[b.items.front()];
+                        } else if (b.kind == "latex") {
+                            jb["latex"] = texts[b.items.front()];
+                        }
+                        if (withIds) {
+                            json list = json::array();
+                            for (size_t k: b.items) {
+                                list.push_back(ids[k]);
+                            }
+                            jb["element_ids"] = std::move(list);
+                        }
+                        blocks.push_back(std::move(jb));
+                    }
+                    json connectors = json::array();
+                    for (const auto& c: pl.connectors) {
+                        json jc = {{"element_id", ids[c.item]},
+                                   {"from", {api::roundTo(c.from.x), api::roundTo(c.from.y)}},
+                                   {"to", {api::roundTo(c.to.x), api::roundTo(c.to.y)}}};
+                        jc["from_block"] = c.fromBlock ? json(blockId(*c.fromBlock)) : json(nullptr);
+                        jc["to_block"] = c.toBlock ? json(blockId(*c.toBlock)) : json(nullptr);
+                        connectors.push_back(std::move(jc));
+                    }
+                    json out = {{"page", pageIndex + 1},
+                                {"typical_stroke_height", api::roundTo(pl.typicalHeight)},
+                                {"block_count", blocks.size()},
+                                {"blocks", std::move(blocks)},
+                                {"connectors", std::move(connectors)},
+                                {"next", "Call blocks_render(page, block_ids) to see blocks at readable resolution."}};
+                    return ToolResult::structured(std::move(out));
+                },
+                std::move(respond));
     };
     server.getRegistry().addTool(std::move(layout));
 
@@ -206,7 +238,8 @@ void registerLayoutTools(McpServer& server) {
     blocks.inputSchema = schema::object(std::move(props));
     blocks.readOnly = true;
     blocks.idempotent = true;
-    blocks.handler = [ctrl, srv](const json& j) {
+    // Off the UI thread: finding the blocks and rendering crops at a readable resolution takes long on big pages
+    blocks.asyncHandler = [ctrl, srv](const json& j, Responder respond) {
         requireDocument(ctrl);
         Args args(j);
         args.rejectUnknown({"page", "block_ids", "element_ids", "split_lines", "padding", "max_images", "dpi", "max_px",
@@ -222,80 +255,100 @@ void registerLayoutTools(McpServer& server) {
         if (!args.has("dpi")) {
             base.dpi = 200;
         }
+        const size_t pageIndex = resolvePageIndex(ctrl, args);
+        std::vector<std::string> blockIds, elementIds;
+        for (const auto& id: args.has("block_ids") ? args.raw("block_ids") : json::array()) {
+            blockIds.push_back(id.get<std::string>());
+        }
+        for (const auto& id: args.has("element_ids") ? args.raw("element_ids") : json::array()) {
+            elementIds.push_back(id.get<std::string>());
+        }
+        Document* doc = ctrl->getDocument();
 
-        struct Crop {
-            std::string caption;
-            xoj::util::Rectangle<double> rect;
-        };
-        std::vector<Crop> crops;
-        size_t pageIndex = 0;
-        {
-            std::shared_lock lock(*ctrl->getDocument());
-            pageIndex = resolvePageIndex(ctrl, args);
-            if (args.has("block_ids")) {
-                const PageLayout pl = analyzePage(ctrl, pageIndex, std::nullopt, std::nullopt);
-                for (const auto& id: args.raw("block_ids")) {
-                    const size_t bi = parseBlockId(id.get<std::string>(), pl.layout.blocks.size());
-                    const auto& b = pl.layout.blocks[bi];
-                    if (splitLines && b.kind == "handwriting" && b.lines.size() > 1) {
-                        for (size_t l = 0; l < b.lines.size(); l++) {
-                            crops.push_back({blockId(bi) + " line " + std::to_string(l + 1), b.lines[l]});
+        runOffUi(
+                ctrl,
+                [=, exportDir = srv->getConfig().exportDir]() {
+                    struct Crop {
+                        std::string caption;
+                        xoj::util::Rectangle<double> rect;
+                    };
+                    std::vector<Crop> crops;
+                    if (!blockIds.empty()) {
+                        std::vector<api::LayoutItem> items;
+                        {
+                            std::shared_lock lock(*doc);
+                            if (pageIndex >= doc->getPageCount()) {
+                                throw ToolError("Page " + std::to_string(pageIndex + 1) + " no longer exists");
+                            }
+                            items = layoutItems(api::elementsOnPage(doc->getPage(pageIndex), pageIndex, std::nullopt,
+                                                                    std::nullopt, true));
+                        }
+                        const api::Layout pl = api::analyzeLayout(items);
+                        for (const auto& id: blockIds) {
+                            const size_t bi = parseBlockId(id, pl.blocks.size());
+                            const auto& b = pl.blocks[bi];
+                            if (splitLines && b.kind == "handwriting" && b.lines.size() > 1) {
+                                for (size_t l = 0; l < b.lines.size(); l++) {
+                                    crops.push_back({blockId(bi) + " line " + std::to_string(l + 1), b.lines[l]});
+                                }
+                            } else {
+                                crops.push_back({blockId(bi) + " (" + b.kind + ")", b.bbox});
+                            }
                         }
                     } else {
-                        crops.push_back({blockId(bi) + " (" + b.kind + ")", b.bbox});
+                        std::shared_lock lock(*doc);
+                        std::optional<xoj::util::Rectangle<double>> area;
+                        for (const auto& id: elementIds) {
+                            auto loc = api::locateId(doc, id);
+                            if (loc.page != pageIndex) {
+                                throw ToolError("Element " + id + " is on page " + std::to_string(loc.page + 1) +
+                                                ", not " + std::to_string(pageIndex + 1));
+                            }
+                            const auto& bb = loc.element->getBoundingBox();
+                            if (!area) {
+                                area = bb;
+                            } else {
+                                const double x1 = std::min(area->x, bb.x), y1 = std::min(area->y, bb.y);
+                                const double x2 = std::max(area->x + area->width, bb.x + bb.width);
+                                const double y2 = std::max(area->y + area->height, bb.y + bb.height);
+                                area = xoj::util::Rectangle<double>(x1, y1, x2 - x1, y2 - y1);
+                            }
+                        }
+                        crops.push_back({"elements", *area});
                     }
-                }
-            } else {
-                std::optional<xoj::util::Rectangle<double>> area;
-                for (const auto& id: args.raw("element_ids")) {
-                    auto loc = api::locateId(ctrl->getDocument(), id.get<std::string>());
-                    if (loc.page != pageIndex) {
-                        throw ToolError("Element " + id.get<std::string>() + " is on page " +
-                                        std::to_string(loc.page + 1) + ", not " + std::to_string(pageIndex + 1));
+                    if (crops.size() > maxImages) {
+                        crops.resize(maxImages);
                     }
-                    const auto& bb = loc.element->getBoundingBox();
-                    if (!area) {
-                        area = bb;
-                    } else {
-                        const double x1 = std::min(area->x, bb.x), y1 = std::min(area->y, bb.y);
-                        const double x2 = std::max(area->x + area->width, bb.x + bb.width);
-                        const double y2 = std::max(area->y + area->height, bb.y + bb.height);
-                        area = xoj::util::Rectangle<double>(x1, y1, x2 - x1, y2 - y1);
-                    }
-                }
-                crops.push_back({"elements", *area});
-            }
-        }
-        if (crops.size() > maxImages) {
-            crops.resize(maxImages);
-        }
 
-        json list = json::array();
-        ToolResult result;
-        std::vector<std::pair<std::string, std::string>> images;  // caption, png
-        for (size_t i = 0; i < crops.size(); i++) {
-            api::RenderOptions o = base;
-            o.page = pageIndex;
-            const auto& r = crops[i].rect;
-            o.region = xoj::util::Rectangle<double>(r.x - pad, r.y - pad, r.width + 2 * pad, r.height + 2 * pad);
-            const auto img = api::renderPage(ctrl->getDocument(), o);
-            json entry = {{"caption", crops[i].caption},
-                          {"region", bboxJson(img.region.x, img.region.y, img.region.width, img.region.height)},
-                          {"px_per_pt", api::roundTo(img.scale, 4)}};
-            if (save) {
-                entry["file"] =
-                        toUtf8(writeExportFile(srv->getConfig().exportDir / "renders",
-                                               "page" + std::to_string(pageIndex + 1) + "-crop", "png", img.png));
-            }
-            list.push_back(std::move(entry));
-            images.emplace_back(crops[i].caption, img.png);
-        }
-        result = ToolResult::structured({{"page", pageIndex + 1}, {"images", list}});
-        for (const auto& [caption, png]: images) {
-            result.addText("Image: " + caption);
-            result.addImage(base64Encode(png), "image/png");
-        }
-        return result;
+                    json list = json::array();
+                    std::vector<std::pair<std::string, std::string>> images;  // caption, png
+                    for (const auto& crop: crops) {
+                        api::RenderOptions o = base;
+                        o.page = pageIndex;
+                        const auto& r = crop.rect;
+                        o.region = xoj::util::Rectangle<double>(r.x - pad, r.y - pad, r.width + 2 * pad,
+                                                                r.height + 2 * pad);
+                        const auto img = api::renderPage(doc, o);  // copies what it renders under a short lock
+                        json entry = {
+                                {"caption", crop.caption},
+                                {"region", bboxJson(img.region.x, img.region.y, img.region.width, img.region.height)},
+                                {"px_per_pt", api::roundTo(img.scale, 4)}};
+                        if (save) {
+                            entry["file"] = toUtf8(writeExportFile(exportDir / "renders",
+                                                                   "page" + std::to_string(pageIndex + 1) + "-crop",
+                                                                   "png", img.png));
+                        }
+                        list.push_back(std::move(entry));
+                        images.emplace_back(crop.caption, img.png);
+                    }
+                    ToolResult result = ToolResult::structured({{"page", pageIndex + 1}, {"images", list}});
+                    for (const auto& [caption, png]: images) {
+                        result.addText("Image: " + caption);
+                        result.addImage(base64Encode(png), "image/png");
+                    }
+                    return result;
+                },
+                std::move(respond));
     };
     server.getRegistry().addTool(std::move(blocks));
 

@@ -2,8 +2,8 @@
 
 #include <mutex>         // for mutex
 #include <shared_mutex>  // for shared_lock
-#include <utility>  // for move
-#include <vector>   // for vector
+#include <utility>       // for move
+#include <vector>        // for vector
 
 #include <cairo.h>  // for cairo_create, cairo_destroy, cairo_...
 
@@ -15,9 +15,11 @@
 #include "gui/XournalView.h"            // for XournalView
 #include "gui/widgets/XournalWidget.h"  // for gtk_xournal_repaint_area
 #include "model/Document.h"             // for Document
+#include "model/PageSnapshot.h"         // for snapshotPage
 #include "model/XojPage.h"              // for Page
 #include "util/Assert.h"                // for xoj_assert
 #include "util/Rectangle.h"             // for Rectangle
+#include "util/StallWatch.h"            // for stall::Activity
 #include "util/Util.h"                  // for execInUiThread
 #include "util/raii/CairoWrappers.h"    // for CairoSurfaceSPtr, CairoSPtr
 #include "util/safe_casts.h"            // for strict_cast, as_signed, as_si...
@@ -61,7 +63,7 @@ void RenderJob::rerenderRectangle(Rectangle<double> const& rect) {
     xoj::view::Mask newMask(view->xournal->getDpiScaleFactor(), maskRange, view->xournal->getZoom(),
                             CAIRO_CONTENT_COLOR_ALPHA);
 
-    renderToBuffer(newMask.get());
+    renderToBuffer(newMask.get(), maskRange);
 
     std::lock_guard lock(this->view->drawingMutex);
     if (!view->buffer.isInitialized()) {
@@ -97,7 +99,7 @@ void RenderJob::run() {
         }
         xoj::view::Mask newMask(dpi, extent ? *extent : page, zoom, CAIRO_CONTENT_COLOR_ALPHA);
 
-        renderToBuffer(newMask.get());
+        renderToBuffer(newMask.get(), extent ? *extent : page);
         {
             std::lock_guard lock(this->view->drawingMutex);
             std::swap(this->view->buffer, newMask);
@@ -142,14 +144,22 @@ void RenderJob::repaintPageArea(double x1, double y1, double x2, double y2) cons
     });
 }
 
-void RenderJob::renderToBuffer(cairo_t* cr) const {
+void RenderJob::renderToBuffer(cairo_t* cr, const Range& area) const {
     DocumentView localView;
     localView.setMarkAudioStroke(this->view->getXournal()->getControl()->getToolHandler()->getToolType() ==
                                  TOOL_PLAY_OBJECT);
     localView.setPdfCache(this->view->xournal->getCache());
 
+    // Hold the document lock only to copy the page (the elements in `area`), not while drawing: the UI thread needs
+    // the lock to add the user's stroke, and must not wait for a long render
+    xoj::util::stall::Activity activity("rendering a page");
     std::shared_lock<Document> lock(*this->view->xournal->getDocument());
-    localView.drawPage(this->view->page, cr, false);
+    if (PageRef snapshot = xoj::model::snapshotPage(*this->view->page, &area)) {
+        lock.unlock();
+        localView.drawPage(snapshot, cr, false);
+    } else {
+        localView.drawPage(this->view->page, cr, false);  // a stroke is being erased: its live state is not copied
+    }
 }
 
 auto RenderJob::getType() -> JobType { return JOB_TYPE_RENDER; }

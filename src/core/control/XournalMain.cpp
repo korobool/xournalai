@@ -38,6 +38,7 @@
 #include "undo/UndoRedoHandler.h"            // for UndoRedoHandler
 #include "util/PathUtil.h"                   // for getConfigFolder, openFil...
 #include "util/PlaceholderString.h"          // for PlaceholderString
+#include "util/StallWatch.h"                 // for stall::start
 #include "util/Util.h"                       // for execInUiThread
 #include "util/VersionInfo.h"                // for getVersionInfo
 #include "util/XojMsgBox.h"                  // for XojMsgBox
@@ -511,6 +512,14 @@ void on_startup(GApplication* application, XMPtr app_data) {
                 Util::execInUiThread([ctrl]() { ctrl->getWindow()->getXournal()->layoutPages(); });
                 gtk_application_add_window(app, ctrl->getGtkWindow());
             });
+    // Watch for UI stalls once the main loop runs (startup itself is not a stall of the user's work)
+    g_idle_add_full(
+            G_PRIORITY_LOW,
+            +[](gpointer) -> gboolean {
+                xoj::util::stall::start();
+                return G_SOURCE_REMOVE;
+            },
+            nullptr, nullptr);
 }
 
 auto on_handle_local_options(GApplication*, GVariantDict*, XMPtr app_data) -> gint {
@@ -592,6 +601,7 @@ auto on_handle_local_options(GApplication*, GVariantDict*, XMPtr app_data) -> gi
 }
 
 void on_shutdown(GApplication*, XMPtr app_data) {
+    xoj::util::stall::stop();
     app_data->control->saveSettings();
     app_data->win->getXournal()->clearSelection();
     app_data->control->getScheduler()->stop();

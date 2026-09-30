@@ -16,6 +16,7 @@
 #include "model/Document.h"        // for Document
 #include "model/XojPage.h"         // for XojPage
 #include "undo/UndoRedoHandler.h"  // for UndoRedoHandler
+#include "util/StallWatch.h"       // for stall::summary
 
 #include "ToolUtil.h"
 #include "Tools.h"
@@ -46,6 +47,18 @@ json toolSummary(Control* ctrl) {
 }
 
 }  // namespace
+
+/// UI stalls (the UI thread did not respond for longer than 50 ms): count, longest, and the latest few with what
+/// the UI thread was doing
+static json uiStalls() {
+    const auto sum = xoj::util::stall::summary();
+    json recent = json::array();
+    auto list = xoj::util::stall::recent();
+    for (size_t i = list.size() > 5 ? list.size() - 5 : 0; i < list.size(); i++) {
+        recent.push_back({{"ms", list[i].durationUs / 1000}, {"what", list[i].what}});
+    }
+    return {{"stalls", sum.count}, {"longest_stall_ms", sum.maxUs / 1000}, {"recent_stalls", recent}};
+}
 
 void registerStatusTools(McpServer& server) {
     Control* ctrl = server.getControl();
@@ -82,6 +95,7 @@ void registerStatusTools(McpServer& server) {
                       {"export_dir", toUtf8(cfg.exportDir)}}},
                     {"document", documentSummary(ctrl)},
                     {"user_tool", toolSummary(ctrl)},
+                    {"ui", uiStalls()},
                     {"coordinates", "page points (1/72 inch), origin top-left of each page, pages numbered from 1"}};
         return ToolResult::structured(std::move(out));
     };

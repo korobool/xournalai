@@ -15,6 +15,7 @@
 #include "gui/XournalView.h"                 // for XournalView
 #include "mcp/McpServer.h"
 #include "mcp/Schema.h"
+#include "util/StallWatch.h"  // for stall::Activity
 
 #include "ToolUtil.h"
 #include "Tools.h"
@@ -98,6 +99,22 @@ void registerTestTools(McpServer& server) {
         return ToolResult::structured({{"zoom", ctrl->getZoomControl()->getZoomReal()}});
     };
     server.getRegistry().addTool(std::move(t));
+
+    ToolSpec block;
+    block.name = "test_block_ui";
+    block.title = "Test hook: block the UI thread";
+    block.description = "Test hook (XOURNALAI_TEST_HOOKS=1 only): keeps the UI thread busy for `ms` milliseconds, "
+                        "announced as the activity \"test stall\" (checks the stall watchdog).";
+    block.inputSchema = schema::object({{"ms", schema::integer("How long")}}, {"ms"});
+    block.tier = Tier::Ui;
+    block.handler = [](const json& j) {
+        Args args(j);
+        const auto ms = args.integer("ms", 100, 1, 5000);
+        xoj::util::stall::Activity activity("test stall");
+        g_usleep(static_cast<gulong>(ms) * 1000);
+        return ToolResult::structured({{"blocked_ms", ms}});
+    };
+    server.getRegistry().addTool(std::move(block));
 }
 
 }  // namespace xoj::mcp::tools

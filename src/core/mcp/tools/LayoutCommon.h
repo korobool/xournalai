@@ -25,6 +25,9 @@ struct PageLayout {
     api::Layout layout;
 };
 
+/// The geometry layout analysis needs from `elements` (caller holds the document lock; the result is a copy)
+std::vector<api::LayoutItem> layoutItems(const std::vector<api::ElementLocation>& elements);
+
 /// Analyzes the visible content of a page (caller holds the document lock)
 PageLayout analyzePage(Control* ctrl, size_t pageIndex, std::optional<size_t> layer,
                        std::optional<xoj::util::Rectangle<double>> region);

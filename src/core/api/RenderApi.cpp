@@ -9,6 +9,7 @@
 #include <cairo.h>
 
 #include "model/Document.h"                   // for Document
+#include "model/PageSnapshot.h"               // for snapshotPage
 #include "model/XojPage.h"                    // for XojPage
 #include "pdf/base/XojPdfPage.h"              // for XojPdfPage
 #include "util/ElementRange.h"                // for LayerRangeVector
@@ -97,12 +98,10 @@ xoj::util::Rectangle<double> clampRegion(const ConstPageRef& page, const RenderO
     return {x1, y1, x2 - x1, y2 - y1};
 }
 
-/// Draws backgrounds and layers of a page (in page coordinates) onto `cr`
-void drawContent(cairo_t* cr, Document* doc, const ConstPageRef& page, const RenderOptions& o) {
-    if (o.background && page->getBackgroundType().isPdfPage()) {
-        if (auto pdfPage = doc->getPdfPage(page->getPdfPageNr())) {
-            pdfPage->render(cr);
-        }
+/// Draws backgrounds and layers of a page (in page coordinates) onto `cr`; `pdfPage`: its PDF background, if any
+void drawContent(cairo_t* cr, const XojPdfPageSPtr& pdfPage, const ConstPageRef& page, const RenderOptions& o) {
+    if (o.background && pdfPage) {
+        pdfPage->render(cr);
     }
 
     xoj::view::BackgroundFlags flags;
@@ -130,12 +129,21 @@ void drawContent(cairo_t* cr, Document* doc, const ConstPageRef& page, const Ren
 }  // namespace
 
 RenderedImage renderPage(Document* doc, const RenderOptions& o) {
+    // The document lock is held only to copy the page (see model/PageSnapshot.h): rendering and PNG encoding take
+    // long on big pages, and the UI thread needs the lock to add the user's strokes
     std::shared_lock lock(*doc);
     if (o.page >= doc->getPageCount()) {
         throw std::invalid_argument("Page " + std::to_string(o.page + 1) + " does not exist");
     }
     ConstPageRef page = doc->getPage(o.page);
     const xoj::util::Rectangle<double> region = clampRegion(page, o);
+    XojPdfPageSPtr pdfPage =
+            page->getBackgroundType().isPdfPage() ? doc->getPdfPage(page->getPdfPageNr()) : XojPdfPageSPtr();
+    const Range area(region.x, region.y, region.x + region.width, region.y + region.height);
+    if (PageRef snapshot = xoj::model::snapshotPage(*page, &area)) {
+        page = snapshot;
+        lock.unlock();
+    }
     if (o.dpi <= 0 || o.maxPixels < 16) {
         throw std::invalid_argument("dpi must be positive and max_px at least 16");
     }
@@ -156,7 +164,7 @@ RenderedImage renderPage(Document* doc, const RenderOptions& o) {
     cairo_translate(cr, -region.x, -region.y);
 
     try {
-        drawContent(cr, doc, page, o);
+        drawContent(cr, pdfPage, page, o);
     } catch (...) {
         cairo_destroy(cr);
         cairo_surface_destroy(surface);
@@ -195,7 +203,8 @@ std::string renderSvg(Document* doc, const RenderOptions& o) {
     cairo_t* cr = cairo_create(surface);
     cairo_translate(cr, -region.x, -region.y);
     try {
-        drawContent(cr, doc, page, o);
+        drawContent(cr, page->getBackgroundType().isPdfPage() ? doc->getPdfPage(page->getPdfPageNr()) : nullptr, page,
+                    o);
     } catch (...) {
         cairo_destroy(cr);
         cairo_surface_destroy(surface);

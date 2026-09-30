@@ -22,6 +22,7 @@
 #include "util/PathUtil.h"                    // for clearExtensions
 #include "util/PlaceholderString.h"           // for PlaceholderString
 #include "util/SaveNameUtils.h"               // for parseFilename
+#include "util/StallWatch.h"                  // for stall::Activity
 #include "util/Util.h"                        // for npos
 #include "util/glib_casts.h"                  // for wrap_v
 #include "util/i18n.h"                        // for FS, _F
@@ -64,7 +65,13 @@ auto Document::freeTreeContentEntry(GtkTreeModel* treeModel, GtkTreePath* path, 
     return false;
 }
 
-void Document::lock() { this->documentLock.lock(); }
+void Document::lock() {
+    if (this->documentLock.try_lock()) {
+        return;
+    }
+    xoj::util::stall::Activity activity("waiting for the document lock");  // e.g. a background render holds it
+    this->documentLock.lock();
+}
 void Document::unlock() { this->documentLock.unlock(); }
 auto Document::try_lock() -> bool { return this->documentLock.try_lock(); }
 void Document::lock_shared() { this->documentLock.lock_shared(); }
