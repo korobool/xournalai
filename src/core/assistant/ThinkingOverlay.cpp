@@ -127,9 +127,7 @@ int ThinkingOverlay::add(size_t page, const xoj::util::Rectangle<double>& area, 
     }
     list.push_back(z);
     layout();
-    if (!timer) {
-        timer = g_timeout_add(FRAME_MS, &ThinkingOverlay::onTick, this);
-    }
+    ensureTimer();
     return z->id;
 }
 
@@ -248,16 +246,143 @@ gboolean ThinkingOverlay::onTick(gpointer data) {
     }
     self->phase += 0.6;
     self->layout();  // follows scrolling and zooming
-    if (self->list.empty()) {
+    if (self->list.empty() && self->rec == Recording::Off) {
         self->timer = 0;
         return G_SOURCE_REMOVE;
     }
     return G_SOURCE_CONTINUE;
 }
 
+void ThinkingOverlay::ensureTimer() {
+    if (!timer) {
+        timer = g_timeout_add(FRAME_MS, &ThinkingOverlay::onTick, this);
+    }
+}
+
+void ThinkingOverlay::setRecording(Recording r, std::optional<std::pair<size_t, xoj::util::Point<double>>> anchor) {
+    if (r != Recording::Off && rec == Recording::Off) {
+        levels.clear();
+    }
+    rec = r;
+    if (anchor || r == Recording::Off) {
+        recAnchor = anchor;
+    }
+    ensureTimer();
+    if (canvas) {
+        gtk_widget_queue_draw(canvas);
+    }
+}
+
+void ThinkingOverlay::pushLevel(float rms) {
+    levels.push_back(rms);
+    if (levels.size() > 9) {
+        levels.erase(levels.begin());
+    }
+}
+
+void ThinkingOverlay::drawRecording(cairo_t* cr) {
+    constexpr double W = 190, H = 40, R = H / 2;
+    // Where: next to the pen (not under the hand), else at the top of the canvas; always inside the canvas
+    const auto area = bounds ? bounds() : std::nullopt;
+    double x = area ? area->x + (area->width - W) / 2 : 40, y = area ? area->y + 12 : 40;
+    if (recAnchor) {
+        if (auto r = mapper(recAnchor->first,
+                            xoj::util::Rectangle<double>(recAnchor->second.x, recAnchor->second.y, 0.01, 0.01))) {
+            x = r->x + 28;
+            y = r->y - H - 24;
+        }
+    }
+    if (area) {
+        x = std::clamp(x, area->x + 6.0, area->x + area->width - W - 6.0);
+        y = std::clamp(y, area->y + 6.0, area->y + area->height - H - 6.0);
+    }
+    auto pill = [&](double px, double py) {
+        cairo_new_sub_path(cr);
+        cairo_arc(cr, px + R, py + R, R, M_PI / 2, 3 * M_PI / 2);
+        cairo_arc(cr, px + W - R, py + R, R, -M_PI / 2, M_PI / 2);
+        cairo_close_path(cr);
+    };
+    // shadow, body, hairline
+    pill(x + 1, y + 3);
+    cairo_set_source_rgba(cr, 0, 0, 0, 0.25);
+    cairo_fill(cr);
+    pill(x, y);
+    cairo_set_source_rgba(cr, 0.11, 0.12, 0.14, 0.92);
+    cairo_fill_preserve(cr);
+    cairo_set_source_rgba(cr, 1, 1, 1, 0.12);
+    cairo_set_line_width(cr, 1);
+    cairo_stroke(cr);
+
+    const double cx = x + 22, cy = y + R;
+    const bool listening = rec == Recording::Listening;
+    const double pulse = std::fmod(phase / 7.0, 1.0);  // ~0.6 s
+    if (listening) {
+        // the red "on air" dot, with a halo growing from it
+        cairo_arc(cr, cx, cy, 7 + 9 * pulse, 0, 2 * M_PI);
+        cairo_set_source_rgba(cr, 0.95, 0.2, 0.25, 0.45 * (1 - pulse));
+        cairo_fill(cr);
+        cairo_arc(cr, cx, cy, 7, 0, 2 * M_PI);
+        cairo_set_source_rgb(cr, 0.95, 0.18, 0.22);
+        cairo_fill(cr);
+        // level bars, newest on the right, moving with the voice
+        const int n = static_cast<int>(levels.size());
+        for (int i = 0; i < 9; i++) {
+            const int j = n - 9 + i;  // the newest level on the right; empty bars on the left at first
+            const float lv = j >= 0 ? levels[static_cast<size_t>(j)] : 0.0f;
+            // decibels: quiet room (-50 dB) = flat, a normal voice about half, loud (-10 dB) = full
+            const double v = lv > 0 ? std::clamp((20 * std::log10(static_cast<double>(lv)) + 50) / 40, 0.0, 1.0) : 0.0;
+            const double h = 4 + 20 * v;
+            const double bx = x + 40 + i * 6;
+            cairo_rectangle(cr, bx, cy - h / 2, 3, h);
+        }
+        cairo_set_source_rgba(cr, 0.35, 0.85, 0.78, 0.95);  // teal, like the zones
+        cairo_fill(cr);
+    } else {
+        cairo_arc(cr, cx, cy, 7, 0, 2 * M_PI);
+        cairo_set_source_rgb(cr, 0.35, 0.85, 0.78);
+        cairo_fill(cr);
+        for (int i = 0; i < 3; i++) {
+            const double bounce = std::max(0.0, std::sin((phase / 2.0) - i * 0.9));
+            cairo_new_sub_path(cr);
+            cairo_arc(cr, x + 44 + i * 11, cy + 3 - 6 * bounce, 3, 0, 2 * M_PI);
+        }
+        cairo_set_source_rgba(cr, 1, 1, 1, 0.85);
+        cairo_fill(cr);
+    }
+    cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
+    cairo_set_font_size(cr, 13);
+    cairo_set_source_rgba(cr, 1, 1, 1, 0.95);
+    cairo_move_to(cr, listening ? x + 100 : x + 84, cy + 5);
+    cairo_show_text(cr, listening ? "Listening" : "Transcribing");
+}
+
+void ThinkingOverlay::setLasso(size_t page, std::vector<xoj::util::Point<double>> points) {
+    lassoPage = page;
+    lasso = std::move(points);
+    if (canvas) {
+        gtk_widget_queue_draw(canvas);
+    }
+}
+
 gboolean ThinkingOverlay::onDraw(GtkWidget*, cairo_t* cr, gpointer data) {
     auto* self = static_cast<ThinkingOverlay*>(data);
     const gint64 now = g_get_monotonic_time();
+    if (self->lasso.size() > 1) {
+        // The Ask lasso: where the user is pointing
+        bool first = true;
+        for (const auto& p: self->lasso) {
+            if (auto r = self->mapper(self->lassoPage, xoj::util::Rectangle<double>(p.x, p.y, 0.01, 0.01))) {
+                first ? cairo_move_to(cr, r->x, r->y) : cairo_line_to(cr, r->x, r->y);
+                first = false;
+            }
+        }
+        const double dashes[] = {5.0, 3.0};
+        cairo_set_dash(cr, dashes, 2, 0);
+        cairo_set_line_width(cr, 2.0);
+        cairo_set_source_rgba(cr, 0.05, 0.58, 0.53, 0.95);
+        cairo_stroke(cr);
+        cairo_set_dash(cr, nullptr, 0, 0);
+    }
     for (const Zone* z: self->list) {
         if (!z->visible) {
             continue;
@@ -331,6 +456,11 @@ gboolean ThinkingOverlay::onDraw(GtkWidget*, cairo_t* cr, gpointer data) {
             }
             cairo_stroke(cr);
         }
+    }
+    if (self->rec != Recording::Off) {  // on top of everything
+        cairo_save(cr);
+        self->drawRecording(cr);
+        cairo_restore(cr);
     }
     return FALSE;
 }

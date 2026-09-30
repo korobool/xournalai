@@ -3,7 +3,7 @@
     "project": "xournalai: embedded MCP server and assistant",
     "branch": "mcp",
     "plan": "docs/mcp/PLAN.md, docs/assistant/ASSISTANT-PLAN.md",
-    "version": "1.6.0",
+    "version": "1.6.1",
     "versioning": [
       "The fork has its own semantic version, XOURNALAI_VERSION, kept in CMakeLists.txt. The application version string becomes <upstream>+ai.<XOURNALAI_VERSION>, e.g. 1.3.7+ai.0.2.0.",
       "Each task is exactly one commit. The commit message is '<planned message> (<task id>)'.",
@@ -1432,7 +1432,7 @@
     {
       "id": "E10",
       "title": "Ask: lasso + voice (experimental)",
-      "release": "1.6.0",
+      "release": "1.6.1",
       "goal": "Point and say: hold the pen's barrel button, speak, circle an area; a popover next to it shows the transcript (editable) and command icons; the request goes to the serving session as a zone. Speech-to-text runs locally (whisper.cpp).",
       "stages": [
         {
@@ -1546,6 +1546,32 @@
               "status": "done",
               "started": "2026-09-30T11:38:01+01:00",
               "finished": "2026-09-30T11:51:20+01:00"
+            }
+          ]
+        },
+        {
+          "id": "S10.4",
+          "title": "Ask: the button and the recording indicator",
+          "version": "1.6.1",
+          "stories": [
+            {
+              "id": "US-10.4",
+              "text": "As the owner, I want a visible Ask tool, and to see clearly when it is recording.",
+              "acceptance": [
+                "AI toolbar Ask (Ctrl+Alt+A): the next pen or mouse stroke is a lasso (no ink), then the popover",
+                "the pen button while an ask is open dictates into it; a lasso drawn while holding it is a new ask",
+                "a recording indicator next to the pen: pulsing red dot, live level bars, Listening; then Transcribing"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T10.4.1",
+              "story": "US-10.4",
+              "title": "Ask button, lasso and recording indicator",
+              "details": "Stroke interceptor in AbstractInputHandler (pen / mouse only, consumed); dashed lasso on the overlay; pen button decides on release (lasso → new ask, else dictation); xournalai-stt level events (~20/s; the fake mic plays in real time); ThinkingOverlay recording pill. Fixes: the interceptor removed itself while running (crash); ui_interact clicks tool buttons' inner button (toggles).",
+              "commit": "ai: ask button and recording indicator",
+              "status": "done"
             }
           ]
         }

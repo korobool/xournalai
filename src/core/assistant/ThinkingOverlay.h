@@ -17,6 +17,7 @@
 
 #include <gtk/gtk.h>
 
+#include "util/Point.h"  // for Point
 #include "util/Rectangle.h"
 
 namespace xoj::assistant {
@@ -53,6 +54,18 @@ public:
         std::string text;
     };
     std::vector<Info> zones() const;
+    /// The Ask lasso being drawn (page coordinates): a dashed teal path; empty points clear it
+    void setLasso(size_t page, std::vector<xoj::util::Point<double>> points);
+
+    /// The recording indicator ("on air"): a pill next to the pen with a pulsing red dot and level bars that move
+    /// with the voice (Listening), or bouncing dots (Transcribing)
+    enum class Recording { Off, Listening, Transcribing };
+    /// `anchor`: the pen's position (page, page coordinates); none: the top of the canvas
+    void setRecording(Recording r, std::optional<std::pair<size_t, xoj::util::Point<double>>> anchor = std::nullopt);
+    Recording recording() const { return rec; }
+    size_t levelCount() const { return levels.size(); }  ///< levels received while recording (tests)
+    /// The microphone's level (RMS)
+    void pushLevel(float rms);
     static const char* name(State s);
 
 private:
@@ -68,6 +81,13 @@ private:
     CancelHandler onCancel;
     Bounds bounds;
     std::vector<Zone*> list;
+    Recording rec = Recording::Off;
+    std::optional<std::pair<size_t, xoj::util::Point<double>>> recAnchor;
+    std::vector<float> levels;  ///< recent levels, oldest first
+    void drawRecording(cairo_t* cr);
+    void ensureTimer();
+    size_t lassoPage = 0;
+    std::vector<xoj::util::Point<double>> lasso;
     int nextId = 1;
     guint timer = 0;
     gulong positionHandler = 0;

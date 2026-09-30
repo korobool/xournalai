@@ -215,6 +215,12 @@ void SpeechToText::onLine(const std::string& line) {
         return;
     }
     const std::string event = j.value("event", "");
+    if (event == "level") {
+        if (levelListener && current == State::Listening) {
+            levelListener(j.value("rms", 0.0f));
+        }
+        return;
+    }
     if (event == "ready") {
         if (current == State::Starting) {  // (not if start() was already sent: it is queued)
             set(State::Ready);

@@ -34,6 +34,7 @@
 #include "assistant/ThinkingOverlay.h"           // for ThinkingOverlay
 #include "control/tools/EditSelection.h"         // for EditSelection
 #include "gui/inputdevices/PenButtonObserver.h"  // for setPenButtonObserver
+#include "gui/inputdevices/StrokeInterceptor.h"  // for setStrokeInterceptor
 #include "model/Element.h"                       // for Element
 #include "model/Stroke.h"                        // for Stroke
 
@@ -111,13 +112,47 @@ McpUi::McpUi(McpServer& server): server(server) {
                 speechToText.get(), [this](const assistant::AskCapture& c) { onAsk(c); },
                 [this](const std::string& status) {
                     askStatusText = status;
+                    if (askPopover && askPopover->visible()) {
+                        askPopover->setStatus(status);
+                    }
                     update();
+                },
+                [this] { return lassoArmed || (askPopover && askPopover->visible()); },
+                [this](const std::string& text) {
+                    if (askPopover && askPopover->visible()) {
+                        askPopover->appendText(text);
+                    } else {
+                        pendingDictation += (pendingDictation.empty() ? "" : " ") + text;  // for the lasso's popover
+                    }
                 });
-        xoj::input::setPenButtonObserver([this](const xoj::input::PenButtonEvent& e) {
-            if (e.kind == xoj::input::PenButtonEvent::Down && askPopover && askPopover->visible()) {
-                askPopover->close();  // a new ask replaces the open one
+        // The recording indicator: on the instant listening starts, next to the pen; level bars move with the voice
+        speechToText->setListener([this](assistant::SpeechToText::State s) {
+            if (!thinkingOverlay) {
+                return;
             }
-            ask->onPen(e);
+            using S = assistant::SpeechToText::State;
+            using R = assistant::ThinkingOverlay::Recording;
+            thinkingOverlay->setRecording(s == S::Listening    ? R::Listening :
+                                          s == S::Transcribing ? R::Transcribing :
+                                                                 R::Off,
+                                          recordAnchor);
+        });
+        speechToText->setLevelListener([this](float rms) {
+            if (thinkingOverlay) {
+                thinkingOverlay->pushLevel(rms);
+            }
+        });
+        xoj::input::setPenButtonObserver([this](const xoj::input::PenButtonEvent& e) {
+            if (e.kind == xoj::input::PenButtonEvent::Down) {
+                const size_t page = e.page ? this->server.getControl()->getDocument()->indexOf(e.page) : npos;
+                recordAnchor = page == npos ? std::nullopt :
+                                              std::optional<std::pair<size_t, xoj::util::Point<double>>>(
+                                                      std::pair(page, xoj::util::Point<double>(e.x, e.y)));
+            }
+            if (micHeld) {
+                return;  // the popover's microphone button is recording
+            }
+            ask->onPen(e);  // a lasso drawn meanwhile → a new ask; else, with an ask open, dictation into it
         });
         if (aiToolbar) {
             aiToolbar->setCommandOpener([this] { openAskForSelection(); });  // Command… = Ask, with dictation
@@ -167,7 +202,7 @@ McpUi::~McpUi() {
     if (window) {
         for (const char* name:
              {"mcp-paused", "mcp-ai-accept", "mcp-ai-clear", "mcp-ai-toggle", "mcp-copy-command", "mcp-settings",
-              "ai-terminal", "ai-terminal-open", "ai-act", "ai-toolbar", "ai-stop", "ai-auto-improve",
+              "ai-terminal", "ai-terminal-open", "ai-act", "ai-toolbar", "ai-stop", "ai-auto-improve", "ai-ask",
               "ai-rule-formulas", "ai-rule-text", "ai-rule-diagrams", "ai-rule-colours"}) {
             g_action_map_remove_action(G_ACTION_MAP(window), name);
         }
@@ -261,6 +296,13 @@ void McpUi::installActions() {
                      }),
                      this);
     add(tb);
+    // Ask: arm the AI lasso (the next pen / mouse stroke circles the area)
+    GSimpleAction* askAct = g_simple_action_new_stateful("ai-ask", nullptr, g_variant_new_boolean(false));
+    g_signal_connect(askAct, "change-state", G_CALLBACK(+[](GSimpleAction*, GVariant* v, gpointer self) {
+                         static_cast<McpUi*>(self)->armLasso(g_variant_get_boolean(v));
+                     }),
+                     this);
+    add(askAct);
     GSimpleAction* stop = g_simple_action_new("ai-stop", nullptr);
     g_signal_connect(stop, "activate", G_CALLBACK(+[](GSimpleAction*, GVariant*, gpointer self) {
                          static_cast<McpUi*>(self)->stopWork(0);
@@ -336,6 +378,8 @@ void McpUi::installActions() {
     gtk_application_set_accels_for_action(app, "win.mcp-paused", pauseAccel);
     const char* autoAccel[] = {"<Ctrl><Alt>i", nullptr};
     gtk_application_set_accels_for_action(app, "win.ai-auto-improve", autoAccel);
+    const char* askAccel[] = {"<Ctrl><Alt>a", nullptr};
+    gtk_application_set_accels_for_action(app, "win.ai-ask", askAccel);
 #ifdef ENABLE_AI_TERMINAL
     const char* termAccel[] = {"<Ctrl>grave", nullptr};
     gtk_application_set_accels_for_action(app, "win.ai-terminal", termAccel);
@@ -542,26 +586,7 @@ void McpUi::showAsk(const assistant::AskCapture& c, const std::string& text) {
                         askPopover->setStatus("Speech is off (settings: assistant.speech)");
                         return;
                     }
-                    if (pressed) {
-                        micHeld = true;
-                        speechToText->start();
-                        askPopover->setStatus("listening…");
-                        return;
-                    }
-                    if (!micHeld) {
-                        return;
-                    }
-                    micHeld = false;
-                    askPopover->setStatus("transcribing…");
-                    speechToText->stop([this](const std::string& t, bool silent, const std::string& error) {
-                        if (!askPopover) {
-                            return;
-                        }
-                        askPopover->setStatus(error.empty() ? (silent ? "nothing heard" : "") : "speech: " + error);
-                        if (!silent && !t.empty()) {
-                            askPopover->appendText(t);
-                        }
-                    });
+                    dictate(pressed);
                 });
     }
     pendingAsk = std::make_unique<assistant::AskCapture>(c);
@@ -572,6 +597,122 @@ void McpUi::showAsk(const assistant::AskCapture& c, const std::string& text) {
                             1};
     }
     askPopover->show(*rect, text);
+}
+
+void McpUi::dictate(bool pressed) {
+    if (!speechToText) {
+        return;
+    }
+    if (pressed) {
+        micHeld = true;
+        if (pendingAsk && pendingAsk->page) {
+            const size_t page = server.getControl()->getDocument()->indexOf(pendingAsk->page);
+            if (page != npos) {
+                recordAnchor = std::pair(page, xoj::util::Point<double>(pendingAsk->area.x + pendingAsk->area.width,
+                                                                        pendingAsk->area.y));
+            }
+        }
+        speechToText->start();
+        askStatusText = "listening…";
+        if (askPopover && askPopover->visible()) {
+            askPopover->setStatus("listening…");
+        }
+        update();
+        return;
+    }
+    if (!micHeld) {
+        return;
+    }
+    micHeld = false;
+    askStatusText = "transcribing…";
+    if (askPopover && askPopover->visible()) {
+        askPopover->setStatus("transcribing…");
+    }
+    update();
+    speechToText->stop([this](const std::string& t, bool silent, const std::string& error) {
+        askStatusText = error.empty() ? "" : "speech: " + error;
+        update();
+        const std::string said = silent ? "" : t;  // (the popover's microphone button)
+        if (askPopover && askPopover->visible()) {
+            askPopover->setStatus(error.empty() ? (silent ? "nothing heard" : "") : "speech: " + error);
+            if (!said.empty()) {
+                askPopover->appendText(said);
+            }
+        } else if (!said.empty()) {
+            pendingDictation += (pendingDictation.empty() ? "" : " ") + said;  // the popover opens after the lasso
+        }
+    });
+}
+
+void McpUi::armLasso(bool on) {
+    lassoArmed = on;
+    lassoPoints.clear();
+    lassoPage.reset();
+    if (thinkingOverlay) {
+        thinkingOverlay->setLasso(0, {});
+    }
+    GtkWidget* canvas = server.getControl()->getWindow()->getXournal()->getWidget();
+    if (GdkWindow* w = gtk_widget_get_window(canvas)) {
+        GdkCursor* cursor = on ? gdk_cursor_new_from_name(gdk_window_get_display(w), "crosshair") : nullptr;
+        gdk_window_set_cursor(w, cursor);
+        if (cursor) {
+            g_object_unref(cursor);
+        }
+    }
+    if (window) {
+        if (GAction* a = g_action_map_lookup_action(G_ACTION_MAP(window), "ai-ask")) {
+            g_simple_action_set_state(G_SIMPLE_ACTION(a), g_variant_new_boolean(on));
+        }
+    }
+    askStatusText = on ? "circle the area (pen or mouse)…" : "";
+    update();
+    if (!on) {
+        xoj::input::setStrokeInterceptor(nullptr);
+        return;
+    }
+    if (askPopover && askPopover->visible()) {
+        askPopover->close();
+    }
+    pendingDictation.clear();
+    xoj::input::setStrokeInterceptor([this](const xoj::input::InterceptedStroke& s) {
+        using K = xoj::input::InterceptedStroke;
+        if (s.kind == K::Down) {
+            lassoPage = s.page;
+            lassoPoints.clear();
+        }
+        if (s.page && s.page == lassoPage && (s.kind == K::Down || s.kind == K::Move || s.kind == K::Up)) {
+            lassoPoints.push_back({s.x, s.y});
+            if (thinkingOverlay) {
+                thinkingOverlay->setLasso(server.getControl()->getDocument()->indexOf(lassoPage), lassoPoints);
+            }
+        }
+        if (s.kind == K::Up) {
+            assistant::AskCapture c;
+            c.page = lassoPage;
+            c.lasso = lassoPoints;
+            if (c.page) {
+                double x1 = lassoPoints[0].x, y1 = lassoPoints[0].y, x2 = x1, y2 = y1;
+                for (const auto& p: lassoPoints) {
+                    x1 = std::min(x1, p.x), y1 = std::min(y1, p.y), x2 = std::max(x2, p.x), y2 = std::max(y2, p.y);
+                }
+                if (lassoPoints.size() < 3 || (x2 - x1 < 4 && y2 - y1 < 4)) {
+                    // A tap: an area around it
+                    const double w = c.page->getWidth(), h = c.page->getHeight();
+                    const double aw = std::min(200.0, w), ah = std::min(120.0, h);
+                    x1 = std::clamp(x1 - aw / 2, 0.0, w - aw), y1 = std::clamp(y1 - ah / 2, 0.0, h - ah);
+                    x2 = x1 + aw, y2 = y1 + ah;
+                    c.lasso.clear();
+                }
+                c.area = {x1, y1, x2 - x1, y2 - y1};
+            }
+            const std::string said = pendingDictation;
+            armLasso(false);
+            if (c.page) {
+                showAsk(c, said);
+            }
+        }
+        return true;  // the lasso is not ink
+    });
 }
 
 void McpUi::openAskForSelection() {
@@ -670,6 +811,12 @@ json McpUi::askStatus() const {
         return {{"state", "off"}};
     }
     json j = {{"state", ask->listening() ? "listening" : (askStatusText.empty() ? "idle" : askStatusText)}};
+    if (thinkingOverlay) {
+        using R = assistant::ThinkingOverlay::Recording;
+        const auto r = thinkingOverlay->recording();
+        j["recording"] = r == R::Listening ? "listening" : r == R::Transcribing ? "transcribing" : "off";
+        j["recording_levels"] = thinkingOverlay->levelCount();
+    }
     if (!lastAsk.is_null()) {
         j["last"] = lastAsk;
     }

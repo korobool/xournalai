@@ -73,9 +73,16 @@ def test_2_silence_changes_nothing(app):
         shutil.copy(SAMPLE, MIC)
 
 
+def close_popover(c):
+    w = widget(c, "ask-close")
+    if w:
+        c.call("ui_interact", op="click", target=w["id"])
+
+
 def test_3_pointing_without_a_lasso(app):
     c = app.client()
     ready(c)
+    close_popover(c)
     before = c.call("app_status")["ask"].get("last")
     c.call("test_pen", op="hover", x=500, y=350)
     c.call("test_pen", op="barrel_down", x=500, y=350)
@@ -112,7 +119,7 @@ def test_4_the_popover_shows_what_was_said_and_sends_a_command(app):
                    animate=False)["created"][0]["id"]
     text = widget(c, "ask-text")
     assert text and text.get("visible", True), text
-    assert "country" in (text.get("text") or text.get("value") or ""), text
+    assert "country" in (text.get("value") or ""), text
     c.call("ui_interact", op="click", target=widget(c, "ask-improve")["id"])
     sent = c.call("app_status")["ask"]["last"]["submitted"]
     assert sent["command"] == "improve" and sent["zone"] > 0 and inner in sent["ids"] and outer not in sent["ids"]
@@ -132,3 +139,59 @@ def test_5_command_button_opens_ask_for_typing(app):
     c.call("ui_interact", op="activate", target=text["id"])
     intents = intents_since(c, cursor)
     assert intents and 'Ask: "make it red"' in intents[-1]["step"], intents
+
+
+def element_count(c):
+    return len(c.call("page_elements", page=1, detail="bbox", limit=5000)["elements"])
+
+
+def test_6_the_ask_button_arms_a_lasso_and_the_pen_button_dictates(app):
+    c = app.client()
+    ready(c)
+    cursor = c.call("changes_get")["cursor"]
+    n = element_count(c)
+    c.call("ui_interact", op="click", target=widget(c, "aiAsk")["id"])  # the toolbar's Ask
+    assert c.call("app_status")["ask"]["state"].startswith("circle the area")
+    lasso(c, 350, 280, r=50)  # with the tip only: the lasso, not ink
+    time.sleep(0.3)
+    assert element_count(c) == n
+    text = widget(c, "ask-text")
+    assert text and text.get("visible", True) and not text.get("value"), text
+    c.call("test_pen", op="barrel_down", x=350, y=280)  # push-to-talk into the open popover
+    c.call("test_pen", op="barrel_up", x=350, y=280)
+    deadline = time.time() + 15
+    while time.time() < deadline and "country" not in (widget(c, "ask-text").get("value") or ""):
+        time.sleep(0.2)
+    assert "country" in widget(c, "ask-text").get("value", ""), widget(c, "ask-text")
+    c.call("ui_interact", op="click", target=widget(c, "ask-send")["id"])
+    intents = intents_since(c, cursor)
+    assert intents and 'Ask: "' in intents[-1]["step"] and "country" in intents[-1]["step"], intents
+
+
+def test_7_the_mouse_can_draw_the_lasso_too(app):
+    c = app.client()
+    n = element_count(c)
+    c.call("action_run", action="win.ai-ask", state=True)
+    cx, cy = app.canvas_center(c)
+    app.user_drag([(cx + 40 * math.cos(a / 10), cy + 40 * math.sin(a / 10)) for a in range(0, 63, 3)])
+    time.sleep(0.5)
+    assert element_count(c) == n  # no ink
+    assert widget(c, "ask-text").get("visible", True)
+    assert c.call("app_status")["ask"]["state"] == "idle"  # disarmed after one lasso
+
+
+def test_8_a_recording_indicator_shows_listening_then_transcribing(app):
+    c = app.client()
+    ready(c)
+    close_popover(c)
+    c.call("test_pen", op="hover", x=300, y=330)
+    c.call("test_pen", op="barrel_down", x=300, y=330)
+    assert c.call("app_status")["ask"]["recording"] == "listening"  # at once, before any word
+    time.sleep(1.0)
+    assert c.call("app_status")["ask"]["recording_levels"] > 3  # the level bars move with the voice
+    c.call("test_pen", op="barrel_up", x=300, y=330)
+    assert c.call("app_status")["ask"]["recording"] == "transcribing"
+    deadline = time.time() + 15
+    while time.time() < deadline and c.call("app_status")["ask"]["recording"] != "off":
+        time.sleep(0.1)
+    assert c.call("app_status")["ask"]["recording"] == "off"

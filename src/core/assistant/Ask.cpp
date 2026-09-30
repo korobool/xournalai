@@ -9,8 +9,13 @@
 
 namespace xoj::assistant {
 
-AskController::AskController(SpeechToText* speech, OnAsk onAsk, OnStatus onStatus):
-        speech(speech), onAsk(std::move(onAsk)), onStatus(std::move(onStatus)) {}
+AskController::AskController(SpeechToText* speech, OnAsk onAsk, OnStatus onStatus, HasTarget hasTarget,
+                             OnDictation onDictation):
+        speech(speech),
+        onAsk(std::move(onAsk)),
+        onStatus(std::move(onStatus)),
+        hasTarget(std::move(hasTarget)),
+        onDictation(std::move(onDictation)) {}
 
 void AskController::onPen(const xoj::input::PenButtonEvent& e) {
     using K = xoj::input::PenButtonEvent;
@@ -54,7 +59,13 @@ void AskController::onPen(const xoj::input::PenButtonEvent& e) {
             return;
         }
         onStatus("");
-        if (!silent && !text.empty()) {
+        if (silent || text.empty()) {
+            return;
+        }
+        // No lasso drawn while an ask is open: the words are for it (push-to-talk); a lasso makes a new ask
+        if (capture.lasso.size() < 3 && hasTarget && hasTarget()) {
+            onDictation(text);
+        } else {
             finish(text);
         }
     });

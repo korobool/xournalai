@@ -23,6 +23,9 @@ struct InputEvent;
 class AbstractInputHandler {
 private:
     bool blocked = false;
+    bool interceptDown = false;  ///< a stroke is going to the stroke interceptor (the Ask lasso)
+    /// The Ask lasso: gives pen / mouse strokes to the stroke interceptor while one is set; true if consumed
+    bool intercept(InputEvent const& event);
 
 protected:
     InputContext* inputContext;

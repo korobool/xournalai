@@ -142,7 +142,7 @@ auto StylusInputHandler::handleImpl(InputEvent const& event) -> bool {
 }
 
 void StylusInputHandler::notifyPenButtonObserver(InputEvent const& event, bool barrelWasHeld) {
-    const auto& observer = xoj::input::penButtonObserver();
+    const auto observer = xoj::input::penButtonObserver();  // a copy: it may change the observer while it runs
     if (!observer || event.deviceClass != INPUT_DEVICE_PEN) {
         return;
     }

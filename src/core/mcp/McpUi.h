@@ -15,6 +15,8 @@
 
 #include <gtk/gtk.h>
 
+#include "model/PageRef.h"  // for PageRef
+#include "util/Point.h"     // for Point
 #include "util/Rectangle.h"
 
 #include "Json.h"             // for json
@@ -158,6 +160,17 @@ private:
     std::unique_ptr<assistant::AskPopover> askPopover;
     std::unique_ptr<assistant::AskCapture> pendingAsk;  ///< what the open popover is about
     bool micHeld = false;
+    bool lassoArmed = false;                            ///< Ask: the next pen / mouse stroke is the lasso
+    std::vector<xoj::util::Point<double>> lassoPoints;  ///< being drawn
+    PageRef lassoPage;
+    std::string pendingDictation;
+    /// Where the recording indicator is shown: the pen when its button was pressed (page, page coordinates)
+    std::optional<std::pair<size_t, xoj::util::Point<double>>>
+            recordAnchor;  ///< said with the pen button while the lasso was drawn (for the popover)
+    /// Arms (or disarms) the Ask lasso
+    void armLasso(bool on);
+    /// Pen button held while the lasso is armed or the popover is open: dictation into it
+    void dictate(bool pressed);
     void onAsk(const assistant::AskCapture& c);
     /// Opens the Ask popover for `c` with `text`
     void showAsk(const assistant::AskCapture& c, const std::string& text);

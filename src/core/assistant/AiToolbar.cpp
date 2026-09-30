@@ -55,6 +55,21 @@ AiToolbar::AiToolbar(GtkWidget* mainBox, int position, ActionHandler h): handler
     gtk_container_add(GTK_CONTAINER(title), label);
     gtk_toolbar_insert(GTK_TOOLBAR(toolbar), title, -1);
 
+    // Ask: the AI lasso. Circle an area with the pen or the mouse, then say (hold the pen button) or type what you want
+    GtkToolItem* askItem = gtk_toggle_tool_button_new();
+    gtk_tool_button_set_label(GTK_TOOL_BUTTON(askItem), "Ask");
+    gtk_tool_button_set_icon_widget(
+            GTK_TOOL_BUTTON(askItem),
+            gtk_image_new_from_icon_name("audio-input-microphone-symbolic", GTK_ICON_SIZE_SMALL_TOOLBAR));
+    gtk_tool_item_set_is_important(askItem, TRUE);
+    gtk_tool_item_set_tooltip_text(
+            askItem, "Ask (Ctrl+Alt+A): circle an area with the pen or the mouse, then say (hold the "
+                     "pen button) or type what you want. Quicker: hold the pen button, speak and circle.");
+    gtk_actionable_set_action_name(GTK_ACTIONABLE(askItem), "win.ai-ask");
+    gtk_buildable_set_name(GTK_BUILDABLE(askItem), "aiAsk");
+    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), askItem, -1);
+    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), gtk_separator_tool_item_new(), -1);
+
     for (const auto& b: BUTTONS) {
         GtkToolItem* item =
                 gtk_tool_button_new(gtk_image_new_from_icon_name(b.icon, GTK_ICON_SIZE_SMALL_TOOLBAR), b.label);

@@ -34,8 +34,11 @@ class AskController final {
 public:
     using OnAsk = std::function<void(const AskCapture&)>;
     using OnStatus = std::function<void(const std::string& status)>;  ///< "" when idle
+    /// Whether an ask is open that spoken words should go to (the popover, or the armed lasso)
+    using HasTarget = std::function<bool()>;
+    using OnDictation = std::function<void(const std::string& text)>;
 
-    AskController(SpeechToText* speech, OnAsk onAsk, OnStatus onStatus);
+    AskController(SpeechToText* speech, OnAsk onAsk, OnStatus onStatus, HasTarget hasTarget, OnDictation onDictation);
 
     void onPen(const xoj::input::PenButtonEvent& e);
     bool listening() const { return active; }
@@ -46,6 +49,8 @@ private:
     SpeechToText* speech;
     OnAsk onAsk;
     OnStatus onStatus;
+    HasTarget hasTarget;
+    OnDictation onDictation;
     bool active = false;
     AskCapture capture;
     xoj::util::Point<double> hover;

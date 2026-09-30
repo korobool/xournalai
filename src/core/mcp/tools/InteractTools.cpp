@@ -31,7 +31,13 @@ void click(GtkWidget* w) {
     } else if (GTK_IS_MENU_ITEM(w)) {
         gtk_menu_item_activate(GTK_MENU_ITEM(w));
     } else if (GTK_IS_TOOL_BUTTON(w)) {
-        g_signal_emit_by_name(w, "clicked");
+        // Click its inner button, like the user: toggles (and actionable tool buttons) react to that one
+        GtkWidget* inner = gtk_bin_get_child(GTK_BIN(w));
+        if (inner && GTK_IS_BUTTON(inner)) {
+            gtk_button_clicked(GTK_BUTTON(inner));
+        } else {
+            g_signal_emit_by_name(w, "clicked");
+        }
     } else if (GTK_IS_LIST_BOX_ROW(w)) {
         gtk_widget_activate(w);
     } else if (!gtk_widget_activate(w)) {

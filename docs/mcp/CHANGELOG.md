@@ -6,6 +6,18 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+## 1.6.1 — Ask: the button and the recording indicator
+- **Ask button** on the AI toolbar (the first one; Ctrl+Alt+A). The next stroke, with the pen or the mouse, draws a
+  dashed lasso instead of ink; the popover opens there. Type, tap a command, or hold the pen button (or the
+  popover's microphone) to dictate into it.
+- **The pen button decides on release:** a lasso drawn while holding it is a new ask; only speaking while an ask is
+  open adds to that ask.
+- **Recording indicator:** a dark pill next to the pen appears the instant you press. It has a pulsing red dot,
+  level bars that move with your voice, and "Listening"; after release it shows bouncing dots and "Transcribing".
+  The helper reports the microphone level about 20 times a second.
+- Fixes: finishing a lasso could crash (the lasso hook removed itself while running). `ui_interact` now clicks a
+  toolbar button's inner button, so toggles such as Pause, Auto-improve and Ask work for agents too.
+
 ## 1.6.0 — Ask: lasso + voice (epoch E10, experimental)
 Point and say. **Hold the pen's first barrel button, speak, and circle the area with the tip; release.**
 - **Speech is transcribed locally** by `xournalai-stt`, a small helper built with whisper.cpp v1.9.4 (English,

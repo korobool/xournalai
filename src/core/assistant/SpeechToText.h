@@ -46,6 +46,8 @@ public:
     std::string problem() const { return lastProblem; }  ///< why it is unavailable, or the last error
     /// Called when the state changes
     void setListener(std::function<void(State)> l) { listener = std::move(l); }
+    /// Called ~20 times a second while recording from the microphone, with its level (RMS, about 0..0.3)
+    void setLevelListener(std::function<void(float)> l) { levelListener = std::move(l); }
 
     static std::string modelsDir();
     std::string modelPath() const;
@@ -70,6 +72,7 @@ private:
     GSubprocess* downloader = nullptr;
     std::deque<Done> waiting;  ///< stop() calls waiting for their transcript, in order
     std::function<void(State)> listener;
+    std::function<void(float)> levelListener;
 };
 
 }  // namespace xoj::assistant

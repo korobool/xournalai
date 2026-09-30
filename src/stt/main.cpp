@@ -21,6 +21,7 @@
  */
 
 #include <algorithm>  // for sort, max, min, count_if
+#include <atomic>     // for atomic
 #include <cctype>     // for isalnum, tolower
 #include <chrono>     // for steady_clock
 #include <cmath>      // for sqrt
@@ -46,8 +47,11 @@ namespace {
 
 constexpr int RATE = WHISPER_SAMPLE_RATE;  // 16 kHz
 
+std::mutex outMutex;  // the main loop and the level thread both write
+
 void emit(const json& j) {
     const std::string line = j.dump() + "\n";
+    std::lock_guard g(outMutex);
     fwrite(line.data(), 1, line.size(), stdout);
     fflush(stdout);
 }
@@ -157,6 +161,10 @@ public:
         pcm.clear();
         if (const char* fake = getenv("XOURNALAI_STT_FAKE_MIC")) {
             pcm = readWav(fake, why);
+            // "plays" in real time for the level meter
+            fakeStart = std::chrono::steady_clock::now();
+            fakeRead = 0;
+            fakeLive = why.empty();
             return why.empty();
         }
         if (!initialized) {
@@ -172,6 +180,7 @@ public:
                                      this) == paNoError) {
                 decimate = rate / RATE;
                 if (Pa_StartStream(stream) == paNoError) {
+                    live = true;
                     return true;
                 }
                 Pa_CloseStream(stream);
@@ -183,6 +192,8 @@ public:
     }
 
     std::vector<float> stop() {
+        live = false;
+        fakeLive = false;
         if (stream) {
             Pa_StopStream(stream);
             Pa_CloseStream(stream);
@@ -197,6 +208,15 @@ private:
                        PaStreamCallbackFlags, void* self) {
         auto* r = static_cast<Recorder*>(self);
         const auto* in = static_cast<const float*>(input);
+        if (in) {
+            double sum = 0;
+            for (unsigned long i = 0; i < frames; i++) {
+                sum += static_cast<double>(in[i]) * in[i];
+            }
+            const auto rms = static_cast<float>(std::sqrt(sum / std::max(1ul, frames)));
+            float prev = r->peak.load();
+            while (rms > prev && !r->peak.compare_exchange_weak(prev, rms)) {}
+        }
         std::lock_guard g(r->m);
         for (unsigned long i = 0; in && i + static_cast<unsigned long>(r->decimate) <= frames;
              i += static_cast<unsigned long>(r->decimate)) {
@@ -209,6 +229,34 @@ private:
         return paContinue;
     }
 
+public:
+    /// The loudest level since the last call (0 if not recording)
+    float takePeak() {
+        if (fakeLive) {
+            std::lock_guard g(m);
+            const auto ms =
+                    std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - fakeStart)
+                            .count();
+            const size_t upTo = std::min(pcm.size(), static_cast<size_t>(ms) * RATE / 1000);
+            double sum = 0;
+            for (size_t i = fakeRead; i < upTo; i++) {
+                sum += static_cast<double>(pcm[i]) * pcm[i];
+            }
+            const float rms =
+                    upTo > fakeRead ? static_cast<float>(std::sqrt(sum / static_cast<double>(upTo - fakeRead))) : 0;
+            fakeRead = upTo;
+            return rms;
+        }
+        return peak.exchange(0.0f);
+    }
+    bool isRecording() const { return live || fakeLive; }
+
+private:
+    std::atomic<float> peak{0.0f};
+    std::atomic<bool> live{false};      ///< the microphone is recording (read by the level thread)
+    std::atomic<bool> fakeLive{false};  ///< XOURNALAI_STT_FAKE_MIC is "playing"
+    std::chrono::steady_clock::time_point fakeStart;
+    size_t fakeRead = 0;
     std::mutex m;
     std::vector<float> pcm;
     PaStream* stream = nullptr;
@@ -285,6 +333,16 @@ int main(int argc, char** argv) {
 
     Recorder recorder;
     bool recording = false;
+    // While recording from the microphone: its level ~20 times a second (the app shows it moving with the voice)
+    std::atomic<bool> running{true};
+    std::thread levels([&] {
+        while (running) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            if (recorder.isRecording()) {
+                emit({{"event", "level"}, {"rms", std::round(recorder.takePeak() * 1000) / 1000}});
+            }
+        }
+    });
     std::string line;
     while (std::getline(std::cin, line)) {
         json cmd;
@@ -320,6 +378,8 @@ int main(int argc, char** argv) {
             error("unknown command: " + c);
         }
     }
+    running = false;
+    levels.join();
     whisper_free(ctx);
     return 0;
 }

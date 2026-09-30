@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.6.0**
+Current version: **1.6.1**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -463,7 +463,7 @@ Agents thinking never freeze the user's pen; agents drawing freeze it no longer 
 | T9.2.1 | US-9.2 | **Snapshot backgrounds, scheduler waits, touch decisions** — snapshotPage used setBackgroundPdfPageNr, which makes any page a PDF page: every normal page showed 'PDF background missing' (1.5.0). XournalScheduler::removeSource waited for any running job: deleting a page froze the UI while another page rendered (3-4 s on a 1M-point page); now it waits on runningDoneCond only for a job of that source. Tests: PageSnapshotTest, test_e9_backgrounds.py. | `ai: fix page snapshot backgrounds and scheduler waits (T9.2.1)` | ✅ done `88d6fe516` |
 | T9.2.2 | US-9.2 | **Review fixes** — Deep review of 1.3.1-1.5.1. Pinch guard could stay on after a third touch (palm) or a lost touch end, silently ignoring zoom keys, Ctrl+wheel, the slider and agents' zoom (test_e8_pinch test_4, failed before); now cleared on invalidation and expiring after 3 s without pinch movement. Watchdog polled every 5 ms (200 wake-ups/s on a laptop); now sleeps until a stall could have started. wait_for_user and draft(op=render) rendered on the UI thread; now off it. ZOOM_DEEP disabled in presentation mode like the other zoom actions. Checked and accepted: snapshot cost with 60 LaTeX formulas (no stalls), bbox-based partial copies (stroke bbox includes width), text-in-editing flag copied, prepared results not read afterwards. | `ai: review fixes (pinch guard, watchdog wake-ups, off-UI renders) (T9.2.2)` | ✅ done `0cb3399a9` |
 
-## E10 — Ask: lasso + voice (experimental) (release 1.6.0)
+## E10 — Ask: lasso + voice (experimental) (release 1.6.1)
 
 Point and say: hold the pen's barrel button, speak, circle an area; a popover next to it shows the transcript (editable) and command icons; the request goes to the serving session as a zone. Speech-to-text runs locally (whisper.cpp).
 
@@ -504,4 +504,16 @@ Point and say: hold the pen's barrel button, speak, circle an area; a popover ne
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T10.3.1 | US-10.3 | **Release 1.6.0** — Tests, docs, CHANGELOG, tag. | `ai: release 1.6.0 (ask: lasso + voice) (T10.3.1)` | ✅ done |
+| T10.3.1 | US-10.3 | **Release 1.6.0** — Tests, docs, CHANGELOG, tag. | `ai: release 1.6.0 (ask: lasso + voice) (T10.3.1)` | ✅ done `c535a73a3` |
+
+### S10.4 — Ask: the button and the recording indicator → v1.6.1
+
+**US-10.4** — As the owner, I want a visible Ask tool, and to see clearly when it is recording.
+
+- [ ] AI toolbar Ask (Ctrl+Alt+A): the next pen or mouse stroke is a lasso (no ink), then the popover
+- [ ] the pen button while an ask is open dictates into it; a lasso drawn while holding it is a new ask
+- [ ] a recording indicator next to the pen: pulsing red dot, live level bars, Listening; then Transcribing
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T10.4.1 | US-10.4 | **Ask button, lasso and recording indicator** — Stroke interceptor in AbstractInputHandler (pen / mouse only, consumed); dashed lasso on the overlay; pen button decides on release (lasso → new ask, else dictation); xournalai-stt level events (~20/s; the fake mic plays in real time); ThinkingOverlay recording pill. Fixes: the interceptor removed itself while running (crash); ui_interact clicks tool buttons' inner button (toggles). | `ai: ask button and recording indicator (T10.4.1)` | ✅ done |

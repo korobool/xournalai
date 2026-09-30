@@ -15,6 +15,7 @@
 #include "gui/XournalppCursor.h"                 // for XournalppCursor
 #include "gui/inputdevices/InputEvents.h"        // for InputEvent
 #include "gui/inputdevices/PositionInputData.h"  // for PositionInputData
+#include "gui/inputdevices/StrokeInterceptor.h"  // for strokeInterceptor
 #include "gui/widgets/XournalWidget.h"           // for GtkXournal
 #include "model/Point.h"                         // for Point, Point::NO_PRE...
 #include "util/Assert.h"                         // for xoj_assert
@@ -41,6 +42,9 @@ void AbstractInputHandler::block(bool block) {
 auto AbstractInputHandler::isBlocked() const -> bool { return this->blocked; }
 
 auto AbstractInputHandler::handle(InputEvent const& event) -> bool {
+    if (intercept(event)) {
+        return true;
+    }
     if (!this->blocked) {
         if (auto* v = this->inputContext->getView(); v) {
             v->getCursor()->setInputDeviceClass(event.deviceClass);
@@ -96,3 +100,34 @@ auto AbstractInputHandler::getInputDataRelativeToCurrentPage(XojPageView* page, 
 void AbstractInputHandler::onBlock() {}
 
 void AbstractInputHandler::onUnblock() {}
+
+auto AbstractInputHandler::intercept(InputEvent const& event) -> bool {
+    const auto interceptor = xoj::input::strokeInterceptor();  // a copy: it may remove itself while it runs
+    const bool pointer = event.deviceClass == INPUT_DEVICE_PEN || event.deviceClass == INPUT_DEVICE_MOUSE;
+    if (!interceptor || !pointer) {
+        interceptDown = false;
+        return false;
+    }
+    using K = xoj::input::InterceptedStroke;
+    K::Kind kind;
+    if (event.type == BUTTON_PRESS_EVENT && event.button == 1) {
+        kind = K::Down;
+        interceptDown = true;
+    } else if (event.type == MOTION_EVENT && interceptDown) {
+        kind = K::Move;
+    } else if (event.type == BUTTON_RELEASE_EVENT && event.button == 1 && interceptDown) {
+        kind = K::Up;
+        interceptDown = false;
+    } else {
+        return event.type == BUTTON_PRESS_EVENT || event.type == BUTTON_RELEASE_EVENT ? false : interceptDown;
+    }
+    K s{kind};
+    if (XojPageView* view = getPageAtCurrentPosition(event)) {
+        const PositionInputData pos = getInputDataRelativeToCurrentPage(view, event);
+        const double zoom = this->inputContext->getView()->getZoom();
+        s.page = view->getPage();
+        s.x = pos.x / zoom;
+        s.y = pos.y / zoom;
+    }
+    return interceptor(s);
+}
