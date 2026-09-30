@@ -50,6 +50,8 @@ public:
     void setLevelListener(std::function<void(float)> l) { levelListener = std::move(l); }
 
     static std::string modelsDir();
+    /// Diagnostics: a line in ~/.cache/xournalai/speech.log (shared with the helper)
+    static void log(const std::string& line);
     std::string modelPath() const;
     static std::string helperPath();
 
@@ -70,7 +72,10 @@ private:
     GDataInputStream* out = nullptr;
     GCancellable* cancellable = nullptr;
     GSubprocess* downloader = nullptr;
-    std::deque<Done> waiting;  ///< stop() calls waiting for their transcript, in order
+    std::deque<Done> waiting;   ///< stop() calls waiting for their transcript, in order
+    bool recordingNow = false;  ///< between start() and stop() / cancel()
+    /// Listening while recording, else Transcribing while transcripts are pending, else Ready
+    void settle();
     std::function<void(State)> listener;
     std::function<void(float)> levelListener;
 };

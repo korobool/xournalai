@@ -246,7 +246,7 @@ gboolean ThinkingOverlay::onTick(gpointer data) {
     }
     self->phase += 0.6;
     self->layout();  // follows scrolling and zooming
-    if (self->list.empty() && self->rec == Recording::Off) {
+    if (self->list.empty() && self->rec == Recording::Off && g_get_monotonic_time() >= self->recMessageUntilUs) {
         self->timer = 0;
         return G_SOURCE_REMOVE;
     }
@@ -267,6 +267,15 @@ void ThinkingOverlay::setRecording(Recording r, std::optional<std::pair<size_t, 
     if (anchor || r == Recording::Off) {
         recAnchor = anchor;
     }
+    ensureTimer();
+    if (canvas) {
+        gtk_widget_queue_draw(canvas);
+    }
+}
+
+void ThinkingOverlay::flashRecording(const std::string& message) {
+    recMessage = message;
+    recMessageUntilUs = g_get_monotonic_time() + 2200 * 1000;
     ensureTimer();
     if (canvas) {
         gtk_widget_queue_draw(canvas);
@@ -397,6 +406,18 @@ void ThinkingOverlay::drawRecording(cairo_t* cr) {
     cairo_set_line_width(cr, 1);
     cairo_stroke(cr);
 
+    if (rec == Recording::Off) {  // a message ("Didn't catch that"): grey microphone dot, fading at the end
+        const double left = static_cast<double>(recMessageUntilUs - g_get_monotonic_time()) / 1e6;
+        cairo_arc(cr, x + 22, y + R, 7, 0, 2 * M_PI);
+        cairo_set_source_rgba(cr, 0.7, 0.72, 0.75, std::min(1.0, left * 2));
+        cairo_fill(cr);
+        cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
+        cairo_set_font_size(cr, 13);
+        cairo_set_source_rgba(cr, 1, 1, 1, std::min(1.0, left * 2));
+        cairo_move_to(cr, x + 40, y + R + 5);
+        cairo_show_text(cr, recMessage.c_str());
+        return;
+    }
     const double cx = x + 22, cy = y + R;
     const bool listening = rec == Recording::Listening;
     const double pulse = std::fmod(phase / 7.0, 1.0);  // ~0.6 s
@@ -509,7 +530,7 @@ gboolean ThinkingOverlay::onDraw(GtkWidget*, cairo_t* cr, gpointer data) {
         // The status pill above the zone (drawn: it lets the pen through): an animated sign of what is going on
         self->drawZonePill(cr, *z, x, y, w, h, alpha);
     }
-    if (self->rec != Recording::Off) {  // on top of everything
+    if (self->rec != Recording::Off || now < self->recMessageUntilUs) {  // on top of everything
         cairo_save(cr);
         self->drawRecording(cr);
         cairo_restore(cr);

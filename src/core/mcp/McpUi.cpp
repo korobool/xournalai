@@ -114,6 +114,8 @@ McpUi::McpUi(McpServer& server): server(server) {
                     askStatusText = status;
                     if (askPopover && askPopover->visible()) {
                         askPopover->setStatus(status);
+                    } else if (thinkingOverlay && (status == "nothing heard" || status.rfind("speech:", 0) == 0)) {
+                        thinkingOverlay->flashRecording(status == "nothing heard" ? "Didn't catch that" : status);
                     }
                     update();
                 },

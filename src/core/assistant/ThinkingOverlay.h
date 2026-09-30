@@ -66,6 +66,8 @@ public:
     size_t levelCount() const { return levels.size(); }  ///< levels received while recording (tests)
     /// The microphone's level (RMS)
     void pushLevel(float rms);
+    /// A short message in the recording pill for a moment (e.g. "Didn't catch that")
+    void flashRecording(const std::string& message);
     static const char* name(State s);
 
 private:
@@ -84,6 +86,8 @@ private:
     Recording rec = Recording::Off;
     std::optional<std::pair<size_t, xoj::util::Point<double>>> recAnchor;
     std::vector<float> levels;  ///< recent levels, oldest first
+    std::string recMessage;
+    gint64 recMessageUntilUs = 0;
     void drawRecording(cairo_t* cr);
     void drawZonePill(cairo_t* cr, const Zone& z, double zx, double zy, double zw, double zh, double alpha);
     void ensureTimer();

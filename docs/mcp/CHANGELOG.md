@@ -6,6 +6,18 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+## 1.6.3 — Reliable speech
+- **"Nothing heard" while the level bars moved:** the speech check wanted sound three times louder than the
+  quietest part of the clip, and at least 0.012 RMS. Speaking from start to end made even the quietest part voice,
+  and the owner's microphone is quiet (voice peaks about 0.015). The threshold is now 3× the quietest 10%, capped
+  to 0.005–0.02, and clearly loud clips always go to whisper; silence and hiss are still ignored.
+- **The microphone opens at once** after a previous request: transcriptions run on a queue in the helper (the start
+  of a quick next phrase was lost).
+- **A late transcript no longer hides the Listening indicator** of a new recording.
+- **"Didn't catch that"** appears in the pill next to the pen when nothing was heard; errors show there too.
+- **Diagnostics:** every attempt is logged in `~/.cache/xournalai/speech.log`, and the last clip judged silent is
+  kept as `last-silent.wav`.
+
 ## 1.6.2 — Visible thinking, a popover for the stylus
 - **An ask stays visible while it is worked on.** The serving session hands an ask to a background subagent and
   ends its turn at once, and that closed the zone: you saw nothing while the subagent worked. Now a turn that

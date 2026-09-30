@@ -84,14 +84,38 @@ std::string SpeechToText::helperPath() {
     return s;
 }
 
+void SpeechToText::log(const std::string& line) {
+    gchar* dir = g_build_filename(g_get_user_cache_dir(), "xournalai", nullptr);
+    g_mkdir_with_parents(dir, 0700);
+    gchar* path = g_build_filename(dir, "speech.log", nullptr);
+    if (FILE* f = g_fopen(path, "a")) {
+        GDateTime* now = g_date_time_new_now_local();
+        gchar* stamp = g_date_time_format(now, "%H:%M:%S");
+        fprintf(f, "%s.%03d app  %s\n", stamp, g_date_time_get_microsecond(now) / 1000, line.c_str());
+        g_free(stamp);
+        g_date_time_unref(now);
+        fclose(f);
+    }
+    g_free(path);
+    g_free(dir);
+}
+
 void SpeechToText::set(State s) {
     if (current == s) {
         return;
     }
+    log(std::string("speech ") + name(current) + " -> " + name(s));
     current = s;
     if (listener) {
         listener(s);
     }
+}
+
+void SpeechToText::settle() {
+    if (!proc) {
+        return;
+    }
+    set(recordingNow ? State::Listening : (!waiting.empty() ? State::Transcribing : State::Ready));
 }
 
 void SpeechToText::warmUp() {
@@ -215,6 +239,9 @@ void SpeechToText::onLine(const std::string& line) {
         return;
     }
     const std::string event = j.value("event", "");
+    if (event != "level") {
+        log("helper: " + line);
+    }
     if (event == "level") {
         if (levelListener && current == State::Listening) {
             levelListener(j.value("rms", 0.0f));
@@ -222,11 +249,9 @@ void SpeechToText::onLine(const std::string& line) {
         return;
     }
     if (event == "ready") {
-        if (current == State::Starting) {  // (not if start() was already sent: it is queued)
-            set(State::Ready);
-        }
+        settle();  // (Listening if start() was already sent: it is queued)
     } else if (event == "listening") {
-        set(State::Listening);
+        settle();
     } else if (event == "text" || event == "error") {
         if (event == "error") {
             lastProblem = j.value("message", "error");
@@ -234,24 +259,27 @@ void SpeechToText::onLine(const std::string& line) {
         if (!waiting.empty() && (event == "text" || current == State::Transcribing)) {
             Done done = std::move(waiting.front());
             waiting.pop_front();
-            set(State::Ready);
+            settle();  // (not Ready if a new recording started meanwhile)
             if (done) {
                 event == "text" ? done(j.value("text", ""), j.value("silent", true), "") : done("", true, lastProblem);
             }
         } else if (event == "error") {
-            set(State::Ready);  // e.g. the microphone could not be opened; stop() will then find no speech
+            recordingNow = false;  // e.g. the microphone could not be opened; stop() will then find no speech
+            settle();
         }
     } else if (event == "cancelled") {
-        set(State::Ready);
+        settle();
     }
 }
 
 void SpeechToText::onExit() {
+    log("helper exited");
     g_clear_object(&out);
     in = nullptr;
     g_clear_object(&proc);
     auto pending = std::move(waiting);
     waiting.clear();
+    recordingNow = false;
     lastProblem = "the speech helper stopped";
     set(State::Unavailable);
     for (auto& done: pending) {
@@ -276,7 +304,8 @@ void SpeechToText::start() {
         return;  // unavailable or downloading: stop() will say so
     }
     send(R"({"cmd":"start"})");  // queued by the helper if it is still loading the model
-    set(State::Listening);
+    recordingNow = true;
+    settle();
 }
 
 void SpeechToText::stop(Done done) {
@@ -290,13 +319,15 @@ void SpeechToText::stop(Done done) {
     }
     waiting.push_back(std::move(done));
     send(R"({"cmd":"stop"})");
-    set(State::Transcribing);
+    recordingNow = false;
+    settle();
 }
 
 void SpeechToText::cancel() {
-    if (proc && (current == State::Listening || current == State::Starting)) {
+    if (proc && recordingNow) {
         send(R"({"cmd":"cancel"})");
-        set(State::Ready);
+        recordingNow = false;
+        settle();
     }
 }
 

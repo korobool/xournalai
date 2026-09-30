@@ -20,22 +20,24 @@
  * @license GNU GPLv2 or later
  */
 
-#include <algorithm>  // for sort, max, min, count_if
-#include <atomic>     // for atomic
-#include <cctype>     // for isalnum, tolower
-#include <chrono>     // for steady_clock
-#include <cmath>      // for sqrt
-#include <cstdint>    // for int16_t
-#include <cstdio>     // for printf
-#include <cstdlib>    // for getenv
-#include <cstring>    // for memcpy
-#include <fstream>    // for ifstream
-#include <iostream>   // for cin
-#include <iterator>   // for istreambuf_iterator
-#include <mutex>      // for mutex
-#include <string>     // for string
-#include <thread>     // for hardware_concurrency
-#include <vector>     // for vector
+#include <algorithm>           // for sort, max, min, count_if
+#include <atomic>              // for atomic
+#include <cctype>              // for isalnum, tolower
+#include <chrono>              // for steady_clock
+#include <cmath>               // for sqrt
+#include <condition_variable>  // for condition_variable
+#include <cstdint>             // for int16_t
+#include <cstdio>              // for printf
+#include <cstdlib>             // for getenv
+#include <cstring>             // for memcpy
+#include <deque>               // for deque
+#include <fstream>             // for ifstream
+#include <iostream>            // for cin
+#include <iterator>            // for istreambuf_iterator
+#include <mutex>               // for mutex
+#include <string>              // for string
+#include <thread>              // for hardware_concurrency
+#include <vector>              // for vector
 
 #include <nlohmann/json.hpp>
 #include <portaudio.h>
@@ -114,6 +116,53 @@ std::vector<float> readWav(const std::string& path, std::string& why) {
     return {};
 }
 
+/// ~/.cache/xournalai (or $XDG_CACHE_HOME/xournalai)
+std::string cacheDir() {
+    const char* home = getenv("HOME");
+    return getenv("XDG_CACHE_HOME") ? std::string(getenv("XDG_CACHE_HOME")) + "/xournalai" :
+           home                     ? std::string(home) + "/.cache/xournalai" :
+                                      std::string();
+}
+
+/// Diagnostics: speech.log in the cache folder (one line per clip, shared with the app)
+void logLine(const std::string& text) {
+    const std::string dir = cacheDir();
+    if (dir.empty()) {
+        return;
+    }
+    if (FILE* f = fopen((dir + "/speech.log").c_str(), "a")) {
+        const auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+        char stamp[32];
+        strftime(stamp, sizeof stamp, "%H:%M:%S", localtime(&now));
+        fprintf(f, "%s stt  %s\n", stamp, text.c_str());
+        fclose(f);
+    }
+}
+
+/// Keeps a clip judged silent (for diagnosis): 16-bit mono 16 kHz WAV
+void saveWav(const std::string& path, const std::vector<float>& pcm) {
+    FILE* f = fopen(path.c_str(), "wb");
+    if (!f) {
+        return;
+    }
+    auto u32 = [&](uint32_t v) { fwrite(&v, 4, 1, f); };
+    auto u16 = [&](uint16_t v) { fwrite(&v, 2, 1, f); };
+    const auto bytes = static_cast<uint32_t>(pcm.size() * 2);
+    fwrite("RIFF", 1, 4, f), u32(36 + bytes), fwrite("WAVEfmt ", 1, 8, f), u32(16), u16(1), u16(1), u32(RATE),
+            u32(RATE * 2), u16(2), u16(16), fwrite("data", 1, 4, f), u32(bytes);
+    for (float s: pcm) {
+        const auto v = static_cast<int16_t>(std::clamp(s, -1.0f, 1.0f) * 32767);
+        fwrite(&v, 2, 1, f);
+    }
+    fclose(f);
+}
+
+struct SpeechStats {
+    float peak = 0, noise = 0, threshold = 0;
+    long loudFrames = 0;
+};
+SpeechStats lastStats;
+
 /// Whether the recording contains speech: enough 20 ms frames clearly louder than the background
 bool hasSpeech(const std::vector<float>& pcm) {
     constexpr size_t FRAME = RATE / 50;
@@ -130,10 +179,14 @@ bool hasSpeech(const std::vector<float>& pcm) {
     }
     std::vector<float> sorted = rms;
     std::sort(sorted.begin(), sorted.end());
-    const float noise = sorted[sorted.size() / 5];
-    const float threshold = std::max(0.012f, noise * 3.0f);
+    // The background: the quietest frames. The threshold is relative to it, but capped: when the user speaks from
+    // the first to the last moment, even the quietest frames are voice (an uncapped threshold then rejected speech)
+    const float noise = sorted[sorted.size() / 10];
+    const float threshold = std::clamp(noise * 3.0f, 0.005f, 0.02f);
     const auto loud = std::count_if(rms.begin(), rms.end(), [&](float r) { return r > threshold; });
-    return loud >= 12;  // at least ~0.25 s of voice
+    lastStats = {sorted.back(), noise, threshold, static_cast<long>(loud)};
+    // ~0.2 s of voice; or clearly something loud: then whisper decides (its "no words" answers are filtered)
+    return loud >= 10 || sorted.back() > 0.05f;
 }
 
 /// Whisper's words for silence or noise (it sometimes "hears" these in quiet recordings)
@@ -193,7 +246,15 @@ public:
 
     std::vector<float> stop() {
         live = false;
-        fakeLive = false;
+        if (fakeLive.exchange(false)) {
+            // the fake microphone "heard" what played until now, like a real one
+            std::lock_guard g(m);
+            const auto ms =
+                    std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - fakeStart)
+                            .count();
+            pcm.resize(std::min(pcm.size(), static_cast<size_t>(ms) * RATE / 1000));
+            return std::move(pcm);
+        }
         if (stream) {
             Pa_StopStream(stream);
             Pa_CloseStream(stream);
@@ -266,7 +327,18 @@ private:
 
 json transcribe(whisper_context* ctx, const std::vector<float>& pcm, int threads) {
     const auto audioMs = static_cast<long>(pcm.size() * 1000 / RATE);
+    lastStats = {};
+    auto stats = [&]() {
+        char b[160];
+        snprintf(b, sizeof b, "audio %ldms peak %.4f noise %.4f threshold %.4f voiced frames %ld", audioMs,
+                 lastStats.peak, lastStats.noise, lastStats.threshold, lastStats.loudFrames);
+        return std::string(b);
+    };
     if (!hasSpeech(pcm)) {
+        logLine(stats() + " -> SILENT (no voice found; clip kept as last-silent.wav)");
+        if (!cacheDir().empty()) {
+            saveWav(cacheDir() + "/last-silent.wav", pcm);
+        }
         return {{"event", "text"}, {"text", ""}, {"silent", true}, {"audio_ms", audioMs}, {"ms", 0}};
     }
     const auto t0 = std::chrono::steady_clock::now();
@@ -296,6 +368,8 @@ json transcribe(whisper_context* ctx, const std::vector<float>& pcm, int threads
     const bool silent = isNonSpeech(text);
     const auto ms =
             std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
+    logLine(stats() + " -> " + (silent ? "SILENT (whisper heard no words: \"" + text + "\")" : "\"" + text + "\"") +
+            " in " + std::to_string(ms) + "ms");
     return {{"event", "text"}, {"text", silent ? "" : text}, {"silent", silent}, {"audio_ms", audioMs}, {"ms", ms}};
 }
 
@@ -343,6 +417,35 @@ int main(int argc, char** argv) {
             }
         }
     });
+    // Transcriptions run here, in order, so that a new "start" opens the microphone at once even while the previous
+    // request is still being transcribed (else the start of the next phrase was never recorded)
+    std::mutex jobsMutex;
+    std::condition_variable jobsCond;
+    std::deque<std::vector<float>> jobs;
+    bool closing = false;
+    std::thread worker([&] {
+        for (;;) {
+            std::vector<float> pcm;
+            {
+                std::unique_lock g(jobsMutex);
+                jobsCond.wait(g, [&] { return closing || !jobs.empty(); });
+                if (jobs.empty()) {
+                    return;  // closing, nothing left
+                }
+                pcm = std::move(jobs.front());
+                jobs.pop_front();
+            }
+            emit(transcribe(ctx, pcm, threads));
+        }
+    });
+    auto enqueue = [&](std::vector<float> pcm) {
+        {
+            std::lock_guard g(jobsMutex);
+            jobs.push_back(std::move(pcm));
+        }
+        jobsCond.notify_one();
+    };
+
     std::string line;
     while (std::getline(std::cin, line)) {
         json cmd;
@@ -361,23 +464,28 @@ int main(int argc, char** argv) {
             recording = recorder.start(why);
             recording ? emit({{"event", "listening"}}) : error(why);
         } else if (c == "stop") {
-            const auto pcm = recorder.stop();
+            enqueue(recorder.stop());
             recording = false;
-            emit(transcribe(ctx, pcm, threads));
         } else if (c == "cancel") {
             recorder.stop();
             recording = false;
             emit({{"event", "cancelled"}});
         } else if (c == "transcribe") {
             std::string why;
-            const auto pcm = readWav(cmd.value("wav", ""), why);
-            why.empty() ? emit(transcribe(ctx, pcm, threads)) : error(why);
+            auto pcm = readWav(cmd.value("wav", ""), why);
+            why.empty() ? enqueue(std::move(pcm)) : error(why);
         } else if (c == "quit") {
             break;
         } else {
             error("unknown command: " + c);
         }
     }
+    {
+        std::lock_guard g(jobsMutex);
+        closing = true;  // the queued transcriptions are still answered
+    }
+    jobsCond.notify_one();
+    worker.join();
     running = false;
     levels.join();
     whisper_free(ctx);

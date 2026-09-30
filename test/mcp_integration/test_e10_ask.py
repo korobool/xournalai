@@ -13,6 +13,7 @@ MIC = pathlib.Path(tempfile.mkdtemp(prefix="xoai-mic-")) / "mic.wav"
 shutil.copy(SAMPLE, MIC)
 APP_ENV = {"XOURNALAI_TEST_HOOKS": "1", "XOURNALAI_STT_FAKE_MIC": str(MIC),
            "XOURNALAI_STT_MODELS": str(MODEL.parent)}
+SPEAK = 3.0
 APP_CONFIG = {"assistant": {"speech": True, "speech_model": MODEL.name[len("ggml-"):-len(".bin")]}}
 
 
@@ -49,9 +50,10 @@ def test_1_speak_and_circle(app):
     c.call("test_pen", op="barrel_down", x=400, y=300)
     assert c.call("app_status")["ask"]["state"] == "listening"
     lasso(c, 400, 300)
+    time.sleep(SPEAK)  # "speaking": the fake microphone plays in real time
     c.call("test_pen", op="barrel_up", x=400, y=300)
     ask = last_ask(c)
-    assert ask and "what your country can do for you" in ask["text"].lower(), ask
+    assert ask and "americans" in ask["text"].lower(), ask
     assert ask["page"] == 1 and ask["lasso_points"] >= 20
     x, y, w, h = ask["area"]
     assert 20 < w < 200 and 20 < h < 200, ask  # the circle, in page points
@@ -65,10 +67,11 @@ def test_2_silence_changes_nothing(app):
     try:
         c.call("test_pen", op="barrel_down", x=300, y=300)
         lasso(c, 300, 300)
+        time.sleep(SPEAK)  # "speaking": the fake microphone plays in real time
         c.call("test_pen", op="barrel_up", x=300, y=300)
         time.sleep(2)
         a = c.call("app_status")["ask"]
-        assert a.get("last") == before and a["state"] == "idle", a
+        assert a.get("last") == before and a["state"] in ("idle", "nothing heard"), a
     finally:
         shutil.copy(SAMPLE, MIC)
 
@@ -87,6 +90,7 @@ def test_3_pointing_without_a_lasso(app):
     c.call("test_pen", op="hover", x=500, y=350)
     c.call("test_pen", op="barrel_down", x=500, y=350)
     c.call("test_pen", op="hover", x=505, y=352)
+    time.sleep(SPEAK)  # "speaking": the fake microphone plays in real time
     c.call("test_pen", op="barrel_up", x=505, y=352)
     ask = last_ask(c, before)
     assert ask and ask["lasso_points"] == 0 and ask["area"][2] == 200, ask
@@ -110,6 +114,7 @@ def test_4_the_popover_shows_what_was_said_and_sends_a_command(app):
     before = c.call("app_status")["ask"].get("last")
     c.call("test_pen", op="barrel_down", x=420, y=320)
     lasso(c, 420, 320)
+    time.sleep(SPEAK)  # "speaking": the fake microphone plays in real time
     c.call("test_pen", op="barrel_up", x=420, y=320)
     ask = last_ask(c, before)
     x, y, w, h = ask["area"]
@@ -119,7 +124,7 @@ def test_4_the_popover_shows_what_was_said_and_sends_a_command(app):
                    animate=False)["created"][0]["id"]
     text = widget(c, "ask-text")
     assert text and text.get("visible", True), text
-    assert "country" in (text.get("value") or ""), text
+    assert "americans" in (text.get("value") or "").lower(), text
     c.call("ui_interact", op="click", target=widget(c, "ask-improve")["id"])
     sent = c.call("app_status")["ask"]["last"]["submitted"]
     assert sent["command"] == "improve" and sent["zone"] > 0 and inner in sent["ids"] and outer not in sent["ids"]
@@ -158,14 +163,15 @@ def test_6_the_ask_button_arms_a_lasso_and_the_pen_button_dictates(app):
     text = widget(c, "ask-text")
     assert text and text.get("visible", True) and not text.get("value"), text
     c.call("test_pen", op="barrel_down", x=350, y=280)  # push-to-talk into the open popover
+    time.sleep(SPEAK)  # "speaking": the fake microphone plays in real time
     c.call("test_pen", op="barrel_up", x=350, y=280)
     deadline = time.time() + 15
-    while time.time() < deadline and "country" not in (widget(c, "ask-text").get("value") or ""):
+    while time.time() < deadline and "americans" not in (widget(c, "ask-text").get("value") or "").lower():
         time.sleep(0.2)
-    assert "country" in widget(c, "ask-text").get("value", ""), widget(c, "ask-text")
+    assert "americans" in widget(c, "ask-text").get("value", "").lower(), widget(c, "ask-text")
     c.call("ui_interact", op="click", target=widget(c, "ask-send")["id"])
     intents = intents_since(c, cursor)
-    assert intents and 'Ask: "' in intents[-1]["step"] and "country" in intents[-1]["step"], intents
+    assert intents and 'Ask: "' in intents[-1]["step"] and "americans" in intents[-1]["step"].lower(), intents
 
 
 def test_7_the_mouse_can_draw_the_lasso_too(app):
@@ -189,6 +195,7 @@ def test_8_a_recording_indicator_shows_listening_then_transcribing(app):
     assert c.call("app_status")["ask"]["recording"] == "listening"  # at once, before any word
     time.sleep(1.0)
     assert c.call("app_status")["ask"]["recording_levels"] > 3  # the level bars move with the voice
+    time.sleep(SPEAK)  # "speaking": the fake microphone plays in real time
     c.call("test_pen", op="barrel_up", x=300, y=330)
     assert c.call("app_status")["ask"]["recording"] == "transcribing"
     deadline = time.time() + 15

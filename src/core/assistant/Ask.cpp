@@ -19,6 +19,11 @@ AskController::AskController(SpeechToText* speech, OnAsk onAsk, OnStatus onStatu
 
 void AskController::onPen(const xoj::input::PenButtonEvent& e) {
     using K = xoj::input::PenButtonEvent;
+    if (e.kind != K::Point) {
+        SpeechToText::log(std::string("pen button ") + (e.kind == K::Down ? "down" : "up") +
+                          (e.page ? "" : " (not over a page)") + (active ? "" : " [not listening]") +
+                          (speech ? std::string(" speech=") + SpeechToText::name(speech->state()) : ""));
+    }
     if (e.kind == K::Down) {
         if (!speech || speech->state() == SpeechToText::State::Unavailable) {
             if (speech) {
@@ -53,15 +58,19 @@ void AskController::onPen(const xoj::input::PenButtonEvent& e) {
     // Up: what was said?
     active = false;
     onStatus("transcribing…");
+    SpeechToText::log("ask: stop, lasso points " + std::to_string(capture.lasso.size()));
     speech->stop([this](const std::string& text, bool silent, const std::string& error) {
+        SpeechToText::log("ask: result " +
+                          (error.empty() ? (silent ? std::string("silent") : "\"" + text + "\"") : "error " + error));
         if (!error.empty()) {
             onStatus("speech: " + error);
             return;
         }
-        onStatus("");
         if (silent || text.empty()) {
+            onStatus("nothing heard");
             return;
         }
+        onStatus("");
         // No lasso drawn while an ask is open: the words are for it (push-to-talk); a lasso makes a new ask
         if (capture.lasso.size() < 3 && hasTarget && hasTarget()) {
             onDictation(text);
