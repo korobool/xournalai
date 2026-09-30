@@ -41,6 +41,7 @@
 
 #include <nlohmann/json.hpp>
 #include <portaudio.h>
+#include <sndfile.h>
 #include <whisper.h>
 
 using json = nlohmann::json;
@@ -162,6 +163,86 @@ struct SpeechStats {
     long loudFrames = 0;
 };
 SpeechStats lastStats;
+
+bool isNonSpeech(const std::string& text);
+
+/// Mono float samples at 16 kHz from any file libsndfile reads (the recorder's .ogg, .wav, .flac, …); empty on failure
+std::vector<float> readAudio(const std::string& path, std::string& why) {
+    SF_INFO info{};
+    SNDFILE* f = sf_open(path.c_str(), SFM_READ, &info);
+    if (!f) {
+        why = std::string("cannot read the audio file: ") + sf_strerror(nullptr);
+        return {};
+    }
+    std::vector<float> frames(static_cast<size_t>(info.frames) * static_cast<size_t>(info.channels));
+    const sf_count_t got = sf_readf_float(f, frames.data(), info.frames);
+    sf_close(f);
+    std::vector<float> mono(static_cast<size_t>(got));
+    for (sf_count_t i = 0; i < got; i++) {
+        float sum = 0;
+        for (int c = 0; c < info.channels; c++) {
+            sum += frames[static_cast<size_t>(i * info.channels + c)];
+        }
+        mono[static_cast<size_t>(i)] = sum / static_cast<float>(info.channels);
+    }
+    if (info.samplerate == RATE) {
+        return mono;
+    }
+    // To 16 kHz: each output sample averages the input it covers (a simple anti-aliasing filter)
+    const double step = static_cast<double>(info.samplerate) / RATE;
+    std::vector<float> out(static_cast<size_t>(static_cast<double>(mono.size()) / step));
+    for (size_t i = 0; i < out.size(); i++) {
+        const auto a = static_cast<size_t>(static_cast<double>(i) * step);
+        const auto b = std::min(mono.size(), std::max(a + 1, static_cast<size_t>(static_cast<double>(i + 1) * step)));
+        float sum = 0;
+        for (size_t k = a; k < b; k++) {
+            sum += mono[k];
+        }
+        out[i] = sum / static_cast<float>(b - a);
+    }
+    return out;
+}
+
+/// A whole recording (long, with timestamps): {"event":"transcript","text","segments":[{start,end,text}],…}
+json transcribeFile(whisper_context* ctx, const std::vector<float>& pcm, int threads) {
+    const auto t0 = std::chrono::steady_clock::now();
+    whisper_full_params p = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
+    p.language = "en";
+    p.n_threads = threads;
+    p.no_timestamps = false;
+    p.print_progress = false;
+    p.print_realtime = false;
+    p.print_special = false;
+    p.print_timestamps = false;
+    p.suppress_blank = true;
+    if (whisper_full(ctx, p, pcm.data(), static_cast<int>(pcm.size())) != 0) {
+        return {{"event", "error"}, {"message", "transcription failed"}};
+    }
+    json segments = json::array();
+    std::string text;
+    for (int i = 0; i < whisper_full_n_segments(ctx); i++) {
+        std::string s = whisper_full_get_segment_text(ctx, i);
+        const auto b = s.find_first_not_of(" \t\n");
+        s = b == std::string::npos ? "" : s.substr(b);
+        if (s.empty() || isNonSpeech(s)) {
+            continue;
+        }
+        // (whisper's timestamps are in 10 ms units)
+        segments.push_back({{"start", whisper_full_get_segment_t0(ctx, i) / 100.0},
+                            {"end", whisper_full_get_segment_t1(ctx, i) / 100.0},
+                            {"text", s}});
+        text += (text.empty() ? "" : " ") + s;
+    }
+    const auto ms =
+            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
+    logLine("file: audio " + std::to_string(pcm.size() * 1000 / RATE) + "ms, " + std::to_string(segments.size()) +
+            " segments in " + std::to_string(ms) + "ms");
+    return {{"event", "transcript"},
+            {"text", text},
+            {"segments", segments},
+            {"audio_ms", static_cast<long>(pcm.size() * 1000 / RATE)},
+            {"ms", ms}};
+}
 
 /// Whether the recording contains speech: enough 20 ms frames clearly louder than the background
 bool hasSpeech(const std::vector<float>& pcm) {
@@ -421,11 +502,13 @@ int main(int argc, char** argv) {
     // request is still being transcribed (else the start of the next phrase was never recorded)
     std::mutex jobsMutex;
     std::condition_variable jobsCond;
-    std::deque<std::vector<float>> jobs;
+    std::deque<std::vector<float>> jobs;      // clips; an empty one stands for the next file of fileJobs
+    std::deque<std::vector<float>> fileJobs;  // whole recordings
     bool closing = false;
     std::thread worker([&] {
         for (;;) {
             std::vector<float> pcm;
+            bool file = false;
             {
                 std::unique_lock g(jobsMutex);
                 jobsCond.wait(g, [&] { return closing || !jobs.empty(); });
@@ -434,8 +517,13 @@ int main(int argc, char** argv) {
                 }
                 pcm = std::move(jobs.front());
                 jobs.pop_front();
+                if (pcm.empty() && !fileJobs.empty()) {
+                    pcm = std::move(fileJobs.front());
+                    fileJobs.pop_front();
+                    file = true;
+                }
             }
-            emit(transcribe(ctx, pcm, threads));
+            emit(file ? transcribeFile(ctx, pcm, threads) : transcribe(ctx, pcm, threads));
         }
     });
     auto enqueue = [&](std::vector<float> pcm) {
@@ -474,6 +562,20 @@ int main(int argc, char** argv) {
             std::string why;
             auto pcm = readWav(cmd.value("wav", ""), why);
             why.empty() ? enqueue(std::move(pcm)) : error(why);
+        } else if (c == "transcribe_file") {
+            // A whole recording (audio_transcribe): on the worker's queue too, after any short request
+            std::string why;
+            auto pcm = readAudio(cmd.value("path", ""), why);
+            if (!why.empty()) {
+                error(why);
+                continue;
+            }
+            {
+                std::lock_guard g(jobsMutex);
+                fileJobs.push_back(std::move(pcm));
+                jobs.emplace_back();  // a marker: the next job is a file
+            }
+            jobsCond.notify_one();
         } else if (c == "quit") {
             break;
         } else {

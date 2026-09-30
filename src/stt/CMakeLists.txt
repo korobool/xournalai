@@ -21,7 +21,8 @@ FetchContent_MakeAvailable(whisper)
 set(BUILD_SHARED_LIBS ${_stt_shared})
 
 add_executable(xournalai-stt main.cpp)
-target_link_libraries(xournalai-stt PRIVATE whisper PkgConfig::PortAudio nlohmann_json::nlohmann_json)
+pkg_check_modules(SndFile REQUIRED IMPORTED_TARGET "sndfile >= 1.0.25")  # recordings (.ogg) for audio_transcribe
+target_link_libraries(xournalai-stt PRIVATE whisper PkgConfig::PortAudio PkgConfig::SndFile nlohmann_json::nlohmann_json)
 target_compile_features(xournalai-stt PRIVATE cxx_std_20)
 install(TARGETS xournalai-stt RUNTIME DESTINATION bin COMPONENT xournalpp)
 
