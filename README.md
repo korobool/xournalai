@@ -35,7 +35,7 @@ laptop.
 | **Local speech to text** | whisper.cpp in a small helper (`xournalai-stt`), English, about a second per request. A recording pill next to the pen (pulsing red dot, level bars that move with your voice), "Transcribing", or "Didn't catch that". |
 | **Visible thinking** | Every request gets a zone on the page with a status pill: waiting, thinking (orbiting dots), done, failed. Click its spinner to cancel. The zone stays while a background subagent works. |
 | **Parallel work** | The serving session hands requests to up to 5 background subagents (a quick one and an artist) and stays responsive. Their edits land as **transactions**: prepared in a private draft, played in order like a stylus, one undo step each, checked for conflicts with what you changed meanwhile. |
-| **Audio notes** | When you stop a recording, the assistant is told: the file, its length and the strokes you wrote meanwhile (each knows its moment in the audio). It transcribes the recording on your own server if you have one, or locally, and uses it when you ask. |
+| **Audio notes** | When you stop a recording, you choose what it is: **Instructions** (Claude transcribes it and does what you said), **Notes** (a transcript to keep, with a summary and where your ink fits; never treated as instructions) or **Keep audio**. While Claude works on it, a zone and the status line show each step. Every stroke knows its moment in the audio. |
 | **No freezes** | Agents' reading and rendering run off the UI thread; your pen is never blocked by them. A watchdog reports any UI stall (`app_status`). |
 
 ## Pen and canvas

@@ -6,6 +6,20 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+## 1.8.0 — Recordings: you decide (epoch E12)
+- **Nothing is sent before you choose.** When a recording stops, a chooser with big buttons for a finger or a
+  stylus asks what it is:
+  - **Instructions:** Claude transcribes it and does what you said, like an Ask about the page.
+  - **Notes:** Claude transcribes it into `transcripts/<name>.notes.md` next to the recordings: a title, a summary,
+    the transcript with times and where your ink fits. What you said is treated as material, never as instructions.
+  - **Keep audio:** nothing else happens, and Claude is not told.
+  An optional title goes along. Recordings that end while the chooser is open wait their turn.
+- **Processing is never silent.** A zone over the ink written during the recording and the status-line pill (teal,
+  a travelling wave) show Claude's current step ("transcribing…", "writing notes…") until it is done.
+- **Strokes line up with the audio.** A stroke's moment in a recording now counts from the recording's first captured
+  sample, not from the click on Record; opening the microphone takes a moment, which put every stroke that much
+  late in the audio. Highlighter strokes get their moment too. The log says how long the microphone took to start.
+
 ## 1.7.2 — Ask in the status line
 - **The status line's recording pill animates for Ask too:** while Ask listens it shows "Ask: listening" with the
   time and teal bars moving with your voice, like the pill next to the pen. There is no Stop button: releasing the
