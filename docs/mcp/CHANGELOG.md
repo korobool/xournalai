@@ -6,6 +6,14 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+## 1.5.1 — Fixes
+- **"PDF background missing" on every page (1.5.0 regression):** the copy of a page used for rendering became a PDF
+  page. Its background is now copied as it is; `test_e9_backgrounds.py` and `PageSnapshotTest` check it.
+- **Deleting a page no longer waits for other pages to render:** removing a page view waited for whatever
+  background job was running (3–4 s on a heavy page); now only for that page's own job (0.02 s).
+- **Touch trace** (`~/.cache/xournalai/trace-touch`) also logs the touch handler's decisions: touches ignored as
+  invalid, resets, blocking.
+
 ## 1.5.0 — No freezes (epoch E9)
 Agents thinking never freeze the pen, and agents drawing freeze it no longer than the drawing itself. Measured on a
 page with 2,500 strokes (1M points), before → after:

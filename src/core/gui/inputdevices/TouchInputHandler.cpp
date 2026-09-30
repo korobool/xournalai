@@ -31,6 +31,7 @@ auto TouchInputHandler::handleImpl(InputEvent const& event) -> bool {
     if (event.type == BUTTON_PRESS_EVENT) {
         if (invalidActive.find(event.sequence) != invalidActive.end()) {
             g_warning("Missed touch end/cancel event. Resetting touch input handler.");
+            xoj::input::touchTrace("touch reset: missed an end");
             invalidActive.clear();
         }
         if (invalidActive.empty() && event.sequence != primarySequence && event.sequence != secondarySequence) {
@@ -38,6 +39,7 @@ auto TouchInputHandler::handleImpl(InputEvent const& event) -> bool {
             if (primarySequence && secondarySequence) {
                 // All touches become invalid
                 g_debug("All touches become invalid");
+                xoj::input::touchTrace("three touches: all invalid until they end");
                 invalidActive.insert({primarySequence, secondarySequence, event.sequence});
                 primarySequence = secondarySequence = nullptr;
             } else {
@@ -58,6 +60,7 @@ auto TouchInputHandler::handleImpl(InputEvent const& event) -> bool {
         } else {
             invalidActive.insert(event.sequence);
             g_debug("Add touch as invalid. %zu touches are invalid now.", invalidActive.size());
+            xoj::input::touchTrace("touch ignored: %zu invalid touches still down", invalidActive.size());
         }
         return true;
     }
@@ -217,6 +220,7 @@ void TouchInputHandler::zoomEnd() {
 }
 
 void TouchInputHandler::onBlock() {
+    xoj::input::touchTrace("touch blocked");
     if (this->zooming) {
         zoomEnd();
     }

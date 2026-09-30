@@ -9,10 +9,12 @@ namespace xoj::model {
 
 PageRef snapshotPage(const XojPage& page, const Range* only) {
     auto snap = std::make_shared<XojPage>(page.getWidth(), page.getHeight(), /*suppressLayerCreation=*/true);
-    snap->setBackgroundType(page.getBackgroundType());
-    snap->setBackgroundPdfPageNr(page.getPdfPageNr());
-    snap->setBackgroundColor(page.getBackgroundColor());
-    snap->setBackgroundImage(page.getBackgroundImage());
+    // Copied field by field: the setters have side effects (setBackgroundPdfPageNr makes any page a PDF page)
+    snap->bgType = page.bgType;
+    snap->pdfBackgroundPage = page.pdfBackgroundPage;
+    snap->backgroundColor = page.backgroundColor;
+    snap->backgroundImage = page.backgroundImage;
+    snap->backgroundName = page.backgroundName;
     for (const Layer* l: page.getLayersView()) {
         auto* copy = new Layer();
         if (l->hasName()) {

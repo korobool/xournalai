@@ -56,31 +56,31 @@ void XournalScheduler::removeAllJobs() {
 void XournalScheduler::finishTask() { std::lock_guard lock{this->jobRunningMutex}; }
 
 void XournalScheduler::removeSource(void* source, JobType type, JobPriority priority, bool awaitFinishTask) {
-    {
-        std::lock_guard lock{this->jobQueueMutex};
-        std::deque<Job*>& queue = *this->jobQueue[priority];
+    std::unique_lock lock{this->jobQueueMutex};
+    std::deque<Job*>& queue = *this->jobQueue[priority];
 
-        auto it = queue.begin();
+    auto it = queue.begin();
 
-        while (it != queue.end()) {
-            Job* job = *it;
+    while (it != queue.end()) {
+        Job* job = *it;
 
-            if (job->getType() == type && job->getSource() == source) {
-                it = queue.erase(it);
+        if (job->getType() == type && job->getSource() == source) {
+            it = queue.erase(it);
 
-                job->deleteJob();
-                job->unref();
-                job = nullptr;
-            } else {
-                ++it;
-            }
+            job->deleteJob();
+            job->unref();
+            job = nullptr;
+        } else {
+            ++it;
         }
     }
 
-    // wait until the last job is done
-    // we can be sure we don't access "source"
+    // Wait until a job of this source that is running now is done: afterwards nothing accesses "source". Only such a
+    // job: waiting for any job froze the UI for as long as another page took to render
     if (awaitFinishTask) {
-        finishTask();
+        this->runningDoneCond.wait(lock, [&]() {
+            return !(this->runningSource == source && this->runningType == static_cast<int>(type));
+        });
     }
 }
 

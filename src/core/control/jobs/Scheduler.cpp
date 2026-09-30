@@ -174,6 +174,8 @@ auto Scheduler::jobThreadCallback(Scheduler* scheduler) -> gpointer {
             job = scheduler->getNextJobUnlocked(onlyNonRenderJobs, &hasOnlyRenderJobs);
             if (job != nullptr) {
                 hasOnlyRenderJobs = false;
+                scheduler->runningSource = job->getSource();
+                scheduler->runningType = job->getType();
             }
 
             SDEBUG("get job: %" PRId64, (uint64_t)job);
@@ -202,6 +204,12 @@ auto Scheduler::jobThreadCallback(Scheduler* scheduler) -> gpointer {
             job->execute();
             job->unref();
         }
+        {
+            std::lock_guard lock{scheduler->jobQueueMutex};
+            scheduler->runningSource = nullptr;
+            scheduler->runningType = -1;
+        }
+        scheduler->runningDoneCond.notify_all();
 
         SDEBUG("next");
     }

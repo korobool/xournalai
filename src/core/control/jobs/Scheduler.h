@@ -125,6 +125,15 @@ protected:
     std::mutex jobRunningMutex{};
 
     /**
+     * The job taken from the queue and running now (guarded by jobQueueMutex): removing a source waits only for a job
+     * of that source, not for any job (a long render of another page used to freeze the UI when a page view was
+     * removed)
+     */
+    void* runningSource = nullptr;
+    int runningType = -1;
+    std::condition_variable runningDoneCond{};
+
+    /**
      * Jobs of each priority. New jobs
      * are added to the back of each queue.
      */
