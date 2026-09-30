@@ -491,9 +491,9 @@ Point and say: hold the pen's barrel button, speak, circle an area; a popover ne
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T10.2.1 | US-10.2 | **Pen button listening and lasso capture** — A pen-button observer in the input system (no change to the normal tools); test_stylus hook. | `ai: pen button listening and lasso capture (T10.2.1)` | ⬜ todo |
-| T10.2.2 | US-10.2 | **Ask popover and toolbar button** — GtkPopover at the lasso; command icons; mic hold button; toolbar Ask. | `ai: ask popover (T10.2.2)` | ⬜ todo |
-| T10.2.3 | US-10.2 | **Ask requests to the serving session** — AskStore, ask_get tool, EventPump line, zone, Companion instructions. | `ai: ask requests (T10.2.3)` | ⬜ todo |
+| T10.2.1 | US-10.2 | **Pen button listening and lasso capture** — A pen-button observer in the input system (no change to the normal tools); test_stylus hook. | `ai: pen button listening and lasso capture (T10.2.1)` | ✅ done `800e676d3` |
+| T10.2.2 | US-10.2 | **Ask popover and toolbar button** — GtkPopover at the lasso; command icons; mic hold button; toolbar Ask. | `ai: ask popover (T10.2.2)` | ✅ done `8184f1a9f` |
+| T10.2.3 | US-10.2 | **Ask requests to the serving session** — AskStore, ask_get tool, EventPump line, zone, Companion instructions. | `ai: ask requests (T10.2.3)` | ✅ done `77c134e84` |
 
 ### S10.3 — Release → v1.6.0
 

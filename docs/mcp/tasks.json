@@ -1496,7 +1496,9 @@
               "title": "Pen button listening and lasso capture",
               "details": "A pen-button observer in the input system (no change to the normal tools); test_stylus hook.",
               "commit": "ai: pen button listening and lasso capture",
-              "status": "todo"
+              "status": "done",
+              "started": "2026-09-30T11:26:52+01:00",
+              "finished": "2026-09-30T11:31:07+01:00"
             },
             {
               "id": "T10.2.2",
@@ -1504,7 +1506,9 @@
               "title": "Ask popover and toolbar button",
               "details": "GtkPopover at the lasso; command icons; mic hold button; toolbar Ask.",
               "commit": "ai: ask popover",
-              "status": "todo"
+              "status": "done",
+              "started": "2026-09-30T11:31:07+01:00",
+              "finished": "2026-09-30T11:37:00+01:00"
             },
             {
               "id": "T10.2.3",
@@ -1512,7 +1516,9 @@
               "title": "Ask requests to the serving session",
               "details": "AskStore, ask_get tool, EventPump line, zone, Companion instructions.",
               "commit": "ai: ask requests",
-              "status": "todo"
+              "status": "done",
+              "started": "2026-09-30T11:37:00+01:00",
+              "finished": "2026-09-30T11:38:01+01:00"
             }
           ]
         },
