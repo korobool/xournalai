@@ -6,6 +6,24 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+## 1.5.0 — No freezes (epoch E9)
+Agents thinking never freeze the pen, and agents drawing freeze it no longer than the drawing itself. Measured on a
+page with 2,500 strokes (1M points), before → after:
+- `page_render` (an agent looking at the page): the UI froze for 1.4 s → no freeze.
+- `page_elements` with full detail: 0.25 s → none. `layout_analyze` and `blocks_render`: up to 0.1 s → none.
+- The pen, at the end of each stroke, waited up to 0.38 s for the sidebar preview render → none.
+- An edit right after a zoom waited ~3 s for the page to re-render → 0.03 s.
+
+How:
+- **Agents' reading tools run off the UI thread** (on the render thread). They take a snapshot of the page under a
+  short lock and work on the copy; their results are serialized there too.
+- **Page and preview rendering hold the document lock only to copy what they draw**, not for the whole render.
+- **UI stall watchdog:** every time the UI thread does not respond for over 50 ms, it is recorded with its cause, in
+  `app_status.ui`. A detailed log is written to `~/.cache/xournalai/stall-trace.log` while
+  `~/.cache/xournalai/trace-stalls` exists.
+- **Test:** `test_e9_responsiveness.py` covers agents reading, and the user drawing meanwhile, with no stall of
+  100 ms or more. The `test_block_ui` hook (test builds' hooks only) checks the watchdog itself.
+
 ## 1.4.0 — Deep zoom (epoch E8)
 - **Deep zoom toggle** on the toolbar, next to Zoom in (magnifier icon; the `ZOOM_DEEP` toolbar item, action
   `zoom-deep`): raises the maximum zoom from 700% to 3000%, remembered in the settings. Turning it off brings a deeper

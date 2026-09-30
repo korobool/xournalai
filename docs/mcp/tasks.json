@@ -3,7 +3,7 @@
     "project": "xournalai: embedded MCP server and assistant",
     "branch": "mcp",
     "plan": "docs/mcp/PLAN.md, docs/assistant/ASSISTANT-PLAN.md",
-    "version": "1.4.0",
+    "version": "1.5.0",
     "versioning": [
       "The fork has its own semantic version, XOURNALAI_VERSION, kept in CMakeLists.txt. The application version string becomes <upstream>+ai.<XOURNALAI_VERSION>, e.g. 1.3.7+ai.0.2.0.",
       "Each task is exactly one commit. The commit message is '<planned message> (<task id>)'.",
@@ -1339,6 +1339,53 @@
               "status": "done",
               "started": "2026-09-30T07:05:47+01:00",
               "finished": "2026-09-30T07:40:19+01:00"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "E9",
+      "title": "No freezes",
+      "release": "1.5.0",
+      "goal": "Agents thinking never freeze the user's pen; agents drawing freeze it no longer than the drawing itself.",
+      "stages": [
+        {
+          "id": "S9.1",
+          "title": "Responsive while agents work",
+          "version": "1.5.0",
+          "stories": [
+            {
+              "id": "US-9.1",
+              "text": "As the owner, I want to keep drawing smoothly while the serving session and its subagents think and draw.",
+              "acceptance": [
+                "a watchdog reports every UI stall over 50 ms with what caused it (app_status.ui, opt-in log)",
+                "page_render, page_elements, layout_analyze, blocks_render run off the UI thread, results serialized there",
+                "background rendering and previews hold the document lock only to copy what they draw",
+                "tests: agents reading and the user drawing meanwhile on a 1M-point page: no stall of 100 ms or more"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T9.1.1",
+              "story": "US-9.1",
+              "title": "Watchdog, agent reads off the UI thread, snapshot rendering",
+              "details": "Measured on a 1M-point page: page_render froze the UI 1.4 s, page_elements 0.25 s, the pen waited 0.38 s for preview rendering, an edit after a zoom ~3 s for page rendering. util/StallWatch; mcp/OffUi (render thread) + ToolResult::prepare + Response text; model/PageSnapshot for RenderJob, PreviewJob, api::renderPage; test_e9_responsiveness.py.",
+              "commit": "ai: no freezes while agents work",
+              "status": "done",
+              "started": "2026-09-30T08:05:44+01:00",
+              "finished": "2026-09-30T08:16:53+01:00"
+            },
+            {
+              "id": "T9.1.2",
+              "story": "US-9.1",
+              "title": "Release 1.5.0",
+              "details": "Tests, docs, CHANGELOG, tag.",
+              "commit": "ai: release 1.5.0 (no freezes)",
+              "status": "done",
+              "started": "2026-09-30T08:16:57+01:00",
+              "finished": "2026-09-30T08:17:42+01:00"
             }
           ]
         }
