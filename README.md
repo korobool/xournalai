@@ -6,7 +6,7 @@
 > If you just want a stable note-taking app, use the [original project](https://github.com/xournalpp/xournalpp) and its
 > [official releases](https://github.com/xournalpp/xournalpp/releases).
 
-<img src="readme/main.png" width=550px title="xournalai on GNU/Linux"/>
+<img src="readme/demo.gif" width=800px title="xournalai at work: a handwritten poem completed in the same hand, Ask by voice (circle an area, Listening, Transcribing), an Eiffel tower drawn there, a London Tube map, a butterfly redrawn by an artist"/>
 
 ## About
 
