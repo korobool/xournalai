@@ -6,6 +6,15 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+## 1.8.2 — Connect any agent
+- **AI Agent → Connect an Agent…** (it replaces *Copy agent connect command*): pick how, copy, run or paste once.
+  - Universal: an `mcpServers` JSON block for any MCP client, stdio (recommended: the bridge reads the token itself)
+    or HTTP; the bare URL and header.
+  - Per client: Claude Code (stdio or HTTP), Codex, Gemini CLI and OpenCode, with your paths and token filled in.
+    The commands were checked against the clients themselves.
+  - The dialog shows the token, so it is for you only: agents can neither open nor read it.
+- `mcp.json` has the same under `_help.connect`.
+
 ## 1.8.1 — The mouse cursor comes back
 - **After the stylus, the mouse finds its cursor again.** Moving the mouse, touchpad or TrackPoint after the pen or
   a touch applies the cursor again, even when the app believed it was already shown (something else may have hidden

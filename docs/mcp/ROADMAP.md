@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.8.1**
+Current version: **1.8.2**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -609,5 +609,5 @@ When a recording stops, the owner picks what it is before anything is sent (inst
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T12.3.1 | US-12.3 | **Connect an Agent dialog** — mcp/ConnectSnippets (unit tests); McpUi::showConnect; user-only dialog and action; _help.connect; README, CLIENTS, COVERAGE. | `ai: connect any agent (universal JSON, Claude Code, Codex, Gemini, OpenCode) (T12.3.1)` | ✅ done |
-| T12.3.2 | US-12.3 | **Release 1.8.2** — Changelog, version, full tests. | `ai: release 1.8.2 (T12.3.2)` | ⬜ todo |
+| T12.3.1 | US-12.3 | **Connect an Agent dialog** — mcp/ConnectSnippets (unit tests); McpUi::showConnect; user-only dialog and action; _help.connect; README, CLIENTS, COVERAGE. | `ai: connect any agent (universal JSON, Claude Code, Codex, Gemini, OpenCode) (T12.3.1)` | ✅ done `9b6c4daaf` |
+| T12.3.2 | US-12.3 | **Release 1.8.2** — Changelog, version, full tests. | `ai: release 1.8.2 (T12.3.2)` | ✅ done |
