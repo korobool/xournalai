@@ -18,8 +18,9 @@ void refuseUserOnly(GtkWidget* w) {
     GtkWidget* top = w ? gtk_widget_get_toplevel(w) : nullptr;
     if (top && GTK_IS_BUILDABLE(top)) {
         const char* name = gtk_buildable_get_name(GTK_BUILDABLE(top));
-        if (name && std::string(name) == api::AgentGate::SETTINGS_DIALOG) {
-            throw ToolError("The AI agent settings dialog is for the user only; agents cannot operate it");
+        if (name && api::AgentGate::userOnlyWindow(name)) {
+            throw ToolError("This dialog (AI agent settings / connecting agents) is for the user only; agents "
+                            "cannot operate it");
         }
     }
 }

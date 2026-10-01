@@ -565,7 +565,7 @@ When a Xournal++ audio recording ends, the serving session hears about it (file,
 | T11.3.1 | US-11.3 | **Ask listening in the status-line pill** — RecordingIndicator: Ask mode (setListening, pushVoiceLevel with the pen pill's decibel scale); McpUi feeds speech state and levels. | `ai: Ask's listening animates in the status line too (T11.3.1)` | ✅ done `52c6b5359` |
 | T11.3.2 | US-11.3 | **Release 1.7.2** — Changelog, version, full tests. | `ai: release 1.7.2 (T11.3.2)` | ✅ done `62742773f` |
 
-## E12 — Recordings: the owner decides (release 1.8.1)
+## E12 — Recordings: the owner decides (release 1.8.2)
 
 When a recording stops, the owner picks what it is before anything is sent (instructions, notes, just audio); its processing is never silent; strokes line up with the audio.
 
@@ -596,4 +596,18 @@ When a recording stops, the owner picks what it is before anything is sent (inst
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
 | T12.2.1 | US-12.2 | **Re-apply the cursor when the mouse returns** — XournalppCursor::forceRefresh (cache bypass) on the device switch to a mouse and on Ctrl; cursor lines in the touch trace; test_e12_cursor. | `ai: the mouse gets its cursor back after the pen (T12.2.1)` | ✅ done `1b1e417fe` |
-| T12.2.2 | US-12.2 | **Release 1.8.1** — Changelog, version, full tests. | `ai: release 1.8.1 (T12.2.2)` | ✅ done |
+| T12.2.2 | US-12.2 | **Release 1.8.1** — Changelog, version, full tests. | `ai: release 1.8.1 (T12.2.2)` | ✅ done `ace766b77` |
+
+### S12.3 — Connect any agent → v1.8.2
+
+**US-12.3** — As the owner, I want ready-made ways to connect other agents (Codex, Gemini, …) and a universal one, not only a Claude Code command.
+
+- [ ] AI Agent → Connect an Agent… lists: universal mcpServers JSON (stdio, HTTP), URL and header, Claude Code (stdio, HTTP), Codex, Gemini CLI, OpenCode; paths and token filled in; Copy
+- [ ] the commands are what the clients accept (checked against Claude Code, Codex and Gemini CLI)
+- [ ] the dialog shows the token: agents can neither open nor read it
+- [ ] mcp.json _help.connect has the same
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T12.3.1 | US-12.3 | **Connect an Agent dialog** — mcp/ConnectSnippets (unit tests); McpUi::showConnect; user-only dialog and action; _help.connect; README, CLIENTS, COVERAGE. | `ai: connect any agent (universal JSON, Claude Code, Codex, Gemini, OpenCode) (T12.3.1)` | ✅ done |
+| T12.3.2 | US-12.3 | **Release 1.8.2** — Changelog, version, full tests. | `ai: release 1.8.2 (T12.3.2)` | ⬜ todo |

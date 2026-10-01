@@ -2,6 +2,7 @@
 
 #include <algorithm>  // for find, remove
 #include <map>
+#include <memory>  // for make_shared
 #include <shared_mutex>
 
 #include "api/AgentGate.h"                  // for AgentGate
@@ -42,6 +43,7 @@
 #include "model/Stroke.h"                        // for Stroke
 #include "model/Text.h"                          // for Text
 
+#include "ConnectSnippets.h"
 #include "McpConfig.h"
 #include "McpHttpServer.h"
 #include "McpServer.h"
@@ -203,6 +205,11 @@ McpUi::~McpUi() {
         unwatch(settings);
         gtk_widget_destroy(s);
     }
+    if (connectDialog) {
+        GtkWidget* d = connectDialog;
+        unwatch(connectDialog);
+        gtk_widget_destroy(d);
+    }
     removeMenu();
     aiToolbar.reset();
     thinkingOverlay.reset();
@@ -224,9 +231,9 @@ McpUi::~McpUi() {
     }
     if (window) {
         for (const char* name:
-             {"mcp-paused", "mcp-ai-accept", "mcp-ai-clear", "mcp-ai-toggle", "mcp-copy-command", "mcp-settings",
-              "ai-terminal", "ai-terminal-open", "ai-act", "ai-toolbar", "ai-stop", "ai-auto-improve", "ai-ask",
-              "ai-rule-formulas", "ai-rule-text", "ai-rule-diagrams", "ai-rule-colours"}) {
+             {"mcp-paused", "mcp-ai-accept", "mcp-ai-clear", "mcp-ai-toggle", "mcp-copy-command", "mcp-connect",
+              "mcp-settings", "ai-terminal", "ai-terminal-open", "ai-act", "ai-toolbar", "ai-stop", "ai-auto-improve",
+              "ai-ask", "ai-rule-formulas", "ai-rule-text", "ai-rule-diagrams", "ai-rule-colours"}) {
             g_action_map_remove_action(G_ACTION_MAP(window), name);
         }
         unwatch(window);
@@ -282,6 +289,7 @@ void McpUi::installActions() {
                                }
                            }},
                     Simple{"mcp-settings", [](McpUi* ui) { ui->showSettings(); }},
+                    Simple{"mcp-connect", [](McpUi* ui) { ui->showConnect(); }},
                     Simple{"mcp-copy-command", [](McpUi* ui) {
                                const McpConfig& cfg = ui->server.getConfig();
                                const std::string cmd = "claude mcp add --transport http xournalai " + cfg.url() +
@@ -488,7 +496,7 @@ void McpUi::buildMenu() {
         g_object_unref(s);
     }
 #endif
-    section({{"Copy agent connect command", "win.mcp-copy-command"}, {"AI Agent _Settings…", "win.mcp-settings"}});
+    section({{"_Connect an Agent…", "win.mcp-connect"}, {"AI Agent _Settings…", "win.mcp-settings"}});
     const int n = g_menu_model_get_n_items(model);
     g_menu_insert_submenu(G_MENU(model), std::max(0, n - 1), MENU_LABEL, G_MENU_MODEL(sub));
     g_object_unref(sub);
@@ -1830,6 +1838,118 @@ void McpUi::applySettings(GtkWidget* dialog) {
     next.save();
     // Apply now: agents reconnect (same port and token: their next request just starts a new session)
     server.restart();
+}
+
+void McpUi::showConnect() {
+    if (connectDialog) {
+        gtk_window_present(GTK_WINDOW(connectDialog));
+        return;
+    }
+    if (!window) {
+        return;
+    }
+    const McpConfig& cfg = server.getConfig();
+    auto snippets =
+            std::make_shared<std::vector<ConnectSnippet>>(connectSnippets(cfg.url(), cfg.token, runningExecutable()));
+    GtkWindow* parent = GTK_WINDOW(server.getControl()->getWindow()->getWindow());
+    connectDialog = gtk_dialog_new_with_buttons("Connect an Agent", parent, GTK_DIALOG_DESTROY_WITH_PARENT, "_Close",
+                                                GTK_RESPONSE_CLOSE, nullptr);
+    gtk_buildable_set_name(GTK_BUILDABLE(connectDialog), api::AgentGate::CONNECT_DIALOG);  // (it shows the token)
+    watch(connectDialog);
+    g_signal_connect(connectDialog, "response", G_CALLBACK(gtk_widget_destroy), nullptr);
+
+    GtkWidget* box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+    g_object_set(box, "margin", 12, nullptr);
+    GtkWidget* intro = gtk_label_new(
+            "Other agents can use xournalai at the same time as the built-in assistant: to read and render your "
+            "pages, or to draw. Pick your agent, copy, and run or paste it once.");
+    gtk_label_set_line_wrap(GTK_LABEL(intro), true);
+    gtk_label_set_max_width_chars(GTK_LABEL(intro), 70);
+    gtk_label_set_xalign(GTK_LABEL(intro), 0);
+    gtk_box_pack_start(GTK_BOX(box), intro, false, false, 0);
+
+    GtkWidget* combo = named(gtk_combo_box_text_new(), "connect-client");
+    for (const auto& s: *snippets) {
+        gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(combo), s.id.c_str(), s.name.c_str());
+    }
+    gtk_box_pack_start(GTK_BOX(box), combo, false, false, 0);
+
+    GtkWidget* hint = named(gtk_label_new(""), "connect-hint");
+    gtk_label_set_line_wrap(GTK_LABEL(hint), true);
+    gtk_label_set_max_width_chars(GTK_LABEL(hint), 70);
+    gtk_label_set_xalign(GTK_LABEL(hint), 0);
+    gtk_style_context_add_class(gtk_widget_get_style_context(hint), "dim-label");
+    gtk_box_pack_start(GTK_BOX(box), hint, false, false, 0);
+
+    GtkWidget* text = named(gtk_text_view_new(), "connect-text");
+    gtk_text_view_set_editable(GTK_TEXT_VIEW(text), false);
+    gtk_text_view_set_monospace(GTK_TEXT_VIEW(text), true);
+    gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(text), GTK_WRAP_WORD_CHAR);
+    g_object_set(text, "left-margin", 8, "right-margin", 8, "top-margin", 6, "bottom-margin", 6, nullptr);
+    GtkWidget* scroll = gtk_scrolled_window_new(nullptr, nullptr);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+    gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(scroll), GTK_SHADOW_IN);
+    gtk_widget_set_size_request(scroll, 760, 200);
+    gtk_container_add(GTK_CONTAINER(scroll), text);
+    gtk_box_pack_start(GTK_BOX(box), scroll, true, true, 0);
+
+    GtkWidget* row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+    GtkWidget* copy = named(gtk_button_new_with_mnemonic("_Copy"), "connect-copy");
+    gtk_style_context_add_class(gtk_widget_get_style_context(copy), "suggested-action");
+    GtkWidget* copied = named(gtk_label_new(""), "connect-copied");
+    gtk_box_pack_start(GTK_BOX(row), copy, false, false, 0);
+    gtk_box_pack_start(GTK_BOX(row), copied, false, false, 0);
+    gtk_box_pack_start(GTK_BOX(box), row, false, false, 0);
+
+    struct Parts {
+        std::shared_ptr<std::vector<ConnectSnippet>> snippets;
+        GtkWidget *combo, *hint, *text, *copied;
+    };
+    auto* parts = new Parts{snippets, combo, hint, text, copied};
+    g_object_set_data_full(
+            G_OBJECT(connectDialog), "connect-parts", parts, +[](gpointer p) { delete static_cast<Parts*>(p); });
+    g_signal_connect(combo, "changed", G_CALLBACK(+[](GtkComboBox* c, gpointer data) {
+                         auto* p = static_cast<Parts*>(data);
+                         const char* id = gtk_combo_box_get_active_id(c);
+                         for (const auto& s: *p->snippets) {
+                             if (id && s.id == id) {
+                                 gtk_label_set_text(GTK_LABEL(p->hint), s.hint.c_str());
+                                 GtkTextBuffer* b = gtk_text_view_get_buffer(GTK_TEXT_VIEW(p->text));
+                                 gtk_text_buffer_set_text(b, s.text.c_str(), -1);
+                                 // A wrapped path must not look hyphenated (GTK 3.24.27+)
+                                 GtkTextTagTable* tags = gtk_text_buffer_get_tag_table(b);
+                                 GtkTextTag* plain = gtk_text_tag_table_lookup(tags, "plain");
+                                 if (!plain) {
+                                     plain = gtk_text_buffer_create_tag(b, "plain", nullptr);
+                                     if (g_object_class_find_property(G_OBJECT_GET_CLASS(plain), "insert-hyphens")) {
+                                         g_object_set(plain, "insert-hyphens", FALSE, nullptr);
+                                     }
+                                 }
+                                 GtkTextIter start;
+                                 GtkTextIter end;
+                                 gtk_text_buffer_get_bounds(b, &start, &end);
+                                 gtk_text_buffer_apply_tag(b, plain, &start, &end);
+                             }
+                         }
+                         gtk_label_set_text(GTK_LABEL(p->copied), "");
+                     }),
+                     parts);
+    g_signal_connect(copy, "clicked", G_CALLBACK(+[](GtkButton*, gpointer data) {
+                         auto* p = static_cast<Parts*>(data);
+                         GtkTextBuffer* b = gtk_text_view_get_buffer(GTK_TEXT_VIEW(p->text));
+                         GtkTextIter start;
+                         GtkTextIter end;
+                         gtk_text_buffer_get_bounds(b, &start, &end);
+                         gchar* t = gtk_text_buffer_get_text(b, &start, &end, false);
+                         gtk_clipboard_set_text(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD), t, -1);
+                         g_free(t);
+                         gtk_label_set_text(GTK_LABEL(p->copied), "Copied to the clipboard");
+                     }),
+                     parts);
+    gtk_combo_box_set_active_id(GTK_COMBO_BOX(combo), "universal-stdio");
+
+    gtk_container_add(GTK_CONTAINER(gtk_dialog_get_content_area(GTK_DIALOG(connectDialog))), box);
+    gtk_widget_show_all(connectDialog);
 }
 
 }  // namespace xoj::mcp

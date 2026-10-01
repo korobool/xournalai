@@ -43,10 +43,13 @@ public:
     /// Window actions only the user may trigger (agents must not pause/resume themselves or change their rights)
     static bool userOnlyAction(const std::string& name) {
         const std::string bare = name.rfind("win.", 0) == 0 ? name.substr(4) : name;
-        return bare == "mcp-paused" || bare == "mcp-settings";
+        return bare == "mcp-paused" || bare == "mcp-settings" || bare == "mcp-connect";
     }
     /// Name of the settings dialog, which agent UI automation must not touch
     static constexpr const char* SETTINGS_DIALOG = "mcpSettingsDialog";
+    /// Name of the "Connect an agent" dialog (it shows the token): for the user only too
+    static constexpr const char* CONNECT_DIALOG = "mcpConnectDialog";
+    static bool userOnlyWindow(const std::string& name) { return name == SETTINGS_DIALOG || name == CONNECT_DIALOG; }
 
 private:
     static std::atomic<gint64>& hurryUntil() {

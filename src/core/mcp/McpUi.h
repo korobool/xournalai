@@ -72,6 +72,8 @@ public:
 
     /// Opens the MCP settings dialog (user only; agents cannot operate it)
     void showSettings();
+    /// "Connect an agent…": ready-made commands and configs for other agents (Claude Code, Codex, Gemini, …)
+    void showConnect();
 
     /// An AI toolbar action: improve | illustrate | web | image | command | revise (text: the typed command).
     /// Becomes an intent for the selection (or the last piece drawn, or the page); returns its description.
@@ -136,7 +138,8 @@ private:
     guint timer = 0;
     guint menuIdle = 0;
     std::string lastText;
-    GtkWidget* settings = nullptr;  ///< weak (strip, label, pauseButton too)
+    GtkWidget* settings = nullptr;       ///< weak (strip, label, pauseButton too)
+    GtkWidget* connectDialog = nullptr;  ///< weak
     void buildToolbar();
     std::unique_ptr<assistant::AiToolbar> aiToolbar;
     void buildThinking();

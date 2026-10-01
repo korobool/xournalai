@@ -105,9 +105,11 @@ claude mcp add -s user xournalai -- $PWD/build/install/bin/xournalpp --mcp-stdio
 - The agent always has xournalai's tools. While the app is closed, a call answers "xournalai is not open, ask the
   user to open it"; as soon as you open it, the same session just works, with no reconnect. The agent never
   reopens a window you closed. Only its very first call, if you haven't started xournalai at all yet, opens it.
-- Over HTTP instead: `http://127.0.0.1:7474/mcp` with `Authorization: Bearer <token>`. **AI Agent → Copy agent
-  connect command** copies a ready-made command, and the token is in `~/.config/xournalpp/mcp.json`.
-- Setups for Gemini CLI, OpenCode, Codex and Cursor are in [docs/mcp/CLIENTS.md](docs/mcp/CLIENTS.md).
+- **AI Agent → Connect an Agent…** has it ready to copy, with your paths and token filled in: a universal
+  `mcpServers` JSON block (stdio or HTTP) for any MCP client, the bare URL and header, and commands for Claude Code,
+  Codex, Gemini CLI and OpenCode. The same is in the `_help.connect` section of `~/.config/xournalpp/mcp.json`.
+- Over HTTP instead: `http://127.0.0.1:7474/mcp` with `Authorization: Bearer <token>`.
+- More setups (Cursor, the HTTP variants) are in [docs/mcp/CLIENTS.md](docs/mcp/CLIENTS.md).
 
 Then just ask, e.g. *"summarize page 2"*, *"draw a labelled diagram of a heat engine next to my notes"*, or
 *"wait until I finish this sketch and then clean it up"*.

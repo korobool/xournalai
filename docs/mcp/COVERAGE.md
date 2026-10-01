@@ -73,7 +73,8 @@ All 145 application actions (the ones behind menus, toolbars and shortcuts) run 
 | `win.mcp-ai-accept` | AI Agent/Accept AI layer (merge down) | `action_run` |
 | `win.mcp-ai-clear` | AI Agent/Clear AI layer | `action_run` |
 | `win.mcp-ai-toggle` | AI Agent/Show or hide AI layer | `action_run` |
-| `win.mcp-copy-command` | AI Agent/Copy agent connect command | `action_run` |
+| `win.mcp-connect` | AI Agent/Connect an Agent… | user only (it shows the token) |
+| `win.mcp-copy-command` | (no menu item; copies the Claude Code HTTP command) | `action_run` |
 | `win.mcp-paused` | AI Agent/Pause AI agent | user only |
 | `win.mcp-settings` | AI Agent/AI Agent Settings… | user only |
 | `win.menu.apply-current-page-type-to-all-pages` | Journal/Paper Background/Apply to all pages | `action_run` |

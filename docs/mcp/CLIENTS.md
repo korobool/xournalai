@@ -10,6 +10,10 @@ OpenCode, OpenAI Codex CLI, Cursor, or your own scripts.
 - **stdio alternative**: `xournalpp --mcp-stdio`. It forwards to the running app and starts it if needed, and it reads
   the token itself.
 
+**The easy way:** *AI Agent → Connect an Agent…* in the app shows every option below with your token and the
+binary's path filled in, ready to copy (also in `mcp.json` under `_help.connect`). The universal `mcpServers` JSON
+block (stdio) works with any MCP client.
+
 Replace `<token>` below with the value from `mcp.json`. Client configuration formats change from time to time, so if a
 snippet is rejected, check that client's MCP documentation. The endpoint, header and stdio command stay the same.
 
@@ -26,6 +30,11 @@ claude mcp add -s user --transport http xournalai http://127.0.0.1:7474/mcp --he
 ```
 
 ## Gemini CLI — `~/.gemini/settings.json`
+Once, from a terminal (stdio; note: no `--` before the command):
+```sh
+gemini mcp add -s user xournalai /path/to/build/install/bin/xournalpp --mcp-stdio
+```
+Or by hand:
 ```json
 {
   "mcpServers": {
@@ -54,6 +63,11 @@ stdio variant: `"xournalai": { "command": "xournalpp", "args": ["--mcp-stdio"] }
 stdio variant: `"xournalai": { "type": "local", "command": ["xournalpp", "--mcp-stdio"], "enabled": true }`
 
 ## OpenAI Codex CLI — `~/.codex/config.toml`
+Once, from a terminal:
+```sh
+codex mcp add xournalai -- /path/to/build/install/bin/xournalpp --mcp-stdio
+```
+Or by hand:
 ```toml
 [mcp_servers.xournalai]
 command = "xournalpp"

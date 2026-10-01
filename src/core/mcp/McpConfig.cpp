@@ -7,10 +7,22 @@
 
 #include "util/PathUtil.h"  // for getConfigFile
 
+#include "ConnectSnippets.h"  // for connectSnippets
 #include "Json.h"
 #include "PathText.h"
 
 namespace xoj::mcp {
+
+namespace {
+/// The ways to connect an agent (as "Connect an Agent…" shows them), by id
+json connectHelp(const std::string& url, const std::string& token) {
+    json j = json::object();
+    for (const auto& s: connectSnippets(url, token, runningExecutable())) {
+        j[s.id] = s.text;
+    }
+    return j;
+}
+}  // namespace
 
 McpConfig::McpConfig(): tiers{Tier::Read, Tier::Draw, Tier::Ui, Tier::Files} {
     exportDir = fs::path(g_get_user_data_dir()) / "xournalpp" / "mcp-exports";
@@ -143,8 +155,7 @@ void McpConfig::save() const {
               {"_help",
                {{"url", url()},
                 {"header", "Authorization: Bearer " + token},
-                {"claude_code", "claude mcp add --transport http xournalai " + url() +
-                                        " --header \"Authorization: Bearer " + token + "\""},
+                {"connect", connectHelp(url(), token)},
                 {"stdio", "xournalpp --mcp-stdio  (for clients that only launch stdio servers)"},
                 {"permissions", "read: inspect/render; draw: create/edit content; ui: menus, dialogs, tools, view; "
                                 "files: open/save/export/import; destructive: discard unsaved changes, overwrite "

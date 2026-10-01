@@ -238,6 +238,22 @@ void registerTestTools(McpServer& server) {
         return ToolResult::structured({{"recording", ind->isRecording()}});
     };
     server.getRegistry().addTool(std::move(recOn));
+
+    ToolSpec connect;
+    connect.name = "test_connect_dialog";
+    connect.title = "Test hook: open Connect an Agent";
+    connect.description =
+            "Test hook (XOURNALAI_TEST_HOOKS=1 only): opens the Connect an Agent dialog, as the user would "
+            "from the AI Agent menu (agents themselves cannot open or read it).";
+    connect.inputSchema = schema::object({}, {});
+    connect.tier = Tier::Ui;
+    connect.handler = [srv](const json&) {
+        if (auto* ui = srv->getUi()) {
+            ui->showConnect();
+        }
+        return ToolResult::structured({{"opened", srv->getUi() != nullptr}});
+    };
+    server.getRegistry().addTool(std::move(connect));
 }
 
 }  // namespace xoj::mcp::tools

@@ -1738,7 +1738,7 @@
     {
       "id": "E12",
       "title": "Recordings: the owner decides",
-      "release": "1.8.1",
+      "release": "1.8.2",
       "goal": "When a recording stops, the owner picks what it is before anything is sent (instructions, notes, just audio); its processing is never silent; strokes line up with the audio.",
       "stages": [
         {
@@ -1826,6 +1826,43 @@
               "status": "done",
               "started": "2026-09-30T21:07:17+01:00",
               "finished": "2026-09-30T21:07:17+01:00"
+            }
+          ]
+        },
+        {
+          "id": "S12.3",
+          "title": "Connect any agent",
+          "version": "1.8.2",
+          "stories": [
+            {
+              "id": "US-12.3",
+              "text": "As the owner, I want ready-made ways to connect other agents (Codex, Gemini, …) and a universal one, not only a Claude Code command.",
+              "acceptance": [
+                "AI Agent → Connect an Agent… lists: universal mcpServers JSON (stdio, HTTP), URL and header, Claude Code (stdio, HTTP), Codex, Gemini CLI, OpenCode; paths and token filled in; Copy",
+                "the commands are what the clients accept (checked against Claude Code, Codex and Gemini CLI)",
+                "the dialog shows the token: agents can neither open nor read it",
+                "mcp.json _help.connect has the same"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T12.3.1",
+              "story": "US-12.3",
+              "title": "Connect an Agent dialog",
+              "details": "mcp/ConnectSnippets (unit tests); McpUi::showConnect; user-only dialog and action; _help.connect; README, CLIENTS, COVERAGE.",
+              "commit": "ai: connect any agent (universal JSON, Claude Code, Codex, Gemini, OpenCode)",
+              "status": "done",
+              "started": "2026-10-01T06:32:23+01:00",
+              "finished": "2026-10-01T06:32:23+01:00"
+            },
+            {
+              "id": "T12.3.2",
+              "story": "US-12.3",
+              "title": "Release 1.8.2",
+              "details": "Changelog, version, full tests.",
+              "commit": "ai: release 1.8.2",
+              "status": "todo"
             }
           ]
         }
