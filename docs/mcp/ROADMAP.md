@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.8.2**
+Current version: **1.8.3**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -623,5 +623,5 @@ When a recording stops, the owner picks what it is before anything is sent (inst
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T12.4.1 | US-12.4 | **'What should AI do?' in the recording chooser** — RecordingChooser request field, mic, chips, status; McpUi dictation routing (the chooser first), request in the hand-off, Keep label; companion; tests. | `ai: say what AI should do with a recording (T12.4.1)` | ✅ done |
-| T12.4.2 | US-12.4 | **Release 1.8.3** — Changelog, version, full tests. | `ai: release 1.8.3 (T12.4.2)` | ⬜ todo |
+| T12.4.1 | US-12.4 | **'What should AI do?' in the recording chooser** — RecordingChooser request field, mic, chips, status; McpUi dictation routing (the chooser first), request in the hand-off, Keep label; companion; tests. | `ai: say what AI should do with a recording (T12.4.1)` | ✅ done `f32079c8e` |
+| T12.4.2 | US-12.4 | **Release 1.8.3** — Changelog, version, full tests. | `ai: release 1.8.3 (T12.4.2)` | ✅ done |

@@ -6,6 +6,14 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+## 1.8.3 — What should AI do?
+- **The recording chooser asks "What should AI do?"** Type it, hold the mic (or the pen button) and say it, or tap
+  chips: Summarize, Key points, Action items, Flashcards, Translate…. Enter or Send means Notes with that request.
+- **Your request is yours, the recording is material:** the request reaches the assistant as your instruction; with
+  Notes, what is said in the recording is still never followed as one. The page changes only if the request says so.
+- **Keep audio with words** labels the recording (`transcripts/<name>.label.txt`).
+- When the chooser and an Ask popover are both open, the pen button dictates into the chooser.
+
 ## 1.8.2 — Connect any agent
 - **AI Agent → Connect an Agent…** (it replaces *Copy agent connect command*): pick how, copy, run or paste once.
   - Universal: an `mcpServers` JSON block for any MCP client, stdio (recommended: the bridge reads the token itself)
