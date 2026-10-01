@@ -565,7 +565,7 @@ When a Xournal++ audio recording ends, the serving session hears about it (file,
 | T11.3.1 | US-11.3 | **Ask listening in the status-line pill** — RecordingIndicator: Ask mode (setListening, pushVoiceLevel with the pen pill's decibel scale); McpUi feeds speech state and levels. | `ai: Ask's listening animates in the status line too (T11.3.1)` | ✅ done `52c6b5359` |
 | T11.3.2 | US-11.3 | **Release 1.7.2** — Changelog, version, full tests. | `ai: release 1.7.2 (T11.3.2)` | ✅ done `62742773f` |
 
-## E12 — Recordings: the owner decides (release 1.8.2)
+## E12 — Recordings: the owner decides (release 1.8.3)
 
 When a recording stops, the owner picks what it is before anything is sent (instructions, notes, just audio); its processing is never silent; strokes line up with the audio.
 
@@ -610,4 +610,18 @@ When a recording stops, the owner picks what it is before anything is sent (inst
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
 | T12.3.1 | US-12.3 | **Connect an Agent dialog** — mcp/ConnectSnippets (unit tests); McpUi::showConnect; user-only dialog and action; _help.connect; README, CLIENTS, COVERAGE. | `ai: connect any agent (universal JSON, Claude Code, Codex, Gemini, OpenCode) (T12.3.1)` | ✅ done `9b6c4daaf` |
-| T12.3.2 | US-12.3 | **Release 1.8.2** — Changelog, version, full tests. | `ai: release 1.8.2 (T12.3.2)` | ✅ done |
+| T12.3.2 | US-12.3 | **Release 1.8.2** — Changelog, version, full tests. | `ai: release 1.8.2 (T12.3.2)` | ✅ done `01a59f7db` |
+
+### S12.4 — What should AI do? → v1.8.3
+
+**US-12.4** — As the owner, I want to say what the AI should do with a recording when I choose, by typing, by voice or with quick chips.
+
+- [ ] the chooser has 'What should AI do?' with a mic (hold) and Send; the pen button dictates into it while it is open
+- [ ] chips: Summarize, Key points, Action items, Flashcards, Translate…; they add to the request
+- [ ] Enter / Send = Notes with the request; the request reaches Claude as the user's own instruction, the recording's speech stays content
+- [ ] Keep audio with words: they become the recording's label (transcripts/<name>.label.txt)
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T12.4.1 | US-12.4 | **'What should AI do?' in the recording chooser** — RecordingChooser request field, mic, chips, status; McpUi dictation routing (the chooser first), request in the hand-off, Keep label; companion; tests. | `ai: say what AI should do with a recording (T12.4.1)` | ✅ done |
+| T12.4.2 | US-12.4 | **Release 1.8.3** — Changelog, version, full tests. | `ai: release 1.8.3 (T12.4.2)` | ⬜ todo |

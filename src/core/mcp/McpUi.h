@@ -183,7 +183,7 @@ private:
     void onRecordingFinished(const std::string& file, const std::string& name, int64_t durationMs);
     /// The owner's choice: tell the serving session (file, length, page, strokes written meanwhile) accordingly
     void onRecordingChosen(const std::string& file, const std::string& name, int64_t durationMs, int choice,
-                           const std::string& note);
+                           const std::string& request);
     std::unique_ptr<assistant::RecordingChooser> recordingChooser;
     json lastRecording;  ///< the last choice (app_status)
     /// Zones of handed-over recordings still being worked on, with "Notes" / "Instructions": the status line shows

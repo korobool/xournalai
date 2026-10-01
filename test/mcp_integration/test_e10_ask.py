@@ -266,3 +266,22 @@ def test_11_listening_shows_in_the_status_line(app):
     assert not stop.get("visible", True), stop
     last_ask(c)
     assert not widget(c, "recordingIndicator").get("visible", True)
+
+
+def test_12_the_pen_button_dictates_into_the_recording_chooser(app):
+    # with the chooser open (a recording just stopped), holding the pen button fills "What should AI do?"
+    c = app.client()
+    ready(c)
+    assert c.call("test_recording", file="/tmp/xoai-x.ogg", name="xoai-x.ogg", duration_ms=4000)["observed"]
+    time.sleep(0.3)
+    c.call("test_pen", op="hover", x=400, y=300)
+    c.call("test_pen", op="barrel_down", x=400, y=300)
+    time.sleep(SPEAK)
+    c.call("test_pen", op="barrel_up", x=400, y=300)
+    deadline = time.time() + 15
+    while time.time() < deadline and not widget(c, "recording-request").get("value"):
+        time.sleep(0.3)
+    said = widget(c, "recording-request").get("value", "")
+    assert "americans" in said.lower(), said
+    assert c.call("app_status")["ask"].get("last", {}).get("text") != said  # (no Ask was made of it)
+    c.call("ui_interact", op="click", target=widget(c, "recording-keep")["id"])

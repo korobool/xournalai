@@ -31,7 +31,7 @@ TEST(Companion, instructionsMentionPortMarkersAndRules) {
     const std::string t = Companion::instructions(s);
     for (const char* needle: {"4242", "`*!`", "`**!`", "`*w!`", "`*c!`", "`*r!`", "Assist, don't redo", "[xournalai]",
                               "Auto-improve", "Ask [command]", "spoken English", "Spoken instructions",
-                              "Audio notes to keep", "Never silent", "audio_transcribe"}) {
+                              "Audio notes to keep", "The user's request for it", "Never silent", "audio_transcribe"}) {
         EXPECT_NE(t.find(needle), std::string::npos) << needle;
     }
 }
