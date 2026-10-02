@@ -70,3 +70,7 @@ tools/monitor/state/
 # Python bytecode
 __pycache__/
 *.pyc
+
+# xournalai skills: personal handwriting and Python caches stay local
+skills/**/glyphs_user_raw.json
+skills/**/__pycache__/

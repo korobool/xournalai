@@ -5,6 +5,10 @@ The fork has its own version (`XOURNALAI_VERSION` in `CMakeLists.txt`). The appl
 See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
+- **Skills in the repository** (`skills/`, `skills/install.sh`): xournal-conspect (handwritten conspects; the
+  handwriting itself stays private in `~/.local/share/xournalai`), conversation-topic-map with a reusable
+  `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
+  transcriber helper as a template configured outside the repo.
 
 ## 1.8.4 — Hangs leave evidence
 - **A freeze is on record even if you kill the app.** When the UI thread is stuck for more than 2 s, the stall trace

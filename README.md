@@ -111,6 +111,9 @@ claude mcp add -s user xournalai -- $PWD/build/install/bin/xournalpp --mcp-stdio
 - Over HTTP instead: `http://127.0.0.1:7474/mcp` with `Authorization: Bearer <token>`.
 - More setups (Cursor, the HTTP variants) are in [docs/mcp/CLIENTS.md](docs/mcp/CLIENTS.md).
 
+**Skills** (conspects in your handwriting, topic maps of recordings): `skills/install.sh`, see
+[skills/README.md](skills/README.md).
+
 Then just ask, e.g. *"summarize page 2"*, *"draw a labelled diagram of a heat engine next to my notes"*, or
 *"wait until I finish this sketch and then clean it up"*.
 
