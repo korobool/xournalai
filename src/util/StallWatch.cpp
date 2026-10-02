@@ -11,12 +11,13 @@
 #include <glib.h>
 
 #if defined(__linux__) && defined(__GLIBC__)
-#include <csignal>       // for sigaction, SIGUSR2
-#include <ctime>         // for time, localtime_r, strftime
-#include <dirent.h>      // for opendir (the process's threads)
-#include <execinfo.h>    // for backtrace, backtrace_symbols_fd
-#include <sys/syscall.h> // for SYS_tgkill, SYS_gettid
-#include <unistd.h>      // for getpid, write, syscall
+#include <csignal>  // for sigaction, SIGUSR2
+#include <ctime>    // for time, localtime_r, strftime
+
+#include <dirent.h>       // for opendir (the process's threads)
+#include <execinfo.h>     // for backtrace, backtrace_symbols_fd
+#include <sys/syscall.h>  // for SYS_tgkill, SYS_gettid
+#include <unistd.h>       // for getpid, write, syscall
 #define XOJ_STALL_STACKS 1
 #endif
 
@@ -40,7 +41,7 @@ std::deque<Stall> ring;
 Summary sum;
 FILE* logFile = nullptr;
 
-constexpr int64_t HANG_US = 2 * 1000 * 1000;           ///< a stall this long is reported while it lasts
+constexpr int64_t HANG_US = 2 * 1000 * 1000;          ///< a stall this long is reported while it lasts
 constexpr int64_t HANG_REPEAT_US = 10 * 1000 * 1000;  ///< and again this often
 
 std::string describe(const std::vector<std::string>& seen, const std::vector<std::string>& seenBackground) {
@@ -88,7 +89,7 @@ void onStackSignal(int) {
 void installStackSignal() {
     void* warm[2];
     backtrace(warm, 2);  // loads libgcc now, not inside the signal handler
-    struct sigaction sa {};
+    struct sigaction sa{};
     sa.sa_handler = onStackSignal;
     sa.sa_flags = SA_RESTART;
     sigemptyset(&sa.sa_mask);
