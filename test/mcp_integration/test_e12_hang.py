@@ -12,6 +12,9 @@ APP_ENV = {"XOURNALAI_TEST_HOOKS": "1", "XOURNALAI_TRACE_STALLS": str(TRACE)}
 
 def test_1_a_hang_is_reported_with_the_stacks(app):
     c = app.client()
+    deadline = time.time() + 10
+    while time.time() < deadline and not TRACE.exists():  # (the watchdog starts once the app is idle)
+        time.sleep(0.1)
     c.call("test_block_ui", ms=3500)
     deadline = time.time() + 10
     while time.time() < deadline and " stall 3" not in TRACE.read_text():  # (the block may start after the reply)
