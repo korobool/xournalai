@@ -6,6 +6,19 @@
 namespace xoj::assistant {
 
 namespace {
+/// `s` as valid UTF-8 (invalid bytes become U+FFFD)
+std::string validUtf8(const std::string& s) {
+    if (g_utf8_validate(s.c_str(), static_cast<gssize>(s.size()), nullptr)) {
+        return s;
+    }
+    gchar* v = g_utf8_make_valid(s.c_str(), static_cast<gssize>(s.size()));
+    std::string r(v);
+    g_free(v);
+    return r;
+}
+}  // namespace
+
+namespace {
 constexpr guint FRAME_MS = 50;
 constexpr gint64 DONE_FADE_US = 1500 * 1000;
 constexpr gint64 FAILED_KEEP_US = 5 * G_USEC_PER_SEC;
@@ -309,11 +322,19 @@ void ThinkingOverlay::drawZonePill(cairo_t* cr, const Zone& z, double zx, double
     cairo_save(cr);
     cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
     cairo_set_font_size(cr, 13);
+    // Valid UTF-8 only, and cut by whole characters: an invalid string puts the window's cairo context in an error
+    // state, and the whole window stops painting
+    text = validUtf8(text);
     cairo_text_extents_t ext;
     cairo_text_extents(cr, text.c_str(), &ext);
-    while (ext.x_advance > 280 && text.size() > 4) {  // long statuses are cut
-        text = text.substr(0, text.size() - 4) + "…";
-        cairo_text_extents(cr, text.c_str(), &ext);
+    if (ext.x_advance > 280) {  // long statuses are cut
+        std::string body = text;
+        while (ext.x_advance > 280 && g_utf8_strlen(body.c_str(), -1) > 1) {
+            body.resize(static_cast<size_t>(g_utf8_find_prev_char(body.c_str(), body.c_str() + body.size()) -
+                                            body.c_str()));
+            text = body + "…";
+            cairo_text_extents(cr, text.c_str(), &ext);
+        }
     }
     const double W = ext.x_advance + 50;
     double x = zx, y = zy - H - 6;
@@ -415,7 +436,7 @@ void ThinkingOverlay::drawRecording(cairo_t* cr) {
         cairo_set_font_size(cr, 13);
         cairo_set_source_rgba(cr, 1, 1, 1, std::min(1.0, left * 2));
         cairo_move_to(cr, x + 40, y + R + 5);
-        cairo_show_text(cr, recMessage.c_str());
+        cairo_show_text(cr, validUtf8(recMessage).c_str());
         return;
     }
     const double cx = x + 22, cy = y + R;

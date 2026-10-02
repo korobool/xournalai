@@ -1738,7 +1738,7 @@
     {
       "id": "E12",
       "title": "Recordings: the owner decides",
-      "release": "1.8.3",
+      "release": "1.8.4",
       "goal": "When a recording stops, the owner picks what it is before anything is sent (instructions, notes, just audio); its processing is never silent; strokes line up with the audio.",
       "stages": [
         {
@@ -1904,6 +1904,42 @@
               "status": "done",
               "started": "2026-10-01T08:01:01+01:00",
               "finished": "2026-10-01T08:01:01+01:00"
+            }
+          ]
+        },
+        {
+          "id": "S12.5",
+          "title": "Hangs leave evidence; painting never breaks",
+          "version": "1.8.4",
+          "stories": [
+            {
+              "id": "US-12.5",
+              "text": "As the owner, when the app freezes and I kill it, I want the cause on record; and a long status must never stop the window from painting.",
+              "acceptance": [
+                "a UI stall over 2 s is written to the stall trace while it lasts (HANG line, what the UI thread is doing, every 10 s), with the stack of every thread once",
+                "the stall trace says when each run started (pid, wall clock)",
+                "zone statuses are cut by whole characters and drawn as valid UTF-8 (a cut Cyrillic status had broken all painting for minutes)"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T12.5.1",
+              "story": "US-12.5",
+              "title": "Hang reports with stacks; UTF-8-safe zone texts",
+              "details": "StallWatch: HANG lines while stalled, SIGUSR2 + backtrace_symbols_fd per thread, start line; ThinkingOverlay: cut by characters, g_utf8_make_valid; test_e12_hang.",
+              "commit": "ai: hangs leave evidence; zone texts never break painting",
+              "status": "done",
+              "started": "2026-10-02T06:03:15+01:00",
+              "finished": "2026-10-02T06:03:15+01:00"
+            },
+            {
+              "id": "T12.5.2",
+              "story": "US-12.5",
+              "title": "Release 1.8.4",
+              "details": "Changelog, version, full tests.",
+              "commit": "ai: release 1.8.4",
+              "status": "todo"
             }
           ]
         }

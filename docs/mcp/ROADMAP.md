@@ -565,7 +565,7 @@ When a Xournal++ audio recording ends, the serving session hears about it (file,
 | T11.3.1 | US-11.3 | **Ask listening in the status-line pill** — RecordingIndicator: Ask mode (setListening, pushVoiceLevel with the pen pill's decibel scale); McpUi feeds speech state and levels. | `ai: Ask's listening animates in the status line too (T11.3.1)` | ✅ done `52c6b5359` |
 | T11.3.2 | US-11.3 | **Release 1.7.2** — Changelog, version, full tests. | `ai: release 1.7.2 (T11.3.2)` | ✅ done `62742773f` |
 
-## E12 — Recordings: the owner decides (release 1.8.3)
+## E12 — Recordings: the owner decides (release 1.8.4)
 
 When a recording stops, the owner picks what it is before anything is sent (instructions, notes, just audio); its processing is never silent; strokes line up with the audio.
 
@@ -624,4 +624,17 @@ When a recording stops, the owner picks what it is before anything is sent (inst
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
 | T12.4.1 | US-12.4 | **'What should AI do?' in the recording chooser** — RecordingChooser request field, mic, chips, status; McpUi dictation routing (the chooser first), request in the hand-off, Keep label; companion; tests. | `ai: say what AI should do with a recording (T12.4.1)` | ✅ done `f32079c8e` |
-| T12.4.2 | US-12.4 | **Release 1.8.3** — Changelog, version, full tests. | `ai: release 1.8.3 (T12.4.2)` | ✅ done |
+| T12.4.2 | US-12.4 | **Release 1.8.3** — Changelog, version, full tests. | `ai: release 1.8.3 (T12.4.2)` | ✅ done `6a1134075` |
+
+### S12.5 — Hangs leave evidence; painting never breaks → v1.8.4
+
+**US-12.5** — As the owner, when the app freezes and I kill it, I want the cause on record; and a long status must never stop the window from painting.
+
+- [ ] a UI stall over 2 s is written to the stall trace while it lasts (HANG line, what the UI thread is doing, every 10 s), with the stack of every thread once
+- [ ] the stall trace says when each run started (pid, wall clock)
+- [ ] zone statuses are cut by whole characters and drawn as valid UTF-8 (a cut Cyrillic status had broken all painting for minutes)
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T12.5.1 | US-12.5 | **Hang reports with stacks; UTF-8-safe zone texts** — StallWatch: HANG lines while stalled, SIGUSR2 + backtrace_symbols_fd per thread, start line; ThinkingOverlay: cut by characters, g_utf8_make_valid; test_e12_hang. | `ai: hangs leave evidence; zone texts never break painting (T12.5.1)` | ✅ done |
+| T12.5.2 | US-12.5 | **Release 1.8.4** — Changelog, version, full tests. | `ai: release 1.8.4 (T12.5.2)` | ⬜ todo |
