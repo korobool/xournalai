@@ -6,6 +6,16 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
 
 ## Unreleased
 
+## 1.8.4 — Hangs leave evidence
+- **A freeze is on record even if you kill the app.** When the UI thread is stuck for more than 2 s, the stall trace
+  (`~/.cache/xournalai/trace-stalls` on) gets a `HANG` line right away: what the UI thread is doing, repeated every
+  10 s, and once the stack of every thread (a deadlock shows both sides). Before, a stall was written only when it
+  ended, so a hang that was killed left nothing. Each run's first line gives its pid and start time.
+- **A long status no longer stops the window from painting.** Zone statuses were shortened byte by byte, which cut
+  Cyrillic letters (and "…") in half; the invalid text put the window's drawing into an error state until the zone
+  ended (2026-10-02, about two minutes of a frozen-looking window). They are now cut by whole characters, and every
+  text is checked before it is drawn.
+
 ## 1.8.3 — What should AI do?
 - **The recording chooser asks "What should AI do?"** Type it, hold the mic (or the pen button) and say it, or tap
   chips: Summarize, Key points, Action items, Flashcards, Translate…. Enter or Send means Notes with that request.
