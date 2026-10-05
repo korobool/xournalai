@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.8.6**
+Current version: **1.8.7**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -676,6 +676,6 @@ When a recording stops, the owner picks what it is before anything is sent (inst
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T12.8.1 | US-12.8 | **Lost pen-button releases** — StylusInputHandler: PROXIMITY_OUT releases; penBarrelGone hook from the global event filter; AskController MAX_LISTEN_MS; test_pen op=out; test_e10_ask test_13. | `ai: an Ask never stays stuck listening (T12.8.1)` | ✅ done `dca2e97f7` |
-| T12.8.3 | US-12.8 | **No tools inside a dialog's nested loop** — McpProtocol::callTool refuses while g_main_depth() > 1 (Ctrl+P during agent work deadlocked on 2026-10-05); test_modal hook; test_e12_modal. | `ai: no tools while a dialog runs (no deadlock behind Print) (T12.8.3)` | ✅ done |
-| T12.8.2 | US-12.8 | **Release 1.8.7** — Changelog, version, full tests. | `ai: release 1.8.7 (T12.8.2)` | ⬜ todo |
+| T12.8.1 | US-12.8 | **Lost pen-button releases** — StylusInputHandler: PROXIMITY_OUT releases; penBarrelGone hook from the global event filter; AskController MAX_LISTEN_MS; test_pen op=out; test_e10_ask test_13. | `ai: an Ask never stays stuck listening (T12.8.1)` | ✅ done `008bfaf81` |
+| T12.8.3 | US-12.8 | **No tools inside a dialog's nested loop** — McpProtocol::callTool refuses while g_main_depth() > 1 (Ctrl+P during agent work deadlocked on 2026-10-05); test_modal hook; test_e12_modal. | `ai: no tools while a dialog runs (no deadlock behind Print) (T12.8.3)` | ✅ done `50ec4596a` |
+| T12.8.2 | US-12.8 | **Release 1.8.7** — Changelog, version, full tests. | `ai: release 1.8.7 (T12.8.2)` | ✅ done |

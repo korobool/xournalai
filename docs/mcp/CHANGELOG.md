@@ -10,6 +10,16 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.8.7 — An Ask never stays stuck listening
+- **A pen-button Ask ends when you let go, even if the release is lost.** On 2026-10-05 an Ask kept listening: three
+  seconds before it the pen driver force-ejected the pen ("stuck in range"), which sends no button release. Now the
+  pen leaving the tablet's range releases the button, a release anywhere in the window counts (not only over the
+  page), and an Ask stops by itself after 2 minutes.
+- **No deadlock behind the Print dialog.** Ctrl+P during agent work froze the app for good: the Print dialog holds
+  the document lock while it is open and keeps serving events, so an agent's commit inside it waited for the UI
+  thread itself. While a dialog runs, tools are now refused at once ("showing a dialog … try again"), and work
+  resumes when it closes.
+
 ## 1.8.6 — A silent X server
 - **Frozen by the X server? The app saves and closes.** Three more freezes on 2026-10-05 had the same cause as the
   tooltip one: the UI thread waited for an X server reply that never came (in a window-property read, in a repaint),
