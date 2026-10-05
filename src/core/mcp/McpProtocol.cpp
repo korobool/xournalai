@@ -5,6 +5,8 @@
 #include <memory>     // for make_shared
 #include <stdexcept>  // for invalid_argument
 
+#include <glib.h>  // for g_main_depth
+
 #include "util/StallWatch.h"  // for stall::Activity
 
 namespace xoj::mcp {
@@ -162,6 +164,16 @@ void McpProtocol::callTool(const json& id, const json& params, Reply reply) {
             reply(rpc::resultResponse(id, ToolResult::error(*denied).toJson()));
             return;
         }
+    }
+    // A modal dialog runs a nested main loop on the UI thread, and may hold the document lock meanwhile (Print
+    // does, for as long as it is open): a tool run inside it that locks the document again waits for the UI
+    // thread itself, forever (2026-10-05). No tools until it closes.
+    if (g_main_depth() > 1) {
+        reply(rpc::resultResponse(
+                id, ToolResult::error("xournalai is showing a dialog (e.g. Print) right now; tools wait until it is "
+                                      "closed. Try again in a moment, or ask the user to close it.")
+                            .toJson()));
+        return;
     }
 
     // Wrap the reply so it happens exactly once, and report timing to the observer

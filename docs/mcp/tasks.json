@@ -2023,7 +2023,7 @@
         },
         {
           "id": "S12.8",
-          "title": "An Ask never stays stuck listening",
+          "title": "No stuck Ask; no deadlock behind a dialog",
           "version": "1.8.7",
           "stories": [
             {
@@ -2032,7 +2032,8 @@
               "acceptance": [
                 "the pen leaving the tablet's range (also a force-eject by the driver, which sends no release) releases the button",
                 "a release or range exit anywhere in the window (not only over the canvas) ends a held Ask",
-                "an Ask stops by itself after 2 minutes without a release"
+                "an Ask stops by itself after 2 minutes without a release",
+                "while a modal dialog runs (Print holds the document lock all along), tools are refused at once with a clear reason instead of deadlocking the app"
               ]
             }
           ],
@@ -2046,6 +2047,16 @@
               "status": "done",
               "started": "2026-10-05T23:00:28+01:00",
               "finished": "2026-10-05T23:00:28+01:00"
+            },
+            {
+              "id": "T12.8.3",
+              "story": "US-12.8",
+              "title": "No tools inside a dialog's nested loop",
+              "details": "McpProtocol::callTool refuses while g_main_depth() > 1 (Ctrl+P during agent work deadlocked on 2026-10-05); test_modal hook; test_e12_modal.",
+              "commit": "ai: no tools while a dialog runs (no deadlock behind Print)",
+              "status": "done",
+              "started": "2026-10-05T23:05:16+01:00",
+              "finished": "2026-10-05T23:05:16+01:00"
             },
             {
               "id": "T12.8.2",

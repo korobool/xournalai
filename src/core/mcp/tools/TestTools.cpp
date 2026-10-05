@@ -3,7 +3,8 @@
 // test_touch feeds synthetic touchscreen events into the canvas through GTK's normal event path (including the
 // scrolled window's capture-phase gestures), so pinch zoom can be tested on a display without a touchscreen.
 
-#include <map>  // for map
+#include <map>           // for map
+#include <shared_mutex>  // for shared_lock
 
 #include <gtk/gtk.h>
 
@@ -19,6 +20,7 @@
 #include "mcp/McpServer.h"
 #include "mcp/McpUi.h"  // for McpUi
 #include "mcp/Schema.h"
+#include "model/Document.h"  // for Document
 #include "util/StallWatch.h"  // for stall::Activity
 
 #include "ToolUtil.h"
@@ -243,6 +245,42 @@ void registerTestTools(McpServer& server) {
         return ToolResult::structured({{"recording", ind->isRecording()}});
     };
     server.getRegistry().addTool(std::move(recOn));
+
+    ToolSpec modal;
+    modal.name = "test_modal";
+    modal.title = "Test hook: a modal dialog like Print";
+    modal.description = "Test hook (XOURNALAI_TEST_HOOKS=1 only): opens a fake modal dialog right after answering (as "
+                        "a key press would): for `ms`, a nested main loop runs while the document's shared lock is "
+                        "held, as with the Print dialog.";
+    modal.inputSchema = schema::object({{"ms", schema::integer("How long")}}, {"ms"});
+    modal.tier = Tier::Ui;
+    modal.handler = [ctrl](const json& j) {
+        Args args(j);
+        const auto ms = args.integer("ms", 1000, 1, 10000);
+        struct Modal {
+            Control* ctrl;
+            guint ms;
+        };
+        g_idle_add(
+                +[](gpointer data) -> gboolean {
+                    std::unique_ptr<Modal> m(static_cast<Modal*>(data));
+                    std::shared_lock lock(*m->ctrl->getDocument());
+                    GMainLoop* loop = g_main_loop_new(nullptr, false);
+                    g_timeout_add(
+                            m->ms,
+                            +[](gpointer l) -> gboolean {
+                                g_main_loop_quit(static_cast<GMainLoop*>(l));
+                                return G_SOURCE_REMOVE;
+                            },
+                            loop);
+                    g_main_loop_run(loop);
+                    g_main_loop_unref(loop);
+                    return G_SOURCE_REMOVE;
+                },
+                new Modal{ctrl, static_cast<guint>(ms)});
+        return ToolResult::structured({{"modal_ms", ms}});
+    };
+    server.getRegistry().addTool(std::move(modal));
 
     ToolSpec connect;
     connect.name = "test_connect_dialog";
