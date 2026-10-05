@@ -282,7 +282,7 @@ def test_12_the_pen_button_dictates_into_the_recording_chooser(app):
     while time.time() < deadline and not widget(c, "recording-request").get("value"):
         time.sleep(0.3)
     said = widget(c, "recording-request").get("value", "")
-    assert "americans" in said.lower(), said
+    assert "america" in said.lower(), said  # (the 3 s clip may cut "americans")
     assert c.call("app_status")["ask"].get("last", {}).get("text") != said  # (no Ask was made of it)
     c.call("ui_interact", op="click", target=widget(c, "recording-keep")["id"])
 
