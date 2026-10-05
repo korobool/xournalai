@@ -1,15 +1,18 @@
 #include "CrashHandler.h"
 
 #include <atomic>
+#include <chrono>  // for milliseconds
 #include <csignal>
 #include <iostream>
 #include <string>
+#include <thread>  // for sleep_for
 
 #ifdef __unix__
 #include <glib-unix.h>  // for g_unix_signal_add
 #endif
 
 #include "control/xojfile/SaveHandler.h"  // for SaveHandler
+#include "model/Document.h"               // for Document
 #include "util/PathUtil.h"
 #include "util/Stacktrace.h"
 #include "util/VersionInfo.h"
@@ -18,6 +21,7 @@
 
 static std::atomic<const Document*> document = nullptr;
 static std::atomic<int> alreadyCrashed = 0;
+static std::atomic<bool> rescued = false;  // this run wrote a rescue file
 
 extern "C" void forceClose(int sig) {
     g_warning("Force close requested with signal %i", sig);
@@ -47,6 +51,41 @@ void emergencySave() {
     }
 }
 
+
+bool rescueSave() {
+    const Document* doc = document;
+    if (!doc) {
+        return false;
+    }
+    auto* lockable = const_cast<Document*>(doc);
+    bool locked = false;
+    for (int i = 0; i < 300 && !(locked = lockable->try_lock_shared()); i++) {  // (a frozen writer: give up)
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    if (!locked) {
+        g_warning("Rescue save: the document stays locked; not saved");
+        return false;
+    }
+    auto const& filepath = Util::getConfigFile("emergencysave.xopp");
+    SaveHandler handler;
+    handler.prepareSave(doc, filepath);
+    lockable->unlock_shared();
+    handler.saveTo(filepath);
+    if (!handler.getErrorMessage().empty()) {
+        g_warning("Rescue save failed: %s", handler.getErrorMessage().c_str());
+        return false;
+    }
+    rescued = true;
+    g_message("The UI is frozen: rescued the document to %s", filepath.string().c_str());
+    return true;
+}
+
+void discardRescue() {
+    if (rescued.exchange(false)) {
+        std::error_code ec;
+        fs::remove(Util::getConfigFile("emergencysave.xopp"), ec);
+    }
+}
 
 /// Print a backtrace and try to make an emergency save
 extern "C" void crashHandler(int sig) {

@@ -14,6 +14,7 @@
 #pragma once
 
 #include <cstdint>  // for int64_t
+#include <functional>  // for function
 #include <string>   // for string
 #include <vector>   // for vector
 
@@ -22,6 +23,10 @@ namespace xoj::util::stall {
 constexpr int64_t THRESHOLD_US = 50 * 1000;  ///< a stall: the UI thread is unresponsive for longer than this
 
 /// Starts the heartbeat and the watchdog (from the main thread, with the main loop about to run). Idempotent.
+/// Called once per hang, from the watchdog thread (not the UI thread, which is stuck), when the UI thread has been
+/// stuck for `afterUs`: e.g. a rescue save. Must not touch GTK. Set before start(); null: none.
+void setHangHandler(int64_t afterUs, std::function<void()> handler);
+
 void start();
 /// Stops them (at exit)
 void stop();

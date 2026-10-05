@@ -45,6 +45,7 @@
 #include "gui/PdfFloatingToolbox.h"                              // for PdfF...
 #include "gui/RecordingIndicator.h"                              // for RecordingIndicator
 #include "gui/SearchBar.h"                                       // for Sear...
+#include "gui/TooltipGuard.h"                                    // for installTooltipGuard
 #include "gui/XournalView.h"                                     // for Xour...
 #include "gui/XournalppCursor.h"                                 // for Xour...
 #include "gui/dialog/AboutDialog.h"                              // for Abou...
@@ -335,6 +336,8 @@ void Control::initWindow(MainWindow* win) {
     toolLineStyleChanged();
 
     this->clipboardHandler = new ClipboardHandler(this, win->getXournal()->getWidget());
+
+    xoj::gui::installTooltipGuard(win->getXournal()->getWidget());  // (xournalai) no tooltip freezes with a pen
 
     this->enableAutosave(settings->isAutosaveEnabled());
 
@@ -2225,6 +2228,7 @@ void Control::quit(bool allowCancel) {
             this->scheduler->unlock();
             this->scheduler->stop();  // Finish current task. Must be called to finish pending saves.
             this->closeDocument();    // Must be done after all jobs has finished (Segfault on save/export)
+            discardRescue();          // (xournalai) it recovered from a freeze and closed cleanly
             settings->save();
             g_application_quit(G_APPLICATION(gtkApp));
         }

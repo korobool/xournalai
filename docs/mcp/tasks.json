@@ -1738,7 +1738,7 @@
     {
       "id": "E12",
       "title": "Recordings: the owner decides",
-      "release": "1.8.4",
+      "release": "1.8.5",
       "goal": "When a recording stops, the owner picks what it is before anything is sent (instructions, notes, just audio); its processing is never silent; strokes line up with the audio.",
       "stages": [
         {
@@ -1942,6 +1942,42 @@
               "status": "done",
               "started": "2026-10-02T06:12:11+01:00",
               "finished": "2026-10-02T06:12:11+01:00"
+            }
+          ]
+        },
+        {
+          "id": "S12.6",
+          "title": "No tooltip freezes; a frozen app rescues the document",
+          "version": "1.8.5",
+          "stories": [
+            {
+              "id": "US-12.6",
+              "text": "As the owner, I don't want the app to freeze because of my pen, and if it ever freezes, my work must survive.",
+              "acceptance": [
+                "no GTK tooltips for pen/eraser/touch hover outside the canvas (the 2026-10-05 freeze: a tooltip waited forever on XIQueryPointer while the Wacom pen was stuck in proximity); the mouse keeps tooltips",
+                "a UI frozen for 15 s saves the document to the emergency file from the watchdog thread; the next start offers to restore it; a clean quit removes it",
+                "hang reports keep coming after 60 s (the monotonic clock does not count suspend)"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T12.6.1",
+              "story": "US-12.6",
+              "title": "Tooltip guard, rescue save, long-hang reports",
+              "details": "gui/TooltipGuard (gdk event filter, unit tests); CrashHandler::rescueSave/discardRescue via StallWatch::setHangHandler; no SUSPEND cut-off; test_e12_hang.",
+              "commit": "ai: no tooltip freezes with a pen; a frozen app rescues the document",
+              "status": "done",
+              "started": "2026-10-05T20:26:30+01:00",
+              "finished": "2026-10-05T20:26:31+01:00"
+            },
+            {
+              "id": "T12.6.2",
+              "story": "US-12.6",
+              "title": "Release 1.8.5",
+              "details": "Changelog, version, full tests.",
+              "commit": "ai: release 1.8.5",
+              "status": "todo"
             }
           ]
         }

@@ -1,4 +1,4 @@
-"""E12: a hang is written down while it lasts (a frozen app may be killed before it ends): the stall trace gets a
+"""E12: a frozen UI rescues the document (to the emergency file, offered on the next start). A hang is written down while it lasts (a frozen app may be killed before it ends): the stall trace gets a
 HANG line with what the UI thread was doing and the stack of every thread. Zone statuses are cut by whole characters,
 so a long non-English status never breaks the window's painting (invalid UTF-8 puts cairo in an error state)."""
 
@@ -7,7 +7,7 @@ import tempfile
 import time
 
 TRACE = pathlib.Path(tempfile.mkdtemp(prefix="xoai-hang-")) / "stalls.log"
-APP_ENV = {"XOURNALAI_TEST_HOOKS": "1", "XOURNALAI_TRACE_STALLS": str(TRACE)}
+APP_ENV = {"XOURNALAI_TEST_HOOKS": "1", "XOURNALAI_TRACE_STALLS": str(TRACE), "XOURNALAI_RESCUE_AFTER_MS": "1500"}
 
 
 def test_1_a_hang_is_reported_with_the_stacks(app):
@@ -36,3 +36,17 @@ def test_2_a_long_cyrillic_status_does_not_break_painting(app):
     time.sleep(1.5)
     c.call("thinking", op="done", id=z)
     assert "not valid UTF-8" not in app.read_log()
+
+
+def test_3_a_frozen_ui_rescues_the_document(app):
+    c = app.client()
+    c.call("page_manage", op="insert")  # (something to save)
+    rescue = app.config_file.parent / "emergencysave.xopp"
+    rescue.unlink(missing_ok=True)  # (the first test's hang rescued already)
+    c.call("test_block_ui", ms=3000)
+    deadline = time.time() + 10
+    while time.time() < deadline and not rescue.exists():
+        time.sleep(0.2)
+    assert rescue.exists() and rescue.stat().st_size > 100
+    assert "running the hang handler (rescue)" in TRACE.read_text()
+    assert "rescued the document to" in app.read_log()

@@ -139,7 +139,8 @@ void checkForEmergencySave(Control* control) {
         return;
     }
 
-    const std::string msg = _("xournalai crashed last time. Would you like to restore the last edited file?");
+    const std::string msg = _("xournalai crashed or stopped responding last time. Would you like to restore the last "
+                              "edited file?");
     enum { DELETE_FILE = 1, RESTORE_FILE };
     XojMsgBox::askQuestion(
             control->getGtkWindow(), _("Recovery file detected"), msg,
@@ -516,6 +517,11 @@ void on_startup(GApplication* application, XMPtr app_data) {
     g_idle_add_full(
             G_PRIORITY_LOW,
             +[](gpointer) -> gboolean {
+                // Frozen for 15 s (e.g. GTK waiting forever on the X server): rescue the document; it is offered
+                // on the next start
+                const char* after = g_getenv("XOURNALAI_RESCUE_AFTER_MS");  // (tests)
+                xoj::util::stall::setHangHandler(
+                        after ? g_ascii_strtoll(after, nullptr, 10) * 1000 : 15 * G_USEC_PER_SEC, [] { rescueSave(); });
                 xoj::util::stall::start();
                 return G_SOURCE_REMOVE;
             },

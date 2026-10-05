@@ -565,7 +565,7 @@ When a Xournal++ audio recording ends, the serving session hears about it (file,
 | T11.3.1 | US-11.3 | **Ask listening in the status-line pill** — RecordingIndicator: Ask mode (setListening, pushVoiceLevel with the pen pill's decibel scale); McpUi feeds speech state and levels. | `ai: Ask's listening animates in the status line too (T11.3.1)` | ✅ done `52c6b5359` |
 | T11.3.2 | US-11.3 | **Release 1.7.2** — Changelog, version, full tests. | `ai: release 1.7.2 (T11.3.2)` | ✅ done `62742773f` |
 
-## E12 — Recordings: the owner decides (release 1.8.4)
+## E12 — Recordings: the owner decides (release 1.8.5)
 
 When a recording stops, the owner picks what it is before anything is sent (instructions, notes, just audio); its processing is never silent; strokes line up with the audio.
 
@@ -637,4 +637,17 @@ When a recording stops, the owner picks what it is before anything is sent (inst
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
 | T12.5.1 | US-12.5 | **Hang reports with stacks; UTF-8-safe zone texts** — StallWatch: HANG lines while stalled, SIGUSR2 + backtrace_symbols_fd per thread, start line; ThinkingOverlay: cut by characters, g_utf8_make_valid; test_e12_hang. | `ai: hangs leave evidence; zone texts never break painting (T12.5.1)` | ✅ done `a8f7213be` |
-| T12.5.2 | US-12.5 | **Release 1.8.4** — Changelog, version, full tests. | `ai: release 1.8.4 (T12.5.2)` | ✅ done |
+| T12.5.2 | US-12.5 | **Release 1.8.4** — Changelog, version, full tests. | `ai: release 1.8.4 (T12.5.2)` | ✅ done `3d96e0112` |
+
+### S12.6 — No tooltip freezes; a frozen app rescues the document → v1.8.5
+
+**US-12.6** — As the owner, I don't want the app to freeze because of my pen, and if it ever freezes, my work must survive.
+
+- [ ] no GTK tooltips for pen/eraser/touch hover outside the canvas (the 2026-10-05 freeze: a tooltip waited forever on XIQueryPointer while the Wacom pen was stuck in proximity); the mouse keeps tooltips
+- [ ] a UI frozen for 15 s saves the document to the emergency file from the watchdog thread; the next start offers to restore it; a clean quit removes it
+- [ ] hang reports keep coming after 60 s (the monotonic clock does not count suspend)
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T12.6.1 | US-12.6 | **Tooltip guard, rescue save, long-hang reports** — gui/TooltipGuard (gdk event filter, unit tests); CrashHandler::rescueSave/discardRescue via StallWatch::setHangHandler; no SUSPEND cut-off; test_e12_hang. | `ai: no tooltip freezes with a pen; a frozen app rescues the document (T12.6.1)` | ✅ done |
+| T12.6.2 | US-12.6 | **Release 1.8.5** — Changelog, version, full tests. | `ai: release 1.8.5 (T12.6.2)` | ⬜ todo |

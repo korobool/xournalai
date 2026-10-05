@@ -7,6 +7,7 @@
 #include <deque>      // for deque
 #include <mutex>      // for mutex, lock_guard
 #include <thread>     // for thread, this_thread
+#include <utility>    // for move
 
 #include <glib.h>
 
@@ -24,8 +25,7 @@
 namespace xoj::util::stall {
 
 namespace {
-constexpr int64_t BEAT_US = 20 * 1000;            ///< heartbeat interval
-constexpr int64_t SUSPEND_US = 60 * 1000 * 1000;  ///< longer gaps are a suspended machine, not a stall
+constexpr int64_t BEAT_US = 20 * 1000;  ///< heartbeat interval
 constexpr size_t KEEP = 64;
 
 std::atomic<int64_t> lastBeat{0};
@@ -40,6 +40,9 @@ std::vector<std::pair<std::thread::id, std::string>> background;  // of other th
 std::deque<Stall> ring;
 Summary sum;
 FILE* logFile = nullptr;
+
+std::function<void()> hangHandler;
+int64_t hangHandlerAfterUs = 0;
 
 constexpr int64_t HANG_US = 2 * 1000 * 1000;          ///< a stall this long is reported while it lasts
 constexpr int64_t HANG_REPEAT_US = 10 * 1000 * 1000;  ///< and again this often
@@ -139,6 +142,7 @@ FILE* openLog() {
 void watch() {
     int64_t stallSince = 0;  // the beat the stall follows (0: no stall)
     int64_t hangReported = 0;  // when this stall was last reported while lasting (0: not yet)
+    bool handled = false;      // the hang handler ran for this stall
     std::vector<std::string> seen;
     std::vector<std::string> seenBackground;
     while (running) {
@@ -155,6 +159,7 @@ void watch() {
             if (now - beat > THRESHOLD_US + BEAT_US) {
                 stallSince = beat;
                 hangReported = 0;
+                handled = false;
                 seen.clear();
                 seenBackground.clear();
             }
@@ -162,7 +167,7 @@ void watch() {
             // The UI thread responded again
             const int64_t duration = beat - stallSince - BEAT_US;
             stallSince = 0;
-            if (duration <= THRESHOLD_US || duration > SUSPEND_US) {
+            if (duration <= THRESHOLD_US) {  // (the monotonic clock stands still while the machine sleeps)
                 continue;
             }
             const std::string what = describe(seen, seenBackground);
@@ -198,7 +203,7 @@ void watch() {
             }
             // A hang: report it while it lasts (a frozen app may be killed before it ends), with the stacks once
             const int64_t stuck = g_get_monotonic_time() - stallSince;
-            if (logFile && stuck > HANG_US && stuck < SUSPEND_US &&
+            if (logFile && stuck > HANG_US &&
                 (hangReported == 0 || g_get_monotonic_time() - hangReported > HANG_REPEAT_US)) {
                 fprintf(logFile, "%lld HANG %llds so far: %s\n", static_cast<long long>(stallSince / 1000),
                         static_cast<long long>(stuck / G_USEC_PER_SEC), describe(seen, seenBackground).c_str());
@@ -210,6 +215,15 @@ void watch() {
                 fflush(logFile);
                 hangReported = g_get_monotonic_time();
             }
+            if (hangHandler && !handled && stuck > hangHandlerAfterUs) {
+                handled = true;
+                if (logFile) {
+                    fprintf(logFile, "%lld HANG %llds: running the hang handler (rescue)\n",
+                            static_cast<long long>(stallSince / 1000), static_cast<long long>(stuck / G_USEC_PER_SEC));
+                    fflush(logFile);
+                }
+                hangHandler();
+            }
         }
     }
 }
@@ -219,6 +233,11 @@ gboolean onBeat(gpointer) {
     return G_SOURCE_CONTINUE;
 }
 }  // namespace
+
+void setHangHandler(int64_t afterUs, std::function<void()> handler) {
+    hangHandlerAfterUs = afterUs;
+    hangHandler = std::move(handler);
+}
 
 void start() {
     if (running) {
