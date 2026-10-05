@@ -1738,7 +1738,7 @@
     {
       "id": "E12",
       "title": "Recordings: the owner decides",
-      "release": "1.8.6",
+      "release": "1.8.7",
       "goal": "When a recording stops, the owner picks what it is before anything is sent (instructions, notes, just audio); its processing is never silent; strokes line up with the audio.",
       "stages": [
         {
@@ -2018,6 +2018,42 @@
               "status": "done",
               "started": "2026-10-05T21:37:27+01:00",
               "finished": "2026-10-05T21:37:27+01:00"
+            }
+          ]
+        },
+        {
+          "id": "S12.8",
+          "title": "An Ask never stays stuck listening",
+          "version": "1.8.7",
+          "stories": [
+            {
+              "id": "US-12.8",
+              "text": "As the owner, a pen-button Ask must end when I let go, even when the pen driver loses the release.",
+              "acceptance": [
+                "the pen leaving the tablet's range (also a force-eject by the driver, which sends no release) releases the button",
+                "a release or range exit anywhere in the window (not only over the canvas) ends a held Ask",
+                "an Ask stops by itself after 2 minutes without a release"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T12.8.1",
+              "story": "US-12.8",
+              "title": "Lost pen-button releases",
+              "details": "StylusInputHandler: PROXIMITY_OUT releases; penBarrelGone hook from the global event filter; AskController MAX_LISTEN_MS; test_pen op=out; test_e10_ask test_13.",
+              "commit": "ai: an Ask never stays stuck listening",
+              "status": "done",
+              "started": "2026-10-05T23:00:28+01:00",
+              "finished": "2026-10-05T23:00:28+01:00"
+            },
+            {
+              "id": "T12.8.2",
+              "story": "US-12.8",
+              "title": "Release 1.8.7",
+              "details": "Changelog, version, full tests.",
+              "commit": "ai: release 1.8.7",
+              "status": "todo"
             }
           ]
         }

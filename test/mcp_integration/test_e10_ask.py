@@ -285,3 +285,19 @@ def test_12_the_pen_button_dictates_into_the_recording_chooser(app):
     assert "americans" in said.lower(), said
     assert c.call("app_status")["ask"].get("last", {}).get("text") != said  # (no Ask was made of it)
     c.call("ui_interact", op="click", target=widget(c, "recording-keep")["id"])
+
+
+def test_13_a_pen_leaving_range_ends_the_ask(app):
+    # the driver force-ejects a pen stuck "in range": no button release comes, yet the Ask must end (2026-10-05)
+    c = app.client()
+    ready(c)
+    c.call("test_pen", op="hover", x=400, y=300)
+    c.call("test_pen", op="barrel_down", x=400, y=300)
+    assert c.call("app_status")["ask"]["state"] == "listening"
+    time.sleep(SPEAK)
+    c.call("test_pen", op="out", x=400, y=300)
+    deadline = time.time() + 15
+    while time.time() < deadline and c.call("app_status")["speech"]["state"] != "ready":
+        time.sleep(0.2)
+    assert c.call("app_status")["speech"]["state"] == "ready"
+    assert c.call("app_status")["ask"]["state"] != "listening"

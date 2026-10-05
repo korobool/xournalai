@@ -24,9 +24,20 @@
 #include "InputContext.h"  // for InputContext
 #include "InputUtils.h"    // for InputUtils
 
-StylusInputHandler::StylusInputHandler(InputContext* inputContext): PenInputHandler(inputContext) {}
+StylusInputHandler::StylusInputHandler(InputContext* inputContext): PenInputHandler(inputContext) {
+    // (xournalai) a release the canvas does not see (elsewhere in the window, or the pen force-ejected by the driver)
+    xoj::input::setPenBarrelReleaseSink([this] {
+        if (!this->modifier2) {
+            return;
+        }
+        this->modifier2 = false;
+        if (const auto observer = xoj::input::penButtonObserver()) {
+            observer(xoj::input::PenButtonEvent{xoj::input::PenButtonEvent::Up});
+        }
+    });
+}
 
-StylusInputHandler::~StylusInputHandler() = default;
+StylusInputHandler::~StylusInputHandler() { xoj::input::setPenBarrelReleaseSink(nullptr); }
 
 auto StylusInputHandler::handleImpl(InputEvent const& event) -> bool {
     // Only handle events when there is no active gesture
@@ -158,7 +169,11 @@ void StylusInputHandler::notifyPenButtonObserver(InputEvent const& event, bool b
         e.tipDown = this->deviceClassPressed;
         observer(e);
     };
-    const bool barrelHeld = this->modifier2 && event.type != LEAVE_EVENT;  // leaving the window releases it
+    // leaving the window, or the pen leaving the tablet's range (also when the driver force-ejects it), releases it
+    const bool barrelHeld = this->modifier2 && event.type != LEAVE_EVENT && event.type != PROXIMITY_OUT_EVENT;
+    if (this->modifier2 && event.type == PROXIMITY_OUT_EVENT) {
+        this->modifier2 = false;
+    }
     if (!barrelWasHeld && barrelHeld) {
         report(xoj::input::PenButtonEvent::Down);
     } else if (barrelWasHeld && !barrelHeld) {

@@ -17,6 +17,12 @@ AskController::AskController(SpeechToText* speech, OnAsk onAsk, OnStatus onStatu
         hasTarget(std::move(hasTarget)),
         onDictation(std::move(onDictation)) {}
 
+AskController::~AskController() {
+    if (limit) {
+        g_source_remove(limit);
+    }
+}
+
 void AskController::onPen(const xoj::input::PenButtonEvent& e) {
     using K = xoj::input::PenButtonEvent;
     if (e.kind != K::Point) {
@@ -33,6 +39,21 @@ void AskController::onPen(const xoj::input::PenButtonEvent& e) {
         }
         speech->start();
         active = true;
+        if (limit) {
+            g_source_remove(limit);
+        }
+        limit = g_timeout_add(
+                MAX_LISTEN_MS,
+                +[](gpointer self) -> gboolean {
+                    auto* a = static_cast<AskController*>(self);
+                    a->limit = 0;
+                    if (a->active) {
+                        SpeechToText::log("ask: no pen button release for 2 minutes: stopping");
+                        a->onPen(xoj::input::PenButtonEvent{xoj::input::PenButtonEvent::Up});
+                    }
+                    return G_SOURCE_REMOVE;
+                },
+                this);
         capture = AskCapture{};
         capture.page = e.page;
         hover = {e.x, e.y};
@@ -57,6 +78,10 @@ void AskController::onPen(const xoj::input::PenButtonEvent& e) {
     }
     // Up: what was said?
     active = false;
+    if (limit) {
+        g_source_remove(limit);
+        limit = 0;
+    }
     onStatus("transcribing…");
     SpeechToText::log("ask: stop, lasso points " + std::to_string(capture.lasso.size()));
     speech->stop([this](const std::string& text, bool silent, const std::string& error) {

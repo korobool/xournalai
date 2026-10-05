@@ -14,6 +14,8 @@
 #include <string>      // for string
 #include <vector>      // for vector
 
+#include <glib.h>  // for guint
+
 #include "gui/inputdevices/PenButtonObserver.h"  // for PenButtonEvent
 #include "model/PageRef.h"                       // for PageRef
 #include "util/Point.h"                          // for Point
@@ -39,6 +41,13 @@ public:
     using OnDictation = std::function<void(const std::string& text)>;
 
     AskController(SpeechToText* speech, OnAsk onAsk, OnStatus onStatus, HasTarget hasTarget, OnDictation onDictation);
+    ~AskController();
+    AskController(const AskController&) = delete;
+    AskController& operator=(const AskController&) = delete;
+
+    /// A pen-button Ask stops by itself after this long: the release can be lost (the driver force-ejecting a pen
+    /// stuck in range sends none)
+    static constexpr guint MAX_LISTEN_MS = 120 * 1000;
 
     void onPen(const xoj::input::PenButtonEvent& e);
     bool listening() const { return active; }
@@ -52,6 +61,7 @@ private:
     HasTarget hasTarget;
     OnDictation onDictation;
     bool active = false;
+    guint limit = 0;  ///< the MAX_LISTEN_MS timer while listening
     AskCapture capture;
     xoj::util::Point<double> hover;
 };

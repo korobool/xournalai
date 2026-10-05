@@ -565,7 +565,7 @@ When a Xournal++ audio recording ends, the serving session hears about it (file,
 | T11.3.1 | US-11.3 | **Ask listening in the status-line pill** — RecordingIndicator: Ask mode (setListening, pushVoiceLevel with the pen pill's decibel scale); McpUi feeds speech state and levels. | `ai: Ask's listening animates in the status line too (T11.3.1)` | ✅ done `52c6b5359` |
 | T11.3.2 | US-11.3 | **Release 1.7.2** — Changelog, version, full tests. | `ai: release 1.7.2 (T11.3.2)` | ✅ done `62742773f` |
 
-## E12 — Recordings: the owner decides (release 1.8.6)
+## E12 — Recordings: the owner decides (release 1.8.7)
 
 When a recording stops, the owner picks what it is before anything is sent (instructions, notes, just audio); its processing is never silent; strokes line up with the audio.
 
@@ -663,4 +663,17 @@ When a recording stops, the owner picks what it is before anything is sent (inst
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
 | T12.7.1 | US-12.7 | **X hang recovery and protocol evidence** — control/XHangRecovery (reporter, rescue + shutdown of the X socket); StallWatch uiThreadIn (frames kept from the stack signal), setHangReporter; test_e12_x_hang (a helper grabs the test Xvfb); tools/xournalai-xtrace.sh. | `ai: a silent X server makes the app rescue and exit, with the request counters on record (T12.7.1)` | ✅ done `a709b0cb7` |
-| T12.7.2 | US-12.7 | **Release 1.8.6** — Changelog, version, full tests. | `ai: release 1.8.6 (T12.7.2)` | ✅ done |
+| T12.7.2 | US-12.7 | **Release 1.8.6** — Changelog, version, full tests. | `ai: release 1.8.6 (T12.7.2)` | ✅ done `016379678` |
+
+### S12.8 — An Ask never stays stuck listening → v1.8.7
+
+**US-12.8** — As the owner, a pen-button Ask must end when I let go, even when the pen driver loses the release.
+
+- [ ] the pen leaving the tablet's range (also a force-eject by the driver, which sends no release) releases the button
+- [ ] a release or range exit anywhere in the window (not only over the canvas) ends a held Ask
+- [ ] an Ask stops by itself after 2 minutes without a release
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T12.8.1 | US-12.8 | **Lost pen-button releases** — StylusInputHandler: PROXIMITY_OUT releases; penBarrelGone hook from the global event filter; AskController MAX_LISTEN_MS; test_pen op=out; test_e10_ask test_13. | `ai: an Ask never stays stuck listening (T12.8.1)` | ✅ done |
+| T12.8.2 | US-12.8 | **Release 1.8.7** — Changelog, version, full tests. | `ai: release 1.8.7 (T12.8.2)` | ⬜ todo |

@@ -31,4 +31,9 @@ using PenButtonObserver = std::function<void(const PenButtonEvent&)>;
 void setPenButtonObserver(PenButtonObserver observer);
 const PenButtonObserver& penButtonObserver();
 
+/// The pen's button was released, or the pen left (out of range, force-ejected by the driver), somewhere the canvas
+/// does not see (another part of the window): the canvas's pen handler ends a held button. Set by that handler.
+void setPenBarrelReleaseSink(std::function<void()> sink);
+void penBarrelGone();
+
 }  // namespace xoj::input

@@ -124,10 +124,11 @@ void registerTestTools(McpServer& server) {
     pen.name = "test_pen";
     pen.title = "Test hook: the pen";
     pen.description = "Test hook (XOURNALAI_TEST_HOOKS=1 only): a synthetic pen event on the canvas: op=hover | "
-                      "barrel_down | barrel_up (the first barrel button) | tip_down | move | tip_up, at (x, y) in "
+                      "barrel_down | barrel_up (the first barrel button) | tip_down | move | tip_up | out (leaves the "
+                      "tablet's range, as when the driver force-ejects a pen: no button release), at (x, y) in "
                       "canvas widget coordinates.";
     pen.inputSchema = schema::object({{"op", schema::enumeration("Pen event", {"hover", "barrel_down", "barrel_up",
-                                                                               "tip_down", "move", "tip_up"})},
+                                                                               "tip_down", "move", "tip_up", "out"})},
                                       {"x", schema::number("x in canvas widget coordinates")},
                                       {"y", schema::number("y in canvas widget coordinates")}},
                                      {"op", "x", "y"});
@@ -137,7 +138,7 @@ void registerTestTools(McpServer& server) {
         args.rejectUnknown({"op", "x", "y"});
         static bool barrel = false, tip = false;
         const std::string op =
-                args.choice("op", {"hover", "barrel_down", "barrel_up", "tip_down", "move", "tip_up"}, "");
+                args.choice("op", {"hover", "barrel_down", "barrel_up", "tip_down", "move", "tip_up", "out"}, "");
         const double x = args.number("x"), y = args.number("y");
         GtkWidget* widget = ctrl->getWindow()->getXournal()->getWidget();
         GdkWindow* window = gtk_widget_get_window(widget);
@@ -149,7 +150,11 @@ void registerTestTools(McpServer& server) {
             return static_cast<guint>((tip ? GDK_BUTTON1_MASK : 0) | (barrel ? GDK_BUTTON2_MASK : 0));
         };
         GdkEvent* ev = nullptr;
-        if (op == "hover" || op == "move") {
+        if (op == "out") {
+            ev = gdk_event_new(GDK_PROXIMITY_OUT);
+            ev->proximity.time = static_cast<guint32>(g_get_monotonic_time() / 1000);
+            barrel = tip = false;  // (gone, nothing released)
+        } else if (op == "hover" || op == "move") {
             ev = gdk_event_new(GDK_MOTION_NOTIFY);
             ev->motion.x = x;
             ev->motion.y = y;
