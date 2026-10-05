@@ -1738,7 +1738,7 @@
     {
       "id": "E12",
       "title": "Recordings: the owner decides",
-      "release": "1.8.5",
+      "release": "1.8.6",
       "goal": "When a recording stops, the owner picks what it is before anything is sent (instructions, notes, just audio); its processing is never silent; strokes line up with the audio.",
       "stages": [
         {
@@ -1980,6 +1980,42 @@
               "status": "done",
               "started": "2026-10-05T20:34:14+01:00",
               "finished": "2026-10-05T20:34:14+01:00"
+            }
+          ]
+        },
+        {
+          "id": "S12.7",
+          "title": "A silent X server: exit instead of freezing; record the protocol",
+          "version": "1.8.6",
+          "stories": [
+            {
+              "id": "US-12.7",
+              "text": "As the owner, when the X server stops answering the app, I want it to save my work and close by itself, and I want evidence of which request went unanswered.",
+              "acceptance": [
+                "after the rescue save, if the UI thread is stuck in libxcb (waiting for a reply or to send), the app closes its X connection and exits; the next start offers the rescue",
+                "HANG lines and the rescue line carry the X request counters (last sent / last answered)",
+                "tools/xournalai-xtrace.sh records the X11 traffic (xtrace, last 20000 lines) for the next freeze"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T12.7.1",
+              "story": "US-12.7",
+              "title": "X hang recovery and protocol evidence",
+              "details": "control/XHangRecovery (reporter, rescue + shutdown of the X socket); StallWatch uiThreadIn (frames kept from the stack signal), setHangReporter; test_e12_x_hang (a helper grabs the test Xvfb); tools/xournalai-xtrace.sh.",
+              "commit": "ai: a silent X server makes the app rescue and exit, with the request counters on record",
+              "status": "done",
+              "started": "2026-10-05T21:30:05+01:00",
+              "finished": "2026-10-05T21:30:05+01:00"
+            },
+            {
+              "id": "T12.7.2",
+              "story": "US-12.7",
+              "title": "Release 1.8.6",
+              "details": "Changelog, version, full tests.",
+              "commit": "ai: release 1.8.6",
+              "status": "todo"
             }
           ]
         }

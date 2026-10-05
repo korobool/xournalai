@@ -23,6 +23,7 @@
 
 #include "control/CrashHandler.h"            // for handleCloseSignalsInMainLoop
 #include "control/RecentManager.h"           // for RecentManager
+#include "control/XHangRecovery.h"           // for installXHangRecovery
 #include "control/jobs/BaseExportJob.h"      // for ExportBackgroundType
 #include "control/jobs/XournalScheduler.h"   // for XournalScheduler
 #include "control/settings/LatexSettings.h"  // for LatexSettings
@@ -517,11 +518,8 @@ void on_startup(GApplication* application, XMPtr app_data) {
     g_idle_add_full(
             G_PRIORITY_LOW,
             +[](gpointer) -> gboolean {
-                // Frozen for 15 s (e.g. GTK waiting forever on the X server): rescue the document; it is offered
-                // on the next start
-                const char* after = g_getenv("XOURNALAI_RESCUE_AFTER_MS");  // (tests)
-                xoj::util::stall::setHangHandler(
-                        after ? g_ascii_strtoll(after, nullptr, 10) * 1000 : 15 * G_USEC_PER_SEC, [] { rescueSave(); });
+                // Frozen for 15 s: rescue the document (offered on the next start); stuck on the X server: exit
+                installXHangRecovery();
                 xoj::util::stall::start();
                 return G_SOURCE_REMOVE;
             },

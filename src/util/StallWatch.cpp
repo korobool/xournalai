@@ -16,6 +16,7 @@
 #include <ctime>    // for time, localtime_r, strftime
 
 #include <dirent.h>       // for opendir (the process's threads)
+#include <dlfcn.h>        // for dladdr
 #include <execinfo.h>     // for backtrace, backtrace_symbols_fd
 #include <sys/syscall.h>  // for SYS_tgkill, SYS_gettid
 #include <unistd.h>       // for getpid, write, syscall
@@ -43,6 +44,7 @@ FILE* logFile = nullptr;
 
 std::function<void()> hangHandler;
 int64_t hangHandlerAfterUs = 0;
+std::function<std::string()> hangReporter;
 
 constexpr int64_t HANG_US = 2 * 1000 * 1000;          ///< a stall this long is reported while it lasts
 constexpr int64_t HANG_REPEAT_US = 10 * 1000 * 1000;  ///< and again this often
@@ -73,7 +75,13 @@ constexpr int STACK_SIGNAL = SIGUSR2;
 std::atomic<int> stackFd{-1};
 std::atomic<bool> stackDone{false};
 
+void* uiFrames[48];
+std::atomic<int> uiFrameCount{0};
+
 void onStackSignal(int) {
+    if (syscall(SYS_gettid) == getpid()) {  // the UI thread: keep its frames
+        uiFrameCount = backtrace(uiFrames, 48);
+    }
     const int fd = stackFd.load();
     if (fd >= 0) {
         char head[64];
@@ -97,6 +105,18 @@ void installStackSignal() {
     sa.sa_flags = SA_RESTART;
     sigemptyset(&sa.sa_mask);
     sigaction(STACK_SIGNAL, &sa, nullptr);
+}
+
+/// The UI thread records where it is (uiFrames)
+void captureUiFrames() {
+    stackFd = -1;
+    stackDone = false;
+    uiFrameCount = 0;
+    if (syscall(SYS_tgkill, getpid(), getpid(), STACK_SIGNAL) == 0) {
+        for (int i = 0; i < 50 && !stackDone; i++) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        }
+    }
 }
 
 /// Every thread of the process writes its stack to `f`, the UI thread first
@@ -205,8 +225,9 @@ void watch() {
             const int64_t stuck = g_get_monotonic_time() - stallSince;
             if (logFile && stuck > HANG_US &&
                 (hangReported == 0 || g_get_monotonic_time() - hangReported > HANG_REPEAT_US)) {
-                fprintf(logFile, "%lld HANG %llds so far: %s\n", static_cast<long long>(stallSince / 1000),
-                        static_cast<long long>(stuck / G_USEC_PER_SEC), describe(seen, seenBackground).c_str());
+                fprintf(logFile, "%lld HANG %llds so far: %s%s\n", static_cast<long long>(stallSince / 1000),
+                        static_cast<long long>(stuck / G_USEC_PER_SEC), describe(seen, seenBackground).c_str(),
+                        hangReporter ? (" [" + hangReporter() + "]").c_str() : "");
 #ifdef XOJ_STALL_STACKS
                 if (hangReported == 0) {
                     dumpStacks(logFile);
@@ -218,8 +239,9 @@ void watch() {
             if (hangHandler && !handled && stuck > hangHandlerAfterUs) {
                 handled = true;
                 if (logFile) {
-                    fprintf(logFile, "%lld HANG %llds: running the hang handler (rescue)\n",
-                            static_cast<long long>(stallSince / 1000), static_cast<long long>(stuck / G_USEC_PER_SEC));
+                    fprintf(logFile, "%lld HANG %llds: running the hang handler (rescue)%s\n",
+                            static_cast<long long>(stallSince / 1000), static_cast<long long>(stuck / G_USEC_PER_SEC),
+                            hangReporter ? (" [" + hangReporter() + "]").c_str() : "");
                     fflush(logFile);
                 }
                 hangHandler();
@@ -233,6 +255,28 @@ gboolean onBeat(gpointer) {
     return G_SOURCE_CONTINUE;
 }
 }  // namespace
+
+void setHangReporter(std::function<std::string()> reporter) { hangReporter = std::move(reporter); }
+
+bool uiThreadIn(const std::vector<std::string>& names) {
+#ifdef XOJ_STALL_STACKS
+    captureUiFrames();
+    const int n = uiFrameCount;
+    for (int i = 0; i < n; i++) {
+        Dl_info info{};
+        if (!dladdr(uiFrames[i], &info)) {
+            continue;
+        }
+        for (const auto& name: names) {
+            if ((info.dli_sname && name == info.dli_sname) ||
+                (info.dli_fname && std::string(info.dli_fname).find(name) != std::string::npos)) {
+                return true;
+            }
+        }
+    }
+#endif
+    return false;
+}
 
 void setHangHandler(int64_t afterUs, std::function<void()> handler) {
     hangHandlerAfterUs = afterUs;
@@ -258,8 +302,8 @@ void start() {
             fprintf(logFile, "%lld start pid %d at %s\n", static_cast<long long>(g_get_monotonic_time() / 1000),
                     static_cast<int>(getpid()), when);
             fflush(logFile);
-            installStackSignal();
         }
+        installStackSignal();
 #endif
     }
     beatSource = g_timeout_add_full(G_PRIORITY_HIGH, BEAT_US / 1000, onBeat, nullptr, nullptr);

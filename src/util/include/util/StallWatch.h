@@ -26,6 +26,12 @@ constexpr int64_t THRESHOLD_US = 50 * 1000;  ///< a stall: the UI thread is unre
 /// Called once per hang, from the watchdog thread (not the UI thread, which is stuck), when the UI thread has been
 /// stuck for `afterUs`: e.g. a rescue save. Must not touch GTK. Set before start(); null: none.
 void setHangHandler(int64_t afterUs, std::function<void()> handler);
+/// Extra text for HANG lines (from the watchdog thread; must not touch GTK), e.g. the X request counters
+void setHangReporter(std::function<std::string()> reporter);
+/// (watchdog thread) Whether the UI thread is now inside one of these functions (exported names, e.g.
+/// "xcb_wait_for_reply64") or libraries (part of the file name, e.g. "libxcb.so"); false where stacks cannot be
+/// taken
+bool uiThreadIn(const std::vector<std::string>& names);
 
 void start();
 /// Stops them (at exit)

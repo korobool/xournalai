@@ -565,7 +565,7 @@ When a Xournal++ audio recording ends, the serving session hears about it (file,
 | T11.3.1 | US-11.3 | **Ask listening in the status-line pill** — RecordingIndicator: Ask mode (setListening, pushVoiceLevel with the pen pill's decibel scale); McpUi feeds speech state and levels. | `ai: Ask's listening animates in the status line too (T11.3.1)` | ✅ done `52c6b5359` |
 | T11.3.2 | US-11.3 | **Release 1.7.2** — Changelog, version, full tests. | `ai: release 1.7.2 (T11.3.2)` | ✅ done `62742773f` |
 
-## E12 — Recordings: the owner decides (release 1.8.5)
+## E12 — Recordings: the owner decides (release 1.8.6)
 
 When a recording stops, the owner picks what it is before anything is sent (instructions, notes, just audio); its processing is never silent; strokes line up with the audio.
 
@@ -650,4 +650,17 @@ When a recording stops, the owner picks what it is before anything is sent (inst
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
 | T12.6.1 | US-12.6 | **Tooltip guard, rescue save, long-hang reports** — gui/TooltipGuard (gdk event filter, unit tests); CrashHandler::rescueSave/discardRescue via StallWatch::setHangHandler; no SUSPEND cut-off; test_e12_hang. | `ai: no tooltip freezes with a pen; a frozen app rescues the document (T12.6.1)` | ✅ done `fd49b16a5` |
-| T12.6.2 | US-12.6 | **Release 1.8.5** — Changelog, version, full tests. | `ai: release 1.8.5 (T12.6.2)` | ✅ done |
+| T12.6.2 | US-12.6 | **Release 1.8.5** — Changelog, version, full tests. | `ai: release 1.8.5 (T12.6.2)` | ✅ done `f2e4f10e1` |
+
+### S12.7 — A silent X server: exit instead of freezing; record the protocol → v1.8.6
+
+**US-12.7** — As the owner, when the X server stops answering the app, I want it to save my work and close by itself, and I want evidence of which request went unanswered.
+
+- [ ] after the rescue save, if the UI thread is stuck in libxcb (waiting for a reply or to send), the app closes its X connection and exits; the next start offers the rescue
+- [ ] HANG lines and the rescue line carry the X request counters (last sent / last answered)
+- [ ] tools/xournalai-xtrace.sh records the X11 traffic (xtrace, last 20000 lines) for the next freeze
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T12.7.1 | US-12.7 | **X hang recovery and protocol evidence** — control/XHangRecovery (reporter, rescue + shutdown of the X socket); StallWatch uiThreadIn (frames kept from the stack signal), setHangReporter; test_e12_x_hang (a helper grabs the test Xvfb); tools/xournalai-xtrace.sh. | `ai: a silent X server makes the app rescue and exit, with the request counters on record (T12.7.1)` | ✅ done |
+| T12.7.2 | US-12.7 | **Release 1.8.6** — Changelog, version, full tests. | `ai: release 1.8.6 (T12.7.2)` | ⬜ todo |
