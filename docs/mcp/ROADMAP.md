@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.8.5**
+Current version: **1.8.6**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -662,5 +662,5 @@ When a recording stops, the owner picks what it is before anything is sent (inst
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T12.7.1 | US-12.7 | **X hang recovery and protocol evidence** — control/XHangRecovery (reporter, rescue + shutdown of the X socket); StallWatch uiThreadIn (frames kept from the stack signal), setHangReporter; test_e12_x_hang (a helper grabs the test Xvfb); tools/xournalai-xtrace.sh. | `ai: a silent X server makes the app rescue and exit, with the request counters on record (T12.7.1)` | ✅ done |
-| T12.7.2 | US-12.7 | **Release 1.8.6** — Changelog, version, full tests. | `ai: release 1.8.6 (T12.7.2)` | ⬜ todo |
+| T12.7.1 | US-12.7 | **X hang recovery and protocol evidence** — control/XHangRecovery (reporter, rescue + shutdown of the X socket); StallWatch uiThreadIn (frames kept from the stack signal), setHangReporter; test_e12_x_hang (a helper grabs the test Xvfb); tools/xournalai-xtrace.sh. | `ai: a silent X server makes the app rescue and exit, with the request counters on record (T12.7.1)` | ✅ done `a709b0cb7` |
+| T12.7.2 | US-12.7 | **Release 1.8.6** — Changelog, version, full tests. | `ai: release 1.8.6 (T12.7.2)` | ✅ done |

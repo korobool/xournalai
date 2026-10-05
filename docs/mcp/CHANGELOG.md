@@ -10,6 +10,16 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.8.6 — A silent X server
+- **Frozen by the X server? The app saves and closes.** Three more freezes on 2026-10-05 had the same cause as the
+  tooltip one: the UI thread waited for an X server reply that never came (in a window-property read, in a repaint),
+  while the server kept answering every other program. Nothing inside the app can unblock that wait. Now, 15 s into
+  such a freeze, the app rescues the document (as in 1.8.5) and, when the UI thread is stuck in the X library, closes
+  its X connection: GTK sees the display gone and the app exits. The next start offers the rescued document.
+- **Evidence for the cause:** HANG lines carry the X request counters ("last request sent #N, last answered #M"),
+  and `tools/xournalai-xtrace.sh` runs the app with its X11 traffic recorded (needs `xtrace`), keeping the last
+  20000 lines.
+
 ## 1.8.5 — No tooltip freezes
 - **The pen no longer freezes the app.** On 2026-10-05 the whole window froze for good: a GTK tooltip, started by the
   pen hovering over a button, asked the X server where the pointer was and waited forever for the answer (the
