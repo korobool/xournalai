@@ -10,6 +10,17 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.8.5 — No tooltip freezes
+- **The pen no longer freezes the app.** On 2026-10-05 the whole window froze for good: a GTK tooltip, started by the
+  pen hovering over a button, asked the X server where the pointer was and waited forever for the answer (the
+  kernel was force-ejecting a Wacom pen stuck "in proximity" at the time; the X server kept answering everyone else).
+  Pen, eraser and touch hover outside the canvas no longer starts tooltips; taps, drags and the canvas are unchanged,
+  and the mouse keeps its tooltips.
+- **A frozen app rescues your work.** If the UI is stuck for 15 s, the watchdog saves the document to the emergency
+  file from its own thread; the next start offers to restore it ("crashed or stopped responding"). A clean quit
+  removes it.
+- **Hang reports keep coming** after 60 s (they stopped there, mistaken for a suspended laptop).
+
 ## 1.8.4 — Hangs leave evidence
 - **A freeze is on record even if you kill the app.** When the UI thread is stuck for more than 2 s, the stall trace
   (`~/.cache/xournalai/trace-stalls` on) gets a `HANG` line right away: what the UI thread is doing, repeated every

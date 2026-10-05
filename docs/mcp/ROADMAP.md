@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.8.4**
+Current version: **1.8.5**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -649,5 +649,5 @@ When a recording stops, the owner picks what it is before anything is sent (inst
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T12.6.1 | US-12.6 | **Tooltip guard, rescue save, long-hang reports** — gui/TooltipGuard (gdk event filter, unit tests); CrashHandler::rescueSave/discardRescue via StallWatch::setHangHandler; no SUSPEND cut-off; test_e12_hang. | `ai: no tooltip freezes with a pen; a frozen app rescues the document (T12.6.1)` | ✅ done |
-| T12.6.2 | US-12.6 | **Release 1.8.5** — Changelog, version, full tests. | `ai: release 1.8.5 (T12.6.2)` | ⬜ todo |
+| T12.6.1 | US-12.6 | **Tooltip guard, rescue save, long-hang reports** — gui/TooltipGuard (gdk event filter, unit tests); CrashHandler::rescueSave/discardRescue via StallWatch::setHangHandler; no SUSPEND cut-off; test_e12_hang. | `ai: no tooltip freezes with a pen; a frozen app rescues the document (T12.6.1)` | ✅ done `fd49b16a5` |
+| T12.6.2 | US-12.6 | **Release 1.8.5** — Changelog, version, full tests. | `ai: release 1.8.5 (T12.6.2)` | ✅ done |
