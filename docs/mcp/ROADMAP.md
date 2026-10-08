@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.8.7**
+Current version: **1.8.8**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -690,5 +690,5 @@ When a recording stops, the owner picks what it is before anything is sent (inst
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T12.9.1 | US-12.9 | **Restart, safer popover, GTK crash evidence** — XHangRecovery relaunch (XOURNALAI_RELAUNCHES); McpUi::flash reuses one popover; gui/GuiDiagnostics (destroy emission hook, log writer); stall::note; test_e12_popovers. | `ai: restart after a frozen display; safer hint popover; GTK crash evidence (T12.9.1)` | ✅ done |
-| T12.9.2 | US-12.9 | **Release 1.8.8** — Changelog, version, full tests. | `ai: release 1.8.8 (T12.9.2)` | ⬜ todo |
+| T12.9.1 | US-12.9 | **Restart, safer popover, GTK crash evidence** — XHangRecovery relaunch (XOURNALAI_RELAUNCHES); McpUi::flash reuses one popover; gui/GuiDiagnostics (destroy emission hook, log writer); stall::note; test_e12_popovers. | `ai: restart after a frozen display; safer hint popover; GTK crash evidence (T12.9.1)` | ✅ done `d126c41bd` |
+| T12.9.2 | US-12.9 | **Release 1.8.8** — Changelog, version, full tests. | `ai: release 1.8.8 (T12.9.2)` | ✅ done |

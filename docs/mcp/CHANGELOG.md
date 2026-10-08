@@ -10,6 +10,16 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.8.8 — Back to work faster
+- **After a frozen display the app restarts itself.** When the X server stops answering (see 1.8.6), xournalai
+  still rescues the document and closes, and now starts again 2 s later and offers the rescued document (at most
+  twice in a row).
+- **A crash in GTK's popover handling (2026-10-08):** GtkWindow tried to position a popover that no longer existed.
+  The likeliest source: the "drawn here" hint that every agent drawing flashed, which was destroyed while still
+  shown. It is now one popover, reused and closed, never destroyed while shown.
+- **The next such crash names its cause:** with the stall trace on, every destroyed popover is logged (name, what it
+  points at, whether it was still shown), and the first GTK "not a widget" error gets a stack.
+
 ## 1.8.7 — An Ask never stays stuck listening
 - **A pen-button Ask ends when you let go, even if the release is lost.** On 2026-10-05 an Ask kept listening: three
   seconds before it the pen driver force-ejected the pen ("stuck in range"), which sends no button release. Now the
