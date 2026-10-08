@@ -28,6 +28,8 @@ constexpr int64_t THRESHOLD_US = 50 * 1000;  ///< a stall: the UI thread is unre
 void setHangHandler(int64_t afterUs, std::function<void()> handler);
 /// Extra text for HANG lines (from the watchdog thread; must not touch GTK), e.g. the X request counters
 void setHangReporter(std::function<std::string()> reporter);
+/// Writes a line to the stall trace (if it is on), e.g. a diagnostic event; `withStack`: and this thread's stack
+void note(const std::string& line, bool withStack = false);
 /// (watchdog thread) Whether the UI thread is now inside one of these functions (exported names, e.g.
 /// "xcb_wait_for_reply64") or libraries (part of the file name, e.g. "libxcb.so"); false where stacks cannot be
 /// taken

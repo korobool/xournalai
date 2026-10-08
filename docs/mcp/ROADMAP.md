@@ -565,7 +565,7 @@ When a Xournal++ audio recording ends, the serving session hears about it (file,
 | T11.3.1 | US-11.3 | **Ask listening in the status-line pill** — RecordingIndicator: Ask mode (setListening, pushVoiceLevel with the pen pill's decibel scale); McpUi feeds speech state and levels. | `ai: Ask's listening animates in the status line too (T11.3.1)` | ✅ done `52c6b5359` |
 | T11.3.2 | US-11.3 | **Release 1.7.2** — Changelog, version, full tests. | `ai: release 1.7.2 (T11.3.2)` | ✅ done `62742773f` |
 
-## E12 — Recordings: the owner decides (release 1.8.7)
+## E12 — Recordings: the owner decides (release 1.8.8)
 
 When a recording stops, the owner picks what it is before anything is sent (instructions, notes, just audio); its processing is never silent; strokes line up with the audio.
 
@@ -678,4 +678,17 @@ When a recording stops, the owner picks what it is before anything is sent (inst
 |---|---|---|---|---|
 | T12.8.1 | US-12.8 | **Lost pen-button releases** — StylusInputHandler: PROXIMITY_OUT releases; penBarrelGone hook from the global event filter; AskController MAX_LISTEN_MS; test_pen op=out; test_e10_ask test_13. | `ai: an Ask never stays stuck listening (T12.8.1)` | ✅ done `008bfaf81` |
 | T12.8.3 | US-12.8 | **No tools inside a dialog's nested loop** — McpProtocol::callTool refuses while g_main_depth() > 1 (Ctrl+P during agent work deadlocked on 2026-10-05); test_modal hook; test_e12_modal. | `ai: no tools while a dialog runs (no deadlock behind Print) (T12.8.3)` | ✅ done `50ec4596a` |
-| T12.8.2 | US-12.8 | **Release 1.8.7** — Changelog, version, full tests. | `ai: release 1.8.7 (T12.8.2)` | ✅ done |
+| T12.8.2 | US-12.8 | **Release 1.8.7** — Changelog, version, full tests. | `ai: release 1.8.7 (T12.8.2)` | ✅ done `1e330e036` |
+
+### S12.9 — Crash evidence; restart after a frozen display; safer hint popover → v1.8.8
+
+**US-12.9** — As the owner, after a crash or a frozen display I want my work back with the least fuss, and the next crash must name its cause.
+
+- [ ] after an X freeze the app rescues the document, closes its display and restarts itself (at most twice in a row), offering the rescue
+- [ ] the 'drawn here' hint popover is reused and closed, never destroyed while shown
+- [ ] with the stall trace on: every destroyed popover is logged (name, what it points at, still shown?) and the first GTK 'not a widget' error gets a stack
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T12.9.1 | US-12.9 | **Restart, safer popover, GTK crash evidence** — XHangRecovery relaunch (XOURNALAI_RELAUNCHES); McpUi::flash reuses one popover; gui/GuiDiagnostics (destroy emission hook, log writer); stall::note; test_e12_popovers. | `ai: restart after a frozen display; safer hint popover; GTK crash evidence (T12.9.1)` | ✅ done |
+| T12.9.2 | US-12.9 | **Release 1.8.8** — Changelog, version, full tests. | `ai: release 1.8.8 (T12.9.2)` | ⬜ todo |

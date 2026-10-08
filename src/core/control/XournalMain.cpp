@@ -32,6 +32,7 @@
 #include "control/xojfile/LoadHandler.h"     // for LoadHandler
 #include "control/xojfile/SaveHandler.h"     // for SaveHandler
 #include "gui/GladeSearchpath.h"             // for GladeSearchpath
+#include "gui/GuiDiagnostics.h"              // for installGuiDiagnostics
 #include "gui/MainWindow.h"                  // for MainWindow
 #include "gui/XournalView.h"                 // for XournalView
 #include "model/Document.h"                  // for Document
@@ -520,6 +521,7 @@ void on_startup(GApplication* application, XMPtr app_data) {
             +[](gpointer) -> gboolean {
                 // Frozen for 15 s: rescue the document (offered on the next start); stuck on the X server: exit
                 installXHangRecovery();
+                installGuiDiagnostics();
                 xoj::util::stall::start();
                 return G_SOURCE_REMOVE;
             },

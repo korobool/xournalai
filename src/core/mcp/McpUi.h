@@ -140,6 +140,8 @@ private:
     std::string lastText;
     GtkWidget* settings = nullptr;       ///< weak (strip, label, pauseButton too)
     GtkWidget* connectDialog = nullptr;  ///< weak
+    GtkWidget* flashPopover = nullptr;   ///< the "drawn here" hint, reused (owned)
+    guint flashTimer = 0;
     void buildToolbar();
     std::unique_ptr<assistant::AiToolbar> aiToolbar;
     void buildThinking();

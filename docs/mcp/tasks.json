@@ -1738,7 +1738,7 @@
     {
       "id": "E12",
       "title": "Recordings: the owner decides",
-      "release": "1.8.7",
+      "release": "1.8.8",
       "goal": "When a recording stops, the owner picks what it is before anything is sent (instructions, notes, just audio); its processing is never silent; strokes line up with the audio.",
       "stages": [
         {
@@ -2067,6 +2067,42 @@
               "status": "done",
               "started": "2026-10-05T23:09:46+01:00",
               "finished": "2026-10-05T23:09:46+01:00"
+            }
+          ]
+        },
+        {
+          "id": "S12.9",
+          "title": "Crash evidence; restart after a frozen display; safer hint popover",
+          "version": "1.8.8",
+          "stories": [
+            {
+              "id": "US-12.9",
+              "text": "As the owner, after a crash or a frozen display I want my work back with the least fuss, and the next crash must name its cause.",
+              "acceptance": [
+                "after an X freeze the app rescues the document, closes its display and restarts itself (at most twice in a row), offering the rescue",
+                "the 'drawn here' hint popover is reused and closed, never destroyed while shown",
+                "with the stall trace on: every destroyed popover is logged (name, what it points at, still shown?) and the first GTK 'not a widget' error gets a stack"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T12.9.1",
+              "story": "US-12.9",
+              "title": "Restart, safer popover, GTK crash evidence",
+              "details": "XHangRecovery relaunch (XOURNALAI_RELAUNCHES); McpUi::flash reuses one popover; gui/GuiDiagnostics (destroy emission hook, log writer); stall::note; test_e12_popovers.",
+              "commit": "ai: restart after a frozen display; safer hint popover; GTK crash evidence",
+              "status": "done",
+              "started": "2026-10-08T10:28:59+01:00",
+              "finished": "2026-10-08T10:28:59+01:00"
+            },
+            {
+              "id": "T12.9.2",
+              "story": "US-12.9",
+              "title": "Release 1.8.8",
+              "details": "Changelog, version, full tests.",
+              "commit": "ai: release 1.8.8",
+              "status": "todo"
             }
           ]
         }

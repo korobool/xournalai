@@ -258,6 +258,23 @@ gboolean onBeat(gpointer) {
 
 void setHangReporter(std::function<std::string()> reporter) { hangReporter = std::move(reporter); }
 
+void note(const std::string& line, bool withStack) {
+    std::lock_guard g(m);
+    if (!logFile) {
+        return;
+    }
+    fprintf(logFile, "%lld %s\n", static_cast<long long>(g_get_monotonic_time() / 1000), line.c_str());
+#ifdef XOJ_STALL_STACKS
+    if (withStack) {
+        fflush(logFile);
+        void* frames[48];
+        const int n = backtrace(frames, 48);
+        backtrace_symbols_fd(frames, n, fileno(logFile));
+    }
+#endif
+    fflush(logFile);
+}
+
 bool uiThreadIn(const std::vector<std::string>& names) {
 #ifdef XOJ_STALL_STACKS
     captureUiFrames();

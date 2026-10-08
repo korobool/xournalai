@@ -218,6 +218,15 @@ McpUi::~McpUi() {
         unwatch(connectDialog);
         gtk_widget_destroy(d);
     }
+    if (flashTimer) {
+        g_source_remove(flashTimer);
+        flashTimer = 0;
+    }
+    if (flashPopover) {
+        gtk_widget_destroy(flashPopover);
+        g_object_unref(flashPopover);
+        flashPopover = nullptr;
+    }
     removeMenu();
     aiToolbar.reset();
     thinkingOverlay.reset();
@@ -1183,23 +1192,35 @@ void McpUi::flash(size_t page, const xoj::util::Rectangle<double>& area) {
         target.x > gtk_widget_get_allocated_width(widget) || target.y > gtk_widget_get_allocated_height(widget)) {
         return;
     }
-    GtkWidget* popover = gtk_popover_new(widget);
-    gtk_popover_set_modal(GTK_POPOVER(popover), FALSE);
-    gtk_popover_set_pointing_to(GTK_POPOVER(popover), &target);
-    gtk_popover_set_position(GTK_POPOVER(popover), GTK_POS_TOP);
-    GtkWidget* l = gtk_label_new(AI_LAYER_HINT);
-    g_object_set(l, "margin", 2, nullptr);
-    gtk_container_add(GTK_CONTAINER(popover), l);
-    gtk_widget_show_all(popover);
-    g_object_ref(popover);
-    g_timeout_add(
+    // One hint popover, moved and shown for each drawing and closed after 1.2 s; never destroyed while shown: a
+    // popover destroyed mid-show can leave GtkWindow positioning a widget that is gone (a crash, 2026-10-08)
+    if (!flashPopover) {
+        flashPopover = gtk_popover_new(widget);
+        gtk_buildable_set_name(GTK_BUILDABLE(flashPopover), "aiDrawnHint");
+        gtk_popover_set_modal(GTK_POPOVER(flashPopover), FALSE);
+        gtk_popover_set_position(GTK_POPOVER(flashPopover), GTK_POS_TOP);
+        GtkWidget* l = gtk_label_new(AI_LAYER_HINT);
+        g_object_set(l, "margin", 2, nullptr);
+        gtk_container_add(GTK_CONTAINER(flashPopover), l);
+        gtk_widget_show(l);
+        g_object_ref(flashPopover);  // kept while this object lives
+    }
+    gtk_popover_set_pointing_to(GTK_POPOVER(flashPopover), &target);
+    gtk_popover_popup(GTK_POPOVER(flashPopover));
+    if (flashTimer) {
+        g_source_remove(flashTimer);
+    }
+    flashTimer = g_timeout_add(
             1200,
-            [](gpointer p) -> gboolean {
-                gtk_widget_destroy(GTK_WIDGET(p));
-                g_object_unref(p);
+            [](gpointer self) -> gboolean {
+                auto* ui = static_cast<McpUi*>(self);
+                ui->flashTimer = 0;
+                if (ui->flashPopover) {
+                    gtk_popover_popdown(GTK_POPOVER(ui->flashPopover));
+                }
                 return G_SOURCE_REMOVE;
             },
-            popover);
+            this);
 }
 
 namespace {
