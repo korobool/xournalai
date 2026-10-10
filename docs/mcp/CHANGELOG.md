@@ -10,6 +10,12 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.8.9 — Which request did the X server ignore?
+- **The freezes now name their trigger.** In every frozen display so far the X server left one or two of this app's
+  requests unanswered while serving everyone else. The app now remembers the last 64 requests it sent (their type
+  and number; always on, negligible cost), and HANG and rescue lines in the stall trace list the unanswered ones by
+  name, e.g. "unanswered: #168027882 RANDR:8, #168027883 GetInputFocus". No tracer or special launcher needed.
+
 ## 1.8.8 — Back to work faster
 - **After a frozen display the app restarts itself.** When the X server stops answering (see 1.8.6), xournalai
   still rescues the document and closes, and now starts again 2 s later and offers the rescued document (at most

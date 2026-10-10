@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.8.8**
+Current version: **1.8.9**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -702,5 +702,5 @@ When a recording stops, the owner picks what it is before anything is sent (inst
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T12.10.1 | US-12.10 | **Built-in X request log** — XHangRecovery: exported xcb_writev records request headers (ring of 64) and calls the real one; extension names from XListExtensions; reporter lists unanswered/before; test_e12_x_hang checks it. | `ai: HANG reports name the X requests left unanswered (T12.10.1)` | ✅ done |
-| T12.10.2 | US-12.10 | **Release 1.8.9** — Changelog, version, full tests. | `ai: release 1.8.9 (T12.10.2)` | ⬜ todo |
+| T12.10.1 | US-12.10 | **Built-in X request log** — XHangRecovery: exported xcb_writev records request headers (ring of 64) and calls the real one; extension names from XListExtensions; reporter lists unanswered/before; test_e12_x_hang checks it. | `ai: HANG reports name the X requests left unanswered (T12.10.1)` | ✅ done `84580fd01` |
+| T12.10.2 | US-12.10 | **Release 1.8.9** — Changelog, version, full tests. | `ai: release 1.8.9 (T12.10.2)` | ✅ done |
