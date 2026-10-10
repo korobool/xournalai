@@ -1738,7 +1738,7 @@
     {
       "id": "E12",
       "title": "Recordings: the owner decides",
-      "release": "1.8.8",
+      "release": "1.8.9",
       "goal": "When a recording stops, the owner picks what it is before anything is sent (instructions, notes, just audio); its processing is never silent; strokes line up with the audio.",
       "stages": [
         {
@@ -2105,6 +2105,41 @@
               "status": "done",
               "started": "2026-10-08T10:36:59+01:00",
               "finished": "2026-10-08T10:36:59+01:00"
+            }
+          ]
+        },
+        {
+          "id": "S12.10",
+          "title": "Name the request the X server leaves unanswered",
+          "version": "1.8.9",
+          "stories": [
+            {
+              "id": "US-12.10",
+              "text": "As the owner, I want the next frozen display to say exactly which request the X server never answered, without running a tracer.",
+              "acceptance": [
+                "the app keeps the last 64 X requests it sent (type and number), always on, at negligible cost",
+                "HANG and rescue lines list the unanswered requests by name (core requests and extensions) and the ones just before"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T12.10.1",
+              "story": "US-12.10",
+              "title": "Built-in X request log",
+              "details": "XHangRecovery: exported xcb_writev records request headers (ring of 64) and calls the real one; extension names from XListExtensions; reporter lists unanswered/before; test_e12_x_hang checks it.",
+              "commit": "ai: HANG reports name the X requests left unanswered",
+              "status": "done",
+              "started": "2026-10-10T12:04:01+01:00",
+              "finished": "2026-10-10T12:04:01+01:00"
+            },
+            {
+              "id": "T12.10.2",
+              "story": "US-12.10",
+              "title": "Release 1.8.9",
+              "details": "Changelog, version, full tests.",
+              "commit": "ai: release 1.8.9",
+              "status": "todo"
             }
           ]
         }

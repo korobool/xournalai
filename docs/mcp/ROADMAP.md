@@ -565,7 +565,7 @@ When a Xournal++ audio recording ends, the serving session hears about it (file,
 | T11.3.1 | US-11.3 | **Ask listening in the status-line pill** — RecordingIndicator: Ask mode (setListening, pushVoiceLevel with the pen pill's decibel scale); McpUi feeds speech state and levels. | `ai: Ask's listening animates in the status line too (T11.3.1)` | ✅ done `52c6b5359` |
 | T11.3.2 | US-11.3 | **Release 1.7.2** — Changelog, version, full tests. | `ai: release 1.7.2 (T11.3.2)` | ✅ done `62742773f` |
 
-## E12 — Recordings: the owner decides (release 1.8.8)
+## E12 — Recordings: the owner decides (release 1.8.9)
 
 When a recording stops, the owner picks what it is before anything is sent (instructions, notes, just audio); its processing is never silent; strokes line up with the audio.
 
@@ -691,4 +691,16 @@ When a recording stops, the owner picks what it is before anything is sent (inst
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
 | T12.9.1 | US-12.9 | **Restart, safer popover, GTK crash evidence** — XHangRecovery relaunch (XOURNALAI_RELAUNCHES); McpUi::flash reuses one popover; gui/GuiDiagnostics (destroy emission hook, log writer); stall::note; test_e12_popovers. | `ai: restart after a frozen display; safer hint popover; GTK crash evidence (T12.9.1)` | ✅ done `d126c41bd` |
-| T12.9.2 | US-12.9 | **Release 1.8.8** — Changelog, version, full tests. | `ai: release 1.8.8 (T12.9.2)` | ✅ done |
+| T12.9.2 | US-12.9 | **Release 1.8.8** — Changelog, version, full tests. | `ai: release 1.8.8 (T12.9.2)` | ✅ done `44d7ee1aa` |
+
+### S12.10 — Name the request the X server leaves unanswered → v1.8.9
+
+**US-12.10** — As the owner, I want the next frozen display to say exactly which request the X server never answered, without running a tracer.
+
+- [ ] the app keeps the last 64 X requests it sent (type and number), always on, at negligible cost
+- [ ] HANG and rescue lines list the unanswered requests by name (core requests and extensions) and the ones just before
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T12.10.1 | US-12.10 | **Built-in X request log** — XHangRecovery: exported xcb_writev records request headers (ring of 64) and calls the real one; extension names from XListExtensions; reporter lists unanswered/before; test_e12_x_hang checks it. | `ai: HANG reports name the X requests left unanswered (T12.10.1)` | ✅ done |
+| T12.10.2 | US-12.10 | **Release 1.8.9** — Changelog, version, full tests. | `ai: release 1.8.9 (T12.10.2)` | ⬜ todo |

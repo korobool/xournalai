@@ -52,6 +52,10 @@ def test_1_an_unanswered_x_server_rescues_and_exits(app):
     log = TRACE.read_text()
     assert "running the hang handler (rescue)" in log, log[-2000:]
     assert "X: last request sent #" in log
+    line = [x for x in log.splitlines() if "running the hang handler" in x][0]
+    assert "unanswered: #" in line and "before: #" in line, line  # the requests themselves, by type
+    unanswered = line.split("unanswered: ")[1].split(" | ")[0]
+    assert any(name in unanswered for name in ("GetInputFocus", "GetImage", "GetProperty", "PutImage", "RENDER", "op")), unanswered
     assert "closing the display connection" in app.read_log()
 
 
