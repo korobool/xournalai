@@ -2464,6 +2464,43 @@
               "finished": "2026-10-12T14:05:48+01:00"
             }
           ]
+        },
+        {
+          "id": "S14.4",
+          "title": "A finger switch among the big buttons",
+          "version": "1.11.2",
+          "stories": [
+            {
+              "id": "US-14.4",
+              "text": "As the owner, I want to switch touch drawing on and off from the big buttons, so I can highlight with a finger without taking out the stylus, and switch back to palm-safe stylus-only.",
+              "acceptance": [
+                "the switch is the first tablet button, with a gap after it (hard to hit by accident); also in Tools → View",
+                "off by default, as before: only the stylus draws",
+                "it toggles the app's own touch-drawing setting (the menu and settings agree)",
+                "with touch drawing on, a finger in the AI highlighter or lasso marks (not ink); being a switch, it leaves them on"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T14.4.1",
+              "story": "US-14.4",
+              "title": "Touch switch; fingers in the AI modes",
+              "details": "QuickTools: 'touch' tile first in TABLET (gap after it) and in Tools → View, toggling TOGGLE_TOUCH_DRAWING, marked when on; AbstractInputHandler::intercept passes touchscreen events when touch drawing is on.",
+              "commit": "ai: touch-drawing switch first among the big buttons",
+              "status": "done",
+              "started": "2026-10-12T16:27:52+01:00",
+              "finished": "2026-10-12T16:27:52+01:00"
+            },
+            {
+              "id": "T14.4.2",
+              "story": "US-14.4",
+              "title": "Release 1.11.2",
+              "details": "Changelog, version, full tests.",
+              "commit": "ai: release 1.11.2",
+              "status": "todo"
+            }
+          ]
         }
       ]
     }

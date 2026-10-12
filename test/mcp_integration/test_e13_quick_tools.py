@@ -202,7 +202,7 @@ def test_13_tablet_buttons_in_focus(app):
     c.call("action_run", action="win.ai-focus", state=True)
     assert wait(lambda: shown("aiTabletButtons"))
     # (the test window is narrow: the first ones are there, the last ones may have given way)
-    for t in ("ai-highlighter", "ask", "pen"):
+    for t in ("touch", "ai-highlighter", "ask"):
         assert shown("aiTablet-" + t), t
     tiles = [w for w in widgets(c, prefix="aiTablet-") if w.get("visible", True) and w["name"] != "aiTablet-colours"]
     assert tiles == sorted(tiles, key=lambda w: w["bbox"][0])
@@ -211,9 +211,12 @@ def test_13_tablet_buttons_in_focus(app):
         c.call("tool_set", tool="eraser")
     assert wait(lambda: c.call("tool_get")["tool"] == "eraser")
     assert wait(lambda: not shown("aiTablet-colours"))
-    c.call("ui_interact", op="click", target=widgets(c, "aiTablet-pen")[0]["id"])
+    c.call("tool_set", tool="pen")  # (the narrow test window may have no room for the Pen button)
     assert wait(lambda: c.call("tool_get")["tool"] == "pen")
-    assert wait(lambda: shown("aiTablet-colours"))
+    assert wait(lambda: shown("aiTablet-colours") or not shown("aiTablet-pen"))
+    if not shown("aiTablet-colours"):
+        c.call("action_run", action="win.ai-focus", state=False)
+        return
     c.call("tool_set", tool="pen", color="#123456")
     c.call("ui_interact", op="click", target=widgets(c, "aiTablet-colours")[0]["id"])
     assert wait(lambda: shown("aiQuick-color-1"))
@@ -247,11 +250,12 @@ def test_15_tablet_states_stay_consistent(app):
     c.call("action_run", action="win.ai-focus", state=True)
     assert wait(lambda: widgets(c, "aiTablet-pen")[0].get("visible", True))
     click = lambda t: c.call("ui_interact", op="click", target=widgets(c, "aiTablet-" + t)[0]["id"])
-    click("pen")
+    pen = lambda: click("pen") if widgets(c, "aiTablet-pen")[0].get("visible", True) else c.call("tool_set", tool="pen")
+    pen()
     assert wait(lambda: tool() == "pen")
     click("ai-highlighter")
     assert wait(lambda: state("ai-highlighter") is True)
-    click("pen")  # the tool in use already: still ends the AI highlighter
+    pen()  # the tool in use already: still ends the AI highlighter
     assert wait(lambda: state("ai-highlighter") is False) and tool() == "pen"
     click("ai-highlighter")
     assert wait(lambda: state("ai-highlighter") is True)
@@ -265,6 +269,30 @@ def test_15_tablet_states_stay_consistent(app):
     assert wait(lambda: state("ai-highlighter") is True)
     click("ask")  # the lasso replaces the highlighter
     assert wait(lambda: state("ai-highlighter") is False) and state("ai-ask") is True
-    click("pen")
+    pen()
     assert wait(lambda: tool() == "pen") and state("ai-ask") is False
+    c.call("action_run", action="win.ai-focus", state=False)
+
+
+
+def test_16_touch_switch_first_and_off_by_default(app):
+    """The touch-drawing switch comes first; off by default (only the stylus draws); it toggles the app's setting
+    and, being a switch, leaves the AI highlighter on."""
+    c = app.client()
+    touch = lambda: [a.get("state") for a in c.call("actions_list", filter="touch")["actions"]
+                     if a["name"].endswith("touch-drawing")][0]
+    assert touch() is False
+    c.call("action_run", action="win.ai-focus", state=True)
+    assert wait(lambda: widgets(c, "aiTablet-touch")[0].get("visible", True))
+    tiles = sorted([w for w in widgets(c, prefix="aiTablet-") if w.get("visible", True)], key=lambda w: w["bbox"][0])
+    assert tiles[0]["name"] == "aiTablet-touch"
+    assert tiles[1]["bbox"][0] - (tiles[0]["bbox"][0] + tiles[0]["bbox"][2]) >= 14  # (a gap: not hit by accident)
+    c.call("action_run", action="win.ai-highlighter", state=True)
+    c.call("action_run", action="win.ai-highlighter", state=False)
+    c.call("action_run", action="win.ai-focus", state=False)
+    c.call("action_run", action="win.ai-focus", state=True)
+    c.call("ui_interact", op="click", target=widgets(c, "aiTablet-touch")[0]["id"])
+    assert wait(lambda: touch() is True)
+    c.call("ui_interact", op="click", target=widgets(c, "aiTablet-touch")[0]["id"])
+    assert wait(lambda: touch() is False)
     c.call("action_run", action="win.ai-focus", state=False)

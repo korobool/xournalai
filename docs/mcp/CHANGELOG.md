@@ -10,6 +10,13 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.11.2 — A finger switch
+- **Touch drawing among the big buttons.** The first tablet button (with a gap after it, so it isn't hit by
+  accident; also in Tools → View) switches touch drawing: off, as before, only the stylus draws and fingers scroll;
+  on, fingers draw too. It is the app's own setting, so the menu and the settings agree.
+- **A finger can mark for the AI.** With touch drawing on, a finger in the AI highlighter or lasso marks instead of
+  leaving ink. The switch leaves the AI highlighter on, so it can be flipped in the middle of highlighting.
+
 ## 1.11.1 — The AI highlighter ends when you say so
 - **No more cut-offs.** A pause between strokes no longer ends the request (and your next stroke no longer lands as
   a pen line). Highlight as many places as you like while you keep talking.

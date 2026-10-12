@@ -103,7 +103,10 @@ void AbstractInputHandler::onUnblock() {}
 
 auto AbstractInputHandler::intercept(InputEvent const& event) -> bool {
     const auto interceptor = xoj::input::strokeInterceptor();  // a copy: it may remove itself while it runs
-    const bool pointer = event.deviceClass == INPUT_DEVICE_PEN || event.deviceClass == INPUT_DEVICE_MOUSE;
+    // (a finger too, when touch drawing is on: then it marks for the AI like the pen, instead of leaving ink)
+    const bool pointer = event.deviceClass == INPUT_DEVICE_PEN || event.deviceClass == INPUT_DEVICE_MOUSE ||
+                         (event.deviceClass == INPUT_DEVICE_TOUCHSCREEN &&
+                          this->inputContext->getSettings()->getTouchDrawingEnabled());
     if (!interceptor || !pointer) {
         interceptDown = false;
         return false;

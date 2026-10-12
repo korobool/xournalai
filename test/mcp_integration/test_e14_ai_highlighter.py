@@ -201,3 +201,31 @@ def test_7_escape_discards_and_tapping_again_is_done(app):
         time.sleep(0.2)
     assert widget(c, "ask-text").get("visible", True) and marks(c) == 1
     c.call("ui_interact", op="click", target=widget(c, "ask-close")["id"])
+
+
+
+def finger(c, x1, y, x2, n=10):
+    c.call("test_touch", op="begin", finger=0, x=x1, y=y)
+    for i in range(1, n + 1):
+        c.call("test_touch", op="update", finger=0, x=x1 + (x2 - x1) * i / n, y=y)
+    c.call("test_touch", op="end", finger=0, x=x2, y=y)
+
+
+def test_8_a_finger_marks_when_touch_drawing_is_on(app):
+    """With touch drawing on, a finger marks for the AI (not ink); with it off (the default), a finger draws nothing."""
+    c = app.client()
+    c.call("tool_set", tool="pen")
+    before = set(elements(c))
+    c.call("action_run", action="win.ai-highlighter", state=True)
+    finger(c, 220, 320, 380)  # touch drawing off: no mark, no ink
+    time.sleep(0.3)
+    assert set(elements(c)) == before
+    labels = lambda: [w.get("label") or "" for w in c.call("ui_inspect", max_depth=80, all=True)["widgets"]]
+    assert not any("1 mark" in l for l in labels())
+    c.call("action_run", action="win.toggle-touch-drawing", state=True)
+    finger(c, 220, 320, 380)
+    time.sleep(0.5)
+    assert any("1 mark" in l for l in labels()), labels()
+    assert set(elements(c)) == before  # a mark, not ink
+    app.user_key("Escape")
+    c.call("action_run", action="win.toggle-touch-drawing", state=False)

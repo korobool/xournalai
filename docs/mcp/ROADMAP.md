@@ -808,4 +808,18 @@ Besides the AI lasso (mark first, then say), the owner can highlight what they m
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
 | T14.3.1 | US-14.3 | **Mode bar and owner-ended AI highlighting** — QuickTools::showModeBar hides the strip's children and shows level / info / Discard / Done at the strip's height; McpUi highlightTick (250 ms): time, marks, quiet = no marks and no voice (rms > 0.03) for 10 s → finishHighlight, countdown in the last 3 s; Escape on the window discards; action off / tool picked with marks = Done. | `ai: AI highlighter ends when the owner says so (mode bar) (T14.3.1)` | ✅ done `c58b82002` |
-| T14.3.2 | US-14.3 | **Release 1.11.1** — Changelog, version, full tests. | `ai: release 1.11.1 (T14.3.2)` | ✅ done |
+| T14.3.2 | US-14.3 | **Release 1.11.1** — Changelog, version, full tests. | `ai: release 1.11.1 (T14.3.2)` | ✅ done `9a9fb8780` |
+
+### S14.4 — A finger switch among the big buttons → v1.11.2
+
+**US-14.4** — As the owner, I want to switch touch drawing on and off from the big buttons, so I can highlight with a finger without taking out the stylus, and switch back to palm-safe stylus-only.
+
+- [ ] the switch is the first tablet button, with a gap after it (hard to hit by accident); also in Tools → View
+- [ ] off by default, as before: only the stylus draws
+- [ ] it toggles the app's own touch-drawing setting (the menu and settings agree)
+- [ ] with touch drawing on, a finger in the AI highlighter or lasso marks (not ink); being a switch, it leaves them on
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T14.4.1 | US-14.4 | **Touch switch; fingers in the AI modes** — QuickTools: 'touch' tile first in TABLET (gap after it) and in Tools → View, toggling TOGGLE_TOUCH_DRAWING, marked when on; AbstractInputHandler::intercept passes touchscreen events when touch drawing is on. | `ai: touch-drawing switch first among the big buttons (T14.4.1)` | ✅ done |
+| T14.4.2 | US-14.4 | **Release 1.11.2** — Changelog, version, full tests. | `ai: release 1.11.2 (T14.4.2)` | ⬜ todo |

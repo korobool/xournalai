@@ -8,6 +8,7 @@
 #include "control/Control.h"                 // for Control
 #include "control/ToolEnums.h"               // for ToolType, ToolSize
 #include "control/ToolHandler.h"             // for ToolHandler
+#include "control/settings/Settings.h"       // for Settings (touch drawing)
 #include "control/actions/ActionDatabase.h"  // for ActionDatabase
 #include "gui/MainWindow.h"
 #include "gui/RecordingIndicator.h"  // for RecordingIndicator                  // for MainWindow
@@ -27,6 +28,8 @@ const std::vector<Entry>& catalog() {
             {"ask", "Ask", "audio-input-microphone-symbolic",
              "Ask the AI: circle an area, then say or type what you want"},
             {"select", "Select", "xopp-select-lasso", "Select a region (lasso)"},
+            {"touch", "Touch", "xopp-touch-drawing",
+             "Touch drawing: off, only the stylus draws (fingers scroll); on, fingers draw and mark too"},
             {"ai-highlighter", "AI highlight", "xopp-ai-highlighter",
              "Highlight what you mean while you say it; a pause opens Ask"},
             {"command", "Command", "mail-send-symbolic", "Tell the AI what to do with the selection (or the page)"},
@@ -323,6 +326,9 @@ void QuickTools::activate(const std::string& id) {
             g_variant_unref(st);
         }
         db->fireChangeActionState(a, !on);
+    } else if (id == "touch") {
+        // A switch, not a tool: the AI highlighter / lasso stay on
+        db->fireChangeActionState(Action::TOGGLE_TOUCH_DRAWING, !control->getSettings()->getTouchDrawingEnabled());
     } else if (id == "zoom-in") {
         db->fireActivateAction(Action::ZOOM_IN);
     } else if (id == "zoom-out") {
@@ -448,7 +454,7 @@ const std::vector<Group>& groups() {
             {"Size", {"size-0", "size-1", "size-2", "size-3", "size-4"}},
             {"Colour", {}},  // (the palette's colours)
             {"Page", {"undo", "redo", "new-page"}},
-            {"View", {"zoom-out", "zoom-fit", "zoom-in"}},
+            {"View", {"touch", "zoom-out", "zoom-fit", "zoom-in"}},
             {"AI", {"ask", "ai-highlighter", "command", "terminal"}},
     };
     return all;
@@ -555,6 +561,9 @@ void QuickTools::open(GtkWidget* anchor) {
             }
             if (std::string(id).rfind("size-", 0) == 0 && th->hasCapability(TOOL_CAP_SIZE)) {
                 on = std::string(id) == "size-" + std::to_string(static_cast<int>(th->getActiveTool()->getSize()));
+            }
+            if (std::string(id) == "touch") {
+                on = control->getSettings()->getTouchDrawingEnabled();
             }
             if (std::string(id).rfind("shape-", 0) == 0 && active == TOOL_PEN) {
                 const DrawingType dt = th->getActiveTool()->getDrawingType();
@@ -945,8 +954,9 @@ void QuickTools::refreshFullscreen() {
 
 namespace {
 /// The tablet buttons shown in Focus, left to right by priority (the last ones give way first)
-constexpr const char* TABLET[] = {"ai-highlighter", "ask", "pen", "eraser", "select", "command", "terminal"};
-constexpr size_t TABLET_ACTIONS = 5;  ///< asking and drawing first; a gap, then the AI actions
+constexpr const char* TABLET[] = {"touch", "ai-highlighter", "ask", "pen", "eraser", "select", "command", "terminal"};
+constexpr size_t TABLET_FIRST = 1;    ///< touch on its own first (a gap after it: hard to hit by accident)
+constexpr size_t TABLET_ACTIONS = 6;  ///< asking and drawing; a gap, then the AI actions
 constexpr int TABLET_W = 64;
 }  // namespace
 
@@ -984,7 +994,7 @@ void QuickTools::buildTablet(GtkWidget* outer) {
                              static_cast<QuickTools*>(d)->refreshTablet();
                          }),
                          this);
-        if (i == TABLET_ACTIONS) {
+        if (i == TABLET_ACTIONS || i == TABLET_FIRST) {
             g_object_set(b, "margin-start", 14, nullptr);  // (the gap between drawing and AI)
         }
         gtk_box_pack_start(GTK_BOX(tiles), b, FALSE, FALSE, 0);
@@ -1058,7 +1068,7 @@ void QuickTools::refreshTablet() {
         if (!w) {
             continue;
         }
-        int need = tileW + 6 + (i == TABLET_ACTIONS ? 14 : 0);
+        int need = tileW + 6 + (i == TABLET_ACTIONS || i == TABLET_FIRST ? 14 : 0);
         if (id == "pen" && colours && colourButton) {
             need += tileW + 6;
         }
@@ -1066,7 +1076,8 @@ void QuickTools::refreshTablet() {
         if (!full) {
             room -= need;
         }
-        bool on = (id == "ai-highlighter" && highlighting) || (id == "ask" && asking);
+        bool on = (id == "ai-highlighter" && highlighting) || (id == "ask" && asking) ||
+                  (id == "touch" && control->getSettings()->getTouchDrawingEnabled());
         for (const auto& t: TOOLS) {
             on = on || (!highlighting && !asking && id == t.id && t.type == active);
         }
