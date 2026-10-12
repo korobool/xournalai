@@ -183,7 +183,11 @@ private:
     /// Arms (or disarms) the Ask lasso
     void armLasso(bool on);
     /// AI highlighter: highlights like the highlighter while listening; a pause after the last stroke opens Ask
-    void armHighlighter(bool on);
+    void armHighlighter(bool on, bool restoreTool = true);
+    bool switchingTool = false;  ///< the highlighter itself is selecting a tool (not the owner)
+    gulong toolWatch = 0;
+    /// The owner picked another tool (anywhere): the AI highlighter and lasso end
+    void onToolPicked();
     void finishHighlight();
     bool highlighterArmed = false;
     PageRef highlightPage;

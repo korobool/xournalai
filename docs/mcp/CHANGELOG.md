@@ -24,6 +24,10 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   use a palette button opens your colours as big swatches. In a narrow window the last ones give way first; Focus,
   Full screen, Record and Tools always stay.
 - Fixed: switching full screen on or off in Focus brought the menu and toolbars back.
+- **Consistent tool states:** picking any tool (tablet buttons, Tools, toolbar, keys) ends the AI highlighter and
+  the AI lasso, so after the AI highlighter you can always go straight back to the pen; a second tap on an armed AI
+  button switches it off.
+- The AI highlighter has its own violet icon, so it can't be mistaken for the yellow highlighter.
 
 ## 1.9.2 — Full screen and Focus under the thumb
 - **Focus** (big green button, or F9): hides the menu bar, every toolbar (top, left, right, bottom), the AI row and

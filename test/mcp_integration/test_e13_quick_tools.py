@@ -79,8 +79,8 @@ def test_5_ai_tiles(app):
         c.call("action_run", action="win.ai-quick-tools")
         assert wait(lambda: widgets(c, "aiQuick-" + tool))
         c.call("ui_interact", op="click", target=widgets(c, "aiQuick-" + tool)[0]["id"])
-    dock = widgets(c, "aiTerminalDock")
-    assert dock and dock[0].get("visible", True)
+    # (the dock opens asynchronously)
+    assert wait(lambda: widgets(c, "aiTerminalDock") and widgets(c, "aiTerminalDock")[0].get("visible", True))
     states = {a["name"]: a.get("state") for a in c.call("actions_list", filter="ai-ask")["actions"]}
     assert states.get("win.ai-ask") is True, states.get("win.ai-ask")
     c.call("action_run", action="win.ai-ask", state=False)  # off again: not a use
@@ -237,3 +237,33 @@ def test_14_focus_survives_full_screen(app):
         assert not any(w.get("visible", True) and w["bbox"][2] > 1 for w in bars() if w["name"] != "tbTop1" and w["name"] != "tbTop2"), bars()
     c.call("action_run", action="win.ai-focus", state=False)
     assert wait(lambda: shown("aiToolbarColumn"))
+
+
+def test_15_tablet_states_stay_consistent(app):
+    """Picking a tool ends the AI highlighter / lasso; any tool can be picked after any other."""
+    c = app.client()
+    tool = lambda: c.call("tool_get")["tool"]
+    c.call("action_run", action="win.ai-focus", state=True)
+    assert wait(lambda: widgets(c, "aiTablet-pen")[0].get("visible", True))
+    click = lambda t: c.call("ui_interact", op="click", target=widgets(c, "aiTablet-" + t)[0]["id"])
+    click("pen")
+    assert wait(lambda: tool() == "pen")
+    click("ai-highlighter")
+    assert wait(lambda: tool() == "highlighter")
+    click("pen")  # straight from the AI highlighter
+    assert wait(lambda: tool() == "pen")
+    assert c.call("app_status")["ask"]["state"] != "highlight and speak…"
+    click("ai-highlighter")
+    assert wait(lambda: tool() == "highlighter")
+    click("ai-highlighter")  # a second tap: off, and the pen is back
+    assert wait(lambda: tool() == "pen")
+    lasso = lambda: [a.get("state") for a in c.call("actions_list", filter="ai-ask")["actions"]
+                     if a["name"].endswith("ai-ask")][0] in (True, "true")
+    click("ask")
+    assert wait(lasso)
+    click("eraser")  # a tool ends the armed lasso
+    assert wait(lambda: tool() == "eraser")
+    assert wait(lambda: not lasso())
+    click("pen")
+    assert wait(lambda: tool() == "pen")
+    c.call("action_run", action="win.ai-focus", state=False)

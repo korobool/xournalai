@@ -38,6 +38,7 @@
 #include "control/RecordingObserver.h"           // for setRecordingObserver
 #include "control/tools/EditSelection.h"         // for EditSelection
 #include "api/EditApi.h"                         // for EditApi (the AI highlighter's marks)
+#include "util/GVariantTemplate.h"               // for getGVariantValue
 #include "control/ToolHandler.h"                 // for ToolHandler
 #include "control/actions/ActionDatabase.h"      // for ActionDatabase
 #include "gui/RecordingIndicator.h"              // for RecordingIndicator
@@ -196,6 +197,12 @@ McpUi::McpUi(McpServer& server): server(server) {
 }
 
 McpUi::~McpUi() {
+    if (toolWatch) {
+        GAction* sel = G_ACTION(server.getControl()->getActionDatabase()->getAction(Action::SELECT_TOOL).get());
+        if (G_IS_OBJECT(sel) && g_signal_handler_is_connected(sel, toolWatch)) {
+            g_signal_handler_disconnect(sel, toolWatch);
+        }
+    }
     if (timer) {
         g_source_remove(timer);
     }
@@ -413,6 +420,14 @@ void McpUi::installActions() {
                      }),
                      this);
     add(hlAct);
+    // Whatever picks a tool (tablet buttons, Tools, toolbar, keys) ends the AI highlighter and the lasso
+    {
+        GAction* sel = G_ACTION(server.getControl()->getActionDatabase()->getAction(Action::SELECT_TOOL).get());
+        toolWatch = g_signal_connect(sel, "notify::state", G_CALLBACK(+[](GObject*, GParamSpec*, gpointer self) {
+                                         static_cast<McpUi*>(self)->onToolPicked();
+                                     }),
+                                     this);
+    }
     GSimpleAction* keepAct = g_simple_action_new_stateful(
             "ai-highlighter-keep", nullptr, g_variant_new_boolean(server.getConfig().assistant.highlighterKeepsMarks));
     g_signal_connect(keepAct, "change-state", G_CALLBACK(+[](GSimpleAction* a, GVariant* v, gpointer) {
@@ -1117,7 +1132,27 @@ std::vector<std::string> aiHighlights(Control* ctrl, const PageRef& page) {
 }
 }  // namespace
 
-void McpUi::armHighlighter(bool on) {
+void McpUi::onToolPicked() {
+    if (switchingTool) {
+        return;
+    }
+    // (the action's state is the tool picked: the tool handler switches only after this notification)
+    GAction* sel = G_ACTION(server.getControl()->getActionDatabase()->getAction(Action::SELECT_TOOL).get());
+    GVariant* st = g_action_get_state(sel);
+    if (!st) {
+        return;
+    }
+    const ToolType t = getGVariantValue<ToolType>(st);
+    g_variant_unref(st);
+    if (highlighterArmed && t != TOOL_HIGHLIGHTER) {
+        armHighlighter(false, false);  // (the tool just picked stays)
+    }
+    if (lassoArmed) {
+        armLasso(false);
+    }
+}
+
+void McpUi::armHighlighter(bool on, bool restoreTool) {
     Control* ctrl = server.getControl();
     ActionDatabase* db = ctrl->getActionDatabase();
     ToolHandler* th = ctrl->getToolHandler();
@@ -1148,10 +1183,12 @@ void McpUi::armHighlighter(bool on) {
         // The highlighter, in the AI's colour (both given back afterwards)
         prevTool = static_cast<int>(th->getToolType());
         prevHighlighterColour = uint32_t(th->getTool(TOOL_HIGHLIGHTER).getColor());
+        switchingTool = true;
         if (th->getToolType() != TOOL_HIGHLIGHTER) {
             db->fireActivateAction(Action::SELECT_TOOL, TOOL_HIGHLIGHTER);
         }
         db->fireChangeActionState(Action::TOOL_COLOR, Color(AI_HIGHLIGHT | 0xff000000U));
+        switchingTool = false;
         askStatusText = "highlight and speak…";
         xoj::input::setStrokeInterceptor([this](const xoj::input::InterceptedStroke& s) {
             using K = xoj::input::InterceptedStroke;
@@ -1207,14 +1244,16 @@ void McpUi::armHighlighter(bool on) {
         }
         // Give back the highlighter's colour and the tool used before
         const Color before(prevHighlighterColour);
+        switchingTool = true;
         if (th->getToolType() == TOOL_HIGHLIGHTER) {
             db->fireChangeActionState(Action::TOOL_COLOR, before);
-            if (prevTool >= 0 && prevTool != TOOL_HIGHLIGHTER) {
+            if (restoreTool && prevTool >= 0 && prevTool != TOOL_HIGHLIGHTER) {
                 db->fireActivateAction(Action::SELECT_TOOL, static_cast<ToolType>(prevTool));
             }
         } else {
             th->getTool(TOOL_HIGHLIGHTER).setColor(before);
         }
+        switchingTool = false;
         askStatusText = "";
     }
     update();

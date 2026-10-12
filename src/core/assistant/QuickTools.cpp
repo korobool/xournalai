@@ -27,7 +27,7 @@ const std::vector<Entry>& catalog() {
             {"ask", "Ask", "audio-input-microphone-symbolic",
              "Ask the AI: circle an area, then say or type what you want"},
             {"select", "Select", "xopp-select-lasso", "Select a region (lasso)"},
-            {"ai-highlighter", "AI highlight", "xopp-tool-highlighter",
+            {"ai-highlighter", "AI highlight", "xopp-ai-highlighter",
              "Highlight what you mean while you say it; a pause opens Ask"},
             {"command", "Command", "mail-send-symbolic", "Tell the AI what to do with the selection (or the page)"},
             {"terminal", "Terminal", "utilities-terminal-symbolic", "Show or hide the AI terminal"},
