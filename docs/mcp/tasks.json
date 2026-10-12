@@ -2213,7 +2213,9 @@
               "title": "Quick tools palette",
               "details": "QuickTools: big toolbar button, popover grid of 64px tiles, actions through the action database and win.* actions; usage counts (palette and tool changes) in quick-tools.json rank the ten shown.",
               "commit": "ai: quick tools palette",
-              "status": "todo"
+              "status": "done",
+              "started": "2026-10-12T07:48:38+01:00",
+              "finished": "2026-10-12T07:57:12+01:00"
             }
           ]
         },

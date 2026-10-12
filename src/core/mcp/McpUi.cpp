@@ -31,6 +31,7 @@
 #include "assistant/Ask.h"                       // for AskController
 #include "assistant/AskPopover.h"                // for AskPopover
 #include "assistant/Markers.h"                   // for findMarkers          // for AiToolbar
+#include "assistant/QuickTools.h"                // for QuickTools
 #include "assistant/RecordingChooser.h"          // for RecordingChooser
 #include "assistant/SpeechToText.h"              // for SpeechToText
 #include "assistant/ThinkingOverlay.h"           // for ThinkingOverlay
@@ -229,6 +230,7 @@ McpUi::~McpUi() {
         flashPopover = nullptr;
     }
     removeMenu();
+    quickTools.reset();
     aiToolbar.reset();
     thinkingOverlay.reset();
 #ifdef ENABLE_AI_TERMINAL
@@ -347,6 +349,18 @@ void McpUi::installActions() {
                      this);
     add(tb);
     // Ask: arm the AI lasso (the next pen / mouse stroke circles the area)
+    GSimpleAction* quick = g_simple_action_new("ai-quick-tools", nullptr);
+    g_signal_connect(quick, "activate", G_CALLBACK(+[](GSimpleAction*, GVariant*, gpointer self) {
+                         auto* ui = static_cast<McpUi*>(self);
+                         if (ui->quickTools) {
+                             GtkWidget* b = ui->aiToolbar && ui->aiToolbar->isVisible() ?
+                                                    ui->aiToolbar->quickToolsButton() :
+                                                    nullptr;
+                             ui->quickTools->open(b);
+                         }
+                     }),
+                     this);
+    add(quick);
     GSimpleAction* askAct = g_simple_action_new_stateful("ai-ask", nullptr, g_variant_new_boolean(false));
     g_signal_connect(askAct, "change-state", G_CALLBACK(+[](GSimpleAction*, GVariant* v, gpointer self) {
                          static_cast<McpUi*>(self)->armLasso(g_variant_get_boolean(v));
@@ -438,6 +452,8 @@ void McpUi::installActions() {
     gtk_application_set_accels_for_action(app, "win.ai-auto-improve", autoAccel);
     const char* askAccel[] = {"<Ctrl><Alt>a", nullptr};
     gtk_application_set_accels_for_action(app, "win.ai-ask", askAccel);
+    const char* quickAccel[] = {"F8", nullptr};
+    gtk_application_set_accels_for_action(app, "win.ai-quick-tools", quickAccel);
 #ifdef ENABLE_AI_TERMINAL
     const char* termAccel[] = {"<Ctrl>grave", nullptr};
     gtk_application_set_accels_for_action(app, "win.ai-terminal", termAccel);
@@ -1449,6 +1465,17 @@ void McpUi::buildToolbar() {
     }
     aiToolbar = std::make_unique<assistant::AiToolbar>(
             mainBox, position, [this](const std::string& kind, const std::string& text) { aiAction(kind, text); });
+    // The tools used most, as big buttons; the AI ones are run here, the rest by the app's own actions
+    quickTools = std::make_unique<assistant::QuickTools>(
+            server.getControl(), Util::getConfigFile("quick-tools.json"), [this](const std::string& id) {
+                GtkWidget* win = server.getControl()->getWindow()->getWindow();
+                if (id == "command" && aiToolbar) {
+                    aiToolbar->openCommand();
+                } else if (id == "ask" || id == "terminal") {
+                    g_action_group_activate_action(G_ACTION_GROUP(win), id == "ask" ? "ai-ask" : "ai-terminal",
+                                                   nullptr);
+                }
+            });
 }
 
 std::string McpUi::aiAction(const std::string& kind, const std::string& text) {
@@ -1485,6 +1512,9 @@ std::string McpUi::aiAction(const std::string& kind, const std::string& text) {
         what = "*r! place a real image of it (a PD/CC0 photo or a generated one)";
     } else if (kind == "command") {
         what = "*c! the user's command: \"" + text + "\"";
+        if (quickTools) {
+            quickTools->count("command");
+        }
     } else if (kind == "revise") {
         what = "revise the whole page carefully (a full pass)";
     } else {

@@ -720,7 +720,7 @@ The owner opens any terminal command (not only presets), closes tabs they don't 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
 | T13.1.1 | US-13.1 | **Close terminal tabs** — Close button on each tab label and in the header; SIGHUP the process; tabs map by page widget, not position; closing the serving tab reports its exit. | `ai: close terminal tabs (T13.1.1)` | ✅ done `2892712a9` |
-| T13.1.2 | US-13.1 | **Custom command tabs** — 'Custom command…' popover in the + menu (command, name, folder); remembered in ai-terminals.json; recent ones in the menu with a way to forget them. | `ai: open a terminal tab with any command (T13.1.2)` | ✅ done `cc5a80ae3` |
+| T13.1.2 | US-13.1 | **Custom command tabs** — 'Custom command…' popover in the + menu (command, name, folder); remembered in ai-terminals.json; recent ones in the menu with a way to forget them. | `ai: open a terminal tab with any command (T13.1.2)` | ✅ done `6cb67fc00` |
 
 ### S13.2 — Quick tools under the thumb → v1.9.0
 
@@ -732,7 +732,7 @@ The owner opens any terminal command (not only presets), closes tabs they don't 
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T13.2.1 | US-13.2 | **Quick tools palette** — QuickTools: big toolbar button, popover grid of 64px tiles, actions through the action database and win.* actions; usage counts (palette and tool changes) in quick-tools.json rank the ten shown. | `ai: quick tools palette (T13.2.1)` | ⬜ todo |
+| T13.2.1 | US-13.2 | **Quick tools palette** — QuickTools: big toolbar button, popover grid of 64px tiles, actions through the action database and win.* actions; usage counts (palette and tool changes) in quick-tools.json rank the ten shown. | `ai: quick tools palette (T13.2.1)` | ✅ done `a2c422c0b` |
 
 ### S13.3 — Release 1.9.0 → v1.9.0
 

@@ -47,3 +47,30 @@ TEST(TerminalCommandsTest, saveAndLoad) {
     EXPECT_EQ(tc::expandFolder("~/x"), std::string(g_get_home_dir()) + "/x");
     EXPECT_EQ(tc::expandFolder(""), "");
 }
+
+#include "assistant/QuickTools.h"
+
+namespace qt = xoj::assistant::quick_tools;
+
+TEST(QuickToolsTest, rankedByUseThenCatalogOrder) {
+    const auto first = qt::ranked({});
+    ASSERT_EQ(first.size(), qt::SHOWN);
+    EXPECT_EQ(first[0], "pen");
+    EXPECT_EQ(first[1], "eraser");
+    const auto r = qt::ranked({{"redo", 5}, {"text", 5}, {"eraser", 2}, {"nonsense", 9}});
+    EXPECT_EQ(r[0], "redo");  // (ties keep the catalog order: redo before text)
+    EXPECT_EQ(r[1], "text");
+    EXPECT_EQ(r[2], "eraser");
+    EXPECT_EQ(r[3], "pen");
+    EXPECT_EQ(r.size(), qt::SHOWN);
+}
+
+TEST(QuickToolsTest, countsSaveAndLoad) {
+    const auto file = std::filesystem::temp_directory_path() / ("xoai-qt-" + std::to_string(g_random_int()) + ".json");
+    ASSERT_TRUE(qt::save(file, {{"pen", 3}, {"ask", 1}}));
+    const auto m = qt::load(file);
+    EXPECT_EQ(m.at("pen"), 3);
+    EXPECT_EQ(m.at("ask"), 1);
+    std::filesystem::remove(file);
+    EXPECT_TRUE(qt::load(file).empty());
+}

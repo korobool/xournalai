@@ -29,6 +29,7 @@ namespace xoj::assistant {
 class TerminalDock;
 class EventPump;
 struct TerminalSpec;
+class QuickTools;
 }  // namespace xoj::assistant
 #endif
 
@@ -144,6 +145,7 @@ private:
     guint flashTimer = 0;
     void buildToolbar();
     std::unique_ptr<assistant::AiToolbar> aiToolbar;
+    std::unique_ptr<assistant::QuickTools> quickTools;
     void buildThinking();
     void onServingChanged();
     std::unique_ptr<assistant::ThinkingOverlay> thinkingOverlay;

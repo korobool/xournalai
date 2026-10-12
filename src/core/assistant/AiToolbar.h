@@ -2,7 +2,7 @@
  * xournalai (based on Xournal++)
  *
  * The AI toolbar: a row under the main toolbars with the actions of the user's marker language
- * (*! **! *w! *r! *c!), Revise page, the Auto-improve toggle, Pause and the AI terminal.
+ * (*! **! *w! *r! *c!), the big Quick tools button, Revise page, the Auto-improve toggle, Pause and the AI terminal.
  *
  * @license GNU GPLv2 or later
  */
@@ -33,6 +33,10 @@ public:
     void promptCommand();
     /// If set, "Command…" opens this instead of the typing prompt (the Ask popover, with dictation)
     void setCommandOpener(std::function<void()> opener) { commandOpener = std::move(opener); }
+    /// What "Command…" does (the opener if set, else the typing prompt)
+    void openCommand();
+    /// The big Quick tools button (the grid points at it), or null
+    GtkWidget* quickToolsButton() const { return quickButton; }
 
     /// The marker label of an action kind, e.g. "*!"
     static const char* marker(const std::string& kind);
@@ -40,6 +44,7 @@ public:
 private:
     GtkWidget* toolbar = nullptr;  ///< weak
     GtkToolItem* commandItem = nullptr;
+    GtkWidget* quickButton = nullptr;  ///< weak
     ActionHandler handler;
     std::function<void()> commandOpener;
 };
