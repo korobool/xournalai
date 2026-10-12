@@ -2307,6 +2307,52 @@
           ]
         }
       ]
+    },
+    {
+      "id": "E14",
+      "title": "Point while you speak: the AI highlighter",
+      "release": "1.10.0",
+      "goal": "Besides the AI lasso (mark first, then say), the owner can highlight what they mean while they say it; the marks stay as a record of the question.",
+      "stages": [
+        {
+          "id": "S14.1",
+          "title": "AI highlighter",
+          "version": "1.10.0",
+          "stories": [
+            {
+              "id": "US-14.1",
+              "text": "As the owner, I want to highlight places on the page while I explain what I want, and get the same Ask popover (transcript to edit, record more, commands) when I pause, so pointing and speaking happen together.",
+              "acceptance": [
+                "the AI highlighter draws like the highlighter, in its own violet, and starts listening on the first touch",
+                "strokes within a short pause belong to one request; the pause opens Ask with the transcript",
+                "the request names the places highlighted and what is under them (not the highlights)",
+                "the marks stay by default; AI Agent → AI highlighter keeps its marks switches to removing them on send",
+                "the tool used before is given back; Ctrl+Alt+H, a Highlight button on the AI row and a tile in Tools"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T14.1.1",
+              "story": "US-14.1",
+              "title": "AI highlighter",
+              "details": "McpUi::armHighlighter: highlighter in AI violet via a pass-through stroke interceptor; speech starts on pen-down; HIGHLIGHT_PAUSE_MS after the last stroke finishHighlight → showAsk with highlights and marks (new AI-violet highlighter strokes); submitAsk lists the places and the elements under them, removes marks unless assistant.highlighter_keeps_marks; win.ai-highlighter (Ctrl+Alt+H), win.ai-highlighter-keep; AI row button aiHighlighter; Tools tile ai-highlighter.",
+              "commit": "ai: AI highlighter: highlight while speaking, then Ask",
+              "status": "done",
+              "started": "2026-10-12T12:53:37+01:00",
+              "finished": "2026-10-12T12:53:37+01:00"
+            },
+            {
+              "id": "T14.1.2",
+              "story": "US-14.1",
+              "title": "Release 1.10.0",
+              "details": "Changelog, version, full tests.",
+              "commit": "ai: release 1.10.0",
+              "status": "todo"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

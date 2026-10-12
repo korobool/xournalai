@@ -754,5 +754,24 @@ The owner opens any terminal command (not only presets), closes tabs they don't 
 | T13.4.1 | US-13.4 | **Big Tools button beside the toolbars** — QuickTools::placeButton: toolbar rows into a column, gradient button to their right; grouped popover incl. TOOL_SELECT_OBJECT; win.ai-tools-button (stateful, remembered). Replaces the Touch bar row tried first. | `ai: one big Tools button beside the toolbars (T13.4.1)` | ✅ done `01bdadc12` |
 | T13.4.3 | US-13.4 | **Big Record button that listens** — QuickTools: record button beside Tools toggling AUDIO_RECORD; drawn face: idle red dot, recording: rays from RecordingIndicator::recentLevels, core breathing with the smoothed level, Stop m:ss; win.ai-record-button (remembered). | `ai: big Record button that follows the microphone (T13.4.3)` | ✅ done `c0abbe529` |
 | T13.4.4 | US-13.4 | **Big Full screen button** — QuickTools: full-screen button beside Record toggling Action::FULLSCREEN; label follows the state (Full screen / Window, also after F11); win.ai-fullscreen-button (remembered). | `ai: big Full screen button (T13.4.4)` | ✅ done `282fa4da2` |
-| T13.4.5 | US-13.4 | **Focus: only the big buttons** — QuickTools::setFocused hides the menu bar, every toolbar (all positions) and the sidebar, restoring each as it was without touching the saved settings; win.ai-focus (F9, remembered) and win.ai-focus-button. Tools menu: two columns, Colour (palette, 2x5), Shapes (line, rectangle, ellipse, arrow, recognizer: with the pen) and View (zoom). | `ai: Focus button, colours, shapes and zoom in the Tools (T13.4.5)` | ✅ done |
+| T13.4.5 | US-13.4 | **Focus: only the big buttons** — QuickTools::setFocused hides the menu bar, every toolbar (all positions) and the sidebar, restoring each as it was without touching the saved settings; win.ai-focus (F9, remembered) and win.ai-focus-button. Tools menu: two columns, Colour (palette, 2x5), Shapes (line, rectangle, ellipse, arrow, recognizer: with the pen) and View (zoom). | `ai: Focus button, colours, shapes and zoom in the Tools (T13.4.5)` | ✅ done `cf453f4fd` |
 | T13.4.2 | US-13.4 | **Release 1.9.1** — Changelog, version, full tests. | `ai: release 1.9.1 (T13.4.2)` | ✅ done `18f82e639` |
+
+## E14 — Point while you speak: the AI highlighter (release 1.10.0)
+
+Besides the AI lasso (mark first, then say), the owner can highlight what they mean while they say it; the marks stay as a record of the question.
+
+### S14.1 — AI highlighter → v1.10.0
+
+**US-14.1** — As the owner, I want to highlight places on the page while I explain what I want, and get the same Ask popover (transcript to edit, record more, commands) when I pause, so pointing and speaking happen together.
+
+- [ ] the AI highlighter draws like the highlighter, in its own violet, and starts listening on the first touch
+- [ ] strokes within a short pause belong to one request; the pause opens Ask with the transcript
+- [ ] the request names the places highlighted and what is under them (not the highlights)
+- [ ] the marks stay by default; AI Agent → AI highlighter keeps its marks switches to removing them on send
+- [ ] the tool used before is given back; Ctrl+Alt+H, a Highlight button on the AI row and a tile in Tools
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T14.1.1 | US-14.1 | **AI highlighter** — McpUi::armHighlighter: highlighter in AI violet via a pass-through stroke interceptor; speech starts on pen-down; HIGHLIGHT_PAUSE_MS after the last stroke finishHighlight → showAsk with highlights and marks (new AI-violet highlighter strokes); submitAsk lists the places and the elements under them, removes marks unless assistant.highlighter_keeps_marks; win.ai-highlighter (Ctrl+Alt+H), win.ai-highlighter-keep; AI row button aiHighlighter; Tools tile ai-highlighter. | `ai: AI highlighter: highlight while speaking, then Ask (T14.1.1)` | ✅ done |
+| T14.1.2 | US-14.1 | **Release 1.10.0** — Changelog, version, full tests. | `ai: release 1.10.0 (T14.1.2)` | ⬜ todo |

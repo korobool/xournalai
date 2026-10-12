@@ -37,6 +37,9 @@
 #include "assistant/ThinkingOverlay.h"           // for ThinkingOverlay
 #include "control/RecordingObserver.h"           // for setRecordingObserver
 #include "control/tools/EditSelection.h"         // for EditSelection
+#include "api/EditApi.h"                         // for EditApi (the AI highlighter's marks)
+#include "control/ToolHandler.h"                 // for ToolHandler
+#include "control/actions/ActionDatabase.h"      // for ActionDatabase
 #include "gui/RecordingIndicator.h"              // for RecordingIndicator
 #include "gui/inputdevices/PenButtonObserver.h"  // for setPenButtonObserver
 #include "gui/inputdevices/StrokeInterceptor.h"  // for setStrokeInterceptor
@@ -131,7 +134,7 @@ McpUi::McpUi(McpServer& server): server(server) {
                     update();
                 },
                 [this] {
-                    return lassoArmed || (askPopover && askPopover->visible()) ||
+                    return lassoArmed || highlighterArmed || (askPopover && askPopover->visible()) ||
                            (recordingChooser && recordingChooser->visible());  // (dictation into its request)
                 },
                 [this](const std::string& text) {
@@ -253,7 +256,7 @@ McpUi::~McpUi() {
         for (const char* name:
              {"mcp-paused",       "mcp-ai-accept",   "mcp-ai-clear",     "mcp-ai-toggle",    "mcp-copy-command",
               "mcp-connect",      "mcp-settings",    "ai-terminal",      "ai-terminal-open", "ai-terminal-custom",
-              "ai-quick-tools",   "ai-tools-button", "ai-record-button", "ai-fullscreen-button", "ai-focus", "ai-focus-button", "ai-act",           "ai-toolbar",
+              "ai-quick-tools",   "ai-tools-button", "ai-record-button", "ai-fullscreen-button", "ai-focus", "ai-highlighter", "ai-highlighter-keep", "ai-focus-button", "ai-act",           "ai-toolbar",
               "ai-stop",          "ai-auto-improve", "ai-ask",           "ai-rule-formulas", "ai-rule-text",
               "ai-rule-diagrams", "ai-rule-colours"}) {
             g_action_map_remove_action(G_ACTION_MAP(window), name);
@@ -404,6 +407,22 @@ void McpUi::installActions() {
                      }),
                      this);
     add(focusBtn);
+    GSimpleAction* hlAct = g_simple_action_new_stateful("ai-highlighter", nullptr, g_variant_new_boolean(false));
+    g_signal_connect(hlAct, "change-state", G_CALLBACK(+[](GSimpleAction*, GVariant* v, gpointer self) {
+                         static_cast<McpUi*>(self)->armHighlighter(g_variant_get_boolean(v));
+                     }),
+                     this);
+    add(hlAct);
+    GSimpleAction* keepAct = g_simple_action_new_stateful(
+            "ai-highlighter-keep", nullptr, g_variant_new_boolean(server.getConfig().assistant.highlighterKeepsMarks));
+    g_signal_connect(keepAct, "change-state", G_CALLBACK(+[](GSimpleAction* a, GVariant* v, gpointer) {
+                         g_simple_action_set_state(a, v);
+                         McpConfig cfg = McpConfig::load();
+                         cfg.assistant.highlighterKeepsMarks = g_variant_get_boolean(v);
+                         cfg.save();
+                     }),
+                     this);
+    add(keepAct);
     GSimpleAction* askAct = g_simple_action_new_stateful("ai-ask", nullptr, g_variant_new_boolean(false));
     g_signal_connect(askAct, "change-state", G_CALLBACK(+[](GSimpleAction*, GVariant* v, gpointer self) {
                          static_cast<McpUi*>(self)->armLasso(g_variant_get_boolean(v));
@@ -495,6 +514,8 @@ void McpUi::installActions() {
     gtk_application_set_accels_for_action(app, "win.ai-auto-improve", autoAccel);
     const char* askAccel[] = {"<Ctrl><Alt>a", nullptr};
     gtk_application_set_accels_for_action(app, "win.ai-ask", askAccel);
+    const char* hlAccel[] = {"<Ctrl><Alt>h", nullptr};
+    gtk_application_set_accels_for_action(app, "win.ai-highlighter", hlAccel);
     const char* quickAccel[] = {"F8", nullptr};
     gtk_application_set_accels_for_action(app, "win.ai-quick-tools", quickAccel);
     const char* focusAccel[] = {"F9", nullptr};
@@ -555,6 +576,8 @@ void McpUi::buildMenu() {
              {"Big Full screen button", "win.ai-fullscreen-button"},
              {"Big Focus button", "win.ai-focus-button"},
              {"Focus: only the big buttons (F9)", "win.ai-focus"},
+             {"AI highlighter: highlight while speaking (Ctrl+Alt+H)", "win.ai-highlighter"},
+             {"AI highlighter keeps its marks", "win.ai-highlighter-keep"},
              {"Stop current AI work", "win.ai-stop"}});
     {
         GMenu* s = g_menu_new();
@@ -995,6 +1018,9 @@ void McpUi::dictate(bool pressed) {
 }
 
 void McpUi::armLasso(bool on) {
+    if (on && highlighterArmed) {
+        armHighlighter(false);
+    }
     lassoArmed = on;
     lassoPoints.clear();
     lassoPage.reset();
@@ -1065,6 +1091,184 @@ void McpUi::armLasso(bool on) {
     });
 }
 
+namespace {
+constexpr uint32_t AI_HIGHLIGHT = 0xb57bff;  ///< the AI highlighter's colour (violet: not one of the palette's)
+constexpr guint HIGHLIGHT_PAUSE_MS = 1800;  ///< the pause after the last stroke that ends a request
+
+/// The AI highlighter's strokes on `page` (highlighter strokes in its colour)
+std::vector<std::string> aiHighlights(Control* ctrl, const PageRef& page) {
+    std::vector<std::string> out;
+    Document* doc = ctrl->getDocument();
+    std::shared_lock lock(*doc);
+    const size_t p = doc->indexOf(page);
+    if (p == npos) {
+        return out;
+    }
+    for (const auto& loc: api::elementsOnPage(page, p, std::nullopt, std::nullopt)) {
+        if (loc.element->getType() != ELEMENT_STROKE) {
+            continue;
+        }
+        const auto* s = static_cast<const Stroke*>(loc.element);
+        if (s->getToolType() == StrokeTool::HIGHLIGHTER && (uint32_t(s->getColor()) & 0xffffffU) == AI_HIGHLIGHT) {
+            out.push_back(api::ElementIds::get().idOf(loc.element));
+        }
+    }
+    return out;
+}
+}  // namespace
+
+void McpUi::armHighlighter(bool on) {
+    Control* ctrl = server.getControl();
+    ActionDatabase* db = ctrl->getActionDatabase();
+    ToolHandler* th = ctrl->getToolHandler();
+    if (window) {
+        if (GAction* a = g_action_map_lookup_action(G_ACTION_MAP(window), "ai-highlighter")) {
+            g_simple_action_set_state(G_SIMPLE_ACTION(a), g_variant_new_boolean(on));
+        }
+    }
+    if (on == highlighterArmed) {
+        return;
+    }
+    if (highlightTimer) {
+        g_source_remove(highlightTimer);
+        highlightTimer = 0;
+    }
+    if (on) {
+        if (lassoArmed) {
+            armLasso(false);
+        }
+        if (askPopover && askPopover->visible()) {
+            askPopover->close();
+        }
+        highlighterArmed = true;
+        highlightPage.reset();
+        highlightBoxes.clear();
+        highlightIds.clear();
+        pendingDictation.clear();
+        // The highlighter, in the AI's colour (both given back afterwards)
+        prevTool = static_cast<int>(th->getToolType());
+        prevHighlighterColour = uint32_t(th->getTool(TOOL_HIGHLIGHTER).getColor());
+        if (th->getToolType() != TOOL_HIGHLIGHTER) {
+            db->fireActivateAction(Action::SELECT_TOOL, TOOL_HIGHLIGHTER);
+        }
+        db->fireChangeActionState(Action::TOOL_COLOR, Color(AI_HIGHLIGHT | 0xff000000U));
+        askStatusText = "highlight and speak…";
+        xoj::input::setStrokeInterceptor([this](const xoj::input::InterceptedStroke& s) {
+            using K = xoj::input::InterceptedStroke;
+            if (!s.page || (highlightPage && s.page != highlightPage)) {
+                return false;  // (one page per request: elsewhere it is plain highlighting)
+            }
+            if (s.kind == K::Down) {
+                if (highlightTimer) {
+                    g_source_remove(highlightTimer);  // another stroke: the same request
+                    highlightTimer = 0;
+                }
+                if (!highlightPage) {
+                    highlightIds = aiHighlights(server.getControl(), s.page);  // (those there before: not ours)
+                }
+                highlightPage = s.page;
+                highlightBoxes.push_back({s.x, s.y, 0, 0});
+                if (!highlightListening && speechToText && !micHeld) {
+                    // Listening from the first touch, so the first words are not lost
+                    const size_t page = server.getControl()->getDocument()->indexOf(s.page);
+                    recordAnchor = std::pair(page, xoj::util::Point<double>(s.x, s.y));
+                    speechToText->start();
+                    highlightListening = true;
+                    askStatusText = "listening…";
+                    update();
+                }
+            } else if ((s.kind == K::Move || s.kind == K::Up) && !highlightBoxes.empty()) {
+                auto& b = highlightBoxes.back();
+                const double x1 = std::min(b.x, s.x), y1 = std::min(b.y, s.y);
+                const double x2 = std::max(b.x + b.width, s.x), y2 = std::max(b.y + b.height, s.y);
+                b = {x1, y1, x2 - x1, y2 - y1};
+            }
+            if (s.kind == K::Up) {
+                highlightTimer = g_timeout_add(
+                        HIGHLIGHT_PAUSE_MS,
+                        [](gpointer self) -> gboolean {
+                            auto* ui = static_cast<McpUi*>(self);
+                            ui->highlightTimer = 0;
+                            ui->finishHighlight();
+                            return G_SOURCE_REMOVE;
+                        },
+                        this);
+            }
+            return false;  // the highlighter draws as usual
+        });
+    } else {
+        highlighterArmed = false;
+        xoj::input::setStrokeInterceptor(nullptr);
+        if (highlightListening) {
+            highlightListening = false;
+            if (speechToText) {
+                speechToText->cancel();
+            }
+        }
+        // Give back the highlighter's colour and the tool used before
+        const Color before(prevHighlighterColour);
+        if (th->getToolType() == TOOL_HIGHLIGHTER) {
+            db->fireChangeActionState(Action::TOOL_COLOR, before);
+            if (prevTool >= 0 && prevTool != TOOL_HIGHLIGHTER) {
+                db->fireActivateAction(Action::SELECT_TOOL, static_cast<ToolType>(prevTool));
+            }
+        } else {
+            th->getTool(TOOL_HIGHLIGHTER).setColor(before);
+        }
+        askStatusText = "";
+    }
+    update();
+}
+
+void McpUi::finishHighlight() {
+    if (!highlighterArmed || !highlightPage || highlightBoxes.empty()) {
+        return;
+    }
+    assistant::AskCapture c;
+    c.page = highlightPage;
+    const double pad = 4;
+    double x1 = highlightBoxes[0].x, y1 = highlightBoxes[0].y, x2 = x1, y2 = y1;
+    for (auto b: highlightBoxes) {
+        b = {b.x - pad, b.y - pad, b.width + 2 * pad, b.height + 2 * pad};
+        x1 = std::min(x1, b.x), y1 = std::min(y1, b.y);
+        x2 = std::max(x2, b.x + b.width), y2 = std::max(y2, b.y + b.height);
+        c.highlights.push_back(b);
+    }
+    c.area = {x1, y1, x2 - x1, y2 - y1};
+    for (const auto& id: aiHighlights(server.getControl(), c.page)) {
+        if (std::find(highlightIds.begin(), highlightIds.end(), id) == highlightIds.end()) {
+            c.marks.push_back(id);  // drawn now
+        }
+    }
+    const bool listening = highlightListening;
+    highlightListening = false;  // (not cancelled by disarming: it is stopped below)
+    std::string said = pendingDictation;
+    armHighlighter(false);
+    const size_t page = server.getControl()->getDocument()->indexOf(c.page);
+    lastAsk = {{"page", page == npos ? json(nullptr) : json(page + 1)},
+               {"area", {c.area.x, c.area.y, c.area.width, c.area.height}},
+               {"highlights", c.highlights.size()},
+               {"marks", c.marks},
+               {"text", said}};
+    if (!listening || !speechToText) {
+        showAsk(c, said);
+        return;
+    }
+    askStatusText = "transcribing…";
+    update();
+    speechToText->stop([this, c, said](const std::string& t, bool silent, const std::string& error) {
+        const std::string text = said + (said.empty() || silent || t.empty() ? "" : " ") + (silent ? "" : t);
+        askStatusText = "";
+        lastAsk["text"] = text;
+        showAsk(c, text);
+        if (askPopover) {
+            askPopover->setStatus(error.empty() ? (text.empty() ? "nothing heard: type or hold the pen button" : "") :
+                                                  "speech: " + error);
+        }
+        update();
+    });
+}
+
 void McpUi::openAskForSelection() {
     Control* ctrl = server.getControl();
     assistant::AskCapture c;
@@ -1114,10 +1318,26 @@ void McpUi::submitAsk(const std::string& command, const std::string& text) {
         }
         return in;
     };
+    auto highlighted = [&](const xoj::util::Rectangle<double>& bb) {
+        for (const auto& h: c.highlights) {
+            if (bb.x < h.x + h.width && h.x < bb.x + bb.width && bb.y < h.y + h.height && h.y < bb.y + bb.height) {
+                return true;
+            }
+        }
+        return false;
+    };
     {
         std::shared_lock lock(*ctrl->getDocument());
         for (const auto& loc: api::elementsOnPage(c.page, page, std::nullopt, c.area, true)) {
             const auto& bb = loc.element->getBoundingBox();
+            if (!c.highlights.empty()) {
+                const std::string id = api::ElementIds::get().idOf(loc.element);
+                if (highlighted(bb) && std::find(c.marks.begin(), c.marks.end(), id) == c.marks.end() &&
+                    std::find(ids.begin(), ids.end(), id) == ids.end()) {
+                    ids.push_back(id);  // what is under the highlights (not the highlights themselves)
+                }
+                continue;
+            }
             if (inside(bb.x + bb.width / 2, bb.y + bb.height / 2)) {
                 const std::string id = api::ElementIds::get().idOf(loc.element);
                 if (std::find(ids.begin(), ids.end(), id) == ids.end()) {
@@ -1131,6 +1351,22 @@ void McpUi::submitAsk(const std::string& command, const std::string& text) {
     desc += ids.empty() ? std::string("about this area") : "about " + std::to_string(ids.size()) + " element(s)";
     desc += " on page " + std::to_string(page + 1) + " at [" + r(c.area.x) + "," + r(c.area.y) + "," + r(c.area.width) +
             "," + r(c.area.height) + "]" + (c.lasso.size() >= 3 ? " (circled)" : "");
+    const bool keepMarks = McpConfig::load().assistant.highlighterKeepsMarks;
+    if (!c.highlights.empty()) {
+        desc += " (highlighted " + std::to_string(c.highlights.size()) + " place(s), in the order spoken:";
+        for (const auto& h: c.highlights) {
+            desc += " [" + r(h.x) + "," + r(h.y) + "," + r(h.width) + "," + r(h.height) + "]";
+        }
+        if (!c.marks.empty()) {
+            std::string list;
+            for (size_t i = 0; i < c.marks.size(); i++) {
+                list += (i ? "," : "") + c.marks[i];
+            }
+            desc += keepMarks ? "; the highlight strokes " + list + " are the owner's marks: leave them" :
+                                "; the highlight strokes were removed";
+        }
+        desc += ")";
+    }
     if (!ids.empty()) {
         std::string list;
         for (size_t i = 0; i < ids.size() && i < 12; i++) {
@@ -1152,6 +1388,11 @@ void McpUi::submitAsk(const std::string& command, const std::string& text) {
         eventPump->addIntent(desc, zone);
     }
 #endif
+    if (!c.marks.empty() && !keepMarks) {
+        api::EditApi edit(ctrl);
+        auto g = edit.resolve(c.marks);
+        edit.remove(g);
+    }
     lastAsk["submitted"] = {{"command", command}, {"text", text}, {"zone", zone}, {"ids", ids}, {"desc", desc}};
     update();
 }
@@ -1522,6 +1763,8 @@ void McpUi::buildToolbar() {
                 GtkWidget* win = server.getControl()->getWindow()->getWindow();
                 if (id == "command" && aiToolbar) {
                     aiToolbar->openCommand();
+                } else if (id == "ai-highlighter") {
+                    g_action_group_activate_action(G_ACTION_GROUP(win), "ai-highlighter", nullptr);
                 } else if (id == "ask" || id == "terminal") {
                     g_action_group_activate_action(G_ACTION_GROUP(win), id == "ask" ? "ai-ask" : "ai-terminal",
                                                    nullptr);

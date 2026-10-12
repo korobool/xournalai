@@ -182,6 +182,17 @@ private:
             recordAnchor;  ///< said with the pen button while the lasso was drawn (for the popover)
     /// Arms (or disarms) the Ask lasso
     void armLasso(bool on);
+    /// AI highlighter: highlights like the highlighter while listening; a pause after the last stroke opens Ask
+    void armHighlighter(bool on);
+    void finishHighlight();
+    bool highlighterArmed = false;
+    PageRef highlightPage;
+    std::vector<xoj::util::Rectangle<double>> highlightBoxes;
+    std::vector<std::string> highlightIds;  ///< the strokes it drew
+    bool highlightListening = false;
+    guint highlightTimer = 0;
+    int prevTool = -1;  ///< the tool before it (restored)
+    uint32_t prevHighlighterColour = 0;
     /// Pen button held while the lasso is armed or the popover is open: dictation into it
     void dictate(bool pressed);
     void onAsk(const assistant::AskCapture& c);

@@ -27,6 +27,8 @@ const std::vector<Entry>& catalog() {
             {"ask", "Ask", "audio-input-microphone-symbolic",
              "Ask the AI: circle an area, then say or type what you want"},
             {"select", "Select", "xopp-select-lasso", "Select a region (lasso)"},
+            {"ai-highlighter", "AI highlight", "xopp-tool-highlighter",
+             "Highlight what you mean while you say it; a pause opens Ask"},
             {"command", "Command", "mail-send-symbolic", "Tell the AI what to do with the selection (or the page)"},
             {"terminal", "Terminal", "utilities-terminal-symbolic", "Show or hide the AI terminal"},
             {"size", "Size", "xopp-thickness-medium", "Thickness: fine → medium → thick"},
@@ -232,6 +234,7 @@ void QuickTools::connectCounting() {
     connect(G_ACTION(db->getAction(Action::TOOL_PEN_SIZE).get()), "size");
     if (auto* win = control->getWindow() ? control->getWindow()->getWindow() : nullptr) {
         connect(g_action_map_lookup_action(G_ACTION_MAP(win), "ai-ask"), "ask");
+        connect(g_action_map_lookup_action(G_ACTION_MAP(win), "ai-highlighter"), "ai-highlighter");
         connect(g_action_map_lookup_action(G_ACTION_MAP(win), "ai-terminal"), "terminal");
     }
 }
@@ -402,7 +405,7 @@ const std::vector<Group>& groups() {
             {"Colour", {}},  // (the palette's colours)
             {"Page", {"undo", "redo", "new-page"}},
             {"View", {"zoom-out", "zoom-fit", "zoom-in"}},
-            {"AI", {"ask", "command", "terminal"}},
+            {"AI", {"ask", "ai-highlighter", "command", "terminal"}},
     };
     return all;
 }

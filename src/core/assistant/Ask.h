@@ -30,6 +30,9 @@ struct AskCapture {
     std::vector<xoj::util::Point<double>> lasso;  ///< page coordinates; empty: the user only pointed
     xoj::util::Rectangle<double> area;            ///< the lasso's bounding box, or an area around the pen
     std::string text;                             ///< what was said
+    /// AI highlighter: the places highlighted (page coordinates) and the highlight strokes themselves
+    std::vector<xoj::util::Rectangle<double>> highlights;
+    std::vector<std::string> marks;
 };
 
 class AskController final {

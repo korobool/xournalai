@@ -68,6 +68,17 @@ AiToolbar::AiToolbar(GtkWidget* mainBox, int position, ActionHandler h): handler
     gtk_actionable_set_action_name(GTK_ACTIONABLE(askItem), "win.ai-ask");
     gtk_buildable_set_name(GTK_BUILDABLE(askItem), "aiAsk");
     gtk_toolbar_insert(GTK_TOOLBAR(toolbar), askItem, -1);
+    // The AI highlighter: highlight while speaking; a pause opens the same Ask popover
+    GtkToolItem* hlItem = gtk_toggle_tool_button_new();
+    gtk_tool_button_set_label(GTK_TOOL_BUTTON(hlItem), "Highlight");
+    gtk_tool_button_set_icon_widget(GTK_TOOL_BUTTON(hlItem),
+                                    gtk_image_new_from_icon_name("xopp-tool-highlighter", GTK_ICON_SIZE_SMALL_TOOLBAR));
+    gtk_tool_item_set_is_important(hlItem, TRUE);
+    gtk_tool_item_set_tooltip_text(hlItem, "AI highlighter (Ctrl+Alt+H): highlight what you mean while you say it; "
+                                           "a short pause opens Ask with what you said");
+    gtk_actionable_set_action_name(GTK_ACTIONABLE(hlItem), "win.ai-highlighter");
+    gtk_buildable_set_name(GTK_BUILDABLE(hlItem), "aiHighlighter");
+    gtk_toolbar_insert(GTK_TOOLBAR(toolbar), hlItem, -1);
     gtk_toolbar_insert(GTK_TOOLBAR(toolbar), gtk_separator_tool_item_new(), -1);
 
     for (const auto& b: BUTTONS) {

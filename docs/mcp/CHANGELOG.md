@@ -10,6 +10,16 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.10.0 — The AI highlighter
+- **Highlight while you speak.** The AI highlighter (Highlight on the AI row, the AI group in Tools, or
+  Ctrl+Alt+H) draws like the highlighter, in violet, and starts listening on the first touch. Highlight one or
+  several places while you explain; after a short pause the same Ask popover as the lasso opens with what you said,
+  ready to edit, add to (microphone) or send with a command.
+- The request names the places in the order you highlighted them and the elements under them. The marks stay on
+  the page as a record of the question; AI Agent → "AI highlighter keeps its marks" off removes them when you send.
+- Afterwards you're back on the tool you had, with the highlighter's own colour unchanged. The AI lasso stays as it
+  was: mark first, then speak.
+
 ## 1.9.2 — Full screen and Focus under the thumb
 - **Focus** (big green button, or F9): hides the menu bar, every toolbar (top, left, right, bottom), the AI row and
   the sidebar; only the page and the big buttons stay. The button then reads "Menus" and brings everything back as
