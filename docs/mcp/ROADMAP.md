@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.9.2**
+Current version: **1.9.1**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -705,7 +705,7 @@ When a recording stops, the owner picks what it is before anything is sent (inst
 | T12.10.1 | US-12.10 | **Built-in X request log** — XHangRecovery: exported xcb_writev records request headers (ring of 64) and calls the real one; extension names from XListExtensions; reporter lists unanswered/before; test_e12_x_hang checks it. | `ai: HANG reports name the X requests left unanswered (T12.10.1)` | ✅ done `84580fd01` |
 | T12.10.2 | US-12.10 | **Release 1.8.9** — Changelog, version, full tests. | `ai: release 1.8.9 (T12.10.2)` | ✅ done `964ee5f9b` |
 
-## E13 — Reach for it: terminals you control, tools under the thumb (release 1.9.2)
+## E13 — Reach for it: terminals you control, tools under the thumb (release 1.9.1)
 
 The owner opens any terminal command (not only presets), closes tabs they don't want, and reaches the tools they use most with one big touch-friendly button.
 
@@ -753,5 +753,6 @@ The owner opens any terminal command (not only presets), closes tabs they don't 
 |---|---|---|---|---|
 | T13.4.1 | US-13.4 | **Big Tools button beside the toolbars** — QuickTools::placeButton: toolbar rows into a column, gradient button to their right; grouped popover incl. TOOL_SELECT_OBJECT; win.ai-tools-button (stateful, remembered). Replaces the Touch bar row tried first. | `ai: one big Tools button beside the toolbars (T13.4.1)` | ✅ done `01bdadc12` |
 | T13.4.3 | US-13.4 | **Big Record button that listens** — QuickTools: record button beside Tools toggling AUDIO_RECORD; drawn face: idle red dot, recording: rays from RecordingIndicator::recentLevels, core breathing with the smoothed level, Stop m:ss; win.ai-record-button (remembered). | `ai: big Record button that follows the microphone (T13.4.3)` | ✅ done `c0abbe529` |
-| T13.4.4 | US-13.4 | **Big Full screen button** — QuickTools: full-screen button beside Record toggling Action::FULLSCREEN; label follows the state (Full screen / Window, also after F11); win.ai-fullscreen-button (remembered). | `ai: big Full screen button (T13.4.4)` | ✅ done |
+| T13.4.4 | US-13.4 | **Big Full screen button** — QuickTools: full-screen button beside Record toggling Action::FULLSCREEN; label follows the state (Full screen / Window, also after F11); win.ai-fullscreen-button (remembered). | `ai: big Full screen button (T13.4.4)` | ✅ done `282fa4da2` |
+| T13.4.5 | US-13.4 | **Focus: only the big buttons** — QuickTools::setFocused hides the menu bar, every toolbar (all positions) and the sidebar, restoring each as it was without touching the saved settings; win.ai-focus (F9, remembered) and win.ai-focus-button. Tools menu: two columns, Colour (palette, 2x5), Shapes (line, rectangle, ellipse, arrow, recognizer: with the pen) and View (zoom). | `ai: Focus button, colours, shapes and zoom in the Tools (T13.4.5)` | ✅ done |
 | T13.4.2 | US-13.4 | **Release 1.9.1** — Changelog, version, full tests. | `ai: release 1.9.1 (T13.4.2)` | ✅ done `18f82e639` |

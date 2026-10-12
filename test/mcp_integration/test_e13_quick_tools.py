@@ -144,3 +144,51 @@ def test_9_fullscreen_button(app):
     c.call("action_run", action="win.ai-fullscreen-button", state=False)
     assert wait(lambda: not widgets(c, "aiFullscreenButton")[0].get("visible", True))
     assert counts(app)["_fullscreenButton"] == 0
+
+
+def test_10_colours_and_zoom_in_the_tools(app):
+    """Tools has the palette's colours (a colour picks the pen if the tool has none) and zoom."""
+    c = app.client()
+    c.call("tool_set", tool="pen", color="#123456")
+    c.call("tool_set", tool="eraser")
+    c.call("ui_interact", op="click", target=widgets(c, "aiQuickToolsButton")[0]["id"])
+    assert wait(lambda: len(tiles(c)) >= 10)
+    shown = tiles(c)
+    for t in ("color-0", "color-1", "zoom-in", "zoom-out", "zoom-fit"):
+        assert t in shown
+    c.call("ui_interact", op="click", target=widgets(c, "aiQuick-color-1")[0]["id"])
+    assert wait(lambda: c.call("tool_get")["tool"] == "pen")
+    assert wait(lambda: not c.call("tool_get")["color"].startswith("#123456"))
+
+
+def test_11_focus_hides_menus_and_toolbars(app):
+    """Focus hides the menu bar and the toolbars; the big buttons stay and bring them back. Remembered."""
+    c = app.client()
+    shown = lambda name: widgets(c, name)[0].get("visible", True)
+    labels = lambda: [w.get("label") or w.get("text") or "" for w in c.call("ui_inspect", max_depth=80, all=True)["widgets"]]
+    assert "Focus" in labels()
+    c.call("ui_interact", op="click", target=widgets(c, "aiFocusButton")[0]["id"])
+    assert wait(lambda: "Menus" in labels())
+    assert wait(lambda: not shown("aiToolbarColumn"))
+    assert counts(app)["_focus"] == 1
+    assert widgets(c, "aiQuickToolsButton")[0].get("visible", True)
+    c.call("action_run", action="win.ai-focus", state=False)  # (as F9 does)
+    assert wait(lambda: "Focus" in labels())
+    assert wait(lambda: shown("aiToolbarColumn"))
+    assert counts(app)["_focus"] == 0
+
+
+def test_12_shapes_in_the_tools(app):
+    """Shapes are drawn with the pen: a shape tile picks the pen and the shape; tapping it again, freehand."""
+    c = app.client()
+    c.call("tool_set", tool="eraser")
+    c.call("ui_interact", op="click", target=widgets(c, "aiQuickToolsButton")[0]["id"])
+    assert wait(lambda: "shape-rect" in tiles(c))
+    c.call("ui_interact", op="click", target=widgets(c, "aiQuick-shape-rect")[0]["id"])
+    assert wait(lambda: c.call("tool_get")["tool"] == "pen")
+    assert wait(lambda: c.call("tool_get")["drawing_type"] == "rectangle")
+    time.sleep(0.5)
+    c.call("ui_interact", op="click", target=widgets(c, "aiQuickToolsButton")[0]["id"])
+    assert wait(lambda: "shape-rect" in tiles(c))
+    c.call("ui_interact", op="click", target=widgets(c, "aiQuick-shape-rect")[0]["id"])
+    assert wait(lambda: c.call("tool_get")["drawing_type"] == "default")

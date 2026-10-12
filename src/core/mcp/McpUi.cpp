@@ -253,7 +253,7 @@ McpUi::~McpUi() {
         for (const char* name:
              {"mcp-paused",       "mcp-ai-accept",   "mcp-ai-clear",     "mcp-ai-toggle",    "mcp-copy-command",
               "mcp-connect",      "mcp-settings",    "ai-terminal",      "ai-terminal-open", "ai-terminal-custom",
-              "ai-quick-tools",   "ai-tools-button", "ai-record-button", "ai-fullscreen-button", "ai-act",           "ai-toolbar",
+              "ai-quick-tools",   "ai-tools-button", "ai-record-button", "ai-fullscreen-button", "ai-focus", "ai-focus-button", "ai-act",           "ai-toolbar",
               "ai-stop",          "ai-auto-improve", "ai-ask",           "ai-rule-formulas", "ai-rule-text",
               "ai-rule-diagrams", "ai-rule-colours"}) {
             g_action_map_remove_action(G_ACTION_MAP(window), name);
@@ -386,6 +386,24 @@ void McpUi::installActions() {
                      }),
                      this);
     add(full);
+    GSimpleAction* focus = g_simple_action_new_stateful("ai-focus", nullptr, g_variant_new_boolean(false));
+    g_signal_connect(focus, "change-state", G_CALLBACK(+[](GSimpleAction* a, GVariant* v, gpointer self) {
+                         g_simple_action_set_state(a, v);
+                         if (auto* ui = static_cast<McpUi*>(self); ui->quickTools) {
+                             ui->quickTools->setFocused(g_variant_get_boolean(v));
+                         }
+                     }),
+                     this);
+    add(focus);
+    GSimpleAction* focusBtn = g_simple_action_new_stateful("ai-focus-button", nullptr, g_variant_new_boolean(true));
+    g_signal_connect(focusBtn, "change-state", G_CALLBACK(+[](GSimpleAction* a, GVariant* v, gpointer self) {
+                         g_simple_action_set_state(a, v);
+                         if (auto* ui = static_cast<McpUi*>(self); ui->quickTools) {
+                             ui->quickTools->setFocusVisible(g_variant_get_boolean(v));
+                         }
+                     }),
+                     this);
+    add(focusBtn);
     GSimpleAction* askAct = g_simple_action_new_stateful("ai-ask", nullptr, g_variant_new_boolean(false));
     g_signal_connect(askAct, "change-state", G_CALLBACK(+[](GSimpleAction*, GVariant* v, gpointer self) {
                          static_cast<McpUi*>(self)->armLasso(g_variant_get_boolean(v));
@@ -479,6 +497,8 @@ void McpUi::installActions() {
     gtk_application_set_accels_for_action(app, "win.ai-ask", askAccel);
     const char* quickAccel[] = {"F8", nullptr};
     gtk_application_set_accels_for_action(app, "win.ai-quick-tools", quickAccel);
+    const char* focusAccel[] = {"F9", nullptr};
+    gtk_application_set_accels_for_action(app, "win.ai-focus", focusAccel);
 #ifdef ENABLE_AI_TERMINAL
     const char* termAccel[] = {"<Ctrl>grave", nullptr};
     gtk_application_set_accels_for_action(app, "win.ai-terminal", termAccel);
@@ -533,6 +553,8 @@ void McpUi::buildMenu() {
              {"Big Tools button", "win.ai-tools-button"},
              {"Big Record button", "win.ai-record-button"},
              {"Big Full screen button", "win.ai-fullscreen-button"},
+             {"Big Focus button", "win.ai-focus-button"},
+             {"Focus: only the big buttons (F9)", "win.ai-focus"},
              {"Stop current AI work", "win.ai-stop"}});
     {
         GMenu* s = g_menu_new();
@@ -1518,6 +1540,15 @@ void McpUi::buildToolbar() {
     if (GAction* a = g_action_map_lookup_action(G_ACTION_MAP(server.getControl()->getWindow()->getWindow()),
                                                 "ai-fullscreen-button")) {
         g_simple_action_set_state(G_SIMPLE_ACTION(a), g_variant_new_boolean(quickTools->fullscreenWanted()));
+    }
+    if (GAction* a = g_action_map_lookup_action(G_ACTION_MAP(server.getControl()->getWindow()->getWindow()),
+                                                "ai-focus-button")) {
+        g_simple_action_set_state(G_SIMPLE_ACTION(a), g_variant_new_boolean(quickTools->focusButtonWanted()));
+    }
+    if (GAction* a = g_action_map_lookup_action(G_ACTION_MAP(server.getControl()->getWindow()->getWindow()),
+                                                "ai-focus")) {
+        g_simple_action_set_state(G_SIMPLE_ACTION(a), g_variant_new_boolean(quickTools->isFocused()));
+        quickTools->onFocus = [a](bool on) { g_action_change_state(a, g_variant_new_boolean(on)); };
     }
 }
 

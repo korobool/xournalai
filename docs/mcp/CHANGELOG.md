@@ -10,7 +10,13 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
-## 1.9.2 — Full screen under the thumb
+## 1.9.2 — Full screen and Focus under the thumb
+- **Focus** (big green button, or F9): hides the menu bar, every toolbar (top, left, right, bottom), the AI row and
+  the sidebar; only the page and the big buttons stay. The button then reads "Menus" and brings everything back as
+  it was. Your toolbar settings are not changed, and Focus is remembered. AI Agent → Big Focus button hides it.
+- **The Tools menu covers what Focus hides**, now in two columns: Colour (the palette's first ten; a colour picks
+  the pen when the tool has none), Shapes (line, rectangle, ellipse, arrow, shape recognizer; drawn with the pen,
+  a second tap goes back to freehand) and View (zoom out, fit, zoom in), beside Select, Draw, Size, Page and AI.
 - **Big Full screen button** next to Record, as large: one tap for full screen, and it then reads "Window" to go
   back (it follows F11 and the menu too). AI Agent → Big Full screen button hides it; the choice is remembered.
 

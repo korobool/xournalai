@@ -14,6 +14,7 @@
 #include "gui/XournalView.h"         // for XournalView
 #include "mcp/Json.h"
 #include "util/GVariantTemplate.h"  // for getGVariantValue
+#include "gui/toolbarMenubar/model/ColorPalette.h"  // for Palette
 
 namespace xoj::assistant {
 
@@ -42,6 +43,15 @@ const std::vector<Entry>& catalog() {
             {"size-2", "Medium", "xopp-thickness-medium", "Thickness of the tool in use: medium"},
             {"size-3", "Thick", "xopp-thickness-thick", "Thickness of the tool in use: thick"},
             {"size-4", "Very thick", "xopp-thickness-thicker", "Thickness of the tool in use: very thick"},
+            {"shape-line", "Line", "xopp-draw-line", "Draw straight lines (pen)"},
+            {"shape-rect", "Rectangle", "xopp-draw-rect", "Draw rectangles (pen)"},
+            {"shape-ellipse", "Ellipse", "xopp-draw-ellipse", "Draw ellipses (pen)"},
+            {"shape-arrow", "Arrow", "xopp-draw-arrow", "Draw arrows (pen)"},
+            {"shape-recognizer", "Recognize", "xopp-shape-recognizer",
+             "Shape recognizer: draw roughly, it becomes a clean shape (pen)"},
+            {"zoom-out", "Zoom out", "zoom-out-symbolic", "Zoom out"},
+            {"zoom-fit", "Fit", "zoom-fit-best-symbolic", "Fit the page to the window"},
+            {"zoom-in", "Zoom in", "zoom-in-symbolic", "Zoom in"},
     };
     return all;
 }
@@ -135,6 +145,14 @@ QuickTools::QuickTools(Control* ctrl, std::filesystem::path countsFile, std::fun
         wantFullscreen = it->second != 0;
         uses.erase(it);
     }
+    if (auto it = uses.find("_focusButton"); it != uses.end()) {
+        wantFocusButton = it->second != 0;
+        uses.erase(it);
+    }
+    if (auto it = uses.find("_focus"); it != uses.end()) {
+        focused = it->second != 0;
+        uses.erase(it);
+    }
     connectCounting();
 }
 
@@ -163,6 +181,12 @@ QuickTools::~QuickTools() {
     }
     if (fullscreenButton) {
         g_object_remove_weak_pointer(G_OBJECT(fullscreenButton), reinterpret_cast<gpointer*>(&fullscreenButton));
+    }
+    if (focusButton) {
+        g_object_remove_weak_pointer(G_OBJECT(focusButton), reinterpret_cast<gpointer*>(&focusButton));
+    }
+    if (toolbarColumn) {
+        g_object_remove_weak_pointer(G_OBJECT(toolbarColumn), reinterpret_cast<gpointer*>(&toolbarColumn));
     }
 }
 
@@ -220,6 +244,8 @@ void QuickTools::count(const std::string& id) {
     all["_toolsButton"] = wantButton ? 1 : 0;
     all["_recordButton"] = wantRecord ? 1 : 0;  // (whether the Tools button is shown rides along)
     all["_fullscreenButton"] = wantFullscreen ? 1 : 0;
+    all["_focusButton"] = wantFocusButton ? 1 : 0;
+    all["_focus"] = focused ? 1 : 0;
     quick_tools::save(file, all);
 }
 
@@ -243,6 +269,37 @@ void QuickTools::activate(const std::string& id) {
         db->fireActivateAction(Action::REDO);
     } else if (id == "new-page") {
         db->fireActivateAction(Action::NEW_PAGE_AFTER);
+    } else if (id.rfind("shape-", 0) == 0) {
+        // A shape is drawn with the pen: picks it, then the shape (a second tap on the shape in use: freehand again)
+        const Action a = id == "shape-line"      ? Action::TOOL_DRAW_LINE :
+                         id == "shape-rect"      ? Action::TOOL_DRAW_RECTANGLE :
+                         id == "shape-ellipse"   ? Action::TOOL_DRAW_ELLIPSE :
+                         id == "shape-arrow"     ? Action::TOOL_DRAW_ARROW :
+                                                   Action::TOOL_DRAW_SHAPE_RECOGNIZER;
+        if (control->getToolHandler()->getToolType() != TOOL_PEN) {
+            db->fireActivateAction(Action::SELECT_TOOL, TOOL_PEN);
+        }
+        GVariant* st = g_action_get_state(G_ACTION(db->getAction(a).get()));
+        const bool on = st && g_variant_get_boolean(st);
+        if (st) {
+            g_variant_unref(st);
+        }
+        db->fireChangeActionState(a, !on);
+    } else if (id == "zoom-in") {
+        db->fireActivateAction(Action::ZOOM_IN);
+    } else if (id == "zoom-out") {
+        db->fireActivateAction(Action::ZOOM_OUT);
+    } else if (id == "zoom-fit") {
+        db->fireActivateAction(Action::ZOOM_FIT);
+    } else if (id.rfind("color-", 0) == 0) {
+        const auto& palette = control->getPalette();
+        const size_t i = std::stoul(id.substr(6));
+        if (i < palette.size()) {
+            if (!control->getToolHandler()->hasCapability(TOOL_CAP_COLOR)) {
+                db->fireActivateAction(Action::SELECT_TOOL, TOOL_PEN);  // a colour is a colour of something: the pen
+            }
+            db->fireChangeActionState(Action::TOOL_COLOR, palette.getColorAt(i).getColor());
+        }
     } else if (id.rfind("size-", 0) == 0) {
         ToolHandler* th = control->getToolHandler();
         if (!th->hasCapability(TOOL_CAP_SIZE)) {
@@ -303,6 +360,15 @@ constexpr const char* CSS =
         ".xoai-fullscreen-button:hover { background-image: linear-gradient(160deg, #3cc6d3, #4583ef); }"
         ".xoai-fullscreen-button:active { box-shadow: inset 0 2px 4px alpha(#000000, 0.4); }"
         ".xoai-fullscreen-button label { color: #ffffff; font-weight: bold; }"
+        ".xoai-focus-button { color: #ffffff; border: none; border-radius: 16px; padding: 6px 10px;"
+        "  background-image: linear-gradient(160deg, #3fc37a, #1e9a8a);"
+        "  box-shadow: 0 2px 6px alpha(#1e9a8a, 0.45), inset 0 1px alpha(#ffffff, 0.3); transition: all 120ms "
+        "ease-out; }"
+        ".xoai-focus-button:hover { background-image: linear-gradient(160deg, #52d48b, #28ad9c); }"
+        ".xoai-focus-button:active { box-shadow: inset 0 2px 4px alpha(#000000, 0.4); }"
+        ".xoai-focus-button.xoai-focused { background-image: linear-gradient(160deg, #f2b33d, #e07b28); }"
+        ".xoai-focus-button label { color: #ffffff; font-weight: bold; }"
+        ".xoai-quick-colour { min-width: 56px; min-height: 56px; padding: 2px; }"
         ".xoai-quick-heading { font-size: 0.8em; font-weight: bold; opacity: 0.6; margin-top: 4px; }"
         ".xoai-quick-tile { padding: 6px 4px; min-width: 84px; min-height: 76px; border-radius: 12px; }"
         ".xoai-quick-tile label { font-size: 0.92em; }"
@@ -331,11 +397,43 @@ const std::vector<Group>& groups() {
     static const std::vector<Group> all = {
             {"Select", {"select", "select-rect", "select-object"}},
             {"Draw", {"pen", "highlighter", "eraser", "text"}},
+            {"Shapes", {"shape-line", "shape-rect", "shape-ellipse", "shape-arrow", "shape-recognizer"}},
             {"Size", {"size-0", "size-1", "size-2", "size-3", "size-4"}},
+            {"Colour", {}},  // (the palette's colours)
             {"Page", {"undo", "redo", "new-page"}},
+            {"View", {"zoom-out", "zoom-fit", "zoom-in"}},
             {"AI", {"ask", "command", "terminal"}},
     };
     return all;
+}
+
+GtkWidget* swatch(Color c, bool active) {
+    // A round drop of the colour (a ring around the one in use)
+    GtkWidget* area = gtk_drawing_area_new();
+    gtk_widget_set_size_request(area, 40, 40);
+    g_object_set_data(G_OBJECT(area), "rgb", GUINT_TO_POINTER(uint32_t(c)));
+    g_object_set_data(G_OBJECT(area), "active", GINT_TO_POINTER(active));
+    g_signal_connect(area, "draw", G_CALLBACK(+[](GtkWidget* w, cairo_t* cr, gpointer) -> gboolean {
+                         const auto v = GPOINTER_TO_UINT(g_object_get_data(G_OBJECT(w), "rgb"));
+                         const double cx = gtk_widget_get_allocated_width(w) / 2.0;
+                         const double cy = gtk_widget_get_allocated_height(w) / 2.0;
+                         cairo_arc(cr, cx, cy, 15, 0, 2 * G_PI);
+                         cairo_set_source_rgb(cr, ((v >> 16) & 0xff) / 255.0, ((v >> 8) & 0xff) / 255.0,
+                                              (v & 0xff) / 255.0);
+                         cairo_fill_preserve(cr);
+                         cairo_set_source_rgba(cr, 0.5, 0.5, 0.5, 0.6);
+                         cairo_set_line_width(cr, 1);
+                         cairo_stroke(cr);
+                         if (g_object_get_data(G_OBJECT(w), "active")) {
+                             cairo_arc(cr, cx, cy, 19, 0, 2 * G_PI);
+                             cairo_set_source_rgb(cr, 0.21, 0.52, 0.89);
+                             cairo_set_line_width(cr, 3);
+                             cairo_stroke(cr);
+                         }
+                         return TRUE;
+                     }),
+                     nullptr);
+    return area;
 }
 
 GtkWidget* tileContent(const char* icon, const std::string& label, int px) {
@@ -368,18 +466,28 @@ void QuickTools::open(GtkWidget* anchor) {
     }
     gtk_buildable_set_name(GTK_BUILDABLE(popover), "aiQuickTools");
 
-    GtkWidget* box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);
+    // Two columns of groups, so that all of them fit on a laptop screen
+    GtkWidget* box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 18);
     g_object_set(box, "margin", 10, nullptr);
+    GtkWidget* columns[2] = {gtk_box_new(GTK_ORIENTATION_VERTICAL, 4), gtk_box_new(GTK_ORIENTATION_VERTICAL, 4)};
+    gtk_box_pack_start(GTK_BOX(box), columns[0], FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(box), columns[1], FALSE, FALSE, 0);
     ToolHandler* th = control->getToolHandler();
     const ToolType active = th->getToolType();
     const auto& cat = quick_tools::catalog();
-    for (const auto& g: groups()) {
+    const size_t half = (groups().size() + 1) / 2;
+    for (size_t gi = 0; gi < groups().size(); gi++) {
+        const auto& g = groups()[gi];
+        GtkWidget* column = columns[gi < half ? 0 : 1];
         GtkWidget* heading = gtk_label_new(g.title);
         gtk_widget_set_halign(heading, GTK_ALIGN_START);
         gtk_style_context_add_class(gtk_widget_get_style_context(heading), "xoai-quick-heading");
-        gtk_box_pack_start(GTK_BOX(box), heading, FALSE, FALSE, 0);
-        GtkWidget* row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+        gtk_box_pack_start(GTK_BOX(column), heading, FALSE, FALSE, 0);
+        GtkWidget* row = gtk_box_new(g.ids.empty() ? GTK_ORIENTATION_VERTICAL : GTK_ORIENTATION_HORIZONTAL, 6);
         gtk_box_set_homogeneous(GTK_BOX(row), FALSE);
+        if (g.ids.empty()) {
+            addColourTiles(row);
+        }
         for (const char* id: g.ids) {
             const auto it =
                     std::find_if(cat.begin(), cat.end(), [&](const auto& e) { return std::string(id) == e.id; });
@@ -401,6 +509,15 @@ void QuickTools::open(GtkWidget* anchor) {
             if (std::string(id).rfind("size-", 0) == 0 && th->hasCapability(TOOL_CAP_SIZE)) {
                 on = std::string(id) == "size-" + std::to_string(static_cast<int>(th->getActiveTool()->getSize()));
             }
+            if (std::string(id).rfind("shape-", 0) == 0 && active == TOOL_PEN) {
+                const DrawingType dt = th->getActiveTool()->getDrawingType();
+                const std::string sid = id;
+                on = (sid == "shape-line" && dt == DRAWING_TYPE_LINE) ||
+                     (sid == "shape-rect" && dt == DRAWING_TYPE_RECTANGLE) ||
+                     (sid == "shape-ellipse" && dt == DRAWING_TYPE_ELLIPSE) ||
+                     (sid == "shape-arrow" && dt == DRAWING_TYPE_ARROW) ||
+                     (sid == "shape-recognizer" && dt == DRAWING_TYPE_SHAPE_RECOGNIZER);
+            }
             if (on) {
                 gtk_style_context_add_class(gtk_widget_get_style_context(tile), "xoai-active");
             }
@@ -417,7 +534,7 @@ void QuickTools::open(GtkWidget* anchor) {
                              this);
             gtk_box_pack_start(GTK_BOX(row), tile, FALSE, FALSE, 0);
         }
-        gtk_box_pack_start(GTK_BOX(box), row, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(column), row, FALSE, FALSE, 0);
     }
     gtk_container_add(GTK_CONTAINER(popover), box);
     g_signal_connect(popover, "closed", G_CALLBACK(+[](GtkPopover* p, gpointer) {
@@ -435,6 +552,41 @@ void QuickTools::open(GtkWidget* anchor) {
                      nullptr);
     gtk_widget_show_all(popover);
     gtk_popover_popup(GTK_POPOVER(popover));
+}
+
+void QuickTools::addColourTiles(GtkWidget* row) {
+    const auto& palette = control->getPalette();
+    ToolHandler* th = control->getToolHandler();
+    const bool hasColour = th->hasCapability(TOOL_CAP_COLOR);
+    const uint32_t now = hasColour ? uint32_t(th->getActiveTool()->getColor()) & 0xffffffU : 0x1000000U;
+    GtkWidget* line = nullptr;
+    for (size_t i = 0; i < std::min<size_t>(palette.size(), 10); i++) {
+        if (i % 5 == 0) {  // (five to a line)
+            line = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+            gtk_box_pack_start(GTK_BOX(row), line, FALSE, FALSE, 0);
+        }
+        const Color c = palette.getColorAt(i).getColor();
+        GtkWidget* tile = gtk_button_new();
+        gtk_container_add(GTK_CONTAINER(tile), swatch(c, (uint32_t(c) & 0xffffffU) == now));
+        gtk_style_context_add_class(gtk_widget_get_style_context(tile), "xoai-quick-tile");
+        gtk_style_context_add_class(gtk_widget_get_style_context(tile), "xoai-quick-colour");
+        gtk_widget_set_size_request(tile, 56, 56);
+        gtk_widget_set_tooltip_text(tile, palette.getColorAt(i).getName().c_str());
+        gtk_widget_set_can_focus(tile, FALSE);
+        const std::string id = "color-" + std::to_string(i);
+        gtk_buildable_set_name(GTK_BUILDABLE(tile), ("aiQuick-" + id).c_str());
+        g_object_set_data_full(G_OBJECT(tile), "tool", g_strdup(id.c_str()), g_free);
+        g_signal_connect(tile, "clicked", G_CALLBACK(+[](GtkButton* b, gpointer d) {
+                             auto* self = static_cast<QuickTools*>(d);
+                             const std::string tool = static_cast<const char*>(g_object_get_data(G_OBJECT(b), "tool"));
+                             if (self->popover) {
+                                 gtk_popover_popdown(GTK_POPOVER(self->popover));
+                             }
+                             self->activate(tool);
+                         }),
+                         this);
+        gtk_box_pack_start(GTK_BOX(line), tile, FALSE, FALSE, 0);
+    }
 }
 
 void QuickTools::placeButton(GtkWidget* mainBox, const std::vector<GtkWidget*>& rows) {
@@ -455,6 +607,7 @@ void QuickTools::placeButton(GtkWidget* mainBox, const std::vector<GtkWidget*>& 
     GtkWidget* outer = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
     gtk_buildable_set_name(GTK_BUILDABLE(outer), "aiToolbarsWithTools");
     GtkWidget* column = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+    gtk_buildable_set_name(GTK_BUILDABLE(column), "aiToolbarColumn");
     for (GtkWidget* r: present) {
         gboolean expand = FALSE, fill = TRUE;
         guint padding = 0;
@@ -533,6 +686,27 @@ void QuickTools::placeButton(GtkWidget* mainBox, const std::vector<GtkWidget*>& 
                      this);
     gtk_box_pack_end(GTK_BOX(outer), fullscreenButton, FALSE, FALSE, 0);
 
+    // Focus: hides the menu bar and the toolbars; only these big buttons stay (and bring them back)
+    focusButton = gtk_button_new();
+    gtk_style_context_add_class(gtk_widget_get_style_context(focusButton), "xoai-focus-button");
+    gtk_widget_set_size_request(focusButton, 76, -1);
+    g_object_set(focusButton, "margin", 4, "margin-end", 0, nullptr);
+    gtk_widget_set_can_focus(focusButton, FALSE);
+    gtk_buildable_set_name(GTK_BUILDABLE(focusButton), "aiFocusButton");
+    g_signal_connect(focusButton, "clicked", G_CALLBACK(+[](GtkButton*, gpointer d) {
+                         auto* self = static_cast<QuickTools*>(d);
+                         if (self->onFocus) {
+                             self->onFocus(!self->focused);  // (through the action, so the menu's check follows)
+                         } else {
+                             self->setFocused(!self->focused);
+                         }
+                     }),
+                     this);
+    gtk_box_pack_end(GTK_BOX(outer), focusButton, FALSE, FALSE, 0);
+    toolbarColumn = column;
+    g_object_add_weak_pointer(G_OBJECT(toolbarColumn), reinterpret_cast<gpointer*>(&toolbarColumn));
+    mainWindow = gtk_widget_get_toplevel(mainBox);
+
 
     gtk_box_pack_start(GTK_BOX(mainBox), outer, FALSE, FALSE, 0);
     gtk_box_reorder_child(GTK_BOX(mainBox), outer, position);
@@ -552,6 +726,12 @@ void QuickTools::placeButton(GtkWidget* mainBox, const std::vector<GtkWidget*>& 
     gtk_widget_set_no_show_all(fullscreenButton, TRUE);
     gtk_widget_set_visible(fullscreenButton, wantFullscreen);
     g_object_add_weak_pointer(G_OBJECT(fullscreenButton), reinterpret_cast<gpointer*>(&fullscreenButton));
+    gtk_widget_set_no_show_all(focusButton, TRUE);
+    gtk_widget_set_visible(focusButton, wantFocusButton);
+    g_object_add_weak_pointer(G_OBJECT(focusButton), reinterpret_cast<gpointer*>(&focusButton));
+    const bool startFocused = focused;
+    focused = false;
+    setFocused(startFocused);
     recordPoll = g_timeout_add(
             200,
             [](gpointer d) -> gboolean {
@@ -693,6 +873,84 @@ void QuickTools::refreshFullscreen() {
     gtk_container_add(GTK_CONTAINER(fullscreenButton), content);
     gtk_widget_show_all(content);
     gtk_widget_set_tooltip_text(fullscreenButton, shownFullscreen ? "Leave full screen (F11)" : "Full screen (F11)");
+}
+
+void QuickTools::setFocused(bool on) {
+    if (on == focused && focusButton && gtk_bin_get_child(GTK_BIN(focusButton))) {
+        return;
+    }
+    if (on && !focused && GTK_IS_APPLICATION_WINDOW(mainWindow)) {
+        menubarBefore = gtk_application_window_get_show_menubar(GTK_APPLICATION_WINDOW(mainWindow));
+    }
+    const bool changed = on != focused;
+    focused = on;
+    if (toolbarColumn) {
+        gtk_widget_set_visible(toolbarColumn, !on);
+    }
+    if (changed) {
+        // Every other toolbar (left, right, bottom) and the sidebar: hidden, then given back as they were.
+        // (The saved settings are not touched: Focus is a view, not a new layout.)
+        MainWindow* win = control->getWindow();
+        const auto& bars = win->getToolbarWidgets();
+        if (on) {
+            hiddenBars.clear();
+            for (const auto& w: bars) {
+                if (w && gtk_widget_get_visible(w.get())) {
+                    hiddenBars.push_back(w.get());
+                    gtk_widget_set_visible(w.get(), FALSE);
+                }
+            }
+            GVariant* st = g_action_get_state(G_ACTION(control->getActionDatabase()->getAction(Action::SHOW_SIDEBAR).get()));
+            sidebarBefore = st && g_variant_get_boolean(st);
+            if (st) {
+                g_variant_unref(st);
+            }
+            if (sidebarBefore) {
+                win->setSidebarVisible(false);
+                control->getActionDatabase()->setActionState(Action::SHOW_SIDEBAR, false);
+            }
+        } else {
+            for (GtkWidget* w: hiddenBars) {
+                for (const auto& b: bars) {
+                    if (b.get() == w) {  // (still one of the window's toolbars)
+                        gtk_widget_set_visible(w, TRUE);
+                    }
+                }
+            }
+            hiddenBars.clear();
+            if (sidebarBefore) {
+                win->setSidebarVisible(true);
+                control->getActionDatabase()->setActionState(Action::SHOW_SIDEBAR, true);
+            }
+        }
+    }
+    if (changed && GTK_IS_APPLICATION_WINDOW(mainWindow)) {
+        gtk_application_window_set_show_menubar(GTK_APPLICATION_WINDOW(mainWindow), on ? FALSE : menubarBefore);
+    }
+    if (focusButton) {
+        if (GtkWidget* old = gtk_bin_get_child(GTK_BIN(focusButton))) {
+            gtk_widget_destroy(old);
+        }
+        GtkWidget* content = on ? tileContent("view-reveal-symbolic", "Menus", 34) :
+                                  tileContent("view-conceal-symbolic", "Focus", 34);
+        gtk_container_add(GTK_CONTAINER(focusButton), content);
+        gtk_widget_show_all(content);
+        gtk_widget_set_tooltip_text(focusButton, on ? "Show the menus and toolbars again (F9)" :
+                                                      "Focus (F9): hide the menus and toolbars, keep these buttons");
+        GtkStyleContext* sc = gtk_widget_get_style_context(focusButton);
+        on ? gtk_style_context_add_class(sc, "xoai-focused") : gtk_style_context_remove_class(sc, "xoai-focused");
+    }
+    if (changed) {
+        count("");  // (saves the choice)
+    }
+}
+
+void QuickTools::setFocusVisible(bool visible) {
+    wantFocusButton = visible;
+    if (focusButton) {
+        gtk_widget_set_visible(focusButton, visible);
+    }
+    count("");
 }
 
 void QuickTools::setFullscreenVisible(bool visible) {

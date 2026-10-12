@@ -2285,6 +2285,16 @@
               "finished": "2026-10-12T12:24:33+01:00"
             },
             {
+              "id": "T13.4.5",
+              "story": "US-13.4",
+              "title": "Focus: only the big buttons",
+              "details": "QuickTools::setFocused hides the menu bar, every toolbar (all positions) and the sidebar, restoring each as it was without touching the saved settings; win.ai-focus (F9, remembered) and win.ai-focus-button. Tools menu: two columns, Colour (palette, 2x5), Shapes (line, rectangle, ellipse, arrow, recognizer: with the pen) and View (zoom).",
+              "commit": "ai: Focus button, colours, shapes and zoom in the Tools",
+              "status": "done",
+              "started": "2026-10-12T12:37:37+01:00",
+              "finished": "2026-10-12T12:37:37+01:00"
+            },
+            {
               "id": "T13.4.2",
               "story": "US-13.4",
               "title": "Release 1.9.1",
