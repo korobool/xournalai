@@ -2477,7 +2477,8 @@
                 "the switch is the first tablet button, with a gap after it (hard to hit by accident); also in Tools → View",
                 "off by default, as before: only the stylus draws",
                 "it toggles the app's own touch-drawing setting (the menu and settings agree)",
-                "with touch drawing on, a finger in the AI highlighter or lasso marks (not ink); being a switch, it leaves them on"
+                "with touch drawing on, a finger in the AI highlighter or lasso marks (not ink); being a switch, it leaves them on",
+                "Auto-improve is the second switch (same setting as the menu and Ctrl+Alt+I), also in Tools → AI"
               ]
             }
           ],
@@ -2493,6 +2494,16 @@
               "finished": "2026-10-12T16:27:52+01:00"
             },
             {
+              "id": "T14.4.3",
+              "story": "US-14.4",
+              "title": "Auto-improve switch",
+              "details": "QuickTools: 'auto-improve' tile second in TABLET (switches group, gap after), labelled on/off, toggling win.ai-auto-improve; also in Tools → AI.",
+              "commit": "ai: Auto-improve switch among the big buttons",
+              "status": "done",
+              "started": "2026-10-12T17:01:11+01:00",
+              "finished": "2026-10-12T17:01:11+01:00"
+            },
+            {
               "id": "T14.4.2",
               "story": "US-14.4",
               "title": "Release 1.11.2",
@@ -2501,6 +2512,14 @@
               "status": "done",
               "started": "2026-10-12T16:49:11+01:00",
               "finished": "2026-10-12T16:49:11+01:00"
+            },
+            {
+              "id": "T14.4.4",
+              "story": "US-14.4",
+              "title": "Release 1.11.3",
+              "details": "Changelog, version, full tests.",
+              "commit": "ai: release 1.11.3",
+              "status": "todo"
             }
           ]
         }

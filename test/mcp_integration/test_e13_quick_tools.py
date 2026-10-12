@@ -248,9 +248,17 @@ def test_15_tablet_states_stay_consistent(app):
     tool = lambda: c.call("tool_get")["tool"]
     state = lambda a: [x.get("state") for x in c.call("actions_list", filter=a)["actions"] if x["name"] == "win." + a][0]
     c.call("action_run", action="win.ai-focus", state=True)
-    assert wait(lambda: widgets(c, "aiTablet-pen")[0].get("visible", True))
+    assert wait(lambda: widgets(c, "aiTablet-ai-highlighter")[0].get("visible", True))
+    # (the narrow test window may have no room for the later buttons: their tool is picked as a tap would)
+    fits = lambda t: widgets(c, "aiTablet-" + t)[0].get("visible", True)
     click = lambda t: c.call("ui_interact", op="click", target=widgets(c, "aiTablet-" + t)[0]["id"])
-    pen = lambda: click("pen") if widgets(c, "aiTablet-pen")[0].get("visible", True) else c.call("tool_set", tool="pen")
+    def tap(t):  # the tablet button, or the same tile in Tools when it has no room on the strip
+        if fits(t):
+            return click(t)
+        c.call("action_run", action="win.ai-quick-tools")
+        assert wait(lambda: widgets(c, "aiQuick-" + t))
+        c.call("ui_interact", op="click", target=widgets(c, "aiQuick-" + t)[0]["id"])
+    pen = lambda: tap("pen")
     pen()
     assert wait(lambda: tool() == "pen")
     click("ai-highlighter")
@@ -263,7 +271,7 @@ def test_15_tablet_states_stay_consistent(app):
     assert wait(lambda: state("ai-highlighter") is False)
     click("ask")
     assert wait(lambda: state("ai-ask") is True)
-    click("eraser")  # a tool ends the armed lasso
+    tap("eraser")  # a tool ends the armed lasso
     assert wait(lambda: tool() == "eraser") and wait(lambda: state("ai-ask") is False)
     click("ai-highlighter")
     assert wait(lambda: state("ai-highlighter") is True)
@@ -285,8 +293,8 @@ def test_16_touch_switch_first_and_off_by_default(app):
     c.call("action_run", action="win.ai-focus", state=True)
     assert wait(lambda: widgets(c, "aiTablet-touch")[0].get("visible", True))
     tiles = sorted([w for w in widgets(c, prefix="aiTablet-") if w.get("visible", True)], key=lambda w: w["bbox"][0])
-    assert tiles[0]["name"] == "aiTablet-touch"
-    assert tiles[1]["bbox"][0] - (tiles[0]["bbox"][0] + tiles[0]["bbox"][2]) >= 14  # (a gap: not hit by accident)
+    assert tiles[0]["name"] == "aiTablet-touch" and tiles[1]["name"] == "aiTablet-auto-improve"
+    assert tiles[2]["bbox"][0] - (tiles[1]["bbox"][0] + tiles[1]["bbox"][2]) >= 14  # (a gap: not hit by accident)
     c.call("action_run", action="win.ai-highlighter", state=True)
     c.call("action_run", action="win.ai-highlighter", state=False)
     c.call("action_run", action="win.ai-focus", state=False)
@@ -295,4 +303,21 @@ def test_16_touch_switch_first_and_off_by_default(app):
     assert wait(lambda: touch() is True)
     c.call("ui_interact", op="click", target=widgets(c, "aiTablet-touch")[0]["id"])
     assert wait(lambda: touch() is False)
+    c.call("action_run", action="win.ai-focus", state=False)
+
+
+
+def test_17_auto_improve_switch(app):
+    """Auto-improve is the second switch: it shows its state and toggles the same setting as the menu."""
+    c = app.client()
+    state = lambda: [a.get("state") for a in c.call("actions_list", filter="ai-auto-improve")["actions"]
+                     if a["name"] == "win.ai-auto-improve"][0]
+    labels = lambda: [w.get("label") or "" for w in c.call("ui_inspect", max_depth=80, all=True)["widgets"]]
+    assert state() is False
+    c.call("action_run", action="win.ai-focus", state=True)
+    assert wait(lambda: "Auto-improve off" in labels())
+    c.call("ui_interact", op="click", target=widgets(c, "aiTablet-auto-improve")[0]["id"])
+    assert wait(lambda: state() is True) and wait(lambda: "Auto-improve on" in labels())
+    c.call("action_run", action="win.ai-auto-improve", state=False)  # (the menu / Ctrl+Alt+I)
+    assert wait(lambda: "Auto-improve off" in labels())
     c.call("action_run", action="win.ai-focus", state=False)

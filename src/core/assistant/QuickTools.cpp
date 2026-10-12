@@ -28,6 +28,8 @@ const std::vector<Entry>& catalog() {
             {"ask", "Ask", "audio-input-microphone-symbolic",
              "Ask the AI: circle an area, then say or type what you want"},
             {"select", "Select", "xopp-select-lasso", "Select a region (lasso)"},
+            {"auto-improve", "Auto-improve", "starred-symbolic",
+             "Auto-improve (Ctrl+Alt+I): off, the AI acts only on markers and requests; on, it improves what you write"},
             {"touch", "Touch", "xopp-touch-drawing",
              "Touch drawing: off, only the stylus draws (fingers scroll); on, fingers draw and mark too"},
             {"ai-highlighter", "AI highlight", "xopp-ai-highlighter",
@@ -326,6 +328,18 @@ void QuickTools::activate(const std::string& id) {
             g_variant_unref(st);
         }
         db->fireChangeActionState(a, !on);
+    } else if (id == "auto-improve") {
+        // A switch: the same as the menu's and Ctrl+Alt+I (the AI highlighter / lasso stay on)
+        if (auto* win = control->getWindow() ? control->getWindow()->getWindow() : nullptr) {
+            if (GAction* a = g_action_map_lookup_action(G_ACTION_MAP(win), "ai-auto-improve")) {
+                GVariant* st = g_action_get_state(a);
+                const bool on = st && g_variant_get_boolean(st);
+                if (st) {
+                    g_variant_unref(st);
+                }
+                g_action_change_state(a, g_variant_new_boolean(!on));
+            }
+        }
     } else if (id == "touch") {
         // A switch, not a tool: the AI highlighter / lasso stay on
         db->fireChangeActionState(Action::TOGGLE_TOUCH_DRAWING, !control->getSettings()->getTouchDrawingEnabled());
@@ -422,7 +436,7 @@ constexpr const char* CSS =
         "  box-shadow: 0 2px 8px alpha(#7b3fe0, 0.5), inset 0 1px alpha(#ffffff, 0.3); }"
         ".xoai-mode-done label { color: #ffffff; }"
         ".xoai-mode-discard { border-radius: 16px; font-size: 1.05em; }"
-        ".xoai-quick-tile.xoai-tablet-tile.xoai-touch-switch { min-width: 84px; }"
+        ".xoai-quick-tile.xoai-tablet-tile.xoai-touch-switch { min-width: 100px; }"
         ".xoai-touch-switch label { font-size: 0.85em; }"
         ".xoai-touch-switch.xoai-touch-on { background-image: none; background-color: #f6d36b;"
         "  box-shadow: inset 0 -3px #d99a00; }"
@@ -460,7 +474,7 @@ const std::vector<Group>& groups() {
             {"Colour", {}},  // (the palette's colours)
             {"Page", {"undo", "redo", "new-page"}},
             {"View", {"touch", "zoom-out", "zoom-fit", "zoom-in"}},
-            {"AI", {"ask", "ai-highlighter", "command", "terminal"}},
+            {"AI", {"ask", "ai-highlighter", "command", "auto-improve", "terminal"}},
     };
     return all;
 }
@@ -569,6 +583,17 @@ void QuickTools::open(GtkWidget* anchor) {
             }
             if (std::string(id) == "touch") {
                 on = control->getSettings()->getTouchDrawingEnabled();
+            }
+            if (std::string(id) == "auto-improve") {
+                if (auto* win = control->getWindow() ? control->getWindow()->getWindow() : nullptr) {
+                    if (GAction* a = g_action_map_lookup_action(G_ACTION_MAP(win), "ai-auto-improve")) {
+                        GVariant* st = g_action_get_state(a);
+                        on = st && g_variant_get_boolean(st);
+                        if (st) {
+                            g_variant_unref(st);
+                        }
+                    }
+                }
             }
             if (std::string(id).rfind("shape-", 0) == 0 && active == TOOL_PEN) {
                 const DrawingType dt = th->getActiveTool()->getDrawingType();
@@ -969,9 +994,13 @@ void QuickTools::refreshFullscreen() {
 
 namespace {
 /// The tablet buttons shown in Focus, left to right by priority (the last ones give way first)
-constexpr const char* TABLET[] = {"touch", "ai-highlighter", "ask", "pen", "eraser", "select", "command", "terminal"};
-constexpr size_t TABLET_FIRST = 1;    ///< touch on its own first (a gap after it: hard to hit by accident)
-constexpr size_t TABLET_ACTIONS = 6;  ///< asking and drawing; a gap, then the AI actions
+constexpr const char* TABLET[] = {"touch",  "auto-improve", "ai-highlighter", "ask",     "pen",
+                                  "eraser", "select",       "command",        "terminal"};
+constexpr size_t TABLET_FIRST = 2;    ///< the switches first (a gap after them: hard to hit by accident)
+constexpr size_t TABLET_ACTIONS = 7;  ///< asking and drawing; a gap, then the AI actions
+
+/// The switches among the tablet buttons: they say their state under the icon
+bool isSwitch(const std::string& id) { return id == "touch" || id == "auto-improve"; }
 constexpr int TABLET_W = 64;
 }  // namespace
 
@@ -1003,7 +1032,7 @@ void QuickTools::buildTablet(GtkWidget* outer) {
     for (size_t i = 0; i < std::size(TABLET); i++) {
         const auto it = std::find_if(cat.begin(), cat.end(), [&](const auto& e) { return std::string(TABLET[i]) == e.id; });
         GtkWidget* b = make(TABLET[i], it->icon, it->tip);
-        if (std::string(TABLET[i]) == "touch") {
+        if (isSwitch(TABLET[i])) {
             // A switch, and it says so: "Touch off" / "Touch on" under the icon (filled in by refreshTablet)
             gtk_widget_destroy(gtk_bin_get_child(GTK_BIN(b)));
             gtk_style_context_add_class(gtk_widget_get_style_context(b), "xoai-touch-switch");
@@ -1098,18 +1127,22 @@ void QuickTools::refreshTablet() {
             room -= need;
         }
         bool on = (id == "ai-highlighter" && highlighting) || (id == "ask" && asking) ||
-                  (id == "touch" && control->getSettings()->getTouchDrawingEnabled());
+                  (id == "touch" && control->getSettings()->getTouchDrawingEnabled()) ||
+                  (id == "auto-improve" && stateOf("ai-auto-improve"));
         for (const auto& t: TOOLS) {
             on = on || (!highlighting && !asking && id == t.id && t.type == active);
         }
         GtkStyleContext* sc = gtk_widget_get_style_context(w);
         on ? gtk_style_context_add_class(sc, "xoai-active") : gtk_style_context_remove_class(sc, "xoai-active");
-        if (id == "touch" && touchShown != static_cast<int>(on)) {
-            touchShown = on;
+        int& shown = id == "touch" ? touchShown : autoShown;
+        if (isSwitch(id) && shown != static_cast<int>(on)) {
+            shown = on;
             if (GtkWidget* old = gtk_bin_get_child(GTK_BIN(w))) {
                 gtk_widget_destroy(old);
             }
-            GtkWidget* content = tileContent("xopp-touch-drawing", on ? "Touch on" : "Touch off", 30);
+            const char* name = id == "touch" ? "Touch" : "Auto-improve";
+            GtkWidget* content = tileContent(id == "touch" ? "xopp-touch-drawing" : "starred-symbolic",
+                                             std::string(name) + (on ? " on" : " off"), 30);
             gtk_container_add(GTK_CONTAINER(w), content);
             gtk_widget_show_all(content);
             on ? gtk_style_context_add_class(sc, "xoai-touch-on") : gtk_style_context_remove_class(sc, "xoai-touch-on");

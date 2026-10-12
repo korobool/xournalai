@@ -10,6 +10,11 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.11.3 — Auto-improve under the thumb
+- **Auto-improve switch** next to Touch, at the start of the big buttons ("Auto-improve off" / "on"): the same
+  setting as the AI Agent menu and Ctrl+Alt+I, so it can be flipped in Focus where the menu is hidden. Also in
+  Tools → AI.
+
 ## 1.11.2 — A finger switch
 - **Touch drawing among the big buttons.** The first tablet button (with a gap after it, so it isn't hit by
   accident; also in Tools → View) switches touch drawing: off, as before, only the stylus draws and fingers scroll;
