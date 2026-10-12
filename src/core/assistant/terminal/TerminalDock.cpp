@@ -104,14 +104,14 @@ void TerminalDock::buildHeader() {
            G_CALLBACK(+[](GtkButton*, gpointer d) { static_cast<TerminalDock*>(d)->hide(); }));
     button("view-refresh-symbolic", "Restart the program in this tab", G_CALLBACK(+[](GtkButton*, gpointer d) {
                auto* self = static_cast<TerminalDock*>(d);
-               if (self->notebook) {
-                   self->restartTab(gtk_notebook_get_current_page(GTK_NOTEBOOK(self->notebook)));
-               }
+               self->restartTab(self->currentTab());
            }));
     GtkWidget* plus = gtk_menu_button_new();
     gtk_button_set_image(GTK_BUTTON(plus), gtk_image_new_from_icon_name("list-add-symbolic", GTK_ICON_SIZE_MENU));
     gtk_button_set_relief(GTK_BUTTON(plus), GTK_RELIEF_NONE);
-    gtk_widget_set_tooltip_text(plus, "Open a new tab: Claude, Codex, OpenCode or a shell");
+    gtk_widget_set_tooltip_text(plus, "Open a new tab: Claude, Codex, OpenCode, a shell or your own command");
+    gtk_buildable_set_name(GTK_BUILDABLE(plus), "aiTerminalNew");
+    plusButton = plus;
     gtk_widget_set_can_focus(plus, FALSE);
     newTabMenu = gtk_menu_new();
     gtk_menu_button_set_popup(GTK_MENU_BUTTON(plus), newTabMenu);
@@ -121,6 +121,33 @@ void TerminalDock::buildHeader() {
 
 void TerminalDock::setNewTabChoices(std::vector<TerminalSpec> list) {
     choices = std::move(list);
+    rebuildMenu();
+}
+
+void TerminalDock::setCustomCommands(std::filesystem::path file, std::vector<std::string> env) {
+    commandsFile = std::move(file);
+    customEnv = std::move(env);
+    rebuildMenu();
+}
+
+namespace {
+std::string shorten(const std::string& s, size_t n) {
+    if (g_utf8_strlen(s.c_str(), -1) <= static_cast<glong>(n)) {
+        return s;
+    }
+    gchar* cut = g_utf8_substring(s.c_str(), 0, static_cast<glong>(n) - 1);
+    std::string out = std::string(cut) + "…";
+    g_free(cut);
+    return out;
+}
+
+std::string savedLabel(const SavedCommand& c) {
+    const std::string title = terminal_commands::tabTitle(c);
+    return c.command.empty() || c.command == title ? title : title + "  ·  " + shorten(c.command, 48);
+}
+}  // namespace
+
+void TerminalDock::rebuildMenu() {
     if (!newTabMenu) {
         return;
     }
@@ -142,7 +169,207 @@ void TerminalDock::setNewTabChoices(std::vector<TerminalSpec> list) {
                          this);
         gtk_menu_shell_append(GTK_MENU_SHELL(newTabMenu), item);
     }
+    if (!commandsFile.empty()) {
+        const auto saved = terminal_commands::load(commandsFile);
+        if (!saved.empty()) {
+            gtk_menu_shell_append(GTK_MENU_SHELL(newTabMenu), gtk_separator_menu_item_new());
+        }
+        for (size_t i = 0; i < saved.size(); i++) {
+            GtkWidget* item = gtk_menu_item_new_with_label(savedLabel(saved[i]).c_str());
+            gtk_widget_set_tooltip_text(item, saved[i].command.c_str());
+            g_object_set_data(G_OBJECT(item), "saved", GSIZE_TO_POINTER(i));
+            g_signal_connect(item, "activate", G_CALLBACK(+[](GtkMenuItem* mi, gpointer d) {
+                                 auto* self = static_cast<TerminalDock*>(d);
+                                 const auto idx = GPOINTER_TO_SIZE(g_object_get_data(G_OBJECT(mi), "saved"));
+                                 const auto list = terminal_commands::load(self->commandsFile);
+                                 if (idx < list.size()) {
+                                     self->openCustom(list[idx]);
+                                 }
+                             }),
+                             this);
+            gtk_menu_shell_append(GTK_MENU_SHELL(newTabMenu), item);
+        }
+        gtk_menu_shell_append(GTK_MENU_SHELL(newTabMenu), gtk_separator_menu_item_new());
+        GtkWidget* custom = gtk_menu_item_new_with_label("Custom command…");
+        gtk_buildable_set_name(GTK_BUILDABLE(custom), "aiTerminalCustomItem");
+        g_signal_connect(custom, "activate", G_CALLBACK(+[](GtkMenuItem*, gpointer d) {
+                             // after the menu has closed: the popover points at the + button
+                             g_idle_add(
+                                     [](gpointer d) -> gboolean {
+                                         static_cast<TerminalDock*>(d)->promptCustomCommand();
+                                         return G_SOURCE_REMOVE;
+                                     },
+                                     d);
+                         }),
+                         this);
+        gtk_menu_shell_append(GTK_MENU_SHELL(newTabMenu), custom);
+    }
     gtk_widget_show_all(newTabMenu);
+}
+
+int TerminalDock::openCustom(const SavedCommand& cmd) {
+    if (!commandsFile.empty()) {
+        terminal_commands::save(commandsFile, terminal_commands::remember(terminal_commands::load(commandsFile), cmd));
+        rebuildMenu();
+    }
+    return openTab(
+            {terminal_commands::tabTitle(cmd), cmd.command, terminal_commands::expandFolder(cmd.folder), customEnv},
+            true);
+}
+
+void TerminalDock::fillSavedList(GtkWidget* list) {
+    GList* old = gtk_container_get_children(GTK_CONTAINER(list));
+    for (GList* l = old; l; l = l->next) {
+        gtk_widget_destroy(GTK_WIDGET(l->data));
+    }
+    g_list_free(old);
+    const auto saved = terminal_commands::load(commandsFile);
+    if (saved.empty()) {
+        return;
+    }
+    GtkWidget* heading = gtk_label_new(nullptr);
+    gtk_label_set_markup(GTK_LABEL(heading), "<small>Recent — tap to open again</small>");
+    gtk_widget_set_halign(heading, GTK_ALIGN_START);
+    gtk_box_pack_start(GTK_BOX(list), heading, FALSE, FALSE, 0);
+    for (size_t i = 0; i < saved.size(); i++) {
+        GtkWidget* row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
+        GtkWidget* open = gtk_button_new_with_label(savedLabel(saved[i]).c_str());
+        gtk_button_set_relief(GTK_BUTTON(open), GTK_RELIEF_NONE);
+        gtk_widget_set_halign(gtk_bin_get_child(GTK_BIN(open)), GTK_ALIGN_START);
+        gtk_widget_set_tooltip_text(open, saved[i].command.empty() ? "A shell" : saved[i].command.c_str());
+        gtk_buildable_set_name(GTK_BUILDABLE(open), "aiTerminalSaved");
+        GtkWidget* forget = gtk_button_new_from_icon_name("edit-delete-symbolic", GTK_ICON_SIZE_MENU);
+        gtk_button_set_relief(GTK_BUTTON(forget), GTK_RELIEF_NONE);
+        gtk_widget_set_tooltip_text(forget, "Forget this command");
+        gtk_buildable_set_name(GTK_BUILDABLE(forget), "aiTerminalForget");
+        for (GtkWidget* b: {open, forget}) {
+            g_object_set_data(G_OBJECT(b), "saved", GSIZE_TO_POINTER(i));
+            g_object_set_data(G_OBJECT(b), "list", list);
+        }
+        g_signal_connect(open, "clicked", G_CALLBACK(+[](GtkButton* b, gpointer d) {
+                             auto* self = static_cast<TerminalDock*>(d);
+                             const auto idx = GPOINTER_TO_SIZE(g_object_get_data(G_OBJECT(b), "saved"));
+                             const auto all = terminal_commands::load(self->commandsFile);
+                             if (GtkWidget* pop = gtk_widget_get_ancestor(GTK_WIDGET(b), GTK_TYPE_POPOVER)) {
+                                 gtk_popover_popdown(GTK_POPOVER(pop));
+                             }
+                             if (idx < all.size()) {
+                                 self->openCustom(all[idx]);
+                             }
+                         }),
+                         this);
+        g_signal_connect(forget, "clicked", G_CALLBACK(+[](GtkButton* b, gpointer d) {
+                             auto* self = static_cast<TerminalDock*>(d);
+                             const auto idx = GPOINTER_TO_SIZE(g_object_get_data(G_OBJECT(b), "saved"));
+                             auto* box = static_cast<GtkWidget*>(g_object_get_data(G_OBJECT(b), "list"));
+                             auto all = terminal_commands::load(self->commandsFile);
+                             if (idx < all.size()) {
+                                 terminal_commands::save(self->commandsFile, terminal_commands::forget(all, all[idx]));
+                             }
+                             self->rebuildMenu();
+                             // rebuilt after this click has finished (the button is part of the list)
+                             g_idle_add(
+                                     [](gpointer p) -> gboolean {
+                                         auto* pair = static_cast<std::pair<TerminalDock*, GtkWidget*>*>(p);
+                                         if (GTK_IS_WIDGET(pair->second)) {
+                                             pair->first->fillSavedList(pair->second);
+                                         }
+                                         g_object_unref(pair->second);
+                                         delete pair;
+                                         return G_SOURCE_REMOVE;
+                                     },
+                                     new std::pair<TerminalDock*, GtkWidget*>(self, GTK_WIDGET(g_object_ref(box))));
+                         }),
+                         this);
+        gtk_box_pack_start(GTK_BOX(row), open, TRUE, TRUE, 0);
+        gtk_box_pack_start(GTK_BOX(row), forget, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(list), row, FALSE, FALSE, 0);
+    }
+    gtk_widget_show_all(list);
+}
+
+void TerminalDock::promptCustomCommand() {
+    if (!plusButton || !dock) {
+        return;
+    }
+    show();  // the popover points at the + button in the dock's header
+    GtkWidget* popover = gtk_popover_new(plusButton);
+    gtk_buildable_set_name(GTK_BUILDABLE(popover), "aiTerminalCustomPopover");
+    GtkWidget* box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
+    g_object_set(box, "margin", 10, nullptr);
+    GtkWidget* grid = gtk_grid_new();
+    gtk_grid_set_row_spacing(GTK_GRID(grid), 6);
+    gtk_grid_set_column_spacing(GTK_GRID(grid), 8);
+    auto field = [&](int row, const char* label, const char* name, const char* placeholder, int width) {
+        GtkWidget* l = gtk_label_new(label);
+        gtk_widget_set_halign(l, GTK_ALIGN_END);
+        GtkWidget* e = gtk_entry_new();
+        gtk_entry_set_width_chars(GTK_ENTRY(e), width);
+        gtk_entry_set_placeholder_text(GTK_ENTRY(e), placeholder);
+        gtk_buildable_set_name(GTK_BUILDABLE(e), name);
+        gtk_grid_attach(GTK_GRID(grid), l, 0, row, 1, 1);
+        gtk_grid_attach(GTK_GRID(grid), e, 1, row, 1, 1);
+        return e;
+    };
+    GtkWidget* command = field(0, "Command", "aiTerminalCustomCommand",
+                               "paste or type, e.g. opencode --config ~/work.json (empty: a shell)", 56);
+    GtkWidget* title = field(1, "Tab name", "aiTerminalCustomTitle", "optional", 24);
+    GtkWidget* folder = field(2, "Folder", "aiTerminalCustomFolder", "optional, e.g. ~/projects/x (default: home)", 40);
+    gtk_box_pack_start(GTK_BOX(box), grid, FALSE, FALSE, 0);
+
+    GtkWidget* buttons = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+    GtkWidget* hint = gtk_label_new(nullptr);
+    gtk_label_set_markup(GTK_LABEL(hint), "<small>Runs in your login shell; remembered for next time</small>");
+    gtk_box_pack_start(GTK_BOX(buttons), hint, FALSE, FALSE, 0);
+    GtkWidget* run = gtk_button_new_with_label("Open tab");
+    gtk_style_context_add_class(gtk_widget_get_style_context(run), "suggested-action");
+    gtk_buildable_set_name(GTK_BUILDABLE(run), "aiTerminalCustomOpen");
+    gtk_box_pack_end(GTK_BOX(buttons), run, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(box), buttons, FALSE, FALSE, 0);
+
+    GtkWidget* list = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+    gtk_box_pack_start(GTK_BOX(box), list, FALSE, FALSE, 0);
+    fillSavedList(list);
+
+    g_object_set_data(G_OBJECT(popover), "command", command);
+    g_object_set_data(G_OBJECT(popover), "title", title);
+    g_object_set_data(G_OBJECT(popover), "folder", folder);
+    auto submit = +[](GtkWidget* w, gpointer d) {
+        auto* self = static_cast<TerminalDock*>(d);
+        GtkWidget* pop = gtk_widget_get_ancestor(w, GTK_TYPE_POPOVER);
+        if (!pop) {
+            return;
+        }
+        auto text = [&](const char* key) {
+            std::string s = gtk_entry_get_text(GTK_ENTRY(g_object_get_data(G_OBJECT(pop), key)));
+            const auto b = s.find_first_not_of(" \t\r\n");
+            const auto e = s.find_last_not_of(" \t\r\n");
+            return b == std::string::npos ? std::string() : s.substr(b, e - b + 1);
+        };
+        const SavedCommand cmd{text("title"), text("command"), text("folder")};
+        gtk_popover_popdown(GTK_POPOVER(pop));
+        self->openCustom(cmd);
+    };
+    for (GtkWidget* e: {command, title, folder}) {
+        g_signal_connect(e, "activate", G_CALLBACK(submit), this);
+    }
+    g_signal_connect(run, "clicked", G_CALLBACK(submit), this);
+    g_signal_connect(popover, "closed", G_CALLBACK(+[](GtkPopover* p, gpointer) {
+                         g_idle_add(
+                                 [](gpointer w) -> gboolean {
+                                     if (GTK_IS_WIDGET(w)) {
+                                         gtk_widget_destroy(GTK_WIDGET(w));
+                                     }
+                                     g_object_unref(w);
+                                     return G_SOURCE_REMOVE;
+                                 },
+                                 g_object_ref(p));
+                     }),
+                     nullptr);
+    gtk_container_add(GTK_CONTAINER(popover), box);
+    gtk_widget_show_all(popover);
+    gtk_popover_popup(GTK_POPOVER(popover));
+    gtk_widget_grab_focus(command);
 }
 
 int TerminalDock::openTab(const TerminalSpec& spec, bool focus) {
@@ -167,8 +394,29 @@ int TerminalDock::openTab(const TerminalSpec& spec, bool focus) {
     tab->page = page;
     g_object_add_weak_pointer(G_OBJECT(page), reinterpret_cast<gpointer*>(&tab->page));
 
+    // The tab's label, with its close button
+    GtkWidget* labelBox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
     tab->label = gtk_label_new(spec.title.c_str());
-    const int index = gtk_notebook_append_page(GTK_NOTEBOOK(notebook), page, tab->label);
+    gtk_box_pack_start(GTK_BOX(labelBox), tab->label, FALSE, FALSE, 0);
+    GtkWidget* close = gtk_button_new_from_icon_name("window-close-symbolic", GTK_ICON_SIZE_MENU);
+    gtk_button_set_relief(GTK_BUTTON(close), GTK_RELIEF_NONE);
+    gtk_widget_set_can_focus(close, FALSE);
+    gtk_widget_set_tooltip_text(close, "Close this tab (ends its program)");
+    gtk_buildable_set_name(GTK_BUILDABLE(close), "aiTerminalCloseTab");
+    g_signal_connect(close, "clicked", G_CALLBACK(+[](GtkButton*, gpointer d) {
+                         auto* tb = static_cast<Tab*>(d);
+                         TerminalDock* owner = tb->owner;
+                         for (size_t i = 0; i < owner->tabs.size(); i++) {
+                             if (owner->tabs[i] == tb) {
+                                 owner->closeTab(static_cast<int>(i));
+                                 return;
+                             }
+                         }
+                     }),
+                     tab);
+    gtk_box_pack_start(GTK_BOX(labelBox), close, FALSE, FALSE, 0);
+    gtk_widget_show_all(labelBox);
+    const int index = gtk_notebook_append_page(GTK_NOTEBOOK(notebook), page, labelBox);
     gtk_notebook_set_tab_reorderable(GTK_NOTEBOOK(notebook), page, TRUE);
     tabs.push_back(tab);
 
@@ -183,26 +431,28 @@ int TerminalDock::openTab(const TerminalSpec& spec, bool focus) {
                          return FALSE;
                      }),
                      this);
-    g_signal_connect(term, "child-exited", G_CALLBACK(+[](VteTerminal* t, int status, gpointer d) {
-                         auto* tb = static_cast<Tab*>(d);
-                         tb->running = false;
-                         tb->pid = -1;
-                         const std::string msg = "\r\n\x1b[2m[" + tb->spec.title +
-                                                 " exited. Restart it with the ⟳ button above.]\x1b[0m\r\n";
-                         vte_terminal_feed(t, msg.c_str(), static_cast<gssize>(msg.size()));
-                         TerminalDock* owner = tb->owner;
-                         for (size_t i = 0; i < owner->tabs.size(); i++) {
-                             if (owner->tabs[i] == tb && owner->onExit) {
-                                 owner->onExit(static_cast<int>(i), status);
-                             }
-                         }
-                     }),
-                     tab);
+    g_signal_connect(
+            term, "child-exited", G_CALLBACK(+[](VteTerminal* t, int status, gpointer d) {
+                auto* tb = static_cast<Tab*>(d);
+                tb->running = false;
+                tb->pid = -1;
+                const std::string msg =
+                        "\r\n\x1b[2m[" + tb->spec.title +
+                        " exited. Restart it with the ⟳ button above, or close the tab with its ×.]\x1b[0m\r\n";
+                vte_terminal_feed(t, msg.c_str(), static_cast<gssize>(msg.size()));
+                TerminalDock* owner = tb->owner;
+                for (size_t i = 0; i < owner->tabs.size(); i++) {
+                    if (owner->tabs[i] == tb && owner->onExit) {
+                        owner->onExit(static_cast<int>(i), status);
+                    }
+                }
+            }),
+            tab);
 
     gtk_widget_show_all(page);
     spawn(tab);
     if (focus) {
-        gtk_notebook_set_current_page(GTK_NOTEBOOK(notebook), index);
+        gtk_notebook_set_current_page(GTK_NOTEBOOK(notebook), index);  // (a notebook position, not our index)
         show();
         gtk_widget_grab_focus(term);
     }
@@ -269,6 +519,47 @@ void TerminalDock::restartTab(int index) {
     spawn(tab);
 }
 
+void TerminalDock::closeTab(int index) {
+    Tab* tab = tabAt(index);
+    if (!tab || !notebook) {
+        return;
+    }
+    const bool wasRunning = tab->running;
+    g_signal_handlers_disconnect_by_data(tab->term, tab);  // no "exited" message into a terminal on its way out
+    if (tab->running && tab->pid > 0) {
+        kill(tab->pid, SIGHUP);  // like closing a terminal window
+    }
+    tab->running = false;
+    tab->pid = -1;
+    const int num = gtk_notebook_page_num(GTK_NOTEBOOK(notebook), tab->page);
+    if (num >= 0) {
+        gtk_notebook_remove_page(GTK_NOTEBOOK(notebook), num);  // destroys the page: tab->page becomes null
+    }
+    // (the Tab stays in the list, empty, so that the other tabs keep their indices)
+    if (wasRunning && onExit) {
+        onExit(index, -1);
+    }
+    if (gtk_notebook_get_n_pages(GTK_NOTEBOOK(notebook)) == 0) {
+        hide();
+    }
+}
+
+int TerminalDock::currentTab() const {
+    if (!notebook) {
+        return -1;
+    }
+    GtkWidget* page =
+            gtk_notebook_get_nth_page(GTK_NOTEBOOK(notebook), gtk_notebook_get_current_page(GTK_NOTEBOOK(notebook)));
+    for (size_t i = 0; page && i < tabs.size(); i++) {
+        if (tabs[i]->page == page) {
+            return static_cast<int>(i);
+        }
+    }
+    return -1;
+}
+
+int TerminalDock::openTabCount() const { return notebook ? gtk_notebook_get_n_pages(GTK_NOTEBOOK(notebook)) : 0; }
+
 int TerminalDock::tabCount() const { return static_cast<int>(tabs.size()); }
 
 int TerminalDock::findTab(const std::string& title) const {
@@ -317,8 +608,7 @@ void TerminalDock::show() {
         gtk_paned_set_position(GTK_PANED(paned), total - lastHeight);
     }
     if (notebook) {
-        const int current = gtk_notebook_get_current_page(GTK_NOTEBOOK(notebook));
-        if (Tab* tab = tabAt(current)) {
+        if (Tab* tab = tabAt(currentTab())) {
             gtk_widget_grab_focus(GTK_WIDGET(tab->term));
         }
     }

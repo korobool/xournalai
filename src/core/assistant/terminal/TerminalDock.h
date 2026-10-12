@@ -9,11 +9,14 @@
 
 #pragma once
 
+#include <filesystem>  // for path
 #include <functional>  // for function
 #include <string>      // for string
 #include <vector>      // for vector
 
 #include <gtk/gtk.h>
+
+#include "assistant/TerminalCommands.h"  // for SavedCommand
 
 namespace xoj::assistant {
 
@@ -37,7 +40,14 @@ public:
     int openTab(const TerminalSpec& spec, bool focus = true);
     /// Restarts the process of a tab (same spec)
     void restartTab(int index);
+    /// Closes a tab and ends its program; the other tabs keep their indices
+    void closeTab(int index);
+    /// The index of the tab shown, or -1
+    int currentTab() const;
+    /// Number of tabs ever opened (closed ones included: indices stay valid)
     int tabCount() const;
+    /// Number of tabs still open
+    int openTabCount() const;
     /// Index of the first tab with this title, or -1
     int findTab(const std::string& title) const;
     /// Whether the tab's process is running
@@ -59,17 +69,28 @@ public:
     void setExitHandler(std::function<void(int index, int status)> handler) { onExit = std::move(handler); }
     /// Entries of the "+" menu: title → spec
     void setNewTabChoices(std::vector<TerminalSpec> choices);
+    /// Where the owner's own commands are remembered, and the environment their tabs get
+    void setCustomCommands(std::filesystem::path file, std::vector<std::string> env);
+    /// Opens the "Custom command…" popover: a command line (pasted or typed), a tab name and a folder
+    void promptCustomCommand();
+    /// Opens a tab running the owner's command and remembers it
+    int openCustom(const SavedCommand& cmd);
 
 private:
     struct Tab;
     Tab* tabAt(int index) const;
     void spawn(Tab* tab);
     void buildHeader();
+    void rebuildMenu();
+    void fillSavedList(GtkWidget* list);
 
     GtkWidget* paned = nullptr;
     GtkWidget* dock = nullptr;
     GtkWidget* notebook = nullptr;
     GtkWidget* newTabMenu = nullptr;
+    GtkWidget* plusButton = nullptr;
+    std::filesystem::path commandsFile;
+    std::vector<std::string> customEnv;
     std::vector<Tab*> tabs;
     std::vector<TerminalSpec> choices;
     std::function<void(int, int)> onExit;
