@@ -129,6 +129,7 @@ private:
     GtkWidget* colourButton = nullptr;  ///< weak
     std::vector<std::pair<std::string, GtkWidget*>> tabletTiles;  ///< weak; reserved: their addresses are watched
     int tabletFits = -1;
+    int touchShown = -1;  ///< what the touch switch shows (-1: not yet)
     GtkWidget* focusButton = nullptr;    ///< weak
     GtkWidget* toolbarColumn = nullptr;  ///< weak: the toolbars' column
     GtkWidget* mainWindow = nullptr;

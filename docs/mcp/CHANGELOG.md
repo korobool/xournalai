@@ -16,6 +16,8 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   on, fingers draw too. It is the app's own setting, so the menu and the settings agree.
 - **A finger can mark for the AI.** With touch drawing on, a finger in the AI highlighter or lasso marks instead of
   leaving ink. The switch leaves the AI highlighter on, so it can be flipped in the middle of highlighting.
+- The switch says what it is: "Touch off" / "Touch on" under its icon, highlighted when on.
+- Fixed: starting in Focus (remembered from last time) left the side toolbars visible.
 
 ## 1.11.1 — The AI highlighter ends when you say so
 - **No more cut-offs.** A pause between strokes no longer ends the request (and your next stroke no longer lands as

@@ -422,6 +422,11 @@ constexpr const char* CSS =
         "  box-shadow: 0 2px 8px alpha(#7b3fe0, 0.5), inset 0 1px alpha(#ffffff, 0.3); }"
         ".xoai-mode-done label { color: #ffffff; }"
         ".xoai-mode-discard { border-radius: 16px; font-size: 1.05em; }"
+        ".xoai-quick-tile.xoai-tablet-tile.xoai-touch-switch { min-width: 84px; }"
+        ".xoai-touch-switch label { font-size: 0.85em; }"
+        ".xoai-touch-switch.xoai-touch-on { background-image: none; background-color: #f6d36b;"
+        "  box-shadow: inset 0 -3px #d99a00; }"
+        ".xoai-touch-switch.xoai-touch-on label { font-weight: bold; }"
         ".xoai-quick-heading { font-size: 0.8em; font-weight: bold; opacity: 0.6; margin-top: 4px; }"
         ".xoai-quick-tile { padding: 6px 4px; min-width: 84px; min-height: 76px; border-radius: 12px; }"
         ".xoai-quick-tile label { font-size: 0.92em; }"
@@ -806,6 +811,16 @@ void QuickTools::placeButton(GtkWidget* mainBox, const std::vector<GtkWidget*>& 
     const bool startFocused = focused;
     focused = false;
     setFocused(startFocused);
+    // Started in Focus: the window shows its toolbars only after this; hide them again once it has
+    for (guint ms: {300U, 1500U}) {
+        g_timeout_add(
+                ms,
+                [](gpointer d) -> gboolean {
+                    static_cast<QuickTools*>(d)->reapplyFocus();
+                    return G_SOURCE_REMOVE;
+                },
+                this);
+    }
     recordPoll = g_timeout_add(
             200,
             [](gpointer d) -> gboolean {
@@ -988,6 +1003,12 @@ void QuickTools::buildTablet(GtkWidget* outer) {
     for (size_t i = 0; i < std::size(TABLET); i++) {
         const auto it = std::find_if(cat.begin(), cat.end(), [&](const auto& e) { return std::string(TABLET[i]) == e.id; });
         GtkWidget* b = make(TABLET[i], it->icon, it->tip);
+        if (std::string(TABLET[i]) == "touch") {
+            // A switch, and it says so: "Touch off" / "Touch on" under the icon (filled in by refreshTablet)
+            gtk_widget_destroy(gtk_bin_get_child(GTK_BIN(b)));
+            gtk_style_context_add_class(gtk_widget_get_style_context(b), "xoai-touch-switch");
+            touchShown = -1;
+        }
         g_signal_connect(b, "clicked", G_CALLBACK(+[](GtkButton* w, gpointer d) {
                              static_cast<QuickTools*>(d)->activate(
                                      static_cast<const char*>(g_object_get_data(G_OBJECT(w), "tool")));
@@ -1083,6 +1104,16 @@ void QuickTools::refreshTablet() {
         }
         GtkStyleContext* sc = gtk_widget_get_style_context(w);
         on ? gtk_style_context_add_class(sc, "xoai-active") : gtk_style_context_remove_class(sc, "xoai-active");
+        if (id == "touch" && touchShown != static_cast<int>(on)) {
+            touchShown = on;
+            if (GtkWidget* old = gtk_bin_get_child(GTK_BIN(w))) {
+                gtk_widget_destroy(old);
+            }
+            GtkWidget* content = tileContent("xopp-touch-drawing", on ? "Touch on" : "Touch off", 30);
+            gtk_container_add(GTK_CONTAINER(w), content);
+            gtk_widget_show_all(content);
+            on ? gtk_style_context_add_class(sc, "xoai-touch-on") : gtk_style_context_remove_class(sc, "xoai-touch-on");
+        }
         const bool fits = !full;
         if (gtk_widget_get_visible(w) != fits) {
             gtk_widget_set_visible(w, fits);
