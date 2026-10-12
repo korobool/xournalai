@@ -104,6 +104,16 @@ private:
     bool isFullscreen() const;
     void refreshFullscreen();
     void addColourTiles(GtkWidget* row);
+    /// Focus: big icon buttons on the left of the strip (TABLET in priority order) and the pen's colours
+    void buildTablet(GtkWidget* outer);
+    void refreshTablet();
+    /// In Focus: hides again what something else (full screen) showed
+    void reapplyFocus();
+    void openColours(GtkWidget* anchor);
+    GtkWidget* tabletBox = nullptr;     ///< weak
+    GtkWidget* colourButton = nullptr;  ///< weak
+    std::vector<std::pair<std::string, GtkWidget*>> tabletTiles;  ///< weak; reserved: their addresses are watched
+    int tabletFits = -1;
     GtkWidget* focusButton = nullptr;    ///< weak
     GtkWidget* toolbarColumn = nullptr;  ///< weak: the toolbars' column
     GtkWidget* mainWindow = nullptr;

@@ -19,6 +19,11 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   the page as a record of the question; AI Agent → "AI highlighter keeps its marks" off removes them when you send.
 - Afterwards you're back on the tool you had, with the highlighter's own colour unchanged. The AI lasso stays as it
   was: mark first, then speak.
+- **Tablet buttons in Focus.** With the menus hidden, the strip's empty left side holds big icon buttons, the same
+  kind as in Tools: AI highlighter, AI lasso, pen, eraser, select, then command and terminal. While the pen is in
+  use a palette button opens your colours as big swatches. In a narrow window the last ones give way first; Focus,
+  Full screen, Record and Tools always stay.
+- Fixed: switching full screen on or off in Focus brought the menu and toolbars back.
 
 ## 1.9.2 — Full screen and Focus under the thumb
 - **Focus** (big green button, or F9): hides the menu bar, every toolbar (top, left, right, bottom), the AI row and

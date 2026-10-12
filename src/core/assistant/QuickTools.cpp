@@ -190,6 +190,17 @@ QuickTools::~QuickTools() {
     if (toolbarColumn) {
         g_object_remove_weak_pointer(G_OBJECT(toolbarColumn), reinterpret_cast<gpointer*>(&toolbarColumn));
     }
+    for (auto& [id, w]: tabletTiles) {
+        if (w) {
+            g_object_remove_weak_pointer(G_OBJECT(w), reinterpret_cast<gpointer*>(&w));
+        }
+    }
+    if (colourButton) {
+        g_object_remove_weak_pointer(G_OBJECT(colourButton), reinterpret_cast<gpointer*>(&colourButton));
+    }
+    if (tabletBox) {
+        g_object_remove_weak_pointer(G_OBJECT(tabletBox), reinterpret_cast<gpointer*>(&tabletBox));
+    }
 }
 
 void QuickTools::connectCounting() {
@@ -372,6 +383,7 @@ constexpr const char* CSS =
         ".xoai-focus-button.xoai-focused { background-image: linear-gradient(160deg, #f2b33d, #e07b28); }"
         ".xoai-focus-button label { color: #ffffff; font-weight: bold; }"
         ".xoai-quick-colour { min-width: 56px; min-height: 56px; padding: 2px; }"
+        ".xoai-quick-tile.xoai-tablet-tile { min-width: 64px; min-height: 64px; padding: 4px; }"
         ".xoai-quick-heading { font-size: 0.8em; font-weight: bold; opacity: 0.6; margin-top: 4px; }"
         ".xoai-quick-tile { padding: 6px 4px; min-width: 84px; min-height: 76px; border-radius: 12px; }"
         ".xoai-quick-tile label { font-size: 0.92em; }"
@@ -622,6 +634,22 @@ void QuickTools::placeButton(GtkWidget* mainBox, const std::vector<GtkWidget*>& 
         g_object_unref(r);
     }
     gtk_box_pack_start(GTK_BOX(outer), column, TRUE, TRUE, 0);
+    buildTablet(outer);
+    // Full screen shows or hides the menu bar and toolbars itself: in Focus, they are hidden again afterwards
+    {
+        GAction* fs = fullscreenAction();
+        const gulong h = g_signal_connect_data(
+                fs, "change-state", G_CALLBACK(+[](GSimpleAction*, GVariant*, gpointer d) {
+                    g_idle_add(
+                            [](gpointer d) -> gboolean {
+                                static_cast<QuickTools*>(d)->reapplyFocus();
+                                return G_SOURCE_REMOVE;
+                            },
+                            d);
+                }),
+                this, nullptr, G_CONNECT_AFTER);
+        handlers.emplace_back(g_object_ref(fs), h);
+    }
 
     button = gtk_button_new();
     gtk_container_add(GTK_CONTAINER(button), tileContent("view-app-grid-symbolic", "Tools", 34));
@@ -742,6 +770,9 @@ void QuickTools::placeButton(GtkWidget* mainBox, const std::vector<GtkWidget*>& 
                 if (self->recordButton && self->isRecording() != self->shownRecording) {
                     self->shownRecording = !self->shownRecording;
                     self->refreshRecord();
+                }
+                if (self->focused) {
+                    self->refreshTablet();  // (the tool may have changed anywhere)
                 }
                 if (self->fullscreenButton && self->isFullscreen() != self->shownFullscreen) {
                     self->refreshFullscreen();  // (also left by F11 or the menu)
@@ -878,6 +909,207 @@ void QuickTools::refreshFullscreen() {
     gtk_widget_set_tooltip_text(fullscreenButton, shownFullscreen ? "Leave full screen (F11)" : "Full screen (F11)");
 }
 
+namespace {
+/// The tablet buttons shown in Focus, left to right by priority (the last ones give way first)
+constexpr const char* TABLET[] = {"ai-highlighter", "ask", "pen", "eraser", "select", "command", "terminal"};
+constexpr size_t TABLET_ACTIONS = 5;  ///< asking and drawing first; a gap, then the AI actions
+constexpr int TABLET_W = 64;
+}  // namespace
+
+void QuickTools::buildTablet(GtkWidget* outer) {
+    // Big icon buttons for a finger or the stylus, on the left of the strip, in Focus only
+    // (in a scroller without scroll bars: the tiles don't set the window's minimum width, they give way)
+    tabletBox = gtk_scrolled_window_new(nullptr, nullptr);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(tabletBox), GTK_POLICY_EXTERNAL, GTK_POLICY_NEVER);
+    gtk_buildable_set_name(GTK_BUILDABLE(tabletBox), "aiTabletButtons");
+    GtkWidget* tiles = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+    g_object_set(tiles, "margin", 4, nullptr);
+    gtk_container_add(GTK_CONTAINER(tabletBox), tiles);
+    const auto& cat = quick_tools::catalog();
+    auto make = [&](const std::string& id, const char* icon, const char* tip) {
+        GtkWidget* b = gtk_button_new();
+        GtkWidget* image = gtk_image_new_from_icon_name(icon, GTK_ICON_SIZE_DND);
+        gtk_image_set_pixel_size(GTK_IMAGE(image), 36);
+        gtk_container_add(GTK_CONTAINER(b), image);
+        gtk_style_context_add_class(gtk_widget_get_style_context(b), "xoai-quick-tile");
+        gtk_style_context_add_class(gtk_widget_get_style_context(b), "xoai-tablet-tile");
+        gtk_widget_set_size_request(b, TABLET_W, -1);
+        gtk_widget_set_tooltip_text(b, tip);
+        gtk_widget_set_can_focus(b, FALSE);
+        gtk_buildable_set_name(GTK_BUILDABLE(b), ("aiTablet-" + id).c_str());
+        g_object_set_data_full(G_OBJECT(b), "tool", g_strdup(id.c_str()), g_free);
+        return b;
+    };
+    tabletTiles.reserve(std::size(TABLET));  // (their addresses are watched: no reallocation)
+    for (size_t i = 0; i < std::size(TABLET); i++) {
+        const auto it = std::find_if(cat.begin(), cat.end(), [&](const auto& e) { return std::string(TABLET[i]) == e.id; });
+        GtkWidget* b = make(TABLET[i], it->icon, it->tip);
+        g_signal_connect(b, "clicked", G_CALLBACK(+[](GtkButton* w, gpointer d) {
+                             static_cast<QuickTools*>(d)->activate(
+                                     static_cast<const char*>(g_object_get_data(G_OBJECT(w), "tool")));
+                             static_cast<QuickTools*>(d)->refreshTablet();
+                         }),
+                         this);
+        if (i == TABLET_ACTIONS) {
+            g_object_set(b, "margin-start", 14, nullptr);  // (the gap between drawing and AI)
+        }
+        gtk_box_pack_start(GTK_BOX(tiles), b, FALSE, FALSE, 0);
+        tabletTiles.emplace_back(TABLET[i], b);
+        g_object_add_weak_pointer(G_OBJECT(b), reinterpret_cast<gpointer*>(&tabletTiles.back().second));
+        if (std::string(TABLET[i]) == "pen") {
+            // The pen's colours: shown while the pen is in use, opens the palette as big swatches
+            colourButton = make("colours", "applications-graphics-symbolic", "Pen colour: the palette");
+            g_signal_connect(colourButton, "clicked", G_CALLBACK(+[](GtkButton* w, gpointer d) {
+                                 static_cast<QuickTools*>(d)->openColours(GTK_WIDGET(w));
+                             }),
+                             this);
+            gtk_box_pack_start(GTK_BOX(tiles), colourButton, FALSE, FALSE, 0);
+            g_object_add_weak_pointer(G_OBJECT(colourButton), reinterpret_cast<gpointer*>(&colourButton));
+        }
+    }
+    gtk_box_pack_start(GTK_BOX(outer), tabletBox, TRUE, TRUE, 0);
+    gtk_widget_show_all(tabletBox);
+    gtk_widget_set_no_show_all(tabletBox, TRUE);
+    gtk_widget_set_visible(tabletBox, FALSE);
+    g_object_add_weak_pointer(G_OBJECT(tabletBox), reinterpret_cast<gpointer*>(&tabletBox));
+    // When the window is narrow, the last ones give way (the right-hand buttons never do)
+    g_signal_connect(tabletBox, "size-allocate", G_CALLBACK(+[](GtkWidget* w, GdkRectangle* a, gpointer d) {
+                         auto* self = static_cast<QuickTools*>(d);
+                         if (a->width != self->tabletFits) {
+                             self->tabletFits = a->width;  // (the width there is; refreshTablet fills it)
+                             g_idle_add(
+                                     [](gpointer d) -> gboolean {
+                                         static_cast<QuickTools*>(d)->refreshTablet();
+                                         return G_SOURCE_REMOVE;
+                                     },
+                                     d);
+                         }
+                         (void)w;
+                     }),
+                     this);
+}
+
+void QuickTools::refreshTablet() {
+    if (!tabletBox || !focused) {
+        return;
+    }
+    ToolHandler* th = control->getToolHandler();
+    const ToolType active = th->getToolType();
+    auto stateOf = [&](const char* name) {
+        bool on = false;
+        if (auto* win = control->getWindow() ? control->getWindow()->getWindow() : nullptr) {
+            if (GAction* a = g_action_map_lookup_action(G_ACTION_MAP(win), name)) {
+                GVariant* st = g_action_get_state(a);
+                on = st && g_variant_get_boolean(st);
+                if (st) {
+                    g_variant_unref(st);
+                }
+            }
+        }
+        return on;
+    };
+    const bool highlighting = stateOf("ai-highlighter");
+    const bool asking = stateOf("ai-ask");
+    // In priority order, as many as the width there is takes (the colour button counts while it is shown)
+    const bool colours = active == TOOL_PEN && !highlighting;
+    int room = tabletFits < 0 ? G_MAXINT : tabletFits - 8;
+    bool full = false;
+    int tileW = 0;  // (all tiles are alike; a hidden one has no width: measured on the first, always shown)
+    if (!tabletTiles.empty() && tabletTiles[0].second) {
+        gtk_widget_get_preferred_width(tabletTiles[0].second, nullptr, &tileW);
+    }
+    tileW = std::max(tileW, TABLET_W);
+    for (size_t i = 0; i < tabletTiles.size(); i++) {
+        auto& [id, w] = tabletTiles[i];
+        if (!w) {
+            continue;
+        }
+        int need = tileW + 6 + (i == TABLET_ACTIONS ? 14 : 0);
+        if (id == "pen" && colours && colourButton) {
+            need += tileW + 6;
+        }
+        full = full || need > room;
+        if (!full) {
+            room -= need;
+        }
+        bool on = (id == "ai-highlighter" && highlighting) || (id == "ask" && asking);
+        for (const auto& t: TOOLS) {
+            on = on || (!highlighting && !asking && id == t.id && t.type == active);
+        }
+        GtkStyleContext* sc = gtk_widget_get_style_context(w);
+        on ? gtk_style_context_add_class(sc, "xoai-active") : gtk_style_context_remove_class(sc, "xoai-active");
+        const bool fits = !full;
+        if (gtk_widget_get_visible(w) != fits) {
+            gtk_widget_set_visible(w, fits);
+        }
+    }
+    if (colourButton) {
+        const bool show = colours && std::any_of(tabletTiles.begin(), tabletTiles.end(), [](const auto& t) {
+                              return t.first == "pen" && t.second && gtk_widget_get_visible(t.second);
+                          });
+        if (gtk_widget_get_visible(colourButton) != show) {
+            gtk_widget_set_visible(colourButton, show);
+        }
+    }
+}
+
+void QuickTools::openColours(GtkWidget* anchor) {
+    closePopover();
+    addCss();
+    popover = gtk_popover_new(anchor);
+    g_object_add_weak_pointer(G_OBJECT(popover), reinterpret_cast<gpointer*>(&popover));
+    gtk_buildable_set_name(GTK_BUILDABLE(popover), "aiQuickColours");
+    GtkWidget* box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
+    g_object_set(box, "margin", 10, nullptr);
+    addColourTiles(box);
+    gtk_container_add(GTK_CONTAINER(popover), box);
+    g_signal_connect(popover, "closed", G_CALLBACK(+[](GtkPopover* p, gpointer) {
+                         g_idle_add(
+                                 [](gpointer w) -> gboolean {
+                                     if (GTK_IS_WIDGET(w) && !gtk_widget_in_destruction(GTK_WIDGET(w))) {
+                                         gtk_widget_destroy(GTK_WIDGET(w));
+                                     }
+                                     g_object_unref(w);
+                                     return G_SOURCE_REMOVE;
+                                 },
+                                 g_object_ref(p));
+                     }),
+                     nullptr);
+    gtk_widget_show_all(popover);
+    gtk_popover_popup(GTK_POPOVER(popover));
+}
+
+void QuickTools::reapplyFocus() {
+    if (!focused) {
+        return;
+    }
+    if (toolbarColumn) {
+        gtk_widget_set_visible(toolbarColumn, FALSE);
+    }
+    if (GTK_IS_APPLICATION_WINDOW(mainWindow)) {
+        gtk_application_window_set_show_menubar(GTK_APPLICATION_WINDOW(mainWindow), FALSE);
+    }
+    MainWindow* win = control->getWindow();
+    for (const auto& w: win->getToolbarWidgets()) {
+        if (w && gtk_widget_get_visible(w.get())) {
+            if (std::find(hiddenBars.begin(), hiddenBars.end(), w.get()) == hiddenBars.end()) {
+                hiddenBars.push_back(w.get());  // (shown by full screen: given back with the rest)
+            }
+            gtk_widget_set_visible(w.get(), FALSE);
+        }
+    }
+    GVariant* st = g_action_get_state(G_ACTION(control->getActionDatabase()->getAction(Action::SHOW_SIDEBAR).get()));
+    const bool sidebar = st && g_variant_get_boolean(st);
+    if (st) {
+        g_variant_unref(st);
+    }
+    if (sidebar) {
+        sidebarBefore = true;
+        win->setSidebarVisible(false);
+        control->getActionDatabase()->setActionState(Action::SHOW_SIDEBAR, false);
+    }
+}
+
 void QuickTools::setFocused(bool on) {
     if (on == focused && focusButton && gtk_bin_get_child(GTK_BIN(focusButton))) {
         return;
@@ -889,6 +1121,10 @@ void QuickTools::setFocused(bool on) {
     focused = on;
     if (toolbarColumn) {
         gtk_widget_set_visible(toolbarColumn, !on);
+    }
+    if (tabletBox) {
+        gtk_widget_set_visible(tabletBox, on);  // the tablet buttons: in Focus only
+        refreshTablet();
     }
     if (changed) {
         // Every other toolbar (left, right, bottom) and the sidebar: hidden, then given back as they were.

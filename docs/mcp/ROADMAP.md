@@ -770,8 +770,10 @@ Besides the AI lasso (mark first, then say), the owner can highlight what they m
 - [ ] the request names the places highlighted and what is under them (not the highlights)
 - [ ] the marks stay by default; AI Agent → AI highlighter keeps its marks switches to removing them on send
 - [ ] the tool used before is given back; Ctrl+Alt+H, a Highlight button on the AI row and a tile in Tools
+- [ ] in Focus, the strip's left side holds big icon buttons in priority order; full screen on/off keeps Focus
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T14.1.1 | US-14.1 | **AI highlighter** — McpUi::armHighlighter: highlighter in AI violet via a pass-through stroke interceptor; speech starts on pen-down; HIGHLIGHT_PAUSE_MS after the last stroke finishHighlight → showAsk with highlights and marks (new AI-violet highlighter strokes); submitAsk lists the places and the elements under them, removes marks unless assistant.highlighter_keeps_marks; win.ai-highlighter (Ctrl+Alt+H), win.ai-highlighter-keep; AI row button aiHighlighter; Tools tile ai-highlighter. | `ai: AI highlighter: highlight while speaking, then Ask (T14.1.1)` | ✅ done |
+| T14.1.1 | US-14.1 | **AI highlighter** — McpUi::armHighlighter: highlighter in AI violet via a pass-through stroke interceptor; speech starts on pen-down; HIGHLIGHT_PAUSE_MS after the last stroke finishHighlight → showAsk with highlights and marks (new AI-violet highlighter strokes); submitAsk lists the places and the elements under them, removes marks unless assistant.highlighter_keeps_marks; win.ai-highlighter (Ctrl+Alt+H), win.ai-highlighter-keep; AI row button aiHighlighter; Tools tile ai-highlighter. | `ai: AI highlighter: highlight while speaking, then Ask (T14.1.1)` | ✅ done `d4df929f1` |
+| T14.1.3 | US-14.1 | **Tablet buttons in Focus; Focus survives full screen** — QuickTools::buildTablet: icon tiles left of the strip in Focus (AI highlighter, AI lasso, pen + palette button while the pen is in use, eraser, select | command, terminal), the last giving way when narrow (scroller without scroll bars); reapplyFocus after FULLSCREEN changes; AI row Highlight icon-only. | `ai: tablet buttons in Focus, Focus survives full screen (T14.1.3)` | ✅ done |
 | T14.1.2 | US-14.1 | **Release 1.10.0** — Changelog, version, full tests. | `ai: release 1.10.0 (T14.1.2)` | ⬜ todo |

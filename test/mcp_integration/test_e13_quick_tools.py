@@ -192,3 +192,48 @@ def test_12_shapes_in_the_tools(app):
     assert wait(lambda: "shape-rect" in tiles(c))
     c.call("ui_interact", op="click", target=widgets(c, "aiQuick-shape-rect")[0]["id"])
     assert wait(lambda: c.call("tool_get")["drawing_type"] == "default")
+
+
+def test_13_tablet_buttons_in_focus(app):
+    """In Focus the strip's left side holds big icon buttons (in priority order); the pen gets a colour button."""
+    c = app.client()
+    shown = lambda name: bool(widgets(c, name)) and widgets(c, name)[0].get("visible", True)
+    assert not shown("aiTabletButtons")
+    c.call("action_run", action="win.ai-focus", state=True)
+    assert wait(lambda: shown("aiTabletButtons"))
+    # (the test window is narrow: the first ones are there, the last ones may have given way)
+    for t in ("ai-highlighter", "ask", "pen"):
+        assert shown("aiTablet-" + t), t
+    tiles = [w for w in widgets(c, prefix="aiTablet-") if w.get("visible", True) and w["name"] != "aiTablet-colours"]
+    assert tiles == sorted(tiles, key=lambda w: w["bbox"][0])
+    assert max(w["bbox"][0] + w["bbox"][2] for w in tiles) <= widgets(c, "aiFocusButton")[0]["bbox"][0]
+    c.call("ui_interact", op="click", target=widgets(c, "aiTablet-eraser")[0]["id"]) if shown("aiTablet-eraser") else \
+        c.call("tool_set", tool="eraser")
+    assert wait(lambda: c.call("tool_get")["tool"] == "eraser")
+    assert wait(lambda: not shown("aiTablet-colours"))
+    c.call("ui_interact", op="click", target=widgets(c, "aiTablet-pen")[0]["id"])
+    assert wait(lambda: c.call("tool_get")["tool"] == "pen")
+    assert wait(lambda: shown("aiTablet-colours"))
+    c.call("tool_set", tool="pen", color="#123456")
+    c.call("ui_interact", op="click", target=widgets(c, "aiTablet-colours")[0]["id"])
+    assert wait(lambda: shown("aiQuick-color-1"))
+    c.call("ui_interact", op="click", target=widgets(c, "aiQuick-color-1")[0]["id"])
+    assert wait(lambda: not c.call("tool_get")["color"].startswith("#123456"))
+    c.call("action_run", action="win.ai-focus", state=False)
+    assert wait(lambda: not shown("aiTabletButtons"))
+
+
+def test_14_focus_survives_full_screen(app):
+    """Full screen on and off doesn't bring the toolbars back while Focus is on; leaving Focus does."""
+    c = app.client()
+    shown = lambda name: widgets(c, name)[0].get("visible", True)
+    bars = lambda: [w for w in widgets(c) if (w.get("name") or "") in ("tbTop1", "tbTop2", "tbLeft1", "tbBottom1")]
+    c.call("action_run", action="win.ai-focus", state=True)
+    assert wait(lambda: not shown("aiToolbarColumn"))
+    for on in (True, False):
+        c.call("action_run", action="win.fullscreen", state=on)
+        time.sleep(1)
+        assert not shown("aiToolbarColumn")
+        assert not any(w.get("visible", True) and w["bbox"][2] > 1 for w in bars() if w["name"] != "tbTop1" and w["name"] != "tbTop2"), bars()
+    c.call("action_run", action="win.ai-focus", state=False)
+    assert wait(lambda: shown("aiToolbarColumn"))
