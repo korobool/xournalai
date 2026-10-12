@@ -807,5 +807,5 @@ Besides the AI lasso (mark first, then say), the owner can highlight what they m
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T14.3.1 | US-14.3 | **Mode bar and owner-ended AI highlighting** — QuickTools::showModeBar hides the strip's children and shows level / info / Discard / Done at the strip's height; McpUi highlightTick (250 ms): time, marks, quiet = no marks and no voice (rms > 0.03) for 10 s → finishHighlight, countdown in the last 3 s; Escape on the window discards; action off / tool picked with marks = Done. | `ai: AI highlighter ends when the owner says so (mode bar) (T14.3.1)` | ✅ done |
-| T14.3.2 | US-14.3 | **Release 1.11.1** — Changelog, version, full tests. | `ai: release 1.11.1 (T14.3.2)` | ⬜ todo |
+| T14.3.1 | US-14.3 | **Mode bar and owner-ended AI highlighting** — QuickTools::showModeBar hides the strip's children and shows level / info / Discard / Done at the strip's height; McpUi highlightTick (250 ms): time, marks, quiet = no marks and no voice (rms > 0.03) for 10 s → finishHighlight, countdown in the last 3 s; Escape on the window discards; action off / tool picked with marks = Done. | `ai: AI highlighter ends when the owner says so (mode bar) (T14.3.1)` | ✅ done `c58b82002` |
+| T14.3.2 | US-14.3 | **Release 1.11.1** — Changelog, version, full tests. | `ai: release 1.11.1 (T14.3.2)` | ✅ done |
