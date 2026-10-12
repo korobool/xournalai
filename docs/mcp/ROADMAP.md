@@ -821,5 +821,5 @@ Besides the AI lasso (mark first, then say), the owner can highlight what they m
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T14.4.1 | US-14.4 | **Touch switch; fingers in the AI modes** — QuickTools: 'touch' tile first in TABLET (gap after it) and in Tools → View, toggling TOGGLE_TOUCH_DRAWING, marked when on; AbstractInputHandler::intercept passes touchscreen events when touch drawing is on. | `ai: touch-drawing switch first among the big buttons (T14.4.1)` | ✅ done |
-| T14.4.2 | US-14.4 | **Release 1.11.2** — Changelog, version, full tests. | `ai: release 1.11.2 (T14.4.2)` | ⬜ todo |
+| T14.4.1 | US-14.4 | **Touch switch; fingers in the AI modes** — QuickTools: 'touch' tile first in TABLET (gap after it) and in Tools → View, toggling TOGGLE_TOUCH_DRAWING, marked when on; AbstractInputHandler::intercept passes touchscreen events when touch drawing is on. | `ai: touch-drawing switch first among the big buttons (T14.4.1)` | ✅ done `6b813ed54` |
+| T14.4.2 | US-14.4 | **Release 1.11.2** — Changelog, version, full tests. | `ai: release 1.11.2 (T14.4.2)` | ✅ done |
