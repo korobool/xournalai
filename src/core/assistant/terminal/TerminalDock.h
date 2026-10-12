@@ -1,7 +1,8 @@
 /*
  * xournalai (based on Xournal++)
  *
- * A collapsible terminal dock at the bottom of the main window. Runs the serving Claude Code session (and, on
+ * A collapsible terminal dock at the bottom of the main window: floating over the page with a see-through
+ * background (the default), or docked under it in a split. Runs the serving Claude Code session (and, on
  * demand, Codex, OpenCode or a shell) in VTE terminals. Hiding the dock keeps the processes running.
  *
  * @license GNU GPLv2 or later
@@ -63,6 +64,12 @@ public:
     void toggle();
     bool isVisible() const;
 
+    /// Floating over the page (see-through) or docked under it; remembered
+    void setFloating(bool floating);
+    bool isFloating() const { return floating; }
+    /// The floating terminal's background opacity, 0.2 … 1 (the text stays solid); remembered
+    void setOpacity(double opacity);
+
     /// When the user last pressed a key in any terminal tab (monotonic µs; 0 if never)
     gint64 lastInputUs() const { return lastInput; }
     /// Called with the tab index when a tab's process exits
@@ -83,12 +90,33 @@ private:
     void buildHeader();
     void rebuildMenu();
     void fillSavedList(GtkWidget* list);
+    void applyColors(Tab* tab) const;
+    void applyPageCss();
+    bool onEmptyHeader(GdkEventButton* e) const;
+    void dragTo(double yRoot);
+    void endDrag();
+    void loadView();
+    void saveView() const;
 
+    GtkWidget* overlay = nullptr;  ///< over the split: the floating dock lies on it
     GtkWidget* paned = nullptr;
     GtkWidget* dock = nullptr;
     GtkWidget* notebook = nullptr;
     GtkWidget* newTabMenu = nullptr;
     GtkWidget* plusButton = nullptr;
+    GtkCssProvider* pageCss = nullptr;  ///< the see-through background of the tabs
+    GtkWidget* grip = nullptr;      ///< the title: a handle to drag (so is the row's empty space)
+    GtkWidget* controls = nullptr;  ///< the slider and buttons, right of the tabs
+    GtkWidget* opacityScale = nullptr;
+    GtkWidget* opacityLabel = nullptr;
+    GtkWidget* pinButton = nullptr;
+    bool floating = true;
+    bool syncing = false;
+    bool dragging = false;
+    bool loaded = false;  ///< (nothing is saved before the remembered view is read)  ///< setting the header's controls from code
+    double opacity = 0.7;
+    double gripStartY = 0;
+    int gripStartHeight = 0;
     std::filesystem::path commandsFile;
     std::vector<std::string> customEnv;
     std::vector<Tab*> tabs;

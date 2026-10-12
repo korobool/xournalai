@@ -47,7 +47,11 @@ def test_1_click_the_spinner(app):
     assert wait_for(lambda: zones(c).get(z) == "thinking")
     hook(app, "UserPromptSubmit")  # it's working on it
     assert "1 in progress" in status(c)
-    btn = [w for w in c.call("ui_inspect", max_depth=60, all=True)["widgets"] if w.get("name") == "aiThinkingButton"][0]
+    def button():
+        ws = [w for w in c.call("ui_inspect", max_depth=60, all=True)["widgets"] if w.get("name") == "aiThinkingButton"]
+        return ws[0] if ws and ws[0]["bbox"][2] > 1 else None  # placed (not the 1×1 before its first layout)
+    assert wait_for(button)
+    btn = button()
     x, y, w, h = btn["bbox"]
     app._xdo("mousemove", x + w // 2, y + h // 2, "click", 1)
     assert wait_for(lambda: zones(c).get(z) == "failed")

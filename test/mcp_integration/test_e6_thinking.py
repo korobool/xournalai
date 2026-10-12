@@ -34,8 +34,10 @@ def test_1_session_marks_its_own_work(app):
     c = app.client()
     z = c.call("thinking", op="start", page=1, region=[100, 100, 200, 80], text="typesetting formula…")["id"]
     assert zones(c)[z] == "thinking"
-    overlay = [w for w in c.call("ui_inspect", max_depth=60, all=True)["widgets"] if w.get("name") == "aiThinkingButton"]
-    assert overlay and overlay[0].get("visible", True)
+    def shown():
+        ws = [w for w in c.call("ui_inspect", max_depth=60, all=True)["widgets"] if w.get("name") == "aiThinkingButton"]
+        return ws and ws[0].get("visible", True) and ws[0]["bbox"][2] > 1  # placed (after its first layout)
+    assert wait_for(shown)
     c.call("thinking", op="update", id=z, text="drawing 2/3")
     c.call("thinking", op="done", id=z)
     assert zones(c)[z] == "done"

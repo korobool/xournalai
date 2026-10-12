@@ -137,6 +137,7 @@ void registerUiTools(McpServer& server) {
         std::string filter = args.str("filter", "");
         std::transform(filter.begin(), filter.end(), filter.begin(), ::tolower);
         json out = json::array();
+        bool truncated = false;
         for (const auto& w: list) {
             if (!filter.empty()) {
                 std::string hay = w.label + " " + w.name + " " + w.tooltip + " " + w.role;
@@ -145,12 +146,17 @@ void registerUiTools(McpServer& server) {
                     continue;
                 }
             }
-            out.push_back(widgetJson(w));
-            if (out.size() >= 800) {
+            if (out.size() >= 3000) {  // (a window with terminal tabs and popovers has ~800 with all=true)
+                truncated = true;
                 break;
             }
+            out.push_back(widgetJson(w));
         }
-        return ToolResult::structured({{"root", api::ui::idOf(root)}, {"count", out.size()}, {"widgets", out}});
+        json result = {{"root", api::ui::idOf(root)}, {"count", out.size()}, {"widgets", out}};
+        if (truncated) {
+            result["truncated"] = true;  // narrow it with target, filter or max_depth
+        }
+        return ToolResult::structured(result);
     };
     server.getRegistry().addTool(std::move(insp));
 

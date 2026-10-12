@@ -50,7 +50,8 @@ def main():
         out(f"== {f.name}")
         args = getattr(mod, "APP_ARGS", [])
         with xoai.App(*args, permissions=getattr(mod, "APP_PERMISSIONS", None),
-                      config=getattr(mod, "APP_CONFIG", None), env=getattr(mod, "APP_ENV", None)) as app:
+                      config=getattr(mod, "APP_CONFIG", None), env=getattr(mod, "APP_ENV", None),
+                      terminal_floating=getattr(mod, "APP_TERMINAL_FLOATING", False)) as app:
             for name, fn in tests:
                 t = time.time()
                 try:

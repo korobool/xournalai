@@ -34,11 +34,12 @@ def free_port():
 class App:
     """Runs xournalpp under Xvfb with its own XDG directories. Use as a context manager."""
 
-    def __init__(self, *args, binary=BINARY, permissions=None, config=None, env=None):
+    def __init__(self, *args, binary=BINARY, permissions=None, config=None, env=None, terminal_floating=False):
         self.args = [str(a) for a in args]
         self.permissions = permissions
         self.config = config or {}
         self.extra_env = env or {}
+        self.terminal_floating = terminal_floating
         self.binary = str(binary)
         self.port = free_port()
         self.tmp = tempfile.TemporaryDirectory(prefix="xoai-")
@@ -63,6 +64,10 @@ class App:
         if True:  # pre-seed mcp.json; the app adds a token on first start
             self.env  # creates the XDG directories
             self.config_file.parent.mkdir(parents=True, exist_ok=True)
+            # the AI terminal docked under the page, as the older tests expect (floating, it would cover most of
+            # the small test window and catch their strokes and clicks); the floating terminal's own tests opt in
+            if not self.terminal_floating:
+                (self.config_file.parent / "ai-terminal-view.ini").write_text("[terminal]\nfloating=false\n")
             # never start a real Claude Code / Codex from tests (it would use the owner's subscription)
             # no speech helper either (a test that needs it turns it on); nested settings are merged, so a test's own
             # "assistant" settings never drop autostart=false

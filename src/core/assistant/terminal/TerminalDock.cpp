@@ -2,7 +2,11 @@
 
 #include <csignal>  // for kill, SIGHUP
 
+#include <algorithm>  // for clamp
+
 #include <vte/vte.h>
+
+#include "util/PathUtil.h"  // for getConfigFile
 
 namespace xoj::assistant {
 
@@ -21,6 +25,25 @@ namespace {
 std::string loginShell() {
     const char* s = g_getenv("SHELL");
     return s && *s ? s : "/bin/bash";
+}
+
+constexpr double MIN_OPACITY = 0.2;
+
+/// The see-through look: no notebook background under the floating terminal, solid controls
+void installCss() {
+    static bool done = false;
+    if (done) {
+        return;
+    }
+    done = true;
+    GtkCssProvider* css = gtk_css_provider_new();
+    gtk_css_provider_load_from_data(
+            css,
+            ".xoai-term-floating notebook, .xoai-term-floating notebook > stack { background-color: transparent; }",
+            -1, nullptr);
+    gtk_style_context_add_provider_for_screen(gdk_screen_get_default(), GTK_STYLE_PROVIDER(css),
+                                              GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+    g_object_unref(css);
 }
 
 bool isToggleKey(GdkEventKey* e) {
@@ -48,23 +71,52 @@ TerminalDock::TerminalDock(GtkWidget* mainBox, GtkWidget* contentArea) {
 
     dock = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
     gtk_buildable_set_name(GTK_BUILDABLE(dock), "aiTerminalDock");
-    buildHeader();
     notebook = gtk_notebook_new();
     gtk_notebook_set_scrollable(GTK_NOTEBOOK(notebook), TRUE);
+    buildHeader();
     gtk_box_pack_start(GTK_BOX(dock), notebook, TRUE, TRUE, 0);
     gtk_paned_pack2(GTK_PANED(paned), dock, FALSE, FALSE);
 
-    gtk_box_pack_start(GTK_BOX(mainBox), paned, expand, fill, padding);
-    gtk_box_set_child_packing(GTK_BOX(mainBox), paned, expand, fill, padding, packType);
-    gtk_box_reorder_child(GTK_BOX(mainBox), paned, position);
+    // The floating dock lies over the split (over the page), at the bottom
+    overlay = gtk_overlay_new();
+    gtk_container_add(GTK_CONTAINER(overlay), paned);
+    // The floating dock gets exactly the height dragged to (the overlay would give it the terminal's natural height)
+    g_signal_connect(overlay, "get-child-position",
+                     G_CALLBACK(+[](GtkOverlay* o, GtkWidget* child, GdkRectangle* r, gpointer d) -> gboolean {
+                         auto* self = static_cast<TerminalDock*>(d);
+                         if (child != self->dock) {
+                             return FALSE;
+                         }
+                         const int w = gtk_widget_get_allocated_width(GTK_WIDGET(o));
+                         const int room = gtk_widget_get_allocated_height(GTK_WIDGET(o));
+                         int minH = 0;
+                         gtk_widget_get_preferred_height(child, &minH, nullptr);
+                         const int h = std::max(minH, std::min(self->lastHeight, std::max(80, room - 40)));
+                         r->x = 0;
+                         r->y = room - h;
+                         r->width = w;
+                         r->height = h;
+                         return TRUE;
+                     }),
+                     this);
+    gtk_box_pack_start(GTK_BOX(mainBox), overlay, expand, fill, padding);
+    gtk_box_set_child_packing(GTK_BOX(mainBox), overlay, expand, fill, padding, packType);
+    gtk_box_reorder_child(GTK_BOX(mainBox), overlay, position);
+    gtk_widget_show(overlay);
     gtk_widget_show(paned);
     gtk_widget_show(contentArea);
     gtk_widget_show_all(dock);
     gtk_widget_hide(dock);  // collapsed until shown
 
+    g_object_add_weak_pointer(G_OBJECT(overlay), reinterpret_cast<gpointer*>(&overlay));
     g_object_add_weak_pointer(G_OBJECT(paned), reinterpret_cast<gpointer*>(&paned));
     g_object_add_weak_pointer(G_OBJECT(dock), reinterpret_cast<gpointer*>(&dock));
     g_object_add_weak_pointer(G_OBJECT(notebook), reinterpret_cast<gpointer*>(&notebook));
+
+    loadView();
+    const bool f = floating;
+    floating = !f;  // (so that setFloating moves it)
+    setFloating(f);
 }
 
 TerminalDock::~TerminalDock() {
@@ -77,7 +129,11 @@ TerminalDock::~TerminalDock() {
         }
         delete t;
     }
-    for (GtkWidget** w: {&paned, &dock, &notebook}) {
+    if (pageCss) {
+        gtk_style_context_remove_provider_for_screen(gdk_screen_get_default(), GTK_STYLE_PROVIDER(pageCss));
+        g_object_unref(pageCss);
+    }
+    for (GtkWidget** w: {&overlay, &paned, &dock, &notebook}) {
         if (*w) {
             g_object_remove_weak_pointer(G_OBJECT(*w), reinterpret_cast<gpointer*>(w));
         }
@@ -85,12 +141,77 @@ TerminalDock::~TerminalDock() {
 }
 
 void TerminalDock::buildHeader() {
-    GtkWidget* header = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
-    g_object_set(header, "margin-start", 6, "margin-end", 4, "margin-top", 2, "margin-bottom", 2, nullptr);
+    installCss();
+    gtk_style_context_add_class(gtk_widget_get_style_context(dock), "xoai-term-dock");
+
+    // One row: the title and the tabs on the left, the controls on the right. The title and the row's empty space
+    // are the handle: drag them up or down to make the terminal taller or shorter
+    grip = gtk_event_box_new();
+    gtk_buildable_set_name(GTK_BUILDABLE(grip), "aiTerminalHandle");
+    gtk_widget_add_events(grip, GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_POINTER_MOTION_MASK);
+    g_signal_connect(grip, "realize", G_CALLBACK(+[](GtkWidget* w, gpointer) {
+                         GdkCursor* c = gdk_cursor_new_from_name(gtk_widget_get_display(w), "ns-resize");
+                         gdk_window_set_cursor(gtk_widget_get_window(w), c);
+                         if (c) {
+                             g_object_unref(c);
+                         }
+                     }),
+                     nullptr);
     GtkWidget* title = gtk_label_new(nullptr);
     gtk_label_set_markup(GTK_LABEL(title), "<b>AI terminal</b>");
-    gtk_box_pack_start(GTK_BOX(header), title, FALSE, FALSE, 0);
+    g_object_set(title, "margin-start", 8, "margin-end", 8, nullptr);
+    gtk_widget_set_tooltip_text(grip, "Drag up or down to resize the terminal");
+    gtk_container_add(GTK_CONTAINER(grip), title);
+    gtk_widget_show_all(grip);
+    gtk_notebook_set_action_widget(GTK_NOTEBOOK(notebook), grip, GTK_PACK_START);
 
+    auto press = +[](GtkWidget* w, GdkEventButton* e, gpointer d) -> gboolean {
+        auto* self = static_cast<TerminalDock*>(d);
+        if (e->type != GDK_BUTTON_PRESS || e->button != 1 || (w == self->notebook && !self->onEmptyHeader(e))) {
+            return FALSE;
+        }
+        self->dragging = true;
+        self->gripStartY = e->y_root;
+        self->gripStartHeight = gtk_widget_get_allocated_height(self->dock);
+        return TRUE;
+    };
+    auto motion = +[](GtkWidget*, GdkEventMotion* e, gpointer d) -> gboolean {
+        auto* self = static_cast<TerminalDock*>(d);
+        if (!self->dragging) {
+            return FALSE;
+        }
+        if (!(e->state & GDK_BUTTON1_MASK)) {  // released where we didn't hear it: stop following the pointer
+            self->endDrag();
+            return FALSE;
+        }
+        self->dragTo(e->y_root);
+        return TRUE;
+    };
+    auto release = +[](GtkWidget*, GdkEventButton* e, gpointer d) -> gboolean {
+        auto* self = static_cast<TerminalDock*>(d);
+        if (!self->dragging || e->button != 1) {
+            return FALSE;
+        }
+        self->dragTo(e->y_root);
+        self->endDrag();
+        return TRUE;
+    };
+    for (GtkWidget* w: {grip, notebook}) {
+        gtk_widget_add_events(w, GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK | GDK_POINTER_MOTION_MASK);
+        g_signal_connect(w, "button-press-event", G_CALLBACK(press), this);
+        g_signal_connect(w, "motion-notify-event", G_CALLBACK(motion), this);
+        g_signal_connect(w, "button-release-event", G_CALLBACK(release), this);
+        g_signal_connect(w, "grab-broken-event", G_CALLBACK(+[](GtkWidget*, GdkEvent*, gpointer d) -> gboolean {
+                             static_cast<TerminalDock*>(d)->endDrag();
+                             return FALSE;
+                         }),
+                         this);
+    }
+
+    GtkWidget* header = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
+    g_object_set(header, "margin-start", 6, "margin-end", 4, nullptr);
+    controls = header;
+    gtk_buildable_set_name(GTK_BUILDABLE(header), "aiTerminalControls");
     auto button = [&](const char* icon, const char* tip, GCallback cb) {
         GtkWidget* b = gtk_button_new_from_icon_name(icon, GTK_ICON_SIZE_MENU);
         gtk_button_set_relief(GTK_BUTTON(b), GTK_RELIEF_NONE);
@@ -116,7 +237,223 @@ void TerminalDock::buildHeader() {
     newTabMenu = gtk_menu_new();
     gtk_menu_button_set_popup(GTK_MENU_BUTTON(plus), newTabMenu);
     gtk_box_pack_end(GTK_BOX(header), plus, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(dock), header, FALSE, FALSE, 0);
+
+    // Docked under the page (pressed) or floating over it
+    pinButton = gtk_toggle_button_new();
+    gtk_button_set_image(GTK_BUTTON(pinButton), gtk_image_new_from_icon_name("go-bottom-symbolic", GTK_ICON_SIZE_MENU));
+    gtk_button_set_relief(GTK_BUTTON(pinButton), GTK_RELIEF_NONE);
+    gtk_widget_set_can_focus(pinButton, FALSE);
+    gtk_buildable_set_name(GTK_BUILDABLE(pinButton), "aiTerminalPin");
+    gtk_widget_set_tooltip_text(pinButton, "Dock the terminal under the page (pressed) or let it float over the page");
+    g_signal_connect(pinButton, "toggled", G_CALLBACK(+[](GtkToggleButton* b, gpointer d) {
+                         auto* self = static_cast<TerminalDock*>(d);
+                         if (!self->syncing) {
+                             self->setFloating(!gtk_toggle_button_get_active(b));
+                         }
+                     }),
+                     this);
+    gtk_box_pack_end(GTK_BOX(header), pinButton, FALSE, FALSE, 0);
+
+    // How much of the page shows through the floating terminal (the text stays solid)
+    opacityLabel = gtk_label_new("70%");
+    gtk_label_set_width_chars(GTK_LABEL(opacityLabel), 4);
+    gtk_box_pack_end(GTK_BOX(header), opacityLabel, FALSE, FALSE, 0);
+    opacityScale = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, MIN_OPACITY * 100, 100, 5);
+    gtk_scale_set_draw_value(GTK_SCALE(opacityScale), FALSE);
+    gtk_widget_set_size_request(opacityScale, 130, -1);
+    gtk_widget_set_can_focus(opacityScale, FALSE);
+    gtk_buildable_set_name(GTK_BUILDABLE(opacityScale), "aiTerminalOpacity");
+    gtk_widget_set_tooltip_text(opacityScale, "Background opacity of the floating terminal: lower shows more of the page");
+    g_signal_connect(opacityScale, "value-changed", G_CALLBACK(+[](GtkRange* r, gpointer d) {
+                         auto* self = static_cast<TerminalDock*>(d);
+                         if (!self->syncing) {
+                             self->setOpacity(gtk_range_get_value(r) / 100.0);
+                         }
+                     }),
+                     this);
+    gtk_box_pack_end(GTK_BOX(header), opacityScale, FALSE, FALSE, 0);
+    gtk_widget_show_all(header);
+    gtk_notebook_set_action_widget(GTK_NOTEBOOK(notebook), header, GTK_PACK_END);
+}
+
+namespace {
+/// A widget's rectangle on the screen
+bool screenRect(GtkWidget* w, GdkRectangle& r) {
+    if (!w || !gtk_widget_get_mapped(w)) {
+        return false;
+    }
+    GtkWidget* top = gtk_widget_get_toplevel(w);
+    int x = 0, y = 0, ox = 0, oy = 0;
+    if (!gtk_widget_get_window(top) || !gtk_widget_translate_coordinates(w, top, 0, 0, &x, &y)) {
+        return false;
+    }
+    gdk_window_get_origin(gtk_widget_get_window(top), &ox, &oy);
+    r.x = ox + x;
+    r.y = oy + y;
+    r.width = gtk_widget_get_allocated_width(w);
+    r.height = gtk_widget_get_allocated_height(w);
+    return true;
+}
+bool inside(const GdkRectangle& r, double x, double y, int slack) {
+    return x >= r.x - slack && x < r.x + r.width + slack && y >= r.y - slack && y < r.y + r.height + slack;
+}
+}  // namespace
+
+bool TerminalDock::onEmptyHeader(GdkEventButton* e) const {
+    // In the row of tabs (as high as the controls), but not on a tab
+    GdkRectangle row{}, nb{};
+    if (!controls || !screenRect(controls, row) || !screenRect(notebook, nb)) {
+        return false;
+    }
+    if (e->y_root < nb.y || e->y_root > row.y + row.height + 4) {
+        return false;
+    }
+    for (Tab* t: tabs) {
+        GdkRectangle tab{};
+        if (t->page && screenRect(gtk_notebook_get_tab_label(GTK_NOTEBOOK(notebook), t->page), tab) &&
+            inside(tab, e->x_root, e->y_root, 10)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void TerminalDock::dragTo(double yRoot) {
+    const int room = overlay ? gtk_widget_get_allocated_height(overlay) : 2000;
+    lastHeight = std::clamp(gripStartHeight + static_cast<int>(gripStartY - yRoot), 80, std::max(80, room - 40));
+    if (floating) {
+        gtk_widget_queue_resize(dock);
+    } else if (paned) {
+        gtk_paned_set_position(GTK_PANED(paned), gtk_widget_get_allocated_height(paned) - lastHeight);
+    }
+}
+
+void TerminalDock::endDrag() {
+    if (dragging) {
+        dragging = false;
+        saveView();
+    }
+}
+
+void TerminalDock::applyColors(Tab* tab) const {
+    if (!tab || !tab->term) {
+        return;
+    }
+    // Floating: VTE leaves its background undrawn (its own alpha isn't honoured inside the window); the tab's box
+    // under it paints the see-through black instead
+    vte_terminal_set_clear_background(tab->term, !floating);
+}
+
+void TerminalDock::applyPageCss() {
+    if (!pageCss) {
+        pageCss = gtk_css_provider_new();
+        gtk_style_context_add_provider_for_screen(gdk_screen_get_default(), GTK_STYLE_PROVIDER(pageCss),
+                                                  GTK_STYLE_PROVIDER_PRIORITY_APPLICATION + 1);
+    }
+    const std::string css = ".xoai-term-page { background-color: rgba(0, 0, 0, " +
+                            std::to_string(floating ? opacity : 1.0) + "); }";
+    gtk_css_provider_load_from_data(pageCss, css.c_str(), -1, nullptr);
+}
+
+void TerminalDock::setOpacity(double value) {
+    opacity = std::clamp(value, MIN_OPACITY, 1.0);
+    syncing = true;
+    if (opacityScale) {
+        gtk_range_set_value(GTK_RANGE(opacityScale), opacity * 100);
+    }
+    syncing = false;
+    if (opacityLabel) {
+        gtk_label_set_text(GTK_LABEL(opacityLabel), (std::to_string(static_cast<int>(opacity * 100 + 0.5)) + "%").c_str());
+    }
+    applyPageCss();
+    saveView();
+}
+
+void TerminalDock::setFloating(bool f) {
+    if (!dock || !overlay || !paned) {
+        return;
+    }
+    if (f != floating) {
+        floating = f;
+        GtkWidget* parent = gtk_widget_get_parent(dock);
+        g_object_ref(dock);
+        if (parent) {
+            gtk_container_remove(GTK_CONTAINER(parent), dock);
+        }
+        if (floating) {
+            gtk_widget_set_valign(dock, GTK_ALIGN_FILL);  // (placed at the bottom by get-child-position)
+            gtk_widget_set_halign(dock, GTK_ALIGN_FILL);
+            gtk_overlay_add_overlay(GTK_OVERLAY(overlay), dock);
+        } else {
+            gtk_paned_pack2(GTK_PANED(paned), dock, FALSE, FALSE);
+            const int total = gtk_widget_get_allocated_height(paned);
+            if (total > lastHeight + 100) {
+                gtk_paned_set_position(GTK_PANED(paned), total - lastHeight);
+            }
+        }
+        g_object_unref(dock);
+        GtkStyleContext* ctx = gtk_widget_get_style_context(dock);
+        floating ? gtk_style_context_add_class(ctx, "xoai-term-floating")
+                 : gtk_style_context_remove_class(ctx, "xoai-term-floating");
+        for (Tab* t: tabs) {
+            applyColors(t);
+        }
+        applyPageCss();
+        saveView();
+    }
+    syncing = true;
+    if (pinButton) {
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(pinButton), !floating);
+    }
+    syncing = false;
+    if (opacityScale) {
+        gtk_widget_set_sensitive(opacityScale, floating);
+    }
+}
+
+void TerminalDock::loadView() {
+    GKeyFile* kf = g_key_file_new();
+    const auto file = Util::getConfigFile("ai-terminal-view.ini");
+    if (g_key_file_load_from_file(kf, file.string().c_str(), G_KEY_FILE_NONE, nullptr)) {
+        GError* err = nullptr;
+        const gboolean f = g_key_file_get_boolean(kf, "terminal", "floating", &err);
+        if (!err) {
+            floating = f;
+        }
+        g_clear_error(&err);
+        const int o = g_key_file_get_integer(kf, "terminal", "opacity", &err);
+        if (!err) {
+            opacity = std::clamp(o / 100.0, MIN_OPACITY, 1.0);
+        }
+        g_clear_error(&err);
+        const int h = g_key_file_get_integer(kf, "terminal", "height", &err);
+        if (!err && h >= 80) {
+            lastHeight = h;
+        }
+        g_clear_error(&err);
+    }
+    g_key_file_free(kf);
+    syncing = true;
+    if (opacityScale) {
+        gtk_range_set_value(GTK_RANGE(opacityScale), opacity * 100);
+    }
+    syncing = false;
+    if (opacityLabel) {
+        gtk_label_set_text(GTK_LABEL(opacityLabel), (std::to_string(static_cast<int>(opacity * 100 + 0.5)) + "%").c_str());
+    }
+    loaded = true;
+}
+
+void TerminalDock::saveView() const {
+    if (!loaded) {
+        return;
+    }
+    GKeyFile* kf = g_key_file_new();
+    g_key_file_set_boolean(kf, "terminal", "floating", floating);
+    g_key_file_set_integer(kf, "terminal", "opacity", static_cast<int>(opacity * 100 + 0.5));
+    g_key_file_set_integer(kf, "terminal", "height", lastHeight);
+    g_key_file_save_to_file(kf, Util::getConfigFile("ai-terminal-view.ini").string().c_str(), nullptr);
+    g_key_file_free(kf);
 }
 
 void TerminalDock::setNewTabChoices(std::vector<TerminalSpec> list) {
@@ -383,10 +720,12 @@ int TerminalDock::openTab(const TerminalSpec& spec, bool focus) {
     tab->term = VTE_TERMINAL(term);
     vte_terminal_set_scrollback_lines(tab->term, 10000);
     vte_terminal_set_mouse_autohide(tab->term, TRUE);
+    applyColors(tab);
     gtk_widget_set_vexpand(term, TRUE);
     gtk_widget_set_hexpand(term, TRUE);
 
     GtkWidget* page = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    gtk_style_context_add_class(gtk_widget_get_style_context(page), "xoai-term-page");
     gtk_box_pack_start(GTK_BOX(page), term, TRUE, TRUE, 0);
     GtkWidget* scrollbar =
             gtk_scrollbar_new(GTK_ORIENTATION_VERTICAL, gtk_scrollable_get_vadjustment(GTK_SCROLLABLE(term)));
@@ -604,7 +943,9 @@ void TerminalDock::show() {
     }
     gtk_widget_show(dock);
     const int total = gtk_widget_get_allocated_height(paned);
-    if (total > lastHeight + 100) {
+    if (floating) {
+        gtk_widget_queue_resize(dock);
+    } else if (total > lastHeight + 100) {
         gtk_paned_set_position(GTK_PANED(paned), total - lastHeight);
     }
     if (notebook) {
