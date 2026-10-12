@@ -29,9 +29,12 @@ namespace xoj::assistant {
 class TerminalDock;
 class EventPump;
 struct TerminalSpec;
-class QuickTools;
 }  // namespace xoj::assistant
 #endif
+
+namespace xoj::assistant {
+class QuickTools;
+}  // namespace xoj::assistant
 
 namespace xoj::mcp {
 

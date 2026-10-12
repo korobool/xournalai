@@ -10,6 +10,18 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.9.0 — Your terminals, your tools under the thumb
+- **Any command in a terminal tab.** The AI terminal's + menu (and AI Agent → "New tab with a custom command…")
+  has "Custom command…": paste or type a command line (e.g. one of several OpenCode configurations), optionally a
+  tab name and a folder. Commands are remembered (`ai-terminals.json`, most recent first, up to 12), offered again
+  in the + menu, and can be forgotten from the popover.
+- **Close terminal tabs.** Every tab has a ×; closing ends its program. Restart now acts on the tab shown even
+  after tabs were reordered.
+- **Quick tools.** A big grid button starts the AI toolbar (or press F8): a grid of large buttons for a thumb,
+  finger or the pen — pen, eraser, Ask, select, Command, terminal, size (fine → medium → thick), new page,
+  highlighter, undo, and more. The ten shown are the ones you use most: every way of choosing a tool (toolbar,
+  menu, shortcut, the grid) is counted in `quick-tools.json`.
+
 ## 1.8.9 — Which request did the X server ignore?
 - **The freezes now name their trigger.** In every frozen display so far the X server left one or two of this app's
   requests unanswered while serving everyone else. The app now remembers the last 64 requests it sent (their type

@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.8.9**
+Current version: **1.9.0**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -732,10 +732,10 @@ The owner opens any terminal command (not only presets), closes tabs they don't 
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T13.2.1 | US-13.2 | **Quick tools palette** — QuickTools: big toolbar button, popover grid of 64px tiles, actions through the action database and win.* actions; usage counts (palette and tool changes) in quick-tools.json rank the ten shown. | `ai: quick tools palette (T13.2.1)` | ✅ done `a2c422c0b` |
+| T13.2.1 | US-13.2 | **Quick tools palette** — QuickTools: big toolbar button, popover grid of 64px tiles, actions through the action database and win.* actions; usage counts (palette and tool changes) in quick-tools.json rank the ten shown. | `ai: quick tools palette (T13.2.1)` | ✅ done `5c39a5a82` |
 
 ### S13.3 — Release 1.9.0 → v1.9.0
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T13.3.1 | US-13.1 | **Release 1.9.0** — Changelog, version, full tests. | `ai: release 1.9.0 (T13.3.1)` | ⬜ todo |
+| T13.3.1 | US-13.1 | **Release 1.9.0** — Changelog, version, full tests. | `ai: release 1.9.0 (T13.3.1)` | ✅ done `529d77778` |

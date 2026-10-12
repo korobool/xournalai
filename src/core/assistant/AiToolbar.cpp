@@ -55,10 +55,9 @@ AiToolbar::AiToolbar(GtkWidget* mainBox, int position, ActionHandler h): handler
         GtkWidget* image = gtk_image_new_from_icon_name("view-app-grid-symbolic", GTK_ICON_SIZE_DND);
         gtk_image_set_pixel_size(GTK_IMAGE(image), 28);
         gtk_box_pack_start(GTK_BOX(inner), image, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(inner), gtk_label_new("Tools"), FALSE, FALSE, 0);
         gtk_container_add(GTK_CONTAINER(b), inner);
         g_object_set(b, "margin-start", 4, "margin-end", 2, nullptr);
-        gtk_widget_set_size_request(b, 96, 44);
+        gtk_widget_set_size_request(b, 48, 42);  // (icon only: the toolbar has no room to spare)
         gtk_widget_set_can_focus(b, FALSE);
         gtk_widget_set_tooltip_text(b, "Quick tools (F8): your most used tools as big buttons");
         gtk_actionable_set_action_name(GTK_ACTIONABLE(b), "win.ai-quick-tools");
