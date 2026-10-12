@@ -2425,6 +2425,43 @@
               "finished": "2026-10-12T13:45:19+01:00"
             }
           ]
+        },
+        {
+          "id": "S14.3",
+          "title": "The AI highlighter ends when the owner says so",
+          "version": "1.11.1",
+          "stories": [
+            {
+              "id": "US-14.3",
+              "text": "As the owner, I want to highlight as many places as I like at my own pace while I keep talking, and finish myself — no pause ends it behind my back and leaves a pen line on the page.",
+              "acceptance": [
+                "no pause between strokes ends the request",
+                "while on, the strip becomes a mode bar: level, time, marks, Discard and a big Done, at the strip's height (the page doesn't move)",
+                "10 s with no marks and no words finishes it by itself; the last 3 s are counted down on Done",
+                "Escape discards; tapping the AI highlighter (or Ctrl+Alt+H) again, or picking a tool, is Done"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T14.3.1",
+              "story": "US-14.3",
+              "title": "Mode bar and owner-ended AI highlighting",
+              "details": "QuickTools::showModeBar hides the strip's children and shows level / info / Discard / Done at the strip's height; McpUi highlightTick (250 ms): time, marks, quiet = no marks and no voice (rms > 0.03) for 10 s → finishHighlight, countdown in the last 3 s; Escape on the window discards; action off / tool picked with marks = Done.",
+              "commit": "ai: AI highlighter ends when the owner says so (mode bar)",
+              "status": "done",
+              "started": "2026-10-12T13:54:42+01:00",
+              "finished": "2026-10-12T13:54:42+01:00"
+            },
+            {
+              "id": "T14.3.2",
+              "story": "US-14.3",
+              "title": "Release 1.11.1",
+              "details": "Changelog, version, full tests.",
+              "commit": "ai: release 1.11.1",
+              "status": "todo"
+            }
+          ]
         }
       ]
     }

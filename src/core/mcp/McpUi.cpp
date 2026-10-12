@@ -171,6 +171,14 @@ McpUi::McpUi(McpServer& server): server(server) {
             if (auto* rec = this->server.getControl()->getRecordingIndicator()) {
                 rec->pushVoiceLevel(rms);
             }
+            if (highlighterArmed) {
+                if (rms > 0.03F) {
+                    lastVoiceUs = g_get_monotonic_time();  // (talking keeps the AI highlighter on)
+                }
+                if (quickTools) {
+                    quickTools->pushModeLevel(rms);
+                }
+            }
         });
         xoj::input::setPenButtonObserver([this](const xoj::input::PenButtonEvent& e) {
             if (e.kind == xoj::input::PenButtonEvent::Down) {
@@ -199,6 +207,9 @@ McpUi::McpUi(McpServer& server): server(server) {
 }
 
 McpUi::~McpUi() {
+    if (highlightTimer) {
+        g_source_remove(highlightTimer);
+    }
     if (toolWatch) {
         GAction* sel = G_ACTION(server.getControl()->getActionDatabase()->getAction(Action::SELECT_TOOL).get());
         if (G_IS_OBJECT(sel) && g_signal_handler_is_connected(sel, toolWatch)) {
@@ -418,7 +429,12 @@ void McpUi::installActions() {
     add(focusBtn);
     GSimpleAction* hlAct = g_simple_action_new_stateful("ai-highlighter", nullptr, g_variant_new_boolean(false));
     g_signal_connect(hlAct, "change-state", G_CALLBACK(+[](GSimpleAction*, GVariant* v, gpointer self) {
-                         static_cast<McpUi*>(self)->armHighlighter(g_variant_get_boolean(v));
+                         auto* ui = static_cast<McpUi*>(self);
+                         if (!g_variant_get_boolean(v) && ui->highlighterArmed && !ui->highlightPaths.empty()) {
+                             ui->finishHighlight();  // switching it off with marks made = Done
+                         } else {
+                             ui->armHighlighter(g_variant_get_boolean(v));
+                         }
                      }),
                      this);
     add(hlAct);
@@ -1117,14 +1133,15 @@ void McpUi::armLasso(bool on) {
 }
 
 namespace {
-constexpr guint HIGHLIGHT_PAUSE_MS = 1800;  ///< the pause after the last stroke that ends a request
+constexpr gint64 HIGHLIGHT_QUIET_US = 10 * G_USEC_PER_SEC;  ///< no marks and no voice this long: Done by itself
+constexpr gint64 HIGHLIGHT_COUNTDOWN_US = 3 * G_USEC_PER_SEC; ///< the last part of it is shown on Done
 constexpr double HIGHLIGHT_WIDTH = 12;      ///< the marks' width (page points), like a highlighter's
 }  // namespace
 
 void McpUi::onToolPicked() {
-    // Picking a tool (anywhere) ends the AI highlighter and the lasso
+    // Picking a tool (anywhere) ends the AI highlighter (Done, if there are marks: what was said is kept) and the lasso
     if (highlighterArmed) {
-        armHighlighter(false);
+        highlightPaths.empty() ? armHighlighter(false) : finishHighlight();
     }
     if (lassoArmed) {
         armLasso(false);
@@ -1155,6 +1172,13 @@ void McpUi::armHighlighter(bool on) {
     if (!on) {
         highlighterArmed = false;
         xoj::input::setStrokeInterceptor(nullptr);
+        if (quickTools) {
+            quickTools->showModeBar(false);
+        }
+        if (escapeHandler && window) {
+            g_signal_handler_disconnect(window, escapeHandler);
+        }
+        escapeHandler = 0;
         if (highlightListening) {
             highlightListening = false;
             if (speechToText) {
@@ -1181,6 +1205,31 @@ void McpUi::armHighlighter(bool on) {
     highlightKey = nextHighlightKey++;
     pendingDictation.clear();
     askStatusText = "highlight and speak…";
+    highlightStartUs = lastMarkUs = lastVoiceUs = g_get_monotonic_time();
+    // The strip becomes the mode bar: Done (or 10 s without marks and words) / Discard (or Escape)
+    if (quickTools) {
+        quickTools->showModeBar(
+                true, [this] { finishHighlight(); }, [this] { armHighlighter(false); });
+    }
+    if (window) {
+        escapeHandler = g_signal_connect(window, "key-press-event",
+                                         G_CALLBACK(+[](GtkWidget*, GdkEventKey* e, gpointer self) -> gboolean {
+                                             if (e->keyval != GDK_KEY_Escape) {
+                                                 return FALSE;
+                                             }
+                                             static_cast<McpUi*>(self)->armHighlighter(false);
+                                             return TRUE;
+                                         }),
+                                         this);
+    }
+    highlightTimer = g_timeout_add(
+            250,
+            [](gpointer self) -> gboolean {
+                static_cast<McpUi*>(self)->highlightTick();
+                return G_SOURCE_CONTINUE;
+            },
+            this);
+    highlightTick();
     update();
     // The marks are not ink: drawn over the page until the AI has dealt with them
     xoj::input::setStrokeInterceptor([this](const xoj::input::InterceptedStroke& s) {
@@ -1188,10 +1237,6 @@ void McpUi::armHighlighter(bool on) {
         if (s.kind == K::Down) {
             if (!s.page || (highlightPage && s.page != highlightPage)) {
                 return true;  // (one page per request)
-            }
-            if (highlightTimer) {
-                g_source_remove(highlightTimer);  // another stroke: the same request
-                highlightTimer = 0;
             }
             highlightPage = s.page;
             highlightPaths.push_back({{s.x, s.y}});
@@ -1207,6 +1252,7 @@ void McpUi::armHighlighter(bool on) {
         } else if (s.kind == K::Move && s.page == highlightPage && !highlightPaths.empty()) {
             highlightPaths.back().push_back({s.x, s.y});
         }
+        lastMarkUs = g_get_monotonic_time();
         if ((s.kind == K::Down || s.kind == K::Move) && thinkingOverlay && highlightPage) {
             std::vector<assistant::ThinkingOverlay::Mark> marks;
             for (const auto& p: highlightPaths) {
@@ -1215,23 +1261,43 @@ void McpUi::armHighlighter(bool on) {
             thinkingOverlay->setMarks(highlightKey, server.getControl()->getDocument()->indexOf(highlightPage),
                                       std::move(marks));
         }
-        if ((s.kind == K::Up || s.kind == K::Cancel) && !highlightPaths.empty()) {
-            highlightTimer = g_timeout_add(
-                    HIGHLIGHT_PAUSE_MS,
-                    [](gpointer self) -> gboolean {
-                        auto* ui = static_cast<McpUi*>(self);
-                        ui->highlightTimer = 0;
-                        ui->finishHighlight();
-                        return G_SOURCE_REMOVE;
-                    },
-                    this);
-        }
         return true;  // the marks are not ink
     });
 }
 
+void McpUi::highlightTick() {
+    if (!highlighterArmed) {
+        return;
+    }
+    const gint64 now = g_get_monotonic_time();
+    const gint64 s = (now - highlightStartUs) / G_USEC_PER_SEC;
+    const size_t n = highlightPaths.size();
+    std::string info = std::to_string(s / 60) + ":" + (s % 60 < 10 ? "0" : "") + std::to_string(s % 60) + " · ";
+    info += n == 0 ? std::string("highlight what you mean and say it") :
+                     std::to_string(n) + (n == 1 ? " mark" : " marks");
+    std::string done = "Done";
+    if (n > 0) {
+        // No marks and no words for a while: Done by itself (the last seconds are counted down on the button)
+        const gint64 quiet = now - std::max(lastMarkUs, lastVoiceUs);
+        if (quiet >= HIGHLIGHT_QUIET_US) {
+            finishHighlight();
+            return;
+        }
+        if (HIGHLIGHT_QUIET_US - quiet <= HIGHLIGHT_COUNTDOWN_US) {
+            done = "Done in " + std::to_string((HIGHLIGHT_QUIET_US - quiet) / G_USEC_PER_SEC + 1) + "…";
+        }
+    }
+    if (quickTools) {
+        quickTools->setModeInfo(info, done);
+    }
+}
+
 void McpUi::finishHighlight() {
-    if (!highlighterArmed || !highlightPage || highlightPaths.empty()) {
+    if (!highlighterArmed) {
+        return;
+    }
+    if (!highlightPage || highlightPaths.empty()) {
+        armHighlighter(false);  // (nothing marked)
         return;
     }
     assistant::AskCapture c;

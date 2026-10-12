@@ -794,4 +794,18 @@ Besides the AI lasso (mark first, then say), the owner can highlight what they m
 | T14.2.1 | US-14.2 | **AI marks as an overlay** — Interceptor consumes the strokes (no ink); ThinkingOverlay draws them as translucent violet highlighter paths per request; removed on zone done / failed / dismissed and on Cancel; drop assistant.highlighter_keeps_marks and win.ai-highlighter-keep. | `ai: AI highlighter marks as an overlay that goes away (T14.2.1)` | ✅ done `a65e7516d` |
 | T14.2.2 | US-14.2 | **Footprints in the request** — AskCapture keeps each mark's path + width; submitAsk hit-tests elements against the footprint (distance to path <= width/2), flags partial coverage, sends simplified paths (<= ~30 points each) and the area with a margin as context. | `ai: AI highlighter sends the shape highlighted (T14.2.2)` | ✅ done |
 | T14.2.3 | US-14.2 | **Faded-outside render** — Render of the request area with everything outside the footprints faded, attached to the request for the serving session. | `ai: AI highlighter render of the highlighted detail (T14.2.3)` | ✅ done |
-| T14.2.4 | US-14.2 | **Release 1.11.0** — Changelog, version, full tests. | `ai: release 1.11.0 (T14.2.4)` | ✅ done |
+| T14.2.4 | US-14.2 | **Release 1.11.0** — Changelog, version, full tests. | `ai: release 1.11.0 (T14.2.4)` | ✅ done `ec5934b73` |
+
+### S14.3 — The AI highlighter ends when the owner says so → v1.11.1
+
+**US-14.3** — As the owner, I want to highlight as many places as I like at my own pace while I keep talking, and finish myself — no pause ends it behind my back and leaves a pen line on the page.
+
+- [ ] no pause between strokes ends the request
+- [ ] while on, the strip becomes a mode bar: level, time, marks, Discard and a big Done, at the strip's height (the page doesn't move)
+- [ ] 10 s with no marks and no words finishes it by itself; the last 3 s are counted down on Done
+- [ ] Escape discards; tapping the AI highlighter (or Ctrl+Alt+H) again, or picking a tool, is Done
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T14.3.1 | US-14.3 | **Mode bar and owner-ended AI highlighting** — QuickTools::showModeBar hides the strip's children and shows level / info / Discard / Done at the strip's height; McpUi highlightTick (250 ms): time, marks, quiet = no marks and no voice (rms > 0.03) for 10 s → finishHighlight, countdown in the last 3 s; Escape on the window discards; action off / tool picked with marks = Done. | `ai: AI highlighter ends when the owner says so (mode bar) (T14.3.1)` | ✅ done |
+| T14.3.2 | US-14.3 | **Release 1.11.1** — Changelog, version, full tests. | `ai: release 1.11.1 (T14.3.2)` | ⬜ todo |

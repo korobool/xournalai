@@ -201,6 +201,12 @@ QuickTools::~QuickTools() {
     if (tabletBox) {
         g_object_remove_weak_pointer(G_OBJECT(tabletBox), reinterpret_cast<gpointer*>(&tabletBox));
     }
+    if (modeBar) {
+        g_object_remove_weak_pointer(G_OBJECT(modeBar), reinterpret_cast<gpointer*>(&modeBar));
+    }
+    if (outerBox) {
+        g_object_remove_weak_pointer(G_OBJECT(outerBox), reinterpret_cast<gpointer*>(&outerBox));
+    }
 }
 
 void QuickTools::connectCounting() {
@@ -402,6 +408,14 @@ constexpr const char* CSS =
         ".xoai-focus-button label { color: #ffffff; font-weight: bold; }"
         ".xoai-quick-colour { min-width: 56px; min-height: 56px; padding: 2px; }"
         ".xoai-quick-tile.xoai-tablet-tile { min-width: 64px; min-height: 64px; padding: 4px; }"
+        ".xoai-mode-bar { background-image: linear-gradient(90deg, alpha(#b57bff, 0.16), alpha(#b57bff, 0.04));"
+        "  border-radius: 16px; }"
+        ".xoai-mode-info { font-size: 1.15em; font-weight: bold; }"
+        ".xoai-mode-done { color: #ffffff; border: none; border-radius: 16px; font-size: 1.3em; font-weight: bold;"
+        "  background-image: linear-gradient(160deg, #b57bff, #7b3fe0);"
+        "  box-shadow: 0 2px 8px alpha(#7b3fe0, 0.5), inset 0 1px alpha(#ffffff, 0.3); }"
+        ".xoai-mode-done label { color: #ffffff; }"
+        ".xoai-mode-discard { border-radius: 16px; font-size: 1.05em; }"
         ".xoai-quick-heading { font-size: 0.8em; font-weight: bold; opacity: 0.6; margin-top: 4px; }"
         ".xoai-quick-tile { padding: 6px 4px; min-width: 84px; min-height: 76px; border-radius: 12px; }"
         ".xoai-quick-tile label { font-size: 0.92em; }"
@@ -752,6 +766,8 @@ void QuickTools::placeButton(GtkWidget* mainBox, const std::vector<GtkWidget*>& 
                      }),
                      this);
     gtk_box_pack_end(GTK_BOX(outer), focusButton, FALSE, FALSE, 0);
+    outerBox = outer;
+    g_object_add_weak_pointer(G_OBJECT(outerBox), reinterpret_cast<gpointer*>(&outerBox));
     toolbarColumn = column;
     g_object_add_weak_pointer(G_OBJECT(toolbarColumn), reinterpret_cast<gpointer*>(&toolbarColumn));
     mainWindow = gtk_widget_get_toplevel(mainBox);
@@ -1125,6 +1141,132 @@ void QuickTools::reapplyFocus() {
         sidebarBefore = true;
         win->setSidebarVisible(false);
         control->getActionDatabase()->setActionState(Action::SHOW_SIDEBAR, false);
+    }
+}
+
+void QuickTools::showModeBar(bool on, std::function<void()> done, std::function<void()> discard) {
+    if (!outerBox || on == modeOn) {
+        return;
+    }
+    addCss();
+    if (on) {
+        modeOnDone = std::move(done);
+        modeOnDiscard = std::move(discard);
+        if (!modeBar) {
+            modeBar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+            gtk_buildable_set_name(GTK_BUILDABLE(modeBar), "aiHighlightBar");
+            gtk_style_context_add_class(gtk_widget_get_style_context(modeBar), "xoai-mode-bar");
+            g_object_set(modeBar, "margin", 4, nullptr);
+            GtkWidget* icon = gtk_image_new_from_icon_name("xopp-ai-highlighter", GTK_ICON_SIZE_DND);
+            gtk_image_set_pixel_size(GTK_IMAGE(icon), 36);
+            gtk_box_pack_start(GTK_BOX(modeBar), icon, FALSE, FALSE, 6);
+            modeLevel = gtk_drawing_area_new();
+            gtk_widget_set_size_request(modeLevel, 90, 40);
+            gtk_widget_set_valign(modeLevel, GTK_ALIGN_CENTER);
+            g_signal_connect(modeLevel, "draw", G_CALLBACK(+[](GtkWidget* w, cairo_t* cr, gpointer d) -> gboolean {
+                                 auto* self = static_cast<QuickTools*>(d);
+                                 const double h = gtk_widget_get_allocated_height(w);
+                                 const size_t n = 15;
+                                 for (size_t i = 0; i < n; i++) {
+                                     const size_t k = self->modeLevels.size();
+                                     const float v = i + k >= n ? self->modeLevels[i + k - n] : 0.0F;
+                                     const double bh = 3 + (h - 6) * std::min(1.0, std::sqrt(v / 0.25));
+                                     cairo_rectangle(cr, 2 + i * 6.0, (h - bh) / 2, 4, bh);
+                                 }
+                                 cairo_set_source_rgb(cr, 0.71, 0.48, 1.0);
+                                 cairo_fill(cr);
+                                 return TRUE;
+                             }),
+                             this);
+            gtk_box_pack_start(GTK_BOX(modeBar), modeLevel, FALSE, FALSE, 0);
+            modeInfo = gtk_label_new("");
+            gtk_style_context_add_class(gtk_widget_get_style_context(modeInfo), "xoai-mode-info");
+            gtk_label_set_ellipsize(GTK_LABEL(modeInfo), PANGO_ELLIPSIZE_END);
+            gtk_box_pack_start(GTK_BOX(modeBar), modeInfo, TRUE, TRUE, 0);
+            gtk_widget_set_halign(modeInfo, GTK_ALIGN_START);
+            modeDone = gtk_button_new_with_label("Done");
+            gtk_style_context_add_class(gtk_widget_get_style_context(modeDone), "xoai-mode-done");
+            gtk_widget_set_size_request(modeDone, 130, -1);
+            gtk_widget_set_can_focus(modeDone, FALSE);
+            gtk_buildable_set_name(GTK_BUILDABLE(modeDone), "aiHighlightDone");
+            gtk_widget_set_tooltip_text(modeDone, "Done: open Ask with what you said (or tap the AI highlighter again)");
+            g_signal_connect(modeDone, "clicked", G_CALLBACK(+[](GtkButton*, gpointer d) {
+                                 auto* self = static_cast<QuickTools*>(d);
+                                 if (auto f = self->modeOnDone) {
+                                     f();
+                                 }
+                             }),
+                             this);
+            gtk_box_pack_end(GTK_BOX(modeBar), modeDone, FALSE, FALSE, 0);
+            GtkWidget* discard = gtk_button_new_with_label("Discard");
+            gtk_style_context_add_class(gtk_widget_get_style_context(discard), "xoai-mode-discard");
+            gtk_widget_set_size_request(discard, 96, -1);
+            gtk_widget_set_can_focus(discard, FALSE);
+            gtk_buildable_set_name(GTK_BUILDABLE(discard), "aiHighlightDiscard");
+            gtk_widget_set_tooltip_text(discard, "Discard the marks and what was said (Escape)");
+            g_signal_connect(discard, "clicked", G_CALLBACK(+[](GtkButton*, gpointer d) {
+                                 auto* self = static_cast<QuickTools*>(d);
+                                 if (auto f = self->modeOnDiscard) {
+                                     f();
+                                 }
+                             }),
+                             this);
+            gtk_box_pack_end(GTK_BOX(modeBar), discard, FALSE, FALSE, 0);
+            gtk_box_pack_start(GTK_BOX(outerBox), modeBar, TRUE, TRUE, 0);
+            gtk_widget_show_all(modeBar);
+            gtk_widget_set_no_show_all(modeBar, TRUE);
+            gtk_widget_hide(modeBar);
+            g_object_add_weak_pointer(G_OBJECT(modeBar), reinterpret_cast<gpointer*>(&modeBar));
+        }
+        // As tall as the strip is now: the page must not move under the pen
+        const int h = gtk_widget_get_allocated_height(outerBox);
+        gtk_widget_set_size_request(modeBar, -1, std::max(60, h - 8));
+        modeHidden.clear();
+        GList* kids = gtk_container_get_children(GTK_CONTAINER(outerBox));
+        for (GList* k = kids; k; k = k->next) {
+            auto* w = GTK_WIDGET(k->data);
+            if (w != modeBar) {
+                modeHidden.emplace_back(w, gtk_widget_get_visible(w));
+                gtk_widget_hide(w);
+            }
+        }
+        g_list_free(kids);
+        modeLevels.clear();
+        modeOn = true;
+        gtk_widget_show(modeBar);
+    } else {
+        modeOn = false;
+        modeOnDone = nullptr;
+        modeOnDiscard = nullptr;
+        if (modeBar) {
+            gtk_widget_hide(modeBar);
+        }
+        for (auto& [w, shown]: modeHidden) {
+            if (GTK_IS_WIDGET(w) && gtk_widget_get_parent(w) == outerBox) {
+                gtk_widget_set_visible(w, shown);
+            }
+        }
+        modeHidden.clear();
+        refreshTablet();
+    }
+}
+
+void QuickTools::setModeInfo(const std::string& info, const std::string& doneLabel) {
+    if (modeInfo) {
+        gtk_label_set_text(GTK_LABEL(modeInfo), info.c_str());
+    }
+    if (modeDone) {
+        gtk_button_set_label(GTK_BUTTON(modeDone), doneLabel.c_str());
+    }
+}
+
+void QuickTools::pushModeLevel(float rms) {
+    modeLevels.push_back(rms);
+    if (modeLevels.size() > 30) {
+        modeLevels.erase(modeLevels.begin(), modeLevels.begin() + static_cast<std::ptrdiff_t>(modeLevels.size() - 30));
+    }
+    if (modeLevel && modeOn) {
+        gtk_widget_queue_draw(modeLevel);
     }
 }
 

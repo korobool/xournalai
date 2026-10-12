@@ -194,7 +194,10 @@ private:
     int highlightKey = 0;      ///< their set in the overlay
     int nextHighlightKey = 1;
     bool highlightListening = false;
-    guint highlightTimer = 0;
+    guint highlightTimer = 0;  ///< the mode bar's tick (time, marks, the auto-finish countdown)
+    gint64 highlightStartUs = 0, lastMarkUs = 0, lastVoiceUs = 0;
+    gulong escapeHandler = 0;
+    void highlightTick();
 
     /// Pen button held while the lasso is armed or the popover is open: dictation into it
     void dictate(bool pressed);

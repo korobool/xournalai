@@ -10,6 +10,15 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.11.1 — The AI highlighter ends when you say so
+- **No more cut-offs.** A pause between strokes no longer ends the request (and your next stroke no longer lands as
+  a pen line). Highlight as many places as you like while you keep talking.
+- **The strip becomes a mode bar** while the AI highlighter is on: the microphone level, the time, how many marks,
+  Discard and a big violet Done — at the strip's height, so the page doesn't move.
+- **Done by itself after 10 s** with no marks and no words (talking keeps it open); the last 3 seconds are counted
+  down on the Done button.
+- Escape discards; tapping the AI highlighter again (or Ctrl+Alt+H), or picking a tool, counts as Done.
+
 ## 1.11.0 — A smarter AI highlighter
 - **Marks that go away.** The AI highlighter's marks are no longer ink: they are drawn over the page, stay while the
   AI works on the request and vanish when it is done (or failed, or its zone is dismissed). Cancel the popover and

@@ -64,6 +64,12 @@ public:
     /// Focus: the menu bar and the toolbars hidden, only the big buttons shown (remembered)
     void setFocused(bool on);
     bool isFocused() const { return focused; }
+    /// The AI highlighter's mode bar: while it is on, the strip shows only the level, `info` and Discard / Done
+    /// (as tall as the strip was, so the page doesn't move)
+    void showModeBar(bool on, std::function<void()> done = {}, std::function<void()> discard = {});
+    void setModeInfo(const std::string& info, const std::string& doneLabel = "Done");
+    void pushModeLevel(float rms);
+    bool modeBarShown() const { return modeOn; }
     /// Called by the Focus button with the state wanted (the owner routes it through its action)
     std::function<void(bool)> onFocus;
     void setFocusVisible(bool visible);
@@ -104,6 +110,15 @@ private:
     bool isFullscreen() const;
     void refreshFullscreen();
     void addColourTiles(GtkWidget* row);
+    GtkWidget* outerBox = nullptr;       ///< weak: the strip
+    GtkWidget* modeBar = nullptr;        ///< weak
+    GtkWidget* modeInfo = nullptr;       ///< (in modeBar)
+    GtkWidget* modeDone = nullptr;       ///< (in modeBar)
+    GtkWidget* modeLevel = nullptr;      ///< (in modeBar)
+    std::vector<float> modeLevels;
+    std::vector<std::pair<GtkWidget*, bool>> modeHidden;  ///< the strip's children and whether they were shown
+    std::function<void()> modeOnDone, modeOnDiscard;
+    bool modeOn = false;
     /// Focus: big icon buttons on the left of the strip (TABLET in priority order) and the pen's colours
     void buildTablet(GtkWidget* outer);
     void refreshTablet();
