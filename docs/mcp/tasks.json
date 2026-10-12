@@ -2248,7 +2248,8 @@
               "acceptance": [
                 "the button stands to the right of the toolbars, as tall as all of them; no row of its own",
                 "it opens large buttons in fixed groups: Select (lasso, rectangle, pointer), Draw, Size (all five thicknesses), Page, AI; the tool and size in use are marked",
-                "hidden from AI Agent → Big Tools button; the choice is remembered"
+                "hidden from AI Agent → Big Tools button; the choice is remembered",
+                "a big Record button next to Tools (experimental) starts and stops recording; while recording it shows Stop with the time and rays and a core that follow the microphone level"
               ]
             }
           ],
@@ -2262,6 +2263,15 @@
               "status": "done",
               "started": "2026-10-12T08:25:48+01:00",
               "finished": "2026-10-12T08:25:48+01:00"
+            },
+            {
+              "id": "T13.4.3",
+              "story": "US-13.4",
+              "title": "Big Record button that listens",
+              "details": "QuickTools: record button beside Tools toggling AUDIO_RECORD; drawn face: idle red dot, recording: rays from RecordingIndicator::recentLevels, core breathing with the smoothed level, Stop m:ss; win.ai-record-button (remembered).",
+              "commit": "ai: big Record button that follows the microphone",
+              "status": "doing",
+              "started": "2026-10-12T08:46:15+01:00"
             },
             {
               "id": "T13.4.2",

@@ -251,11 +251,11 @@ McpUi::~McpUi() {
     }
     if (window) {
         for (const char* name:
-             {"mcp-paused",      "mcp-ai-accept",   "mcp-ai-clear",     "mcp-ai-toggle",    "mcp-copy-command",
-              "mcp-connect",     "mcp-settings",    "ai-terminal",      "ai-terminal-open", "ai-terminal-custom",
-              "ai-quick-tools",  "ai-tools-button", "ai-act",           "ai-toolbar",       "ai-stop",
-              "ai-auto-improve", "ai-ask",          "ai-rule-formulas", "ai-rule-text",     "ai-rule-diagrams",
-              "ai-rule-colours"}) {
+             {"mcp-paused",       "mcp-ai-accept",   "mcp-ai-clear",     "mcp-ai-toggle",    "mcp-copy-command",
+              "mcp-connect",      "mcp-settings",    "ai-terminal",      "ai-terminal-open", "ai-terminal-custom",
+              "ai-quick-tools",   "ai-tools-button", "ai-record-button", "ai-act",           "ai-toolbar",
+              "ai-stop",          "ai-auto-improve", "ai-ask",           "ai-rule-formulas", "ai-rule-text",
+              "ai-rule-diagrams", "ai-rule-colours"}) {
             g_action_map_remove_action(G_ACTION_MAP(window), name);
         }
         unwatch(window);
@@ -368,6 +368,15 @@ void McpUi::installActions() {
                      }),
                      this);
     add(touch);
+    GSimpleAction* rec = g_simple_action_new_stateful("ai-record-button", nullptr, g_variant_new_boolean(true));
+    g_signal_connect(rec, "change-state", G_CALLBACK(+[](GSimpleAction* a, GVariant* v, gpointer self) {
+                         g_simple_action_set_state(a, v);
+                         if (auto* ui = static_cast<McpUi*>(self); ui->quickTools) {
+                             ui->quickTools->setRecordVisible(g_variant_get_boolean(v));
+                         }
+                     }),
+                     this);
+    add(rec);
     GSimpleAction* askAct = g_simple_action_new_stateful("ai-ask", nullptr, g_variant_new_boolean(false));
     g_signal_connect(askAct, "change-state", G_CALLBACK(+[](GSimpleAction*, GVariant* v, gpointer self) {
                          static_cast<McpUi*>(self)->armLasso(g_variant_get_boolean(v));
@@ -513,6 +522,7 @@ void McpUi::buildMenu() {
     section({{"Pause AI agent", "win.mcp-paused"}}, "<Ctrl><Alt>Escape");
     section({{"Show AI toolbar", "win.ai-toolbar"},
              {"Big Tools button", "win.ai-tools-button"},
+             {"Big Record button", "win.ai-record-button"},
              {"Stop current AI work", "win.ai-stop"}});
     {
         GMenu* s = g_menu_new();
@@ -1490,6 +1500,10 @@ void McpUi::buildToolbar() {
     if (GAction* a = g_action_map_lookup_action(G_ACTION_MAP(server.getControl()->getWindow()->getWindow()),
                                                 "ai-tools-button")) {
         g_simple_action_set_state(G_SIMPLE_ACTION(a), g_variant_new_boolean(quickTools->buttonWanted()));
+    }
+    if (GAction* a = g_action_map_lookup_action(G_ACTION_MAP(server.getControl()->getWindow()->getWindow()),
+                                                "ai-record-button")) {
+        g_simple_action_set_state(G_SIMPLE_ACTION(a), g_variant_new_boolean(quickTools->recordWanted()));
     }
 }
 

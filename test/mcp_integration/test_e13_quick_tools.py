@@ -2,6 +2,8 @@
 order follows how often each tool is used, from anywhere."""
 
 import json
+
+APP_ENV = {"XOURNALAI_TEST_HOOKS": "1"}
 import time
 
 
@@ -101,3 +103,27 @@ def test_6_tools_button_beside_the_toolbars(app):
     assert json.load(open(app.home / "config" / "xournalpp" / "quick-tools.json"))["uses"]["_toolsButton"] == 0
     c.call("action_run", action="win.ai-tools-button", state=True)
     assert wait(lambda: widgets(c, "aiQuickToolsButton")[0].get("visible", True))
+
+
+def test_7_record_button_beside_tools(app):
+    """A big Record button next to Tools (experimental), as tall; hidden on request and remembered."""
+    c = app.client()
+    rec, tools = widgets(c, "aiRecordButton")[0], widgets(c, "aiQuickToolsButton")[0]
+    assert rec.get("visible", True)
+    assert rec["bbox"][0] + rec["bbox"][2] <= tools["bbox"][0] and abs(rec["bbox"][3] - tools["bbox"][3]) <= 2
+    c.call("action_run", action="win.ai-record-button", state=False)
+    assert wait(lambda: not widgets(c, "aiRecordButton")[0].get("visible", True))
+    assert json.load(open(app.home / "config" / "xournalpp" / "quick-tools.json"))["uses"]["_recordButton"] == 0
+    c.call("action_run", action="win.ai-record-button", state=True)
+    assert wait(lambda: widgets(c, "aiRecordButton")[0].get("visible", True))
+
+
+def test_8_record_button_follows_the_recorder(app):
+    """Started anywhere (here: the test hook, as the recorder would), the big button turns into Stop with the time."""
+    c = app.client()
+    labels = lambda: [w.get("label") or w.get("text") or "" for w in c.call("ui_inspect", max_depth=80, all=True)["widgets"]]
+    assert "Record" in labels()
+    c.call("test_recorder", on=True)
+    assert wait(lambda: any(l.startswith("Stop 0:0") for l in labels()))
+    c.call("test_recorder", on=False)
+    assert wait(lambda: "Record" in labels())

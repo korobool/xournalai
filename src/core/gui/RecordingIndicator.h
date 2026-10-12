@@ -39,6 +39,9 @@ public:
 
     void setRecording(bool on);
     bool isRecording() const { return recording; }
+    /// The latest microphone levels (0..1, the latest last) and how long it has recorded, for other views of it
+    const std::array<float, 18>& recentLevels() const { return levels; }
+    int64_t recordingMs() const { return recording ? (g_get_monotonic_time() - recordingSinceUs) / 1000 : 0; }
 
     /// Ask listens (speech to text); its voice level (RMS) comes with pushVoiceLevel
     void setListening(bool on);

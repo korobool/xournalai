@@ -1,14 +1,17 @@
 #include "QuickTools.h"
 
 #include <algorithm>  // for stable_sort
+#include <array>      // for array
+#include <cmath>      // for sqrt, cos, sin
 #include <fstream>    // for ifstream, ofstream
 
 #include "control/Control.h"                 // for Control
 #include "control/ToolEnums.h"               // for ToolType, ToolSize
 #include "control/ToolHandler.h"             // for ToolHandler
 #include "control/actions/ActionDatabase.h"  // for ActionDatabase
-#include "gui/MainWindow.h"                  // for MainWindow
-#include "gui/XournalView.h"                 // for XournalView
+#include "gui/MainWindow.h"
+#include "gui/RecordingIndicator.h"  // for RecordingIndicator                  // for MainWindow
+#include "gui/XournalView.h"         // for XournalView
 #include "mcp/Json.h"
 #include "util/GVariantTemplate.h"  // for getGVariantValue
 
@@ -124,6 +127,10 @@ QuickTools::QuickTools(Control* ctrl, std::filesystem::path countsFile, std::fun
         wantButton = it->second != 0;
         uses.erase(it);
     }
+    if (auto it = uses.find("_recordButton"); it != uses.end()) {
+        wantRecord = it->second != 0;
+        uses.erase(it);
+    }
     connectCounting();
 }
 
@@ -137,6 +144,18 @@ QuickTools::~QuickTools() {
     closePopover();
     if (button) {
         g_object_remove_weak_pointer(G_OBJECT(button), reinterpret_cast<gpointer*>(&button));
+    }
+    if (recordPoll) {
+        g_source_remove(recordPoll);
+    }
+    if (recordFace && faceTick) {
+        gtk_widget_remove_tick_callback(recordFace, faceTick);
+    }
+    if (recordFace) {
+        g_object_remove_weak_pointer(G_OBJECT(recordFace), reinterpret_cast<gpointer*>(&recordFace));
+    }
+    if (recordButton) {
+        g_object_remove_weak_pointer(G_OBJECT(recordButton), reinterpret_cast<gpointer*>(&recordButton));
     }
 }
 
@@ -191,7 +210,8 @@ void QuickTools::count(const std::string& id) {
         uses[id]++;
     }
     auto all = uses;
-    all["_toolsButton"] = wantButton ? 1 : 0;  // (whether the Tools button is shown rides along)
+    all["_toolsButton"] = wantButton ? 1 : 0;
+    all["_recordButton"] = wantRecord ? 1 : 0;  // (whether the Tools button is shown rides along)
     quick_tools::save(file, all);
 }
 
@@ -257,6 +277,17 @@ constexpr const char* CSS =
         ".xoai-tools-button:active { background-image: linear-gradient(160deg, #e0602d, #c92159 55%, #7232c9);"
         "  box-shadow: inset 0 2px 4px alpha(#000000, 0.35); }"
         ".xoai-tools-button label { color: #ffffff; font-weight: bold; }"
+        ".xoai-record-button { color: #ffffff; border: none; border-radius: 16px; padding: 6px 10px;"
+        "  background-image: linear-gradient(160deg, #5a5f6b, #3a3e47);"
+        "  box-shadow: 0 2px 6px alpha(#000000, 0.35), inset 0 1px alpha(#ffffff, 0.2); transition: all 120ms "
+        "ease-out; }"
+        ".xoai-record-button:hover { background-image: linear-gradient(160deg, #6a707d, #474c57); }"
+        ".xoai-record-button:active { box-shadow: inset 0 2px 4px alpha(#000000, 0.45); }"
+        ".xoai-record-button label { color: #ffffff; font-weight: bold; }"
+        ".xoai-record-button image { color: #ff4a4a; }"
+        ".xoai-record-button.xoai-recording { background-image: linear-gradient(160deg, #ff5a5a, #d81b3c);"
+        "  box-shadow: 0 0 10px alpha(#ff3040, 0.75), inset 0 1px alpha(#ffffff, 0.35); }"
+        ".xoai-record-button.xoai-recording image { color: #ffffff; }"
         ".xoai-quick-heading { font-size: 0.8em; font-weight: bold; opacity: 0.6; margin-top: 4px; }"
         ".xoai-quick-tile { padding: 6px 4px; min-width: 84px; min-height: 76px; border-radius: 12px; }"
         ".xoai-quick-tile label { font-size: 0.92em; }"
@@ -434,6 +465,44 @@ void QuickTools::placeButton(GtkWidget* mainBox, const std::vector<GtkWidget*>& 
                      this);
     gtk_box_pack_end(GTK_BOX(outer), button, FALSE, FALSE, 0);
 
+    // Record (experimental): starts and stops audio recording, like the toolbar's record button
+    recordButton = gtk_button_new();
+    {
+        // A drawn face that listens: a red dot at rest; while recording, rings and rays that follow the microphone
+        GtkWidget* inner = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
+        recordFace = gtk_drawing_area_new();
+        gtk_widget_set_size_request(recordFace, 52, 52);
+        g_signal_connect(recordFace, "draw", G_CALLBACK(+[](GtkWidget* w, cairo_t* cr, gpointer d) -> gboolean {
+                             static_cast<QuickTools*>(d)->drawRecordFace(w, cr);
+                             return TRUE;
+                         }),
+                         this);
+        gtk_box_pack_start(GTK_BOX(inner), recordFace, TRUE, TRUE, 0);
+        recordLabel = gtk_label_new("Record");
+        gtk_box_pack_start(GTK_BOX(inner), recordLabel, FALSE, FALSE, 0);
+        gtk_container_add(GTK_CONTAINER(recordButton), inner);
+    }
+    gtk_style_context_add_class(gtk_widget_get_style_context(recordButton), "xoai-record-button");
+    gtk_widget_set_size_request(recordButton, 76, -1);
+    g_object_set(recordButton, "margin", 4, "margin-end", 0, nullptr);
+    gtk_widget_set_can_focus(recordButton, FALSE);
+    gtk_widget_set_tooltip_text(recordButton, "Start or stop recording audio");
+    gtk_buildable_set_name(GTK_BUILDABLE(recordButton), "aiRecordButton");
+    g_signal_connect(recordButton, "clicked", G_CALLBACK(+[](GtkButton*, gpointer d) {
+                         auto* self = static_cast<QuickTools*>(d);
+                         GAction* a =
+                                 G_ACTION(self->control->getActionDatabase()->getAction(Action::AUDIO_RECORD).get());
+                         GVariant* st = g_action_get_state(a);
+                         const bool on = st && g_variant_get_boolean(st);
+                         if (st) {
+                             g_variant_unref(st);
+                         }
+                         g_action_change_state(a, g_variant_new_boolean(!on));
+                     }),
+                     this);
+    gtk_box_pack_end(GTK_BOX(outer), recordButton, FALSE, FALSE, 0);
+
+
     gtk_box_pack_start(GTK_BOX(mainBox), outer, FALSE, FALSE, 0);
     gtk_box_reorder_child(GTK_BOX(mainBox), outer, position);
     gtk_widget_show(column);
@@ -442,6 +511,130 @@ void QuickTools::placeButton(GtkWidget* mainBox, const std::vector<GtkWidget*>& 
     gtk_widget_set_visible(button, wantButton);
     gtk_widget_show(outer);
     g_object_add_weak_pointer(G_OBJECT(button), reinterpret_cast<gpointer*>(&button));
+    gtk_widget_show_all(recordButton);
+    gtk_widget_set_no_show_all(recordButton, TRUE);
+    gtk_widget_set_visible(recordButton, wantRecord);
+    g_object_add_weak_pointer(G_OBJECT(recordButton), reinterpret_cast<gpointer*>(&recordButton));
+    g_object_add_weak_pointer(G_OBJECT(recordFace), reinterpret_cast<gpointer*>(&recordFace));
+    refreshRecord();
+    recordPoll = g_timeout_add(
+            200,
+            [](gpointer d) -> gboolean {
+                auto* self = static_cast<QuickTools*>(d);
+                if (self->recordButton && self->isRecording() != self->shownRecording) {
+                    self->shownRecording = !self->shownRecording;
+                    self->refreshRecord();
+                }
+                return G_SOURCE_CONTINUE;
+            },
+            this);
+}
+
+bool QuickTools::isRecording() const {
+#ifdef ENABLE_AUDIO
+    if (auto* ind = control->getRecordingIndicator()) {
+        return ind->isRecording();
+    }
+#endif
+    return false;
+}
+
+void QuickTools::refreshRecord() {
+    if (!recordButton) {
+        return;
+    }
+    const bool on = isRecording();
+    GtkStyleContext* sc = gtk_widget_get_style_context(recordButton);
+    on ? gtk_style_context_add_class(sc, "xoai-recording") : gtk_style_context_remove_class(sc, "xoai-recording");
+    gtk_widget_set_tooltip_text(recordButton, on ? "Stop recording" : "Start recording audio");
+    std::string text = "Record";
+#ifdef ENABLE_AUDIO
+    if (on) {
+        const int64_t s = control->getRecordingIndicator()->recordingMs() / 1000;
+        text = "Stop " + std::to_string(s / 60) + ":" + (s % 60 < 10 ? "0" : "") + std::to_string(s % 60);
+    }
+#endif
+    gtk_label_set_text(GTK_LABEL(recordLabel), text.c_str());
+    if (on && !faceTick) {
+        faceTick = gtk_widget_add_tick_callback(
+                recordFace,
+                [](GtkWidget* w, GdkFrameClock*, gpointer d) -> gboolean {
+                    auto* self = static_cast<QuickTools*>(d);
+                    if (!self->isRecording()) {
+                        self->faceTick = 0;
+                        self->refreshRecord();
+                        gtk_widget_queue_draw(w);
+                        return G_SOURCE_REMOVE;
+                    }
+                    gtk_widget_queue_draw(w);
+                    const gint64 now = g_get_monotonic_time();
+                    if (now - self->labelUs > 250000) {
+                        self->labelUs = now;
+                        self->refreshRecord();
+                    }
+                    return G_SOURCE_CONTINUE;
+                },
+                this, nullptr);
+    }
+    gtk_widget_queue_draw(recordFace);
+}
+
+void QuickTools::drawRecordFace(GtkWidget* w, cairo_t* cr) {
+    const double cx = gtk_widget_get_allocated_width(w) / 2.0;
+    const double cy = gtk_widget_get_allocated_height(w) / 2.0;
+    if (!isRecording()) {
+        smoothLevel = 0;
+        cairo_arc(cr, cx, cy, 13, 0, 2 * G_PI);
+        cairo_set_source_rgb(cr, 1.0, 0.29, 0.29);
+        cairo_fill_preserve(cr);
+        cairo_set_source_rgba(cr, 1, 1, 1, 0.5);
+        cairo_set_line_width(cr, 2);
+        cairo_stroke(cr);
+        return;
+    }
+    std::array<float, 18> levels{};
+#ifdef ENABLE_AUDIO
+    levels = control->getRecordingIndicator()->recentLevels();
+#endif
+    // How loud now: the latest levels, made sensitive to a quiet voice (sqrt), rising fast and falling slowly
+    const double now = std::sqrt(std::max({levels[17], levels[16], levels[15]}));
+    smoothLevel = now > smoothLevel ? smoothLevel + (now - smoothLevel) * 0.6 : smoothLevel * 0.9 + now * 0.1;
+    const double L = std::clamp(smoothLevel, 0.0, 1.0);
+    const double t = static_cast<double>(g_get_monotonic_time()) / G_USEC_PER_SEC;
+
+    // The voice ring: rays around the button, one per recent level, the newest at the top, going round
+    const double inner = 13;
+    for (size_t i = 0; i < levels.size(); i++) {
+        const double a = -G_PI / 2 + 2 * G_PI * static_cast<double>(levels.size() - 1 - i) / levels.size() + t * 0.6;
+        const double len = 2 + 11 * std::sqrt(std::clamp(static_cast<double>(levels[i]), 0.0, 1.0));
+        cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
+        cairo_set_line_width(cr, 2.6);
+        cairo_set_source_rgba(cr, 1, 1, 1, 0.45 + 0.55 * std::min(1.0, len / 13));
+        cairo_move_to(cr, cx + inner * std::cos(a), cy + inner * std::sin(a));
+        cairo_line_to(cr, cx + (inner + len) * std::cos(a), cy + (inner + len) * std::sin(a));
+        cairo_stroke(cr);
+    }
+    // The core breathes with the voice: silent, it stays small and still
+    const double r = 9 + 3.5 * L;
+    cairo_arc(cr, cx, cy, r + 2 + 4 * L, 0, 2 * G_PI);
+    cairo_set_source_rgba(cr, 1, 1, 1, 0.15 + 0.35 * L);
+    cairo_fill(cr);
+    cairo_arc(cr, cx, cy, r, 0, 2 * G_PI);
+    cairo_set_source_rgb(cr, 1, 1, 1);
+    cairo_fill(cr);
+    // and says how to stop: a red square
+    const double q = r * 0.75;
+    cairo_rectangle(cr, cx - q / 2, cy - q / 2, q, q);
+    cairo_set_source_rgb(cr, 0.85, 0.11, 0.24);
+    cairo_fill(cr);
+}
+
+void QuickTools::setRecordVisible(bool visible) {
+    wantRecord = visible;
+    if (recordButton) {
+        gtk_widget_set_visible(recordButton, visible);
+    }
+    count("");  // (saves the choice)
 }
 
 void QuickTools::setButtonVisible(bool visible) {

@@ -55,6 +55,9 @@ public:
     bool isButtonVisible() const;
     /// Whether the owner last left the Tools button shown (remembered in the counts file; shown at first)
     bool buttonWanted() const { return wantButton; }
+    /// The big Record button next to Tools (experimental): starts and stops audio recording
+    void setRecordVisible(bool visible);
+    bool recordWanted() const { return wantRecord; }
     /// Performs a tool as a tap on its button would (and counts it)
     void activate(const std::string& id);
     /// Counts one use of a tool
@@ -73,6 +76,18 @@ private:
     GtkWidget* popover = nullptr;                       ///< weak
     GtkWidget* button = nullptr;                        ///< weak: the Tools button
     bool wantButton = true;
+    GtkWidget* recordButton = nullptr;  ///< weak
+    bool wantRecord = true;
+    void refreshRecord();
+    bool isRecording() const;
+    void drawRecordFace(GtkWidget* w, cairo_t* cr);
+    GtkWidget* recordFace = nullptr;   ///< weak
+    GtkWidget* recordLabel = nullptr;  ///< (inside recordButton)
+    guint recordPoll = 0;
+    guint faceTick = 0;
+    gint64 labelUs = 0;
+    bool shownRecording = false;
+    double smoothLevel = 0;
     bool performing = false;  ///< a tap is being performed: its action isn't counted twice
 };
 
