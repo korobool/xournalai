@@ -25,7 +25,7 @@ const std::vector<Entry>& catalog() {
     static const std::vector<Entry> all = {
             {"pen", "Pen", "xopp-tool-pencil", "Draw with the pen"},
             {"eraser", "Eraser", "xopp-tool-eraser", "Erase"},
-            {"ask", "Ask", "audio-input-microphone-symbolic",
+            {"ask", "AI lasso", "xopp-ai-lasso",
              "Ask the AI: circle an area, then say or type what you want"},
             {"select", "Select", "xopp-select-lasso", "Select a region (lasso)"},
             {"auto-improve", "Auto-improve", "starred-symbolic",

@@ -60,7 +60,7 @@ AiToolbar::AiToolbar(GtkWidget* mainBox, int position, ActionHandler h): handler
     gtk_tool_button_set_label(GTK_TOOL_BUTTON(askItem), "Ask");
     gtk_tool_button_set_icon_widget(
             GTK_TOOL_BUTTON(askItem),
-            gtk_image_new_from_icon_name("audio-input-microphone-symbolic", GTK_ICON_SIZE_SMALL_TOOLBAR));
+            gtk_image_new_from_icon_name("xopp-ai-lasso", GTK_ICON_SIZE_SMALL_TOOLBAR));
     gtk_tool_item_set_is_important(askItem, TRUE);
     gtk_tool_item_set_tooltip_text(
             askItem, "Ask (Ctrl+Alt+A): circle an area with the pen or the mouse, then say (hold the "
