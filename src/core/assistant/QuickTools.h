@@ -58,6 +58,9 @@ public:
     /// The big Record button next to Tools (experimental): starts and stops audio recording
     void setRecordVisible(bool visible);
     bool recordWanted() const { return wantRecord; }
+    /// The big Full screen button next to Record: toggles the app's full-screen mode
+    void setFullscreenVisible(bool visible);
+    bool fullscreenWanted() const { return wantFullscreen; }
     /// Performs a tool as a tap on its button would (and counts it)
     void activate(const std::string& id);
     /// Counts one use of a tool
@@ -87,6 +90,12 @@ private:
     guint faceTick = 0;
     gint64 labelUs = 0;
     bool shownRecording = false;
+    GtkWidget* fullscreenButton = nullptr;  ///< weak
+    bool wantFullscreen = true;
+    bool shownFullscreen = false;
+    GAction* fullscreenAction() const;
+    bool isFullscreen() const;
+    void refreshFullscreen();
     double smoothLevel = 0;
     bool performing = false;  ///< a tap is being performed: its action isn't counted twice
 };

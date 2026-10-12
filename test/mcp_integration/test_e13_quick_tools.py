@@ -127,3 +127,20 @@ def test_8_record_button_follows_the_recorder(app):
     assert wait(lambda: any(l.startswith("Stop 0:0") for l in labels()))
     c.call("test_recorder", on=False)
     assert wait(lambda: "Record" in labels())
+
+
+def test_9_fullscreen_button(app):
+    """A big Full screen button next to Record: tapping it toggles full screen, and it says how to leave."""
+    c = app.client()
+    full, rec = widgets(c, "aiFullscreenButton")[0], widgets(c, "aiRecordButton")[0]
+    assert full.get("visible", True)
+    assert full["bbox"][0] + full["bbox"][2] <= rec["bbox"][0] and abs(full["bbox"][3] - rec["bbox"][3]) <= 2
+    labels = lambda: [w.get("label") or w.get("text") or "" for w in c.call("ui_inspect", max_depth=80, all=True)["widgets"]]
+    assert "Full screen" in labels()
+    c.call("ui_interact", op="click", target=full["id"])
+    assert wait(lambda: "Window" in labels())
+    c.call("ui_interact", op="click", target=widgets(c, "aiFullscreenButton")[0]["id"])
+    assert wait(lambda: "Full screen" in labels())
+    c.call("action_run", action="win.ai-fullscreen-button", state=False)
+    assert wait(lambda: not widgets(c, "aiFullscreenButton")[0].get("visible", True))
+    assert counts(app)["_fullscreenButton"] == 0

@@ -131,6 +131,10 @@ QuickTools::QuickTools(Control* ctrl, std::filesystem::path countsFile, std::fun
         wantRecord = it->second != 0;
         uses.erase(it);
     }
+    if (auto it = uses.find("_fullscreenButton"); it != uses.end()) {
+        wantFullscreen = it->second != 0;
+        uses.erase(it);
+    }
     connectCounting();
 }
 
@@ -156,6 +160,9 @@ QuickTools::~QuickTools() {
     }
     if (recordButton) {
         g_object_remove_weak_pointer(G_OBJECT(recordButton), reinterpret_cast<gpointer*>(&recordButton));
+    }
+    if (fullscreenButton) {
+        g_object_remove_weak_pointer(G_OBJECT(fullscreenButton), reinterpret_cast<gpointer*>(&fullscreenButton));
     }
 }
 
@@ -212,6 +219,7 @@ void QuickTools::count(const std::string& id) {
     auto all = uses;
     all["_toolsButton"] = wantButton ? 1 : 0;
     all["_recordButton"] = wantRecord ? 1 : 0;  // (whether the Tools button is shown rides along)
+    all["_fullscreenButton"] = wantFullscreen ? 1 : 0;
     quick_tools::save(file, all);
 }
 
@@ -288,6 +296,13 @@ constexpr const char* CSS =
         ".xoai-record-button.xoai-recording { background-image: linear-gradient(160deg, #ff5a5a, #d81b3c);"
         "  box-shadow: 0 0 10px alpha(#ff3040, 0.75), inset 0 1px alpha(#ffffff, 0.35); }"
         ".xoai-record-button.xoai-recording image { color: #ffffff; }"
+        ".xoai-fullscreen-button { color: #ffffff; border: none; border-radius: 16px; padding: 6px 10px;"
+        "  background-image: linear-gradient(160deg, #2bb3c0, #2d6fe0);"
+        "  box-shadow: 0 2px 6px alpha(#2d6fe0, 0.45), inset 0 1px alpha(#ffffff, 0.3); transition: all 120ms "
+        "ease-out; }"
+        ".xoai-fullscreen-button:hover { background-image: linear-gradient(160deg, #3cc6d3, #4583ef); }"
+        ".xoai-fullscreen-button:active { box-shadow: inset 0 2px 4px alpha(#000000, 0.4); }"
+        ".xoai-fullscreen-button label { color: #ffffff; font-weight: bold; }"
         ".xoai-quick-heading { font-size: 0.8em; font-weight: bold; opacity: 0.6; margin-top: 4px; }"
         ".xoai-quick-tile { padding: 6px 4px; min-width: 84px; min-height: 76px; border-radius: 12px; }"
         ".xoai-quick-tile label { font-size: 0.92em; }"
@@ -502,6 +517,22 @@ void QuickTools::placeButton(GtkWidget* mainBox, const std::vector<GtkWidget*>& 
                      this);
     gtk_box_pack_end(GTK_BOX(outer), recordButton, FALSE, FALSE, 0);
 
+    // Full screen: the app's own full-screen toggle, big enough for a finger
+    fullscreenButton = gtk_button_new();
+    gtk_style_context_add_class(gtk_widget_get_style_context(fullscreenButton), "xoai-fullscreen-button");
+    gtk_widget_set_size_request(fullscreenButton, 76, -1);
+    g_object_set(fullscreenButton, "margin", 4, "margin-end", 0, nullptr);
+    gtk_widget_set_can_focus(fullscreenButton, FALSE);
+    gtk_buildable_set_name(GTK_BUILDABLE(fullscreenButton), "aiFullscreenButton");
+    g_signal_connect(fullscreenButton, "clicked", G_CALLBACK(+[](GtkButton*, gpointer d) {
+                         auto* self = static_cast<QuickTools*>(d);
+                         g_action_change_state(self->fullscreenAction(),
+                                               g_variant_new_boolean(!self->isFullscreen()));
+                         self->refreshFullscreen();
+                     }),
+                     this);
+    gtk_box_pack_end(GTK_BOX(outer), fullscreenButton, FALSE, FALSE, 0);
+
 
     gtk_box_pack_start(GTK_BOX(mainBox), outer, FALSE, FALSE, 0);
     gtk_box_reorder_child(GTK_BOX(mainBox), outer, position);
@@ -517,6 +548,10 @@ void QuickTools::placeButton(GtkWidget* mainBox, const std::vector<GtkWidget*>& 
     g_object_add_weak_pointer(G_OBJECT(recordButton), reinterpret_cast<gpointer*>(&recordButton));
     g_object_add_weak_pointer(G_OBJECT(recordFace), reinterpret_cast<gpointer*>(&recordFace));
     refreshRecord();
+    refreshFullscreen();
+    gtk_widget_set_no_show_all(fullscreenButton, TRUE);
+    gtk_widget_set_visible(fullscreenButton, wantFullscreen);
+    g_object_add_weak_pointer(G_OBJECT(fullscreenButton), reinterpret_cast<gpointer*>(&fullscreenButton));
     recordPoll = g_timeout_add(
             200,
             [](gpointer d) -> gboolean {
@@ -524,6 +559,9 @@ void QuickTools::placeButton(GtkWidget* mainBox, const std::vector<GtkWidget*>& 
                 if (self->recordButton && self->isRecording() != self->shownRecording) {
                     self->shownRecording = !self->shownRecording;
                     self->refreshRecord();
+                }
+                if (self->fullscreenButton && self->isFullscreen() != self->shownFullscreen) {
+                    self->refreshFullscreen();  // (also left by F11 or the menu)
                 }
                 return G_SOURCE_CONTINUE;
             },
@@ -627,6 +665,42 @@ void QuickTools::drawRecordFace(GtkWidget* w, cairo_t* cr) {
     cairo_rectangle(cr, cx - q / 2, cy - q / 2, q, q);
     cairo_set_source_rgb(cr, 0.85, 0.11, 0.24);
     cairo_fill(cr);
+}
+
+GAction* QuickTools::fullscreenAction() const {
+    return G_ACTION(control->getActionDatabase()->getAction(Action::FULLSCREEN).get());
+}
+
+bool QuickTools::isFullscreen() const {
+    GVariant* st = g_action_get_state(fullscreenAction());
+    const bool on = st && g_variant_get_boolean(st);
+    if (st) {
+        g_variant_unref(st);
+    }
+    return on;
+}
+
+void QuickTools::refreshFullscreen() {
+    if (!fullscreenButton) {
+        return;
+    }
+    shownFullscreen = isFullscreen();
+    if (GtkWidget* old = gtk_bin_get_child(GTK_BIN(fullscreenButton))) {
+        gtk_widget_destroy(old);
+    }
+    GtkWidget* content = shownFullscreen ? tileContent("view-restore-symbolic", "Window", 34) :
+                                           tileContent("view-fullscreen-symbolic", "Full screen", 34);
+    gtk_container_add(GTK_CONTAINER(fullscreenButton), content);
+    gtk_widget_show_all(content);
+    gtk_widget_set_tooltip_text(fullscreenButton, shownFullscreen ? "Leave full screen (F11)" : "Full screen (F11)");
+}
+
+void QuickTools::setFullscreenVisible(bool visible) {
+    wantFullscreen = visible;
+    if (fullscreenButton) {
+        gtk_widget_set_visible(fullscreenButton, visible);
+    }
+    count("");  // (saves the choice)
 }
 
 void QuickTools::setRecordVisible(bool visible) {

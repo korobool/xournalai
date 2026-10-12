@@ -2275,6 +2275,16 @@
               "finished": "2026-10-12T08:56:52+01:00"
             },
             {
+              "id": "T13.4.4",
+              "story": "US-13.4",
+              "title": "Big Full screen button",
+              "details": "QuickTools: full-screen button beside Record toggling Action::FULLSCREEN; label follows the state (Full screen / Window, also after F11); win.ai-fullscreen-button (remembered).",
+              "commit": "ai: big Full screen button",
+              "status": "done",
+              "started": "2026-10-12T12:24:31+01:00",
+              "finished": "2026-10-12T12:24:33+01:00"
+            },
+            {
               "id": "T13.4.2",
               "story": "US-13.4",
               "title": "Release 1.9.1",

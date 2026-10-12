@@ -10,6 +10,10 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.9.2 — Full screen under the thumb
+- **Big Full screen button** next to Record, as large: one tap for full screen, and it then reads "Window" to go
+  back (it follows F11 and the menu too). AI Agent → Big Full screen button hides it; the choice is remembered.
+
 ## 1.9.1 — One big Tools button
 - **For tablet mode (pen, fingers, voice):** one big, colourful Tools button to the right of the toolbars, as tall
   as all of them, so it takes no row of its own. It (or F8) opens large buttons in fixed groups: Select (lasso,
