@@ -791,7 +791,7 @@ Besides the AI lasso (mark first, then say), the owner can highlight what they m
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T14.2.1 | US-14.2 | **AI marks as an overlay** — Interceptor consumes the strokes (no ink); ThinkingOverlay draws them as translucent violet highlighter paths per request; removed on zone done / failed / dismissed and on Cancel; drop assistant.highlighter_keeps_marks and win.ai-highlighter-keep. | `ai: AI highlighter marks as an overlay that goes away (T14.2.1)` | ✅ done |
+| T14.2.1 | US-14.2 | **AI marks as an overlay** — Interceptor consumes the strokes (no ink); ThinkingOverlay draws them as translucent violet highlighter paths per request; removed on zone done / failed / dismissed and on Cancel; drop assistant.highlighter_keeps_marks and win.ai-highlighter-keep. | `ai: AI highlighter marks as an overlay that goes away (T14.2.1)` | ✅ done `a65e7516d` |
 | T14.2.2 | US-14.2 | **Footprints in the request** — AskCapture keeps each mark's path + width; submitAsk hit-tests elements against the footprint (distance to path <= width/2), flags partial coverage, sends simplified paths (<= ~30 points each) and the area with a margin as context. | `ai: AI highlighter sends the shape highlighted (T14.2.2)` | ✅ done |
 | T14.2.3 | US-14.2 | **Faded-outside render** — Render of the request area with everything outside the footprints faded, attached to the request for the serving session. | `ai: AI highlighter render of the highlighted detail (T14.2.3)` | ✅ done |
-| T14.2.4 | US-14.2 | **Release 1.11.0** — Changelog, version, full tests. | `ai: release 1.11.0 (T14.2.4)` | ⬜ todo |
+| T14.2.4 | US-14.2 | **Release 1.11.0** — Changelog, version, full tests. | `ai: release 1.11.0 (T14.2.4)` | ✅ done |

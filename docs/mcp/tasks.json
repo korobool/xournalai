@@ -2420,7 +2420,9 @@
               "title": "Release 1.11.0",
               "details": "Changelog, version, full tests.",
               "commit": "ai: release 1.11.0",
-              "status": "todo"
+              "status": "done",
+              "started": "2026-10-12T13:45:19+01:00",
+              "finished": "2026-10-12T13:45:19+01:00"
             }
           ]
         }
