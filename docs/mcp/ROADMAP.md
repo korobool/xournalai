@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.9.1**
+Current version: **1.11.4**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -825,4 +825,6 @@ Besides the AI lasso (mark first, then say), the owner can highlight what they m
 | T14.4.1 | US-14.4 | **Touch switch; fingers in the AI modes** — QuickTools: 'touch' tile first in TABLET (gap after it) and in Tools → View, toggling TOGGLE_TOUCH_DRAWING, marked when on; AbstractInputHandler::intercept passes touchscreen events when touch drawing is on. | `ai: touch-drawing switch first among the big buttons (T14.4.1)` | ✅ done `6b813ed54` |
 | T14.4.3 | US-14.4 | **Auto-improve switch** — QuickTools: 'auto-improve' tile second in TABLET (switches group, gap after), labelled on/off, toggling win.ai-auto-improve; also in Tools → AI. | `ai: Auto-improve switch among the big buttons (T14.4.3)` | ✅ done `e80e4fe38` |
 | T14.4.2 | US-14.4 | **Release 1.11.2** — Changelog, version, full tests. | `ai: release 1.11.2 (T14.4.2)` | ✅ done `b1051317f` |
-| T14.4.4 | US-14.4 | **Release 1.11.3** — Changelog, version, full tests. | `ai: release 1.11.3 (T14.4.4)` | ✅ done |
+| T14.4.4 | US-14.4 | **Release 1.11.3** — Changelog, version, full tests. | `ai: release 1.11.3 (T14.4.4)` | ✅ done `e7d174ca6` |
+| T14.4.5 | US-14.4 | **AI lasso icon** — Violet lasso icon xopp-ai-lasso (three icon themes) for the AI lasso in the big buttons, Tools and the AI toolbar; tile label 'AI lasso'. | `ai: violet AI lasso icon (T14.4.5)` | ✅ done `33b9d5f84` |
+| T14.4.6 | US-14.4 | **Release 1.11.4** — Changelog, version, full tests. | `ai: release 1.11.4 (T14.4.6)` | ✅ done |

@@ -10,6 +10,11 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.11.4 — The AI lasso looks like a lasso
+- **The AI lasso has its own icon**: a violet lasso (like the violet AI highlighter) instead of a microphone, in the
+  big buttons, Tools → AI and the AI toolbar, so it isn't mistaken for the plain selection lasso. Its tile now
+  reads "AI lasso".
+
 ## 1.11.3 — Auto-improve under the thumb
 - **Auto-improve switch** next to Touch, at the start of the big buttons ("Auto-improve off" / "on"): the same
   setting as the AI Agent menu and Ctrl+Alt+I, so it can be flipped in Focus where the menu is hidden. Also in
