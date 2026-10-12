@@ -823,6 +823,6 @@ Besides the AI lasso (mark first, then say), the owner can highlight what they m
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
 | T14.4.1 | US-14.4 | **Touch switch; fingers in the AI modes** — QuickTools: 'touch' tile first in TABLET (gap after it) and in Tools → View, toggling TOGGLE_TOUCH_DRAWING, marked when on; AbstractInputHandler::intercept passes touchscreen events when touch drawing is on. | `ai: touch-drawing switch first among the big buttons (T14.4.1)` | ✅ done `6b813ed54` |
-| T14.4.3 | US-14.4 | **Auto-improve switch** — QuickTools: 'auto-improve' tile second in TABLET (switches group, gap after), labelled on/off, toggling win.ai-auto-improve; also in Tools → AI. | `ai: Auto-improve switch among the big buttons (T14.4.3)` | ✅ done |
+| T14.4.3 | US-14.4 | **Auto-improve switch** — QuickTools: 'auto-improve' tile second in TABLET (switches group, gap after), labelled on/off, toggling win.ai-auto-improve; also in Tools → AI. | `ai: Auto-improve switch among the big buttons (T14.4.3)` | ✅ done `e80e4fe38` |
 | T14.4.2 | US-14.4 | **Release 1.11.2** — Changelog, version, full tests. | `ai: release 1.11.2 (T14.4.2)` | ✅ done `b1051317f` |
-| T14.4.4 | US-14.4 | **Release 1.11.3** — Changelog, version, full tests. | `ai: release 1.11.3 (T14.4.4)` | ⬜ todo |
+| T14.4.4 | US-14.4 | **Release 1.11.3** — Changelog, version, full tests. | `ai: release 1.11.3 (T14.4.4)` | ✅ done |
