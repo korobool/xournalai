@@ -48,27 +48,6 @@ AiToolbar::AiToolbar(GtkWidget* mainBox, int position, ActionHandler h): handler
     gtk_toolbar_set_style(GTK_TOOLBAR(toolbar), GTK_TOOLBAR_BOTH_HORIZ);
     gtk_toolbar_set_icon_size(GTK_TOOLBAR(toolbar), GTK_ICON_SIZE_SMALL_TOOLBAR);
 
-    // Quick tools: big enough for a thumb; opens a grid with the tools used most
-    {
-        GtkWidget* b = gtk_button_new();
-        GtkWidget* inner = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
-        GtkWidget* image = gtk_image_new_from_icon_name("view-app-grid-symbolic", GTK_ICON_SIZE_DND);
-        gtk_image_set_pixel_size(GTK_IMAGE(image), 28);
-        gtk_box_pack_start(GTK_BOX(inner), image, FALSE, FALSE, 0);
-        gtk_container_add(GTK_CONTAINER(b), inner);
-        g_object_set(b, "margin-start", 4, "margin-end", 2, nullptr);
-        gtk_widget_set_size_request(b, 48, 42);  // (icon only: the toolbar has no room to spare)
-        gtk_widget_set_can_focus(b, FALSE);
-        gtk_widget_set_tooltip_text(b, "Quick tools (F8): your most used tools as big buttons");
-        gtk_actionable_set_action_name(GTK_ACTIONABLE(b), "win.ai-quick-tools");
-        gtk_buildable_set_name(GTK_BUILDABLE(b), "aiQuickToolsButton");
-        GtkToolItem* holder = gtk_tool_item_new();
-        gtk_container_add(GTK_CONTAINER(holder), b);
-        gtk_toolbar_insert(GTK_TOOLBAR(toolbar), holder, -1);
-        quickButton = b;
-        g_object_add_weak_pointer(G_OBJECT(b), reinterpret_cast<gpointer*>(&quickButton));
-    }
-
     GtkToolItem* title = gtk_tool_item_new();
     GtkWidget* label = gtk_label_new(nullptr);
     gtk_label_set_markup(GTK_LABEL(label), "<b>AI</b>");
@@ -169,9 +148,6 @@ AiToolbar::AiToolbar(GtkWidget* mainBox, int position, ActionHandler h): handler
 }
 
 AiToolbar::~AiToolbar() {
-    if (quickButton) {
-        g_object_remove_weak_pointer(G_OBJECT(quickButton), reinterpret_cast<gpointer*>(&quickButton));
-    }
     if (toolbar) {
         g_object_remove_weak_pointer(G_OBJECT(toolbar), reinterpret_cast<gpointer*>(&toolbar));
         gtk_widget_destroy(toolbar);

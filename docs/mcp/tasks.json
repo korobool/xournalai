@@ -3,7 +3,7 @@
     "project": "xournalai: embedded MCP server and assistant",
     "branch": "mcp",
     "plan": "docs/mcp/PLAN.md, docs/assistant/ASSISTANT-PLAN.md",
-    "version": "1.9.0",
+    "version": "1.9.1",
     "versioning": [
       "The fork has its own semantic version, XOURNALAI_VERSION, kept in CMakeLists.txt. The application version string becomes <upstream>+ai.<XOURNALAI_VERSION>, e.g. 1.3.7+ai.0.2.0.",
       "Each task is exactly one commit. The commit message is '<planned message> (<task id>)'.",
@@ -2150,7 +2150,7 @@
     {
       "id": "E13",
       "title": "Reach for it: terminals you control, tools under the thumb",
-      "release": "1.9.0",
+      "release": "1.9.1",
       "goal": "The owner opens any terminal command (not only presets), closes tabs they don't want, and reaches the tools they use most with one big touch-friendly button.",
       "stages": [
         {
@@ -2234,6 +2234,43 @@
               "status": "done",
               "started": "2026-10-12T07:57:32+01:00",
               "finished": "2026-10-12T08:17:55+01:00"
+            }
+          ]
+        },
+        {
+          "id": "S13.4",
+          "title": "One big Tools button for tablet mode",
+          "version": "1.9.1",
+          "stories": [
+            {
+              "id": "US-13.4",
+              "text": "As the owner working in tablet mode (pen, fingers, voice; no keyboard), I want one big, colourful Tools button in one convenient place, opening large controls, without another row cluttering the interface.",
+              "acceptance": [
+                "the button stands to the right of the toolbars, as tall as all of them; no row of its own",
+                "it opens large buttons in fixed groups: Select (lasso, rectangle, pointer), Draw, Size (all five thicknesses), Page, AI; the tool and size in use are marked",
+                "hidden from AI Agent → Big Tools button; the choice is remembered"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T13.4.1",
+              "story": "US-13.4",
+              "title": "Big Tools button beside the toolbars",
+              "details": "QuickTools::placeButton: toolbar rows into a column, gradient button to their right; grouped popover incl. TOOL_SELECT_OBJECT; win.ai-tools-button (stateful, remembered). Replaces the Touch bar row tried first.",
+              "commit": "ai: one big Tools button beside the toolbars",
+              "status": "done",
+              "started": "2026-10-12T08:25:48+01:00",
+              "finished": "2026-10-12T08:25:48+01:00"
+            },
+            {
+              "id": "T13.4.2",
+              "story": "US-13.4",
+              "title": "Release 1.9.1",
+              "details": "Changelog, version, full tests.",
+              "commit": "ai: release 1.9.1",
+              "status": "doing",
+              "started": "2026-10-12T08:25:48+01:00"
             }
           ]
         }

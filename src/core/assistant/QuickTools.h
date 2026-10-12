@@ -1,9 +1,9 @@
 /*
  * xournalai (based on Xournal++)
  *
- * Quick tools: one big button (first in the AI toolbar, or F8) that opens a grid of large buttons with the tools the
- * owner uses most, for a thumb, a finger or the pen. How often each tool is used (from anywhere: toolbar, menu,
- * shortcut or this grid) is remembered in quick-tools.json and decides which ten are shown, and in which order.
+ * Tools: one big, colourful button to the right of the toolbars (as tall as all of them; no row of its own), or F8,
+ * opens large buttons for the pen and fingers, in fixed groups: Select (lasso, rectangle, pointer), Draw, Page, AI.
+ * For tablet mode, without a keyboard. How often each tool is used is still counted (quick-tools.json).
  *
  * @license GNU GPLv2 or later
  */
@@ -47,8 +47,14 @@ public:
     QuickTools(const QuickTools&) = delete;
     QuickTools& operator=(const QuickTools&) = delete;
 
-    /// Opens the grid next to `anchor` (null: in the middle of the main window)
-    void open(GtkWidget* anchor);
+    /// Opens the grid next to `anchor` (null: the Tools button if shown, else the middle of the window)
+    void open(GtkWidget* anchor = nullptr);
+    /// Puts `rows` (toolbars in `mainBox`) into a column with the Tools button to their right
+    void placeButton(GtkWidget* mainBox, const std::vector<GtkWidget*>& rows);
+    void setButtonVisible(bool visible);
+    bool isButtonVisible() const;
+    /// Whether the owner last left the Tools button shown (remembered in the counts file; shown at first)
+    bool buttonWanted() const { return wantButton; }
     /// Performs a tool as a tap on its button would (and counts it)
     void activate(const std::string& id);
     /// Counts one use of a tool
@@ -65,7 +71,9 @@ private:
     std::map<std::string, int> uses;
     std::vector<std::pair<gpointer, gulong>> handlers;  ///< counting signal handlers on the app's actions
     GtkWidget* popover = nullptr;                       ///< weak
-    bool performing = false;                            ///< a tap is being performed: its action isn't counted twice
+    GtkWidget* button = nullptr;                        ///< weak: the Tools button
+    bool wantButton = true;
+    bool performing = false;  ///< a tap is being performed: its action isn't counted twice
 };
 
 }  // namespace xoj::assistant

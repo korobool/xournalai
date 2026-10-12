@@ -31,15 +31,17 @@ def counts(app):
         return {}
 
 
-def test_1_big_button_opens_ten_tools(app):
+def test_1_big_button_opens_the_tools(app):
     c = app.client()
     button = widgets(c, "aiQuickToolsButton")
     assert button and button[0].get("visible", True)
     c.call("ui_interact", op="click", target=button[0]["id"])
-    assert wait(lambda: len(tiles(c)) == 10)
+    assert wait(lambda: len(tiles(c)) >= 10)
     shown = tiles(c)
-    assert shown[:3] == ["pen", "eraser", "ask"], shown
-    for t in ("select", "terminal", "size", "new-page"):
+    for t in ("select", "select-rect", "select-object", "terminal", "size-0", "size-4", "new-page"):
+        assert t in shown
+    assert "hand" not in shown and "size" not in shown
+    for t in ():
         assert t in shown
 
 
@@ -53,27 +55,20 @@ def test_2_tap_uses_the_tool_and_counts_it(app):
     assert counts(app).get("eraser") == 1
 
 
-def test_3_order_follows_use_from_anywhere(app):
+def test_3_use_is_counted_from_anywhere(app):
     c = app.client()
     for _ in range(3):  # the toolbar, a menu or a shortcut: all through the app's action
         c.call("action_run", action="win.select-tool", parameter=13)  # TOOL_HAND
     assert counts(app).get("hand") == 3
-    c.call("action_run", action="win.ai-quick-tools")
-    assert wait(lambda: len(tiles(c)) == 10)
-    assert tiles(c)[0] == "hand", tiles(c)
 
 
-def test_4_size_cycles(app):
+def test_4_explicit_sizes(app):
     c = app.client()
-    c.call("action_run", action="win.ai-quick-tools")
-    assert wait(lambda: widgets(c, "aiQuick-pen"))
-    c.call("ui_interact", op="click", target=widgets(c, "aiQuick-pen")[0]["id"])
-    assert wait(lambda: c.call("tool_get")["tool"] == "pen")
-    size0 = c.call("tool_get").get("size")
-    c.call("action_run", action="win.ai-quick-tools")
-    assert wait(lambda: widgets(c, "aiQuick-size"))
-    c.call("ui_interact", op="click", target=widgets(c, "aiQuick-size")[0]["id"])
-    assert wait(lambda: c.call("tool_get").get("size") != size0)
+    for size, name in (("size-4", "veryThick"), ("size-1", "thin")):
+        c.call("action_run", action="win.ai-quick-tools")
+        assert wait(lambda: widgets(c, "aiQuick-" + size))
+        c.call("ui_interact", op="click", target=widgets(c, "aiQuick-" + size)[0]["id"])
+        assert wait(lambda: c.call("tool_get").get("size") == name), c.call("tool_get")
 
 
 def test_5_ai_tiles(app):
@@ -88,3 +83,21 @@ def test_5_ai_tiles(app):
     assert states.get("win.ai-ask") is True, states.get("win.ai-ask")
     c.call("action_run", action="win.ai-ask", state=False)  # off again: not a use
     assert counts(app).get("ask") == 1 and counts(app).get("terminal") == 1, counts(app)
+
+
+def test_6_tools_button_beside_the_toolbars(app):
+    """One big button to the right of the toolbars (no row of its own); groups with the three ways of selecting;
+    hidden on request and remembered."""
+    c = app.client()
+    assert widgets(c, "aiToolbarsWithTools") and not widgets(c, "aiTouchBar")
+    c.call("ui_interact", op="click", target=widgets(c, "aiQuickToolsButton")[0]["id"])
+    assert wait(lambda: widgets(c, "aiQuick-select-object"))
+    for t in ("select", "select-rect", "select-object", "pen", "eraser", "undo", "ask"):
+        assert widgets(c, "aiQuick-" + t), t
+    c.call("ui_interact", op="click", target=widgets(c, "aiQuick-select-object")[0]["id"])
+    assert wait(lambda: c.call("tool_get")["tool"] == "selectObject"), c.call("tool_get")
+    c.call("action_run", action="win.ai-tools-button", state=False)
+    assert wait(lambda: not widgets(c, "aiQuickToolsButton")[0].get("visible", True))
+    assert json.load(open(app.home / "config" / "xournalpp" / "quick-tools.json"))["uses"]["_toolsButton"] == 0
+    c.call("action_run", action="win.ai-tools-button", state=True)
+    assert wait(lambda: widgets(c, "aiQuickToolsButton")[0].get("visible", True))

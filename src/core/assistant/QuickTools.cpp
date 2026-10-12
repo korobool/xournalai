@@ -33,6 +33,12 @@ const std::vector<Entry>& catalog() {
             {"hand", "Hand", "xopp-hand", "Move the page around"},
             {"text", "Text", "xopp-tool-text", "Type text"},
             {"select-rect", "Rectangle", "xopp-select-rect", "Select a rectangle"},
+            {"select-object", "Pointer", "xopp-object-select", "Select an object by tapping it"},
+            {"size-0", "Very fine", "xopp-thickness-finer", "Thickness of the tool in use: very fine"},
+            {"size-1", "Fine", "xopp-thickness-fine", "Thickness of the tool in use: fine"},
+            {"size-2", "Medium", "xopp-thickness-medium", "Thickness of the tool in use: medium"},
+            {"size-3", "Thick", "xopp-thickness-thick", "Thickness of the tool in use: thick"},
+            {"size-4", "Very thick", "xopp-thickness-thicker", "Thickness of the tool in use: very thick"},
     };
     return all;
 }
@@ -90,6 +96,7 @@ constexpr ToolId TOOLS[] = {{"pen", TOOL_PEN},
                             {"highlighter", TOOL_HIGHLIGHTER},
                             {"select", TOOL_SELECT_REGION},
                             {"select-rect", TOOL_SELECT_RECT},
+                            {"select-object", TOOL_SELECT_OBJECT},
                             {"hand", TOOL_HAND},
                             {"text", TOOL_TEXT}};
 
@@ -113,6 +120,10 @@ struct Counter {
 
 QuickTools::QuickTools(Control* ctrl, std::filesystem::path countsFile, std::function<void(const std::string&)> r):
         control(ctrl), file(std::move(countsFile)), run(std::move(r)), uses(quick_tools::load(file)) {
+    if (auto it = uses.find("_toolsButton"); it != uses.end()) {
+        wantButton = it->second != 0;
+        uses.erase(it);
+    }
     connectCounting();
 }
 
@@ -124,6 +135,9 @@ QuickTools::~QuickTools() {
         g_object_unref(obj);
     }
     closePopover();
+    if (button) {
+        g_object_remove_weak_pointer(G_OBJECT(button), reinterpret_cast<gpointer*>(&button));
+    }
 }
 
 void QuickTools::connectCounting() {
@@ -173,8 +187,12 @@ void QuickTools::connectCounting() {
 }
 
 void QuickTools::count(const std::string& id) {
-    uses[id]++;
-    quick_tools::save(file, uses);
+    if (!id.empty()) {
+        uses[id]++;
+    }
+    auto all = uses;
+    all["_toolsButton"] = wantButton ? 1 : 0;  // (whether the Tools button is shown rides along)
+    quick_tools::save(file, all);
 }
 
 void QuickTools::activate(const std::string& id) {
@@ -197,6 +215,12 @@ void QuickTools::activate(const std::string& id) {
         db->fireActivateAction(Action::REDO);
     } else if (id == "new-page") {
         db->fireActivateAction(Action::NEW_PAGE_AFTER);
+    } else if (id.rfind("size-", 0) == 0) {
+        ToolHandler* th = control->getToolHandler();
+        if (!th->hasCapability(TOOL_CAP_SIZE)) {
+            db->fireActivateAction(Action::SELECT_TOOL, TOOL_PEN);  // a size is a size of something: the pen
+        }
+        db->fireActivateAction(Action::TOOL_SIZE, static_cast<ToolSize>(std::stoi(id.substr(5))));
     } else if (id == "size") {
         ToolHandler* th = control->getToolHandler();
         if (!th->hasCapability(TOOL_CAP_SIZE)) {
@@ -222,83 +246,133 @@ void QuickTools::closePopover() {
     }
 }
 
+namespace {
+constexpr const char* CSS =
+        ".xoai-tools-button { color: #ffffff; border: none; border-radius: 16px; padding: 6px 10px;"
+        "  background-image: linear-gradient(160deg, #ff7a45, #e8366f 55%, #8b45e8);"
+        "  box-shadow: 0 2px 6px alpha(#8b45e8, 0.45), inset 0 1px alpha(#ffffff, 0.35);"
+        "  -gtk-icon-shadow: 0 1px 1px alpha(#000000, 0.3); transition: all 120ms ease-out; }"
+        ".xoai-tools-button:hover { background-image: linear-gradient(160deg, #ff8f5e, #f04c80 55%, #9d5cf2);"
+        "  box-shadow: 0 3px 10px alpha(#e8366f, 0.6), inset 0 1px alpha(#ffffff, 0.45); }"
+        ".xoai-tools-button:active { background-image: linear-gradient(160deg, #e0602d, #c92159 55%, #7232c9);"
+        "  box-shadow: inset 0 2px 4px alpha(#000000, 0.35); }"
+        ".xoai-tools-button label { color: #ffffff; font-weight: bold; }"
+        ".xoai-quick-heading { font-size: 0.8em; font-weight: bold; opacity: 0.6; margin-top: 4px; }"
+        ".xoai-quick-tile { padding: 6px 4px; min-width: 84px; min-height: 76px; border-radius: 12px; }"
+        ".xoai-quick-tile label { font-size: 0.92em; }"
+        ".xoai-quick-tile.xoai-active { background-image: none; background-color: alpha(#3584e4, 0.22);"
+        "  box-shadow: inset 0 -3px #3584e4; }";
+
+void addCss() {
+    static bool added = false;
+    if (added) {
+        return;
+    }
+    added = true;
+    GtkCssProvider* css = gtk_css_provider_new();
+    gtk_css_provider_load_from_data(css, CSS, -1, nullptr);
+    gtk_style_context_add_provider_for_screen(gdk_screen_get_default(), GTK_STYLE_PROVIDER(css),
+                                              GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+    g_object_unref(css);
+}
+
+/// The grid's groups, always in the same places (fingers learn places)
+struct Group {
+    const char* title;
+    std::vector<const char*> ids;
+};
+const std::vector<Group>& groups() {
+    static const std::vector<Group> all = {
+            {"Select", {"select", "select-rect", "select-object"}},
+            {"Draw", {"pen", "highlighter", "eraser", "text"}},
+            {"Size", {"size-0", "size-1", "size-2", "size-3", "size-4"}},
+            {"Page", {"undo", "redo", "new-page"}},
+            {"AI", {"ask", "command", "terminal"}},
+    };
+    return all;
+}
+
+GtkWidget* tileContent(const char* icon, const std::string& label, int px) {
+    GtkWidget* inner = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);
+    GtkWidget* image = gtk_image_new_from_icon_name(icon, GTK_ICON_SIZE_DND);
+    gtk_image_set_pixel_size(GTK_IMAGE(image), px);
+    gtk_box_pack_start(GTK_BOX(inner), image, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(inner), gtk_label_new(label.c_str()), FALSE, FALSE, 0);
+    return inner;
+}
+}  // namespace
+
 void QuickTools::open(GtkWidget* anchor) {
     closePopover();
+    addCss();
     GtkWidget* relative = anchor;
+    if (!relative && button && gtk_widget_get_mapped(button)) {
+        relative = button;
+    }
     GdkRectangle point{0, 0, 1, 1};
-    if (!relative || !gtk_widget_get_mapped(relative)) {
+    const bool centred = !relative || !gtk_widget_get_mapped(relative);
+    if (centred) {
         relative = control->getWindow()->getXournal()->getWidget();
         point = {gtk_widget_get_allocated_width(relative) / 2, gtk_widget_get_allocated_height(relative) / 3, 1, 1};
     }
     popover = gtk_popover_new(relative);
     g_object_add_weak_pointer(G_OBJECT(popover), reinterpret_cast<gpointer*>(&popover));
-    if (relative != anchor) {
+    if (centred) {
         gtk_popover_set_pointing_to(GTK_POPOVER(popover), &point);
     }
     gtk_buildable_set_name(GTK_BUILDABLE(popover), "aiQuickTools");
 
-    static bool cssAdded = false;
-    if (!cssAdded) {
-        cssAdded = true;
-        GtkCssProvider* css = gtk_css_provider_new();
-        gtk_css_provider_load_from_data(css,
-                                        ".xoai-quick-tile { padding: 6px 4px; min-width: 84px; min-height: 76px; }"
-                                        ".xoai-quick-tile label { font-size: 0.92em; }",
-                                        -1, nullptr);
-        gtk_style_context_add_provider_for_screen(gdk_screen_get_default(), GTK_STYLE_PROVIDER(css),
-                                                  GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
-        g_object_unref(css);
-    }
-
-    GtkWidget* box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
-    g_object_set(box, "margin", 8, nullptr);
-    GtkWidget* grid = gtk_grid_new();
-    gtk_grid_set_row_spacing(GTK_GRID(grid), 6);
-    gtk_grid_set_column_spacing(GTK_GRID(grid), 6);
-    gtk_grid_set_row_homogeneous(GTK_GRID(grid), TRUE);
-    gtk_grid_set_column_homogeneous(GTK_GRID(grid), TRUE);
-    const auto ids = quick_tools::ranked(uses);
-    const ToolType active = control->getToolHandler()->getToolType();
-    for (size_t i = 0; i < ids.size(); i++) {
-        const auto& cat = quick_tools::catalog();
-        const auto it = std::find_if(cat.begin(), cat.end(), [&](const auto& e) { return ids[i] == e.id; });
-        std::string label = it->label;
-        if (ids[i] == "size" && control->getToolHandler()->hasCapability(TOOL_CAP_SIZE)) {
-            label = std::string("Size: ") + sizeName(control->getToolHandler()->getActiveTool()->getSize());
-        }
-        GtkWidget* tile = gtk_button_new();
-        GtkWidget* inner = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);
-        GtkWidget* image = gtk_image_new_from_icon_name(it->icon, GTK_ICON_SIZE_DND);
-        gtk_image_set_pixel_size(GTK_IMAGE(image), 36);
-        gtk_box_pack_start(GTK_BOX(inner), image, TRUE, TRUE, 0);
-        gtk_box_pack_start(GTK_BOX(inner), gtk_label_new(label.c_str()), FALSE, FALSE, 0);
-        gtk_container_add(GTK_CONTAINER(tile), inner);
-        gtk_style_context_add_class(gtk_widget_get_style_context(tile), "xoai-quick-tile");
-        gtk_widget_set_tooltip_text(tile, it->tip);
-        gtk_widget_set_can_focus(tile, FALSE);
-        gtk_buildable_set_name(GTK_BUILDABLE(tile), (std::string("aiQuick-") + it->id).c_str());
-        for (const auto& t: TOOLS) {
-            if (ids[i] == t.id && t.type == active) {
-                gtk_style_context_add_class(gtk_widget_get_style_context(tile), "suggested-action");
+    GtkWidget* box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);
+    g_object_set(box, "margin", 10, nullptr);
+    ToolHandler* th = control->getToolHandler();
+    const ToolType active = th->getToolType();
+    const auto& cat = quick_tools::catalog();
+    for (const auto& g: groups()) {
+        GtkWidget* heading = gtk_label_new(g.title);
+        gtk_widget_set_halign(heading, GTK_ALIGN_START);
+        gtk_style_context_add_class(gtk_widget_get_style_context(heading), "xoai-quick-heading");
+        gtk_box_pack_start(GTK_BOX(box), heading, FALSE, FALSE, 0);
+        GtkWidget* row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+        gtk_box_set_homogeneous(GTK_BOX(row), FALSE);
+        for (const char* id: g.ids) {
+            const auto it =
+                    std::find_if(cat.begin(), cat.end(), [&](const auto& e) { return std::string(id) == e.id; });
+            std::string label = it->label;
+            if (std::string(id) == "size" && th->hasCapability(TOOL_CAP_SIZE)) {
+                label = std::string("Size: ") + sizeName(th->getActiveTool()->getSize());
             }
+            GtkWidget* tile = gtk_button_new();
+            gtk_container_add(GTK_CONTAINER(tile), tileContent(it->icon, label, 36));
+            gtk_style_context_add_class(gtk_widget_get_style_context(tile), "xoai-quick-tile");
+            gtk_widget_set_size_request(tile, 88, 80);
+            gtk_widget_set_tooltip_text(tile, it->tip);
+            gtk_widget_set_can_focus(tile, FALSE);
+            gtk_buildable_set_name(GTK_BUILDABLE(tile), (std::string("aiQuick-") + id).c_str());
+            bool on = false;
+            for (const auto& t: TOOLS) {
+                on = on || (std::string(id) == t.id && t.type == active);
+            }
+            if (std::string(id).rfind("size-", 0) == 0 && th->hasCapability(TOOL_CAP_SIZE)) {
+                on = std::string(id) == "size-" + std::to_string(static_cast<int>(th->getActiveTool()->getSize()));
+            }
+            if (on) {
+                gtk_style_context_add_class(gtk_widget_get_style_context(tile), "xoai-active");
+            }
+            g_object_set_data(G_OBJECT(tile), "tool", const_cast<char*>(it->id));
+            g_signal_connect(tile, "clicked", G_CALLBACK(+[](GtkButton* b, gpointer d) {
+                                 auto* self = static_cast<QuickTools*>(d);
+                                 const std::string tool =
+                                         static_cast<const char*>(g_object_get_data(G_OBJECT(b), "tool"));
+                                 if (self->popover) {
+                                     gtk_popover_popdown(GTK_POPOVER(self->popover));
+                                 }
+                                 self->activate(tool);
+                             }),
+                             this);
+            gtk_box_pack_start(GTK_BOX(row), tile, FALSE, FALSE, 0);
         }
-        g_object_set_data_full(G_OBJECT(tile), "tool", g_strdup(it->id), g_free);
-        g_signal_connect(tile, "clicked", G_CALLBACK(+[](GtkButton* b, gpointer d) {
-                             auto* self = static_cast<QuickTools*>(d);
-                             const std::string id = static_cast<const char*>(g_object_get_data(G_OBJECT(b), "tool"));
-                             if (self->popover) {
-                                 gtk_popover_popdown(GTK_POPOVER(self->popover));
-                             }
-                             self->activate(id);
-                         }),
-                         this);
-        gtk_grid_attach(GTK_GRID(grid), tile, static_cast<int>(i % 5), static_cast<int>(i / 5), 1, 1);
+        gtk_box_pack_start(GTK_BOX(box), row, FALSE, FALSE, 0);
     }
-    gtk_box_pack_start(GTK_BOX(box), grid, FALSE, FALSE, 0);
-    GtkWidget* note = gtk_label_new(nullptr);
-    gtk_label_set_markup(GTK_LABEL(note), "<small>Your most used tools first (F8)</small>");
-    gtk_widget_set_opacity(note, 0.7);
-    gtk_box_pack_start(GTK_BOX(box), note, FALSE, FALSE, 0);
     gtk_container_add(GTK_CONTAINER(popover), box);
     g_signal_connect(popover, "closed", G_CALLBACK(+[](GtkPopover* p, gpointer) {
                          // destroyed after closing (idle: not inside its own signal); `popover` is a weak pointer
@@ -316,5 +390,68 @@ void QuickTools::open(GtkWidget* anchor) {
     gtk_widget_show_all(popover);
     gtk_popover_popup(GTK_POPOVER(popover));
 }
+
+void QuickTools::placeButton(GtkWidget* mainBox, const std::vector<GtkWidget*>& rows) {
+    // The toolbar rows go into a column, and the button stands to their right, as tall as all of them together
+    std::vector<GtkWidget*> present;
+    for (GtkWidget* r: rows) {
+        if (r && gtk_widget_get_parent(r) == mainBox) {
+            present.push_back(r);
+        }
+    }
+    if (present.empty()) {
+        return;
+    }
+    addCss();
+    GList* children = gtk_container_get_children(GTK_CONTAINER(mainBox));
+    const int position = g_list_index(children, present.front());
+    g_list_free(children);
+    GtkWidget* outer = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    gtk_buildable_set_name(GTK_BUILDABLE(outer), "aiToolbarsWithTools");
+    GtkWidget* column = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+    for (GtkWidget* r: present) {
+        gboolean expand = FALSE, fill = TRUE;
+        guint padding = 0;
+        GtkPackType pack = GTK_PACK_START;
+        gtk_box_query_child_packing(GTK_BOX(mainBox), r, &expand, &fill, &padding, &pack);
+        g_object_ref(r);
+        gtk_container_remove(GTK_CONTAINER(mainBox), r);
+        gtk_box_pack_start(GTK_BOX(column), r, expand, fill, padding);
+        g_object_unref(r);
+    }
+    gtk_box_pack_start(GTK_BOX(outer), column, TRUE, TRUE, 0);
+
+    button = gtk_button_new();
+    gtk_container_add(GTK_CONTAINER(button), tileContent("view-app-grid-symbolic", "Tools", 34));
+    gtk_style_context_add_class(gtk_widget_get_style_context(button), "xoai-tools-button");
+    gtk_widget_set_size_request(button, 76, -1);
+    g_object_set(button, "margin", 4, nullptr);
+    gtk_widget_set_can_focus(button, FALSE);
+    gtk_widget_set_tooltip_text(button, "Tools (F8): big buttons for the pen and fingers");
+    gtk_buildable_set_name(GTK_BUILDABLE(button), "aiQuickToolsButton");
+    g_signal_connect(button, "clicked",
+                     G_CALLBACK(+[](GtkButton* b, gpointer d) { static_cast<QuickTools*>(d)->open(GTK_WIDGET(b)); }),
+                     this);
+    gtk_box_pack_end(GTK_BOX(outer), button, FALSE, FALSE, 0);
+
+    gtk_box_pack_start(GTK_BOX(mainBox), outer, FALSE, FALSE, 0);
+    gtk_box_reorder_child(GTK_BOX(mainBox), outer, position);
+    gtk_widget_show(column);
+    gtk_widget_show_all(button);
+    gtk_widget_set_no_show_all(button, TRUE);
+    gtk_widget_set_visible(button, wantButton);
+    gtk_widget_show(outer);
+    g_object_add_weak_pointer(G_OBJECT(button), reinterpret_cast<gpointer*>(&button));
+}
+
+void QuickTools::setButtonVisible(bool visible) {
+    wantButton = visible;
+    if (button) {
+        gtk_widget_set_visible(button, visible);
+    }
+    count("");  // (saves the choice)
+}
+
+bool QuickTools::isButtonVisible() const { return button && gtk_widget_get_visible(button); }
 
 }  // namespace xoj::assistant
