@@ -10,6 +10,16 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.9.1 — One big Tools button
+- **For tablet mode (pen, fingers, voice):** one big, colourful Tools button to the right of the toolbars, as tall
+  as all of them, so it takes no row of its own. It (or F8) opens large buttons in fixed groups: Select (lasso,
+  rectangle, pointer), Draw (pen, highlighter, eraser, text), Size (all five: very fine to very thick), Page (undo, redo, new page) and AI (Ask,
+  Command, terminal). The tool in use is marked. Hide it from AI Agent → Big Tools button; the choice is remembered.
+- **Big Record button (experimental)** next to Tools, as large: starts and stops audio recording. While recording
+  it turns red and says "Stop 0:42"; rays around it are the last moments of microphone level and its core breathes
+  with your voice, so a silent microphone shows at a glance. AI Agent → Big Record button hides it.
+- In a narrow window the toolbars give the button its width: what doesn't fit goes into their overflow arrows.
+
 ## 1.9.0 — Your terminals, your tools under the thumb
 - **Any command in a terminal tab.** The AI terminal's + menu (and AI Agent → "New tab with a custom command…")
   has "Custom command…": paste or type a command line (e.g. one of several OpenCode configurations), optionally a

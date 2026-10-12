@@ -2270,8 +2270,9 @@
               "title": "Big Record button that listens",
               "details": "QuickTools: record button beside Tools toggling AUDIO_RECORD; drawn face: idle red dot, recording: rays from RecordingIndicator::recentLevels, core breathing with the smoothed level, Stop m:ss; win.ai-record-button (remembered).",
               "commit": "ai: big Record button that follows the microphone",
-              "status": "doing",
-              "started": "2026-10-12T08:46:15+01:00"
+              "status": "done",
+              "started": "2026-10-12T08:46:15+01:00",
+              "finished": "2026-10-12T08:56:52+01:00"
             },
             {
               "id": "T13.4.2",
@@ -2279,8 +2280,9 @@
               "title": "Release 1.9.1",
               "details": "Changelog, version, full tests.",
               "commit": "ai: release 1.9.1",
-              "status": "doing",
-              "started": "2026-10-12T08:25:48+01:00"
+              "status": "done",
+              "started": "2026-10-12T08:25:48+01:00",
+              "finished": "2026-10-12T08:56:52+01:00"
             }
           ]
         }
