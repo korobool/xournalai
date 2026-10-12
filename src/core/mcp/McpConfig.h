@@ -44,7 +44,6 @@ struct McpConfig {
         bool speech = true;                   ///< Ask: listen while the pen's button is held (local speech to text)
         std::string speechModel = "base.en";  ///< whisper.cpp model (ggml-<name>.bin in the models folder)
         bool shareRecordings = true;          ///< tell the serving session when an audio recording ends
-        bool highlighterKeepsMarks = true;    ///< AI highlighter: its marks stay on the page after sending
     } assistant;
     fs::path backupDir;  ///< where those copies go
 

@@ -10,6 +10,17 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.11.0 — A smarter AI highlighter
+- **Marks that go away.** The AI highlighter's marks are no longer ink: they are drawn over the page, stay while the
+  AI works on the request and vanish when it is done (or failed, or its zone is dismissed). Cancel the popover and
+  they go at once. Nothing to undo, nothing saved. For highlighting that stays, use the regular highlighter. (The
+  "keeps its marks" setting is gone.)
+- **The shape counts, not just a box.** The request carries each mark's path and width; an element counts only if a
+  mark touches it, and one only partly covered is flagged as "a detail of it is meant" — so you can point at two
+  letters of a word or one symbol of a formula.
+- **The detail as a picture.** The AI also gets an image of the area with everything outside your marks faded.
+- The AI highlighter no longer switches tools: you stay on yours, and the marks are drawn on top.
+
 ## 1.10.0 — The AI highlighter
 - **Highlight while you speak.** The AI highlighter (Highlight on the AI row, the AI group in Tools, or
   Ctrl+Alt+H) draws like the highlighter, in violet, and starts listening on the first touch. Highlight one or

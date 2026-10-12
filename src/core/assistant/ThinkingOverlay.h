@@ -57,6 +57,18 @@ public:
     /// The Ask lasso being drawn (page coordinates): a dashed teal path; empty points clear it
     void setLasso(size_t page, std::vector<xoj::util::Point<double>> points);
 
+    /// The AI highlighter's marks: translucent violet strokes over the page, not ink. A set of marks (`key`) is
+    /// tied to a request's zone and goes away when the zone is done, failed or removed.
+    struct Mark {
+        std::vector<xoj::util::Point<double>> points;  ///< page coordinates
+        double width = 12;                             ///< page points
+    };
+    /// Shows (or, with no marks, removes) the set `key` on `page`
+    void setMarks(int key, size_t page, std::vector<Mark> marks);
+    /// Ties the set `key` to `zone`: it goes away with it
+    void bindMarks(int key, int zone);
+    size_t markSets() const { return markList.size(); }  ///< (tests)
+
     /// The recording indicator ("on air"): a pill next to the pen with a pulsing red dot and level bars that move
     /// with the voice (Listening), or bouncing dots (Transcribing)
     enum class Recording { Off, Listening, Transcribing };
@@ -91,6 +103,14 @@ private:
     void drawRecording(cairo_t* cr);
     void drawZonePill(cairo_t* cr, const Zone& z, double zx, double zy, double zw, double zh, double alpha);
     void ensureTimer();
+    struct MarkSet {
+        int key;
+        size_t page;
+        std::vector<Mark> marks;
+        int zone = 0;
+    };
+    std::vector<MarkSet> markList;
+    void dropMarksOf(int zone);
     size_t lassoPage = 0;
     std::vector<xoj::util::Point<double>> lasso;
     int nextId = 1;

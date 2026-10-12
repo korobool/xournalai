@@ -145,6 +145,9 @@ int ThinkingOverlay::add(size_t page, const xoj::util::Rectangle<double>& area, 
 }
 
 void ThinkingOverlay::set(int id, State state, const std::string& text) {
+    if (state == State::Done || state == State::Failed) {
+        dropMarksOf(id);  // dealt with: the AI highlighter's marks go
+    }
     for (Zone* z: list) {
         if (z->id == id) {
             z->state = state;
@@ -186,6 +189,7 @@ std::vector<ThinkingOverlay::Info> ThinkingOverlay::zones() const {
 
 void ThinkingOverlay::removeZone(size_t index) {
     Zone* z = list[index];
+    dropMarksOf(z->id);
     if (z->button) {
         GtkWidget* b = z->button;
         g_object_remove_weak_pointer(G_OBJECT(b), reinterpret_cast<gpointer*>(&z->button));
@@ -482,6 +486,41 @@ void ThinkingOverlay::drawRecording(cairo_t* cr) {
     cairo_show_text(cr, listening ? "Listening" : "Transcribing");
 }
 
+void ThinkingOverlay::setMarks(int key, size_t page, std::vector<Mark> marks) {
+    auto it = std::find_if(markList.begin(), markList.end(), [&](const MarkSet& m) { return m.key == key; });
+    if (marks.empty()) {
+        if (it != markList.end()) {
+            markList.erase(it);
+        }
+    } else if (it != markList.end()) {
+        it->page = page;
+        it->marks = std::move(marks);
+    } else {
+        markList.push_back({key, page, std::move(marks), 0});
+    }
+    if (canvas) {
+        gtk_widget_queue_draw(canvas);
+    }
+}
+
+void ThinkingOverlay::bindMarks(int key, int zone) {
+    for (auto& m: markList) {
+        if (m.key == key) {
+            m.zone = zone;
+        }
+    }
+}
+
+void ThinkingOverlay::dropMarksOf(int zone) {
+    const size_t before = markList.size();
+    markList.erase(std::remove_if(markList.begin(), markList.end(),
+                                  [&](const MarkSet& m) { return zone != 0 && m.zone == zone; }),
+                   markList.end());
+    if (canvas && markList.size() != before) {
+        gtk_widget_queue_draw(canvas);
+    }
+}
+
 void ThinkingOverlay::setLasso(size_t page, std::vector<xoj::util::Point<double>> points) {
     lassoPage = page;
     lasso = std::move(points);
@@ -493,6 +532,33 @@ void ThinkingOverlay::setLasso(size_t page, std::vector<xoj::util::Point<double>
 gboolean ThinkingOverlay::onDraw(GtkWidget*, cairo_t* cr, gpointer data) {
     auto* self = static_cast<ThinkingOverlay*>(data);
     const gint64 now = g_get_monotonic_time();
+    // The AI highlighter's marks (violet, translucent, like a highlighter)
+    for (const auto& set: self->markList) {
+        for (const auto& m: set.marks) {
+            bool first = true;
+            double width = 0;
+            for (const auto& p: m.points) {
+                auto r = self->mapper(set.page, xoj::util::Rectangle<double>(p.x, p.y, m.width, m.width));
+                if (!r) {
+                    continue;
+                }
+                width = r->width;
+                first ? cairo_move_to(cr, r->x, r->y) : cairo_line_to(cr, r->x, r->y);
+                first = false;
+            }
+            if (first) {
+                continue;
+            }
+            if (m.points.size() == 1) {
+                cairo_rel_line_to(cr, 0.01, 0);
+            }
+            cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
+            cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
+            cairo_set_line_width(cr, std::max(2.0, width));
+            cairo_set_source_rgba(cr, 0.71, 0.48, 1.0, 0.45);
+            cairo_stroke(cr);
+        }
+    }
     if (self->lasso.size() > 1) {
         // The Ask lasso: where the user is pointing
         bool first = true;

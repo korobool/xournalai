@@ -175,6 +175,27 @@ RenderedImage renderPage(Document* doc, const RenderOptions& o) {
         drawGrid(cr, region, o.gridStep > 1 ? o.gridStep : 50, scale);
     }
     drawHighlights(cr, o.highlights, o.highlightColor, scale);
+    if (!o.footprints.empty() && o.footprintWidth > 0) {
+        // A white veil with the footprints cut out
+        cairo_push_group(cr);
+        cairo_set_source_rgb(cr, 1, 1, 1);
+        cairo_paint(cr);
+        cairo_set_operator(cr, CAIRO_OPERATOR_CLEAR);
+        cairo_set_line_width(cr, o.footprintWidth);
+        cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
+        cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
+        for (const auto& path: o.footprints) {
+            for (size_t i = 0; i < path.size(); i++) {
+                i ? cairo_line_to(cr, path[i].x, path[i].y) : cairo_move_to(cr, path[i].x, path[i].y);
+            }
+            if (path.size() == 1) {
+                cairo_line_to(cr, path[0].x + 0.01, path[0].y);
+            }
+            cairo_stroke(cr);
+        }
+        cairo_pop_group_to_source(cr);
+        cairo_paint_with_alpha(cr, o.fadeOutside);
+    }
 
     cairo_destroy(cr);
     out.png = encodePng(surface);

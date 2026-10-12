@@ -46,6 +46,8 @@ public:
     void appendText(const std::string& more);
     /// A short status under the text ("listening…", "transcribing…", an error); "" hides it
     void setStatus(const std::string& status);
+    /// Called when it closes (after Send too: the owner knows whether it sent)
+    void setOnClosed(std::function<void()> f) { onClosed = std::move(f); }
 
 private:
     void submit(const std::string& command);
@@ -55,6 +57,7 @@ private:
     GtkWidget* status = nullptr;
     Submit onSubmit;
     Mic onMic;
+    std::function<void()> onClosed;
 };
 
 }  // namespace xoj::assistant

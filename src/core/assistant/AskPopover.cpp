@@ -22,6 +22,13 @@ AskPopover::AskPopover(GtkWidget* canvas, Submit submit, Mic mic): onSubmit(std:
     gtk_buildable_set_name(GTK_BUILDABLE(popover), "ask-popover");
     gtk_popover_set_modal(GTK_POPOVER(popover), false);  // the pen keeps drawing elsewhere
     gtk_popover_set_position(GTK_POPOVER(popover), GTK_POS_RIGHT);
+    g_signal_connect(popover, "closed", G_CALLBACK(+[](GtkPopover*, gpointer d) {
+                         auto* self = static_cast<AskPopover*>(d);
+                         if (self->onClosed) {
+                             self->onClosed();
+                         }
+                     }),
+                     this);
     // Sized for a stylus: big targets, big text
     static GtkCssProvider* css = [] {
         GtkCssProvider* p = gtk_css_provider_new();

@@ -776,4 +776,22 @@ Besides the AI lasso (mark first, then say), the owner can highlight what they m
 |---|---|---|---|---|
 | T14.1.1 | US-14.1 | **AI highlighter** — McpUi::armHighlighter: highlighter in AI violet via a pass-through stroke interceptor; speech starts on pen-down; HIGHLIGHT_PAUSE_MS after the last stroke finishHighlight → showAsk with highlights and marks (new AI-violet highlighter strokes); submitAsk lists the places and the elements under them, removes marks unless assistant.highlighter_keeps_marks; win.ai-highlighter (Ctrl+Alt+H), win.ai-highlighter-keep; AI row button aiHighlighter; Tools tile ai-highlighter. | `ai: AI highlighter: highlight while speaking, then Ask (T14.1.1)` | ✅ done `d4df929f1` |
 | T14.1.3 | US-14.1 | **Tablet buttons in Focus; Focus survives full screen** — QuickTools::buildTablet: icon tiles left of the strip in Focus (AI highlighter, AI lasso, pen + palette button while the pen is in use, eraser, select | command, terminal), the last giving way when narrow (scroller without scroll bars); reapplyFocus after FULLSCREEN changes; AI row Highlight icon-only. | `ai: tablet buttons in Focus, Focus survives full screen (T14.1.3)` | ✅ done `545b9108f` |
-| T14.1.2 | US-14.1 | **Release 1.10.0** — Changelog, version, full tests. | `ai: release 1.10.0 (T14.1.2)` | ✅ done |
+| T14.1.2 | US-14.1 | **Release 1.10.0** — Changelog, version, full tests. | `ai: release 1.10.0 (T14.1.2)` | ✅ done `399d196c1` |
+
+### S14.2 — A smarter AI highlighter: marks that go away, shapes that count → v1.11.0
+
+**US-14.2** — As the owner, I want the AI highlighter's marks to disappear once the AI has dealt with them (permanent highlighting is the regular highlighter's job), and the AI to understand the exact shape I highlighted, so I can point at small details: a few letters, one symbol, a corner of a drawing.
+
+- [ ] AI marks are drawn as an overlay, not ink: no undo entries, never saved or exported, not seen by the AI as elements
+- [ ] the marks stay while the AI works on the request and vanish when it is done; at once on Cancel; also when the request fails or its zone is dismissed
+- [ ] several separate marks still make one request (the pause-based grouping is unchanged)
+- [ ] the request carries each mark's footprint (simplified path + width), the elements the footprint touches (partly covered ones flagged), and the surrounding area as context
+- [ ] the AI also gets a render of the area with everything outside the footprint faded
+- [ ] the 'keeps its marks' setting is removed
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T14.2.1 | US-14.2 | **AI marks as an overlay** — Interceptor consumes the strokes (no ink); ThinkingOverlay draws them as translucent violet highlighter paths per request; removed on zone done / failed / dismissed and on Cancel; drop assistant.highlighter_keeps_marks and win.ai-highlighter-keep. | `ai: AI highlighter marks as an overlay that goes away (T14.2.1)` | ✅ done |
+| T14.2.2 | US-14.2 | **Footprints in the request** — AskCapture keeps each mark's path + width; submitAsk hit-tests elements against the footprint (distance to path <= width/2), flags partial coverage, sends simplified paths (<= ~30 points each) and the area with a margin as context. | `ai: AI highlighter sends the shape highlighted (T14.2.2)` | ✅ done |
+| T14.2.3 | US-14.2 | **Faded-outside render** — Render of the request area with everything outside the footprints faded, attached to the request for the serving session. | `ai: AI highlighter render of the highlighted detail (T14.2.3)` | ✅ done |
+| T14.2.4 | US-14.2 | **Release 1.11.0** — Changelog, version, full tests. | `ai: release 1.11.0 (T14.2.4)` | ⬜ todo |

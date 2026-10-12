@@ -240,30 +240,31 @@ def test_14_focus_survives_full_screen(app):
 
 
 def test_15_tablet_states_stay_consistent(app):
-    """Picking a tool ends the AI highlighter / lasso; any tool can be picked after any other."""
+    """Picking a tool ends the AI highlighter / lasso (even the tool in use); any tool after any other."""
     c = app.client()
     tool = lambda: c.call("tool_get")["tool"]
+    state = lambda a: [x.get("state") for x in c.call("actions_list", filter=a)["actions"] if x["name"] == "win." + a][0]
     c.call("action_run", action="win.ai-focus", state=True)
     assert wait(lambda: widgets(c, "aiTablet-pen")[0].get("visible", True))
     click = lambda t: c.call("ui_interact", op="click", target=widgets(c, "aiTablet-" + t)[0]["id"])
     click("pen")
     assert wait(lambda: tool() == "pen")
     click("ai-highlighter")
-    assert wait(lambda: tool() == "highlighter")
-    click("pen")  # straight from the AI highlighter
-    assert wait(lambda: tool() == "pen")
-    assert c.call("app_status")["ask"]["state"] != "highlight and speak…"
+    assert wait(lambda: state("ai-highlighter") is True)
+    click("pen")  # the tool in use already: still ends the AI highlighter
+    assert wait(lambda: state("ai-highlighter") is False) and tool() == "pen"
     click("ai-highlighter")
-    assert wait(lambda: tool() == "highlighter")
-    click("ai-highlighter")  # a second tap: off, and the pen is back
-    assert wait(lambda: tool() == "pen")
-    lasso = lambda: [a.get("state") for a in c.call("actions_list", filter="ai-ask")["actions"]
-                     if a["name"].endswith("ai-ask")][0] in (True, "true")
+    assert wait(lambda: state("ai-highlighter") is True)
+    click("ai-highlighter")  # a second tap: off
+    assert wait(lambda: state("ai-highlighter") is False)
     click("ask")
-    assert wait(lasso)
+    assert wait(lambda: state("ai-ask") is True)
     click("eraser")  # a tool ends the armed lasso
-    assert wait(lambda: tool() == "eraser")
-    assert wait(lambda: not lasso())
+    assert wait(lambda: tool() == "eraser") and wait(lambda: state("ai-ask") is False)
+    click("ai-highlighter")
+    assert wait(lambda: state("ai-highlighter") is True)
+    click("ask")  # the lasso replaces the highlighter
+    assert wait(lambda: state("ai-highlighter") is False) and state("ai-ask") is True
     click("pen")
-    assert wait(lambda: tool() == "pen")
+    assert wait(lambda: tool() == "pen") and state("ai-ask") is False
     c.call("action_run", action="win.ai-focus", state=False)

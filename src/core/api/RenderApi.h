@@ -14,6 +14,7 @@
 #include <vector>    // for vector
 
 #include "util/Color.h"      // for Color
+#include "util/Point.h"      // for Point
 #include "util/Rectangle.h"  // for Rectangle
 
 class Document;
@@ -36,6 +37,10 @@ struct RenderOptions {
     double gridStep = 50;                                ///< grid spacing in page points
     std::vector<Highlight> highlights;                   ///< boxes to draw on top
     Color highlightColor = Color(0xe0, 0x1b, 0x84);      ///< magenta: rarely used for real ink
+    /// Paths (page points) of this width: everything outside them is faded (what the owner highlighted stands out)
+    std::vector<std::vector<xoj::util::Point<double>>> footprints;
+    double footprintWidth = 0;
+    double fadeOutside = 0.75;  ///< opacity of the white veil outside the footprints
 };
 
 struct RenderedImage {

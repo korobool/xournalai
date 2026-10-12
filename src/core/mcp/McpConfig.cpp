@@ -71,8 +71,6 @@ McpConfig McpConfig::load() {
                 cfg.assistant.permissionMode = a.value("permission_mode", cfg.assistant.permissionMode);
                 cfg.assistant.command = a.value("command", cfg.assistant.command);
                 cfg.assistant.autoImprove = a.value("auto_improve", cfg.assistant.autoImprove);
-                cfg.assistant.highlighterKeepsMarks =
-                        a.value("highlighter_keeps_marks", cfg.assistant.highlighterKeepsMarks);
                 if (a.contains("rules") && a["rules"].is_array()) {
                     cfg.assistant.rules.clear();
                     for (const auto& r: a["rules"]) {
@@ -146,7 +144,6 @@ void McpConfig::save() const {
                 {"permission_mode", assistant.permissionMode},
                 {"command", assistant.command},
                 {"auto_improve", assistant.autoImprove},
-                {"highlighter_keeps_marks", assistant.highlighterKeepsMarks},
                 {"rules", assistant.rules},
                 {"wake_idle_ms", assistant.wakeIdleMs},
                 {"watchdog_s", assistant.watchdogS},

@@ -37,7 +37,7 @@
 #include "assistant/ThinkingOverlay.h"           // for ThinkingOverlay
 #include "control/RecordingObserver.h"           // for setRecordingObserver
 #include "control/tools/EditSelection.h"         // for EditSelection
-#include "api/EditApi.h"                         // for EditApi (the AI highlighter's marks)
+#include "api/RenderApi.h"                       // for renderPage (the AI highlighter's detail)
 #include "util/GVariantTemplate.h"               // for getGVariantValue
 #include "control/ToolHandler.h"                 // for ToolHandler
 #include "control/actions/ActionDatabase.h"      // for ActionDatabase
@@ -47,7 +47,9 @@
 #include "model/Element.h"                       // for Element
 #include "model/Stroke.h"                        // for Stroke
 #include "model/Text.h"                          // for Text
-#include "util/PathUtil.h"                       // for getConfigFile
+#include "util/PathUtil.h"                       // for getConfigFile, getCacheSubfolder
+
+#include <fstream>  // for ofstream
 
 #include "ConnectSnippets.h"
 #include "McpConfig.h"
@@ -263,7 +265,7 @@ McpUi::~McpUi() {
         for (const char* name:
              {"mcp-paused",       "mcp-ai-accept",   "mcp-ai-clear",     "mcp-ai-toggle",    "mcp-copy-command",
               "mcp-connect",      "mcp-settings",    "ai-terminal",      "ai-terminal-open", "ai-terminal-custom",
-              "ai-quick-tools",   "ai-tools-button", "ai-record-button", "ai-fullscreen-button", "ai-focus", "ai-highlighter", "ai-highlighter-keep", "ai-focus-button", "ai-act",           "ai-toolbar",
+              "ai-quick-tools",   "ai-tools-button", "ai-record-button", "ai-fullscreen-button", "ai-focus", "ai-highlighter", "ai-focus-button", "ai-act",           "ai-toolbar",
               "ai-stop",          "ai-auto-improve", "ai-ask",           "ai-rule-formulas", "ai-rule-text",
               "ai-rule-diagrams", "ai-rule-colours"}) {
             g_action_map_remove_action(G_ACTION_MAP(window), name);
@@ -428,16 +430,6 @@ void McpUi::installActions() {
                                      }),
                                      this);
     }
-    GSimpleAction* keepAct = g_simple_action_new_stateful(
-            "ai-highlighter-keep", nullptr, g_variant_new_boolean(server.getConfig().assistant.highlighterKeepsMarks));
-    g_signal_connect(keepAct, "change-state", G_CALLBACK(+[](GSimpleAction* a, GVariant* v, gpointer) {
-                         g_simple_action_set_state(a, v);
-                         McpConfig cfg = McpConfig::load();
-                         cfg.assistant.highlighterKeepsMarks = g_variant_get_boolean(v);
-                         cfg.save();
-                     }),
-                     this);
-    add(keepAct);
     GSimpleAction* askAct = g_simple_action_new_stateful("ai-ask", nullptr, g_variant_new_boolean(false));
     g_signal_connect(askAct, "change-state", G_CALLBACK(+[](GSimpleAction*, GVariant* v, gpointer self) {
                          static_cast<McpUi*>(self)->armLasso(g_variant_get_boolean(v));
@@ -592,7 +584,6 @@ void McpUi::buildMenu() {
              {"Big Focus button", "win.ai-focus-button"},
              {"Focus: only the big buttons (F9)", "win.ai-focus"},
              {"AI highlighter: highlight while speaking (Ctrl+Alt+H)", "win.ai-highlighter"},
-             {"AI highlighter keeps its marks", "win.ai-highlighter-keep"},
              {"Stop current AI work", "win.ai-stop"}});
     {
         GMenu* s = g_menu_new();
@@ -755,6 +746,25 @@ void McpUi::showAsk(const assistant::AskCapture& c, const std::string& text) {
                     }
                     dictate(pressed);
                 });
+        askPopover->setOnClosed([this] {
+            // Closed without sending (Cancel, Escape, a tap elsewhere): the AI highlighter's marks go. Looked at
+            // once idle, since Send closes it too (and then the marks wait for the AI)
+            g_idle_add(
+                    [](gpointer self) -> gboolean {
+                        auto* ui = static_cast<McpUi*>(self);
+                        if (ui->pendingAsk && ui->pendingAsk->markKey) {  // (Send clears pendingAsk first)
+                            if (ui->thinkingOverlay) {
+                                ui->thinkingOverlay->setMarks(ui->pendingAsk->markKey, 0, {});
+                            }
+                            ui->pendingAsk->markKey = 0;
+                        }
+                        return G_SOURCE_REMOVE;
+                    },
+                    this);
+        });
+    }
+    if (pendingAsk && pendingAsk->markKey && pendingAsk->markKey != c.markKey && thinkingOverlay) {
+        thinkingOverlay->setMarks(pendingAsk->markKey, 0, {});  // (an earlier request replaced before it was sent)
     }
     pendingAsk = std::make_unique<assistant::AskCapture>(c);
     const size_t page = ctrl->getDocument()->indexOf(c.page);
@@ -1107,55 +1117,21 @@ void McpUi::armLasso(bool on) {
 }
 
 namespace {
-constexpr uint32_t AI_HIGHLIGHT = 0xb57bff;  ///< the AI highlighter's colour (violet: not one of the palette's)
 constexpr guint HIGHLIGHT_PAUSE_MS = 1800;  ///< the pause after the last stroke that ends a request
-
-/// The AI highlighter's strokes on `page` (highlighter strokes in its colour)
-std::vector<std::string> aiHighlights(Control* ctrl, const PageRef& page) {
-    std::vector<std::string> out;
-    Document* doc = ctrl->getDocument();
-    std::shared_lock lock(*doc);
-    const size_t p = doc->indexOf(page);
-    if (p == npos) {
-        return out;
-    }
-    for (const auto& loc: api::elementsOnPage(page, p, std::nullopt, std::nullopt)) {
-        if (loc.element->getType() != ELEMENT_STROKE) {
-            continue;
-        }
-        const auto* s = static_cast<const Stroke*>(loc.element);
-        if (s->getToolType() == StrokeTool::HIGHLIGHTER && (uint32_t(s->getColor()) & 0xffffffU) == AI_HIGHLIGHT) {
-            out.push_back(api::ElementIds::get().idOf(loc.element));
-        }
-    }
-    return out;
-}
+constexpr double HIGHLIGHT_WIDTH = 12;      ///< the marks' width (page points), like a highlighter's
 }  // namespace
 
 void McpUi::onToolPicked() {
-    if (switchingTool) {
-        return;
-    }
-    // (the action's state is the tool picked: the tool handler switches only after this notification)
-    GAction* sel = G_ACTION(server.getControl()->getActionDatabase()->getAction(Action::SELECT_TOOL).get());
-    GVariant* st = g_action_get_state(sel);
-    if (!st) {
-        return;
-    }
-    const ToolType t = getGVariantValue<ToolType>(st);
-    g_variant_unref(st);
-    if (highlighterArmed && t != TOOL_HIGHLIGHTER) {
-        armHighlighter(false, false);  // (the tool just picked stays)
+    // Picking a tool (anywhere) ends the AI highlighter and the lasso
+    if (highlighterArmed) {
+        armHighlighter(false);
     }
     if (lassoArmed) {
         armLasso(false);
     }
 }
 
-void McpUi::armHighlighter(bool on, bool restoreTool) {
-    Control* ctrl = server.getControl();
-    ActionDatabase* db = ctrl->getActionDatabase();
-    ToolHandler* th = ctrl->getToolHandler();
+void McpUi::armHighlighter(bool on) {
     if (window) {
         if (GAction* a = g_action_map_lookup_action(G_ACTION_MAP(window), "ai-highlighter")) {
             g_simple_action_set_state(G_SIMPLE_ACTION(a), g_variant_new_boolean(on));
@@ -1168,72 +1144,15 @@ void McpUi::armHighlighter(bool on, bool restoreTool) {
         g_source_remove(highlightTimer);
         highlightTimer = 0;
     }
-    if (on) {
-        if (lassoArmed) {
-            armLasso(false);
+    GtkWidget* canvas = server.getControl()->getWindow()->getXournal()->getWidget();
+    if (GdkWindow* w = gtk_widget_get_window(canvas)) {
+        GdkCursor* cursor = on ? gdk_cursor_new_from_name(gdk_window_get_display(w), "crosshair") : nullptr;
+        gdk_window_set_cursor(w, cursor);
+        if (cursor) {
+            g_object_unref(cursor);
         }
-        if (askPopover && askPopover->visible()) {
-            askPopover->close();
-        }
-        highlighterArmed = true;
-        highlightPage.reset();
-        highlightBoxes.clear();
-        highlightIds.clear();
-        pendingDictation.clear();
-        // The highlighter, in the AI's colour (both given back afterwards)
-        prevTool = static_cast<int>(th->getToolType());
-        prevHighlighterColour = uint32_t(th->getTool(TOOL_HIGHLIGHTER).getColor());
-        switchingTool = true;
-        if (th->getToolType() != TOOL_HIGHLIGHTER) {
-            db->fireActivateAction(Action::SELECT_TOOL, TOOL_HIGHLIGHTER);
-        }
-        db->fireChangeActionState(Action::TOOL_COLOR, Color(AI_HIGHLIGHT | 0xff000000U));
-        switchingTool = false;
-        askStatusText = "highlight and speak…";
-        xoj::input::setStrokeInterceptor([this](const xoj::input::InterceptedStroke& s) {
-            using K = xoj::input::InterceptedStroke;
-            if (!s.page || (highlightPage && s.page != highlightPage)) {
-                return false;  // (one page per request: elsewhere it is plain highlighting)
-            }
-            if (s.kind == K::Down) {
-                if (highlightTimer) {
-                    g_source_remove(highlightTimer);  // another stroke: the same request
-                    highlightTimer = 0;
-                }
-                if (!highlightPage) {
-                    highlightIds = aiHighlights(server.getControl(), s.page);  // (those there before: not ours)
-                }
-                highlightPage = s.page;
-                highlightBoxes.push_back({s.x, s.y, 0, 0});
-                if (!highlightListening && speechToText && !micHeld) {
-                    // Listening from the first touch, so the first words are not lost
-                    const size_t page = server.getControl()->getDocument()->indexOf(s.page);
-                    recordAnchor = std::pair(page, xoj::util::Point<double>(s.x, s.y));
-                    speechToText->start();
-                    highlightListening = true;
-                    askStatusText = "listening…";
-                    update();
-                }
-            } else if ((s.kind == K::Move || s.kind == K::Up) && !highlightBoxes.empty()) {
-                auto& b = highlightBoxes.back();
-                const double x1 = std::min(b.x, s.x), y1 = std::min(b.y, s.y);
-                const double x2 = std::max(b.x + b.width, s.x), y2 = std::max(b.y + b.height, s.y);
-                b = {x1, y1, x2 - x1, y2 - y1};
-            }
-            if (s.kind == K::Up) {
-                highlightTimer = g_timeout_add(
-                        HIGHLIGHT_PAUSE_MS,
-                        [](gpointer self) -> gboolean {
-                            auto* ui = static_cast<McpUi*>(self);
-                            ui->highlightTimer = 0;
-                            ui->finishHighlight();
-                            return G_SOURCE_REMOVE;
-                        },
-                        this);
-            }
-            return false;  // the highlighter draws as usual
-        });
-    } else {
+    }
+    if (!on) {
         highlighterArmed = false;
         xoj::input::setStrokeInterceptor(nullptr);
         if (highlightListening) {
@@ -1242,52 +1161,104 @@ void McpUi::armHighlighter(bool on, bool restoreTool) {
                 speechToText->cancel();
             }
         }
-        // Give back the highlighter's colour and the tool used before
-        const Color before(prevHighlighterColour);
-        switchingTool = true;
-        if (th->getToolType() == TOOL_HIGHLIGHTER) {
-            db->fireChangeActionState(Action::TOOL_COLOR, before);
-            if (restoreTool && prevTool >= 0 && prevTool != TOOL_HIGHLIGHTER) {
-                db->fireActivateAction(Action::SELECT_TOOL, static_cast<ToolType>(prevTool));
-            }
-        } else {
-            th->getTool(TOOL_HIGHLIGHTER).setColor(before);
+        if (thinkingOverlay && highlightKey) {
+            thinkingOverlay->setMarks(highlightKey, 0, {});  // (marks not handed to a request)
         }
-        switchingTool = false;
+        highlightKey = 0;
         askStatusText = "";
+        update();
+        return;
     }
+    if (lassoArmed) {
+        armLasso(false);
+    }
+    if (askPopover && askPopover->visible()) {
+        askPopover->close();
+    }
+    highlighterArmed = true;
+    highlightPage.reset();
+    highlightPaths.clear();
+    highlightKey = nextHighlightKey++;
+    pendingDictation.clear();
+    askStatusText = "highlight and speak…";
     update();
+    // The marks are not ink: drawn over the page until the AI has dealt with them
+    xoj::input::setStrokeInterceptor([this](const xoj::input::InterceptedStroke& s) {
+        using K = xoj::input::InterceptedStroke;
+        if (s.kind == K::Down) {
+            if (!s.page || (highlightPage && s.page != highlightPage)) {
+                return true;  // (one page per request)
+            }
+            if (highlightTimer) {
+                g_source_remove(highlightTimer);  // another stroke: the same request
+                highlightTimer = 0;
+            }
+            highlightPage = s.page;
+            highlightPaths.push_back({{s.x, s.y}});
+            if (!highlightListening && speechToText && !micHeld) {
+                // Listening from the first touch, so the first words are not lost
+                const size_t page = server.getControl()->getDocument()->indexOf(s.page);
+                recordAnchor = std::pair(page, xoj::util::Point<double>(s.x, s.y));
+                speechToText->start();
+                highlightListening = true;
+                askStatusText = "listening…";
+                update();
+            }
+        } else if (s.kind == K::Move && s.page == highlightPage && !highlightPaths.empty()) {
+            highlightPaths.back().push_back({s.x, s.y});
+        }
+        if ((s.kind == K::Down || s.kind == K::Move) && thinkingOverlay && highlightPage) {
+            std::vector<assistant::ThinkingOverlay::Mark> marks;
+            for (const auto& p: highlightPaths) {
+                marks.push_back({p, HIGHLIGHT_WIDTH});
+            }
+            thinkingOverlay->setMarks(highlightKey, server.getControl()->getDocument()->indexOf(highlightPage),
+                                      std::move(marks));
+        }
+        if ((s.kind == K::Up || s.kind == K::Cancel) && !highlightPaths.empty()) {
+            highlightTimer = g_timeout_add(
+                    HIGHLIGHT_PAUSE_MS,
+                    [](gpointer self) -> gboolean {
+                        auto* ui = static_cast<McpUi*>(self);
+                        ui->highlightTimer = 0;
+                        ui->finishHighlight();
+                        return G_SOURCE_REMOVE;
+                    },
+                    this);
+        }
+        return true;  // the marks are not ink
+    });
 }
 
 void McpUi::finishHighlight() {
-    if (!highlighterArmed || !highlightPage || highlightBoxes.empty()) {
+    if (!highlighterArmed || !highlightPage || highlightPaths.empty()) {
         return;
     }
     assistant::AskCapture c;
     c.page = highlightPage;
-    const double pad = 4;
-    double x1 = highlightBoxes[0].x, y1 = highlightBoxes[0].y, x2 = x1, y2 = y1;
-    for (auto b: highlightBoxes) {
-        b = {b.x - pad, b.y - pad, b.width + 2 * pad, b.height + 2 * pad};
-        x1 = std::min(x1, b.x), y1 = std::min(y1, b.y);
-        x2 = std::max(x2, b.x + b.width), y2 = std::max(y2, b.y + b.height);
-        c.highlights.push_back(b);
+    c.paths = highlightPaths;
+    c.markWidth = HIGHLIGHT_WIDTH;
+    c.markKey = highlightKey;
+    const double pad = HIGHLIGHT_WIDTH / 2;
+    double x1 = highlightPaths[0][0].x, y1 = highlightPaths[0][0].y, x2 = x1, y2 = y1;
+    for (const auto& path: highlightPaths) {
+        double a1 = path[0].x, b1 = path[0].y, a2 = a1, b2 = b1;
+        for (const auto& p: path) {
+            a1 = std::min(a1, p.x), b1 = std::min(b1, p.y), a2 = std::max(a2, p.x), b2 = std::max(b2, p.y);
+        }
+        c.highlights.push_back({a1 - pad, b1 - pad, a2 - a1 + 2 * pad, b2 - b1 + 2 * pad});
+        x1 = std::min(x1, a1 - pad), y1 = std::min(y1, b1 - pad), x2 = std::max(x2, a2 + pad), y2 = std::max(y2, b2 + pad);
     }
     c.area = {x1, y1, x2 - x1, y2 - y1};
-    for (const auto& id: aiHighlights(server.getControl(), c.page)) {
-        if (std::find(highlightIds.begin(), highlightIds.end(), id) == highlightIds.end()) {
-            c.marks.push_back(id);  // drawn now
-        }
-    }
     const bool listening = highlightListening;
     highlightListening = false;  // (not cancelled by disarming: it is stopped below)
+    highlightKey = 0;            // (the marks now belong to the request)
     std::string said = pendingDictation;
     armHighlighter(false);
     const size_t page = server.getControl()->getDocument()->indexOf(c.page);
     lastAsk = {{"page", page == npos ? json(nullptr) : json(page + 1)},
                {"area", {c.area.x, c.area.y, c.area.width, c.area.height}},
                {"highlights", c.highlights.size()},
-               {"marks", c.marks},
                {"text", said}};
     if (!listening || !speechToText) {
         showAsk(c, said);
@@ -1357,23 +1328,49 @@ void McpUi::submitAsk(const std::string& command, const std::string& text) {
         }
         return in;
     };
-    auto highlighted = [&](const xoj::util::Rectangle<double>& bb) {
-        for (const auto& h: c.highlights) {
-            if (bb.x < h.x + h.width && h.x < bb.x + bb.width && bb.y < h.y + h.height && h.y < bb.y + bb.height) {
-                return true;
+    // AI highlighter: how far a point is from the marks (their footprint is the paths, this wide)
+    auto toMarks = [&](double x, double y) {
+        double best = G_MAXDOUBLE;
+        for (const auto& path: c.paths) {
+            for (size_t i = 0; i < path.size(); i++) {
+                const auto& a = path[i];
+                const auto& b = path[i + 1 < path.size() ? i + 1 : i];
+                const double dx = b.x - a.x, dy = b.y - a.y, len = dx * dx + dy * dy;
+                const double t = len > 0 ? std::clamp(((x - a.x) * dx + (y - a.y) * dy) / len, 0.0, 1.0) : 0.0;
+                best = std::min(best, std::hypot(x - (a.x + t * dx), y - (a.y + t * dy)));
             }
         }
-        return false;
+        return best;
     };
+    std::vector<std::string> partly;  ///< touched by the marks, but not all covered
     {
         std::shared_lock lock(*ctrl->getDocument());
         for (const auto& loc: api::elementsOnPage(c.page, page, std::nullopt, c.area, true)) {
             const auto& bb = loc.element->getBoundingBox();
-            if (!c.highlights.empty()) {
+            if (!c.paths.empty()) {
+                // Under the marks: what their footprint touches (a stroke by its points, others by their box)
+                const double reach = c.markWidth / 2;
+                size_t in = 0, all = 0;
+                if (loc.element->getType() == ELEMENT_STROKE) {
+                    const auto* st = static_cast<const Stroke*>(loc.element);
+                    for (const auto& p: st->getPointVector()) {
+                        all++;
+                        in += toMarks(p.x, p.y) <= reach + st->getWidth() / 2 ? 1 : 0;
+                    }
+                } else {
+                    for (int i = 0; i <= 4; i++) {
+                        for (int j = 0; j <= 4; j++) {
+                            all++;
+                            in += toMarks(bb.x + bb.width * i / 4, bb.y + bb.height * j / 4) <= reach ? 1 : 0;
+                        }
+                    }
+                }
                 const std::string id = api::ElementIds::get().idOf(loc.element);
-                if (highlighted(bb) && std::find(c.marks.begin(), c.marks.end(), id) == c.marks.end() &&
-                    std::find(ids.begin(), ids.end(), id) == ids.end()) {
-                    ids.push_back(id);  // what is under the highlights (not the highlights themselves)
+                if (in > 0 && std::find(ids.begin(), ids.end(), id) == ids.end()) {
+                    ids.push_back(id);
+                    if (in * 10 < all * 9) {
+                        partly.push_back(id);
+                    }
                 }
                 continue;
             }
@@ -1390,21 +1387,46 @@ void McpUi::submitAsk(const std::string& command, const std::string& text) {
     desc += ids.empty() ? std::string("about this area") : "about " + std::to_string(ids.size()) + " element(s)";
     desc += " on page " + std::to_string(page + 1) + " at [" + r(c.area.x) + "," + r(c.area.y) + "," + r(c.area.width) +
             "," + r(c.area.height) + "]" + (c.lasso.size() >= 3 ? " (circled)" : "");
-    const bool keepMarks = McpConfig::load().assistant.highlighterKeepsMarks;
-    if (!c.highlights.empty()) {
-        desc += " (highlighted " + std::to_string(c.highlights.size()) + " place(s), in the order spoken:";
-        for (const auto& h: c.highlights) {
-            desc += " [" + r(h.x) + "," + r(h.y) + "," + r(h.width) + "," + r(h.height) + "]";
-        }
-        if (!c.marks.empty()) {
-            std::string list;
-            for (size_t i = 0; i < c.marks.size(); i++) {
-                list += (i ? "," : "") + c.marks[i];
+    if (!c.paths.empty()) {
+        // The exact places: each mark's path (simplified) and width, then the detail as a picture
+        desc += " (highlighted " + std::to_string(c.paths.size()) + " place(s) in the order marked, each a path " +
+                r(c.markWidth) + " pt wide:";
+        for (const auto& path: c.paths) {
+            const size_t step = std::max<size_t>(1, (path.size() + 29) / 30);
+            std::string pts;
+            for (size_t i = 0; i < path.size(); i += step) {
+                pts += (pts.empty() ? "" : ",") + ("[" + r(path[i].x) + "," + r(path[i].y) + "]");
             }
-            desc += keepMarks ? "; the highlight strokes " + list + " are the owner's marks: leave them" :
-                                "; the highlight strokes were removed";
+            if ((path.size() - 1) % step) {
+                pts += ",[" + r(path.back().x) + "," + r(path.back().y) + "]";
+            }
+            desc += " [" + pts + "]";
+        }
+        if (!partly.empty()) {
+            std::string list;
+            for (size_t i = 0; i < partly.size(); i++) {
+                list += (i ? "," : "") + partly[i];
+            }
+            desc += "; only partly covered, so a detail of them is meant: " + list;
         }
         desc += ")";
+        try {
+            // The area with some context, everything outside the marks faded
+            api::RenderOptions o;
+            o.page = page;
+            o.region = xoj::util::Rectangle<double>(c.area.x - 40, c.area.y - 40, c.area.width + 80, c.area.height + 80);
+            o.dpi = 150;
+            o.maxPixels = 1400;
+            o.footprints = c.paths;
+            o.footprintWidth = c.markWidth;
+            const auto img = api::renderPage(ctrl->getDocument(), o);
+            const fs::path file = Util::getCacheSubfolder("ai-highlights") /
+                                  ("highlight-" + std::to_string(g_get_real_time() / 1000) + ".png");
+            std::ofstream(file, std::ios::binary) << img.png;
+            desc += " (the highlighted detail, the rest faded: " + file.string() + ")";
+            lastAsk["detail_image"] = file.string();
+        } catch (const std::exception&) {
+        }
     }
     if (!ids.empty()) {
         std::string list;
@@ -1427,10 +1449,9 @@ void McpUi::submitAsk(const std::string& command, const std::string& text) {
         eventPump->addIntent(desc, zone);
     }
 #endif
-    if (!c.marks.empty() && !keepMarks) {
-        api::EditApi edit(ctrl);
-        auto g = edit.resolve(c.marks);
-        edit.remove(g);
+    if (thinkingOverlay && c.markKey) {
+        // The marks stay while the AI works on it and go when it is done (or failed, or the zone is dismissed)
+        zone ? thinkingOverlay->bindMarks(c.markKey, zone) : thinkingOverlay->setMarks(c.markKey, 0, {});
     }
     lastAsk["submitted"] = {{"command", command}, {"text", text}, {"zone", zone}, {"ids", ids}, {"desc", desc}};
     update();
@@ -1446,6 +1467,7 @@ json McpUi::askStatus() const {
         const auto r = thinkingOverlay->recording();
         j["recording"] = r == R::Listening ? "listening" : r == R::Transcribing ? "transcribing" : "off";
         j["recording_levels"] = thinkingOverlay->levelCount();
+        j["highlight_marks"] = thinkingOverlay->markSets();  // (AI highlighter mark sets shown)
     }
     if (!lastAsk.is_null()) {
         j["last"] = lastAsk;

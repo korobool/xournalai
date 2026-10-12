@@ -183,20 +183,19 @@ private:
     /// Arms (or disarms) the Ask lasso
     void armLasso(bool on);
     /// AI highlighter: highlights like the highlighter while listening; a pause after the last stroke opens Ask
-    void armHighlighter(bool on, bool restoreTool = true);
-    bool switchingTool = false;  ///< the highlighter itself is selecting a tool (not the owner)
+    void armHighlighter(bool on);
     gulong toolWatch = 0;
     /// The owner picked another tool (anywhere): the AI highlighter and lasso end
     void onToolPicked();
     void finishHighlight();
     bool highlighterArmed = false;
     PageRef highlightPage;
-    std::vector<xoj::util::Rectangle<double>> highlightBoxes;
-    std::vector<std::string> highlightIds;  ///< the strokes it drew
+    std::vector<std::vector<xoj::util::Point<double>>> highlightPaths;  ///< the marks being drawn (page points)
+    int highlightKey = 0;      ///< their set in the overlay
+    int nextHighlightKey = 1;
     bool highlightListening = false;
     guint highlightTimer = 0;
-    int prevTool = -1;  ///< the tool before it (restored)
-    uint32_t prevHighlighterColour = 0;
+
     /// Pen button held while the lasso is armed or the popover is open: dictation into it
     void dictate(bool pressed);
     void onAsk(const assistant::AskCapture& c);

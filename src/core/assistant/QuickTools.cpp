@@ -270,6 +270,24 @@ void QuickTools::activate(const std::string& id) {
     performing = true;
     ActionDatabase* db = control->getActionDatabase();
     bool done = false;
+    const bool isTool = std::any_of(std::begin(TOOLS), std::end(TOOLS), [&](const auto& t) { return id == t.id; }) ||
+                        id.rfind("shape-", 0) == 0;
+    if (isTool) {
+        // A tool ends the AI highlighter and the lasso (also when it is the tool in use already)
+        if (auto* win = control->getWindow() ? control->getWindow()->getWindow() : nullptr) {
+            for (const char* name: {"ai-highlighter", "ai-ask"}) {
+                if (GAction* a = g_action_map_lookup_action(G_ACTION_MAP(win), name)) {
+                    GVariant* st = g_action_get_state(a);
+                    if (st && g_variant_get_boolean(st)) {
+                        g_action_change_state(a, g_variant_new_boolean(false));
+                    }
+                    if (st) {
+                        g_variant_unref(st);
+                    }
+                }
+            }
+        }
+    }
     for (const auto& t: TOOLS) {
         if (id == t.id) {
             db->fireActivateAction(Action::SELECT_TOOL, t.type);
