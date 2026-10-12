@@ -58,8 +58,9 @@ def test_2_actions_become_intents(app):
 def test_3_command_button_prompt(app):
     c = app.client()
     n = len(got())
-    # (the test window is 800 px wide: without the big Tools button the AI row shows Command… itself)
+    # (the test window is 800 px wide: without the big Tools and Record buttons the AI row shows Command… itself)
     c.call("action_run", action="win.ai-tools-button", state=False)
+    c.call("action_run", action="win.ai-record-button", state=False)
     time.sleep(0.3)
     btn = [w for w in widgets(c) if w.get("name") == "aiAct-command"][0]
     x, y, w, h = btn["bbox"]
