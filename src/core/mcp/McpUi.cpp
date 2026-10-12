@@ -42,6 +42,7 @@
 #include "model/Element.h"                       // for Element
 #include "model/Stroke.h"                        // for Stroke
 #include "model/Text.h"                          // for Text
+#include "util/PathUtil.h"                       // for getConfigFile
 
 #include "ConnectSnippets.h"
 #include "McpConfig.h"
@@ -248,9 +249,10 @@ McpUi::~McpUi() {
     }
     if (window) {
         for (const char* name:
-             {"mcp-paused", "mcp-ai-accept", "mcp-ai-clear", "mcp-ai-toggle", "mcp-copy-command", "mcp-connect",
-              "mcp-settings", "ai-terminal", "ai-terminal-open", "ai-act", "ai-toolbar", "ai-stop", "ai-auto-improve",
-              "ai-ask", "ai-rule-formulas", "ai-rule-text", "ai-rule-diagrams", "ai-rule-colours"}) {
+             {"mcp-paused",     "mcp-ai-accept",    "mcp-ai-clear", "mcp-ai-toggle",    "mcp-copy-command",
+              "mcp-connect",    "mcp-settings",     "ai-terminal",  "ai-terminal-open", "ai-terminal-custom",
+              "ai-quick-tools", "ai-act",           "ai-toolbar",   "ai-stop",          "ai-auto-improve",
+              "ai-ask",         "ai-rule-formulas", "ai-rule-text", "ai-rule-diagrams", "ai-rule-colours"}) {
             g_action_map_remove_action(G_ACTION_MAP(window), name);
         }
         unwatch(window);
@@ -420,6 +422,14 @@ void McpUi::installActions() {
                      }),
                      this);
     add(open);
+    GSimpleAction* custom = g_simple_action_new("ai-terminal-custom", nullptr);
+    g_signal_connect(custom, "activate", G_CALLBACK(+[](GSimpleAction*, GVariant*, gpointer self) {
+                         if (auto* ui = static_cast<McpUi*>(self); ui->dock) {
+                             ui->dock->promptCustomCommand();
+                         }
+                     }),
+                     this);
+    add(custom);
 #endif
     GtkApplication* app = gtk_window_get_application(GTK_WINDOW(win));
     const char* pauseAccel[] = {"<Ctrl><Alt>Escape", nullptr};
@@ -509,6 +519,7 @@ void McpUi::buildMenu() {
         g_menu_append(s, "New Codex tab", "win.ai-terminal-open::codex");
         g_menu_append(s, "New OpenCode tab", "win.ai-terminal-open::opencode");
         g_menu_append(s, "New shell tab", "win.ai-terminal-open::shell");
+        g_menu_append(s, "New tab with a custom command…", "win.ai-terminal-custom");
         g_menu_append_section(sub, nullptr, G_MENU_MODEL(s));
         g_object_unref(s);
     }
@@ -1394,6 +1405,7 @@ void McpUi::buildTerminal() {
     }
     dock->setNewTabChoices({terminalSpec("claude", false), terminalSpec("codex", false),
                             terminalSpec("opencode", false), terminalSpec("shell", false)});
+    dock->setCustomCommands(Util::getConfigFile("ai-terminals.json"), terminalSpec("shell", false).env);
 }
 
 void McpUi::openTerminal(const std::string& kind) {

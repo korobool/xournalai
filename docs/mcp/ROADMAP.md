@@ -703,4 +703,39 @@ When a recording stops, the owner picks what it is before anything is sent (inst
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
 | T12.10.1 | US-12.10 | **Built-in X request log** — XHangRecovery: exported xcb_writev records request headers (ring of 64) and calls the real one; extension names from XListExtensions; reporter lists unanswered/before; test_e12_x_hang checks it. | `ai: HANG reports name the X requests left unanswered (T12.10.1)` | ✅ done `84580fd01` |
-| T12.10.2 | US-12.10 | **Release 1.8.9** — Changelog, version, full tests. | `ai: release 1.8.9 (T12.10.2)` | ✅ done |
+| T12.10.2 | US-12.10 | **Release 1.8.9** — Changelog, version, full tests. | `ai: release 1.8.9 (T12.10.2)` | ✅ done `964ee5f9b` |
+
+## E13 — Reach for it: terminals you control, tools under the thumb (release 1.9.0)
+
+The owner opens any terminal command (not only presets), closes tabs they don't want, and reaches the tools they use most with one big touch-friendly button.
+
+### S13.1 — Terminal tabs the owner controls → v1.9.0
+
+**US-13.1** — As the owner, I want to open a terminal tab with any command line I paste or type (e.g. one of my OpenCode configurations), reuse it later, and close tabs I don't need.
+
+- [ ] the + menu has 'Custom command…': a command line, an optional tab name and folder
+- [ ] custom commands are remembered and offered again in the + menu (most recent first, removable)
+- [ ] every tab has a close button; closing ends its program; restart/close act on the tab shown even after reordering
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T13.1.1 | US-13.1 | **Close terminal tabs** — Close button on each tab label and in the header; SIGHUP the process; tabs map by page widget, not position; closing the serving tab reports its exit. | `ai: close terminal tabs (T13.1.1)` | ✅ done `2892712a9` |
+| T13.1.2 | US-13.1 | **Custom command tabs** — 'Custom command…' popover in the + menu (command, name, folder); remembered in ai-terminals.json; recent ones in the menu with a way to forget them. | `ai: open a terminal tab with any command (T13.1.2)` | ✅ done `cc5a80ae3` |
+
+### S13.2 — Quick tools under the thumb → v1.9.0
+
+**US-13.2** — As the owner, I want one big button I can press with a thumb, finger or the pen that shows the ten tools I use most as large buttons.
+
+- [ ] a big Tools button starts the AI toolbar; F9 opens it too
+- [ ] a grid of large buttons: pen, eraser, highlighter, select, hand, text, Ask, Command, Terminal, size, new page, undo, redo
+- [ ] ordered by how often the owner uses each tool (remembered), ten shown
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T13.2.1 | US-13.2 | **Quick tools palette** — QuickTools: big toolbar button, popover grid of 64px tiles, actions through the action database and win.* actions; usage counts (palette and tool changes) in quick-tools.json rank the ten shown. | `ai: quick tools palette (T13.2.1)` | ⬜ todo |
+
+### S13.3 — Release 1.9.0 → v1.9.0
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T13.3.1 | US-13.1 | **Release 1.9.0** — Changelog, version, full tests. | `ai: release 1.9.0 (T13.3.1)` | ⬜ todo |

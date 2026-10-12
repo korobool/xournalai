@@ -2146,6 +2146,94 @@
           ]
         }
       ]
+    },
+    {
+      "id": "E13",
+      "title": "Reach for it: terminals you control, tools under the thumb",
+      "release": "1.9.0",
+      "goal": "The owner opens any terminal command (not only presets), closes tabs they don't want, and reaches the tools they use most with one big touch-friendly button.",
+      "stages": [
+        {
+          "id": "S13.1",
+          "title": "Terminal tabs the owner controls",
+          "version": "1.9.0",
+          "stories": [
+            {
+              "id": "US-13.1",
+              "text": "As the owner, I want to open a terminal tab with any command line I paste or type (e.g. one of my OpenCode configurations), reuse it later, and close tabs I don't need.",
+              "acceptance": [
+                "the + menu has 'Custom command…': a command line, an optional tab name and folder",
+                "custom commands are remembered and offered again in the + menu (most recent first, removable)",
+                "every tab has a close button; closing ends its program; restart/close act on the tab shown even after reordering"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T13.1.1",
+              "story": "US-13.1",
+              "title": "Close terminal tabs",
+              "details": "Close button on each tab label and in the header; SIGHUP the process; tabs map by page widget, not position; closing the serving tab reports its exit.",
+              "commit": "ai: close terminal tabs",
+              "status": "done",
+              "started": "2026-10-12T07:43:43+01:00",
+              "finished": "2026-10-12T07:48:34+01:00"
+            },
+            {
+              "id": "T13.1.2",
+              "story": "US-13.1",
+              "title": "Custom command tabs",
+              "details": "'Custom command…' popover in the + menu (command, name, folder); remembered in ai-terminals.json; recent ones in the menu with a way to forget them.",
+              "commit": "ai: open a terminal tab with any command",
+              "status": "done",
+              "started": "2026-10-12T07:48:34+01:00",
+              "finished": "2026-10-12T07:48:34+01:00"
+            }
+          ]
+        },
+        {
+          "id": "S13.2",
+          "title": "Quick tools under the thumb",
+          "version": "1.9.0",
+          "stories": [
+            {
+              "id": "US-13.2",
+              "text": "As the owner, I want one big button I can press with a thumb, finger or the pen that shows the ten tools I use most as large buttons.",
+              "acceptance": [
+                "a big Tools button starts the AI toolbar; F9 opens it too",
+                "a grid of large buttons: pen, eraser, highlighter, select, hand, text, Ask, Command, Terminal, size, new page, undo, redo",
+                "ordered by how often the owner uses each tool (remembered), ten shown"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T13.2.1",
+              "story": "US-13.2",
+              "title": "Quick tools palette",
+              "details": "QuickTools: big toolbar button, popover grid of 64px tiles, actions through the action database and win.* actions; usage counts (palette and tool changes) in quick-tools.json rank the ten shown.",
+              "commit": "ai: quick tools palette",
+              "status": "todo"
+            }
+          ]
+        },
+        {
+          "id": "S13.3",
+          "title": "Release 1.9.0",
+          "version": "1.9.0",
+          "stories": [],
+          "tasks": [
+            {
+              "id": "T13.3.1",
+              "story": "US-13.1",
+              "title": "Release 1.9.0",
+              "details": "Changelog, version, full tests.",
+              "commit": "ai: release 1.9.0",
+              "status": "todo"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
