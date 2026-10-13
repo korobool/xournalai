@@ -10,6 +10,12 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.12.1 — Readable over white paper
+- **Automatic colours for the AI terminal** (a sun button next to the opacity slider, on by default,
+  remembered): over a light page the terminal turns light (dark text on a see-through white background, with a
+  palette made for light backgrounds), over a dark page it stays dark. Off: always dark, as in 1.12.0. For Claude
+  Code, `/theme light` matches the light look.
+
 ## 1.12.0 — A see-through AI terminal
 - **The AI terminal floats over the page** instead of pushing it up, with a see-through background so your notes
   show through; the text stays solid.

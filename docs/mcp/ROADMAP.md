@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.12.0**
+Current version: **1.12.1**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -852,5 +852,5 @@ Besides the AI lasso (mark first, then say), the owner can highlight what they m
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T14.6.1 | US-14.6 | **Automatic terminal colours** — TerminalDock: aiTerminalAutoColors toggle; the current page's background brightness (polled every 0.5 s) picks a light look (white background, light-background palette) or VTE's own dark one; auto_colors in ai-terminal-view.ini. | `ai: automatic light/dark colours for the AI terminal (T14.6.1)` | 🔨 doing |
-| T14.6.2 | US-14.6 | **Release 1.12.1** — Changelog, version, full tests. | `ai: release 1.12.1 (T14.6.2)` | ⬜ todo |
+| T14.6.1 | US-14.6 | **Automatic terminal colours** — TerminalDock: aiTerminalAutoColors toggle; the current page's background brightness (polled every 0.5 s) picks a light look (white background, light-background palette) or VTE's own dark one; auto_colors in ai-terminal-view.ini. | `ai: automatic light/dark colours for the AI terminal (T14.6.1)` | ✅ done `3ee7e641c` |
+| T14.6.2 | US-14.6 | **Release 1.12.1** — Changelog, version, full tests. | `ai: release 1.12.1 (T14.6.2)` | ✅ done |

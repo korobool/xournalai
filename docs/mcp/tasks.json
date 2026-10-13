@@ -3,7 +3,7 @@
     "project": "xournalai: embedded MCP server and assistant",
     "branch": "mcp",
     "plan": "docs/mcp/PLAN.md, docs/assistant/ASSISTANT-PLAN.md",
-    "version": "1.12.0",
+    "version": "1.12.1",
     "versioning": [
       "The fork has its own semantic version, XOURNALAI_VERSION, kept in CMakeLists.txt. The application version string becomes <upstream>+ai.<XOURNALAI_VERSION>, e.g. 1.3.7+ai.0.2.0.",
       "Each task is exactly one commit. The commit message is '<planned message> (<task id>)'.",
@@ -2605,8 +2605,9 @@
               "title": "Automatic terminal colours",
               "details": "TerminalDock: aiTerminalAutoColors toggle; the current page's background brightness (polled every 0.5 s) picks a light look (white background, light-background palette) or VTE's own dark one; auto_colors in ai-terminal-view.ini.",
               "commit": "ai: automatic light/dark colours for the AI terminal",
-              "status": "doing",
-              "started": "2026-10-13T11:06:58+01:00"
+              "status": "done",
+              "started": "2026-10-13T11:06:58+01:00",
+              "finished": "2026-10-13T11:06:58+01:00"
             },
             {
               "id": "T14.6.2",
@@ -2614,7 +2615,9 @@
               "title": "Release 1.12.1",
               "details": "Changelog, version, full tests.",
               "commit": "ai: release 1.12.1",
-              "status": "todo"
+              "status": "done",
+              "started": "2026-10-13T11:06:58+01:00",
+              "finished": "2026-10-13T11:15:30+01:00"
             }
           ]
         }
