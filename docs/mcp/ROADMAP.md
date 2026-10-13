@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.11.4**
+Current version: **1.12.0**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -827,4 +827,18 @@ Besides the AI lasso (mark first, then say), the owner can highlight what they m
 | T14.4.2 | US-14.4 | **Release 1.11.2** — Changelog, version, full tests. | `ai: release 1.11.2 (T14.4.2)` | ✅ done `b1051317f` |
 | T14.4.4 | US-14.4 | **Release 1.11.3** — Changelog, version, full tests. | `ai: release 1.11.3 (T14.4.4)` | ✅ done `e7d174ca6` |
 | T14.4.5 | US-14.4 | **AI lasso icon** — Violet lasso icon xopp-ai-lasso (three icon themes) for the AI lasso in the big buttons, Tools and the AI toolbar; tile label 'AI lasso'. | `ai: violet AI lasso icon (T14.4.5)` | ✅ done `33b9d5f84` |
-| T14.4.6 | US-14.4 | **Release 1.11.4** — Changelog, version, full tests. | `ai: release 1.11.4 (T14.4.6)` | ✅ done |
+| T14.4.6 | US-14.4 | **Release 1.11.4** — Changelog, version, full tests. | `ai: release 1.11.4 (T14.4.6)` | ✅ done `c52fbf7e8` |
+
+### S14.5 — A see-through AI terminal → v1.12.0
+
+**US-14.5** — As the owner, I want the AI terminal to float over the page with a see-through background, so I can see my notes while I talk to the AI.
+
+- [ ] the terminal floats over the bottom of the page by default; the page keeps its full height
+- [ ] an opacity slider in the terminal's header, 70% by default, remembered; the text stays solid
+- [ ] a pin button switches back to the docked split (and to floating again)
+- [ ] the floating terminal can be resized by dragging its top edge
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T14.5.1 | US-14.5 | **Floating see-through terminal** — TerminalDock: a GtkOverlay over the split; floating dock as an overlay child at the bottom with a resize grip; header slider (aiTerminalOpacity, 20–100%, 70% by default) sets the VTE background alpha; pin toggle (aiTerminalPin) docks it; settings in ai-terminal-view.ini. | `ai: floating see-through AI terminal (T14.5.1)` | ✅ done `be2da72eb` |
+| T14.5.2 | US-14.5 | **Release 1.12.0** — Changelog, version, full tests. | `ai: release 1.12.0 (T14.5.2)` | ✅ done |

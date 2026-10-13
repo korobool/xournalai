@@ -10,6 +10,17 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.12.0 — A see-through AI terminal
+- **The AI terminal floats over the page** instead of pushing it up, with a see-through background so your notes
+  show through; the text stays solid.
+- **One row for everything**: the title, the tabs and the controls share the tab row (no extra bar).
+- **An opacity slider in that row** (20–100%, 70% by default, remembered): lower shows more of the
+  page, higher makes the text easier to read.
+- **A dock button** next to it puts the terminal back under the page (pressed) or lets it float again.
+- **Resize by dragging** the title or any empty part of that row up or down, floating or docked (remembered).
+- `ui_inspect` lists up to 3000 widgets (was 800, which a window with terminal tabs reached) and says `truncated`
+  when it stops early.
+
 ## 1.11.4 — The AI lasso looks like a lasso
 - **The AI lasso has its own icon**: a violet lasso (like the violet AI highlighter) instead of a microphone, in the
   big buttons, Tools → AI and the AI toolbar, so it isn't mistaken for the plain selection lasso. Its tile now
