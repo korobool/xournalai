@@ -46,7 +46,7 @@ def test_1_floats_over_the_page_70_percent(app):
     c.call("action_run", action="win.ai-terminal-open", parameter="shell")
     assert wait(lambda: widgets(c, "aiTerminalDock") and widgets(c, "aiTerminalDock")[0].get("visible", True))
     pin = widgets(c, "aiTerminalPin")[0]
-    assert not pin.get("active")  # floating by default
+    assert "floating=true" in view(app)  # floating by default
     assert "70%" in [w.get("text") or w.get("label") for w in c.call("ui_inspect", max_depth=80, all=True)["widgets"]]
     time.sleep(1)
     shot(app, "floating-70")
@@ -120,3 +120,35 @@ def test_5_moving_without_the_button_does_not_resize(app):
     time.sleep(0.5)
     labels = [w for w in c.call("ui_inspect", max_depth=80, all=True)["widgets"] if w.get("name") == "aiTerminalCloseTab"]
     assert len(labels) >= 2
+
+
+def terminal_shade(app, c):
+    """The average brightness (0 … 255) of the floating terminal's empty lower part, grabbed from the Xvfb screen."""
+    import tempfile
+    from PIL import Image
+    assert app.display != os.environ.get("DISPLAY")
+    x, y, w, h = widgets(c, "aiTerminalDock")[0]["bbox"]
+    png = os.path.join(tempfile.mkdtemp(prefix="xoai-shade-"), "s.png")
+    subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-f", "x11grab", "-i", app.display, "-frames:v", "1", png],
+                   env=app.app_env(), check=True)
+    img = Image.open(png).convert("L").crop((x + w // 2, y + h - 40, x + w // 2 + 200, y + h - 10))
+    return sum(img.getdata()) / (img.width * img.height)
+
+
+def test_6_automatic_colours_go_light_over_a_white_page_and_can_be_switched_off(app):
+    c = app.client()
+    if not widgets(c, "aiTerminalCloseTab"):
+        c.call("action_run", action="win.ai-terminal-open", parameter="shell")
+    c.call("ui_interact", op="set_value", target=widgets(c, "aiTerminalPin")[0]["id"], value=False)
+    c.call("ui_interact", op="set_value", target=widgets(c, "aiTerminalOpacity")[0]["id"], value=70)
+    assert "auto_colors=true" in view(app)  # on by default
+    time.sleep(1.5)
+    shot(app, "auto-light")
+    assert terminal_shade(app, c) > 200  # white at 70% over white paper
+    c.call("ui_interact", op="set_value", target=widgets(c, "aiTerminalAutoColors")[0]["id"], value=False)
+    assert wait(lambda: "auto_colors=false" in view(app))
+    time.sleep(1)
+    shot(app, "auto-off-dark")
+    assert terminal_shade(app, c) < 120  # black at 70%
+    c.call("ui_interact", op="set_value", target=widgets(c, "aiTerminalAutoColors")[0]["id"], value=True)
+    assert wait(lambda: "auto_colors=true" in view(app))

@@ -1779,6 +1779,14 @@ void McpUi::buildTerminal() {
         return;
     }
     dock = std::make_unique<assistant::TerminalDock>(mainBox, content);
+    dock->setPageBrightness([ctrl] {
+        PageRef page = ctrl->getCurrentPage();
+        if (!page) {
+            return -1.0;
+        }
+        const ColorU8 c(page->getBackgroundColor());
+        return (0.2126 * c.red + 0.7152 * c.green + 0.0722 * c.blue) / 255.0;
+    });
     dock->setExitHandler([this](int index, int) {
         if (index == servingTab) {
             server.serving().processExited();

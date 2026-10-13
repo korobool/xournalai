@@ -69,6 +69,11 @@ public:
     bool isFloating() const { return floating; }
     /// The floating terminal's background opacity, 0.2 … 1 (the text stays solid); remembered
     void setOpacity(double opacity);
+    /// Automatic colours: dark text on a light background over a light page, light on dark otherwise (on by
+    /// default; off: always dark); remembered
+    void setAutoColors(bool on);
+    /// How bright the page under the terminal is (0 … 1, or <0 if unknown); polled while automatic colours are on
+    void setPageBrightness(std::function<double()> source) { pageBrightness = std::move(source); }
 
     /// When the user last pressed a key in any terminal tab (monotonic µs; 0 if never)
     gint64 lastInputUs() const { return lastInput; }
@@ -92,6 +97,7 @@ private:
     void fillSavedList(GtkWidget* list);
     void applyColors(Tab* tab) const;
     void applyPageCss();
+    void updateTheme();
     bool onEmptyHeader(GdkEventButton* e) const;
     void dragTo(double yRoot);
     void endDrag();
@@ -110,6 +116,11 @@ private:
     GtkWidget* opacityScale = nullptr;
     GtkWidget* opacityLabel = nullptr;
     GtkWidget* pinButton = nullptr;
+    GtkWidget* autoButton = nullptr;
+    std::function<double()> pageBrightness;
+    guint themeTimer = 0;
+    bool autoColors = true;
+    bool light = false;  ///< the light look is on (automatic colours over a light page)
     bool floating = true;
     bool syncing = false;
     bool dragging = false;

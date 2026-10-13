@@ -117,9 +117,17 @@ TerminalDock::TerminalDock(GtkWidget* mainBox, GtkWidget* contentArea) {
     const bool f = floating;
     floating = !f;  // (so that setFloating moves it)
     setFloating(f);
+    // Automatic colours follow the page under the terminal (switching pages, changing its background)
+    themeTimer = g_timeout_add(500, +[](gpointer d) -> gboolean {
+        static_cast<TerminalDock*>(d)->updateTheme();
+        return G_SOURCE_CONTINUE;
+    }, this);
 }
 
 TerminalDock::~TerminalDock() {
+    if (themeTimer) {
+        g_source_remove(themeTimer);
+    }
     for (Tab* t: tabs) {
         if (t->running && t->pid > 0) {
             kill(t->pid, SIGHUP);  // like closing a terminal window
@@ -254,6 +262,25 @@ void TerminalDock::buildHeader() {
                      this);
     gtk_box_pack_end(GTK_BOX(header), pinButton, FALSE, FALSE, 0);
 
+    // Automatic colours: dark text on a light background over a light page
+    autoButton = gtk_toggle_button_new();
+    gtk_button_set_image(GTK_BUTTON(autoButton),
+                         gtk_image_new_from_icon_name("display-brightness-symbolic", GTK_ICON_SIZE_MENU));
+    gtk_button_set_relief(GTK_BUTTON(autoButton), GTK_RELIEF_NONE);
+    gtk_widget_set_can_focus(autoButton, FALSE);
+    gtk_buildable_set_name(GTK_BUILDABLE(autoButton), "aiTerminalAutoColors");
+    gtk_widget_set_tooltip_text(autoButton, "Automatic colours (pressed): dark text on a light background over a "
+                                            "light page, light text on dark otherwise. For Claude Code, /theme light "
+                                            "matches the light look");
+    g_signal_connect(autoButton, "toggled", G_CALLBACK(+[](GtkToggleButton* b, gpointer d) {
+                         auto* self = static_cast<TerminalDock*>(d);
+                         if (!self->syncing) {
+                             self->setAutoColors(gtk_toggle_button_get_active(b));
+                         }
+                     }),
+                     this);
+    gtk_box_pack_end(GTK_BOX(header), autoButton, FALSE, FALSE, 0);
+
     // How much of the page shows through the floating terminal (the text stays solid)
     opacityLabel = gtk_label_new("70%");
     gtk_label_set_width_chars(GTK_LABEL(opacityLabel), 4);
@@ -335,9 +362,34 @@ void TerminalDock::endDrag() {
     }
 }
 
+namespace {
+GdkRGBA rgb(const char* spec) {
+    GdkRGBA c;
+    gdk_rgba_parse(&c, spec);
+    return c;
+}
+}  // namespace
+
 void TerminalDock::applyColors(Tab* tab) const {
     if (!tab || !tab->term) {
         return;
+    }
+    if (light) {  // a palette made for a light background (Tango, darker brights)
+        static const char* const names[16] = {"#2e3436", "#cc0000", "#3a7d00", "#9a6a00", "#204a87", "#75507b",
+                                              "#06787a", "#5c6266", "#555753", "#a40000", "#2f6a00", "#7a5200",
+                                              "#1c3f74", "#5c3566", "#045d5f", "#2e3436"};
+        GdkRGBA palette[16];
+        for (int i = 0; i < 16; i++) {
+            palette[i] = rgb(names[i]);
+        }
+        const GdkRGBA fg = rgb("#1b1b1b"), bg = rgb("#ffffff");
+        vte_terminal_set_colors(tab->term, &fg, &bg, palette, 16);
+        vte_terminal_set_color_cursor(tab->term, &fg);
+        vte_terminal_set_color_cursor_foreground(tab->term, &bg);
+    } else {
+        vte_terminal_set_colors(tab->term, nullptr, nullptr, nullptr, 0);  // VTE's own (light on black)
+        vte_terminal_set_color_cursor(tab->term, nullptr);
+        vte_terminal_set_color_cursor_foreground(tab->term, nullptr);
     }
     // Floating: VTE leaves its background undrawn (its own alpha isn't honoured inside the window); the tab's box
     // under it paints the see-through black instead
@@ -350,9 +402,33 @@ void TerminalDock::applyPageCss() {
         gtk_style_context_add_provider_for_screen(gdk_screen_get_default(), GTK_STYLE_PROVIDER(pageCss),
                                                   GTK_STYLE_PROVIDER_PRIORITY_APPLICATION + 1);
     }
-    const std::string css = ".xoai-term-page { background-color: rgba(0, 0, 0, " +
+    const std::string css = std::string(".xoai-term-page { background-color: rgba(") +
+                            (light ? "255, 255, 255, " : "0, 0, 0, ") +
                             std::to_string(floating ? opacity : 1.0) + "); }";
     gtk_css_provider_load_from_data(pageCss, css.c_str(), -1, nullptr);
+}
+
+void TerminalDock::updateTheme() {
+    double b = autoColors && pageBrightness ? pageBrightness() : -1;
+    const bool want = b > 0.5;
+    if (want != light) {
+        light = want;
+        for (Tab* t: tabs) {
+            applyColors(t);
+        }
+        applyPageCss();
+    }
+}
+
+void TerminalDock::setAutoColors(bool on) {
+    autoColors = on;
+    syncing = true;
+    if (autoButton) {
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(autoButton), on);
+    }
+    syncing = false;
+    updateTheme();
+    saveView();
 }
 
 void TerminalDock::setOpacity(double value) {
@@ -426,6 +502,11 @@ void TerminalDock::loadView() {
             opacity = std::clamp(o / 100.0, MIN_OPACITY, 1.0);
         }
         g_clear_error(&err);
+        const gboolean a = g_key_file_get_boolean(kf, "terminal", "auto_colors", &err);
+        if (!err) {
+            autoColors = a;
+        }
+        g_clear_error(&err);
         const int h = g_key_file_get_integer(kf, "terminal", "height", &err);
         if (!err && h >= 80) {
             lastHeight = h;
@@ -436,6 +517,9 @@ void TerminalDock::loadView() {
     syncing = true;
     if (opacityScale) {
         gtk_range_set_value(GTK_RANGE(opacityScale), opacity * 100);
+    }
+    if (autoButton) {
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(autoButton), autoColors);
     }
     syncing = false;
     if (opacityLabel) {
@@ -452,6 +536,7 @@ void TerminalDock::saveView() const {
     g_key_file_set_boolean(kf, "terminal", "floating", floating);
     g_key_file_set_integer(kf, "terminal", "opacity", static_cast<int>(opacity * 100 + 0.5));
     g_key_file_set_integer(kf, "terminal", "height", lastHeight);
+    g_key_file_set_boolean(kf, "terminal", "auto_colors", autoColors);
     g_key_file_save_to_file(kf, Util::getConfigFile("ai-terminal-view.ini").string().c_str(), nullptr);
     g_key_file_free(kf);
 }

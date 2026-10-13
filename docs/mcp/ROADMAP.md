@@ -841,4 +841,16 @@ Besides the AI lasso (mark first, then say), the owner can highlight what they m
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
 | T14.5.1 | US-14.5 | **Floating see-through terminal** — TerminalDock: a GtkOverlay over the split; floating dock as an overlay child at the bottom with a resize grip; header slider (aiTerminalOpacity, 20–100%, 70% by default) sets the VTE background alpha; pin toggle (aiTerminalPin) docks it; settings in ai-terminal-view.ini. | `ai: floating see-through AI terminal (T14.5.1)` | ✅ done `be2da72eb` |
-| T14.5.2 | US-14.5 | **Release 1.12.0** — Changelog, version, full tests. | `ai: release 1.12.0 (T14.5.2)` | ✅ done |
+| T14.5.2 | US-14.5 | **Release 1.12.0** — Changelog, version, full tests. | `ai: release 1.12.0 (T14.5.2)` | ✅ done `1b769b201` |
+
+### S14.6 — A readable see-through terminal → v1.12.1
+
+**US-14.6** — As the owner, I want the see-through terminal to stay readable over white paper, so its text doesn't vanish into the page.
+
+- [ ] automatic colours (on by default): dark text on a see-through white background over a light page, light on black otherwise
+- [ ] a toggle in the terminal's header switches automatic colours off (always dark); remembered
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T14.6.1 | US-14.6 | **Automatic terminal colours** — TerminalDock: aiTerminalAutoColors toggle; the current page's background brightness (polled every 0.5 s) picks a light look (white background, light-background palette) or VTE's own dark one; auto_colors in ai-terminal-view.ini. | `ai: automatic light/dark colours for the AI terminal (T14.6.1)` | 🔨 doing |
+| T14.6.2 | US-14.6 | **Release 1.12.1** — Changelog, version, full tests. | `ai: release 1.12.1 (T14.6.2)` | ⬜ todo |

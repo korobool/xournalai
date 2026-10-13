@@ -2583,6 +2583,40 @@
               "finished": "2026-10-13T09:13:24+01:00"
             }
           ]
+        },
+        {
+          "id": "S14.6",
+          "title": "A readable see-through terminal",
+          "version": "1.12.1",
+          "stories": [
+            {
+              "id": "US-14.6",
+              "text": "As the owner, I want the see-through terminal to stay readable over white paper, so its text doesn't vanish into the page.",
+              "acceptance": [
+                "automatic colours (on by default): dark text on a see-through white background over a light page, light on black otherwise",
+                "a toggle in the terminal's header switches automatic colours off (always dark); remembered"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T14.6.1",
+              "story": "US-14.6",
+              "title": "Automatic terminal colours",
+              "details": "TerminalDock: aiTerminalAutoColors toggle; the current page's background brightness (polled every 0.5 s) picks a light look (white background, light-background palette) or VTE's own dark one; auto_colors in ai-terminal-view.ini.",
+              "commit": "ai: automatic light/dark colours for the AI terminal",
+              "status": "doing",
+              "started": "2026-10-13T11:06:58+01:00"
+            },
+            {
+              "id": "T14.6.2",
+              "story": "US-14.6",
+              "title": "Release 1.12.1",
+              "details": "Changelog, version, full tests.",
+              "commit": "ai: release 1.12.1",
+              "status": "todo"
+            }
+          ]
         }
       ]
     }
