@@ -10,6 +10,14 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.12.2 — The AI highlighter hears a quiet microphone
+- **Talking keeps the AI highlighter on**, also through a quiet built-in microphone. It used to count only levels
+  above 0.03 RMS as voice; the laptop microphone's speech is ~0.01, so it finished after 10 s while you were still
+  talking. Voice is now judged against the microphone's own noise (3x its quiet level, between 0.005 and 0.02).
+- **A visible countdown**: the last 5 s before it finishes by itself, Done turns orange, says "Done in N…" and a
+  bar on it drains. Any mark or word starts the 10 s again.
+- The level meter in the mode bar is scaled for quiet microphones (it barely moved before).
+
 ## 1.12.1 — Readable over white paper
 - **Automatic colours for the AI terminal** (a sun button next to the opacity slider, on by default,
   remembered): over a light page the terminal turns light (dark text on a see-through white background, with a

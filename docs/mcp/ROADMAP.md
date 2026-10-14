@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.12.1**
+Current version: **1.12.2**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -864,5 +864,5 @@ Besides the AI lasso (mark first, then say), the owner can highlight what they m
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T14.7.1 | US-14.7 | **Adaptive voice detection and a visible countdown** — assistant/VoiceActivity: a level is voice above 3x the 10th percentile of the last ~10 s, clamped 0.005..0.02 (as the speech helper's silence check); McpUi uses it for lastVoiceUs. Countdown 5 s, tick 100 ms; QuickTools::setModeCountdown draws a draining bar on Done (xoai-mode-counting). Level meter scaled for quiet mics. VoiceActivityTest, test_e14_highlighter_quiet_voice.py. | `ai: the AI highlighter hears a quiet microphone; a visible countdown (T14.7.1)` | 🔨 doing |
-| T14.7.2 | US-14.7 | **Release 1.12.2** — Changelog, version, full tests. | `ai: release 1.12.2 (T14.7.2)` | ⬜ todo |
+| T14.7.1 | US-14.7 | **Adaptive voice detection and a visible countdown** — assistant/VoiceActivity: a level is voice above 3x the 10th percentile of the last ~10 s, clamped 0.005..0.02 (as the speech helper's silence check); McpUi uses it for lastVoiceUs. Countdown 5 s, tick 100 ms; QuickTools::setModeCountdown draws a draining bar on Done (xoai-mode-counting). Level meter scaled for quiet mics. VoiceActivityTest, test_e14_highlighter_quiet_voice.py. | `ai: the AI highlighter hears a quiet microphone; a visible countdown (T14.7.1)` | ✅ done `42c4bfde2` |
+| T14.7.2 | US-14.7 | **Release 1.12.2** — Changelog, version, full tests. | `ai: release 1.12.2 (T14.7.2)` | ✅ done |
