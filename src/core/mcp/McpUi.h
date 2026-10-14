@@ -19,6 +19,7 @@
 #include "util/Point.h"     // for Point
 #include "util/Rectangle.h"
 
+#include "assistant/VoiceActivity.h"  // for VoiceActivity
 #include "Json.h"             // for json
 #include "config-features.h"  // for ENABLE_AI_TERMINAL
 
@@ -196,6 +197,7 @@ private:
     bool highlightListening = false;
     guint highlightTimer = 0;  ///< the mode bar's tick (time, marks, the auto-finish countdown)
     gint64 highlightStartUs = 0, lastMarkUs = 0, lastVoiceUs = 0;
+    assistant::VoiceActivity voice;  ///< talking keeps the AI highlighter on (judged against the mic's own noise)
     gulong escapeHandler = 0;
     void highlightTick();
 

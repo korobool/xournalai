@@ -435,6 +435,8 @@ constexpr const char* CSS =
         "  background-image: linear-gradient(160deg, #b57bff, #7b3fe0);"
         "  box-shadow: 0 2px 8px alpha(#7b3fe0, 0.5), inset 0 1px alpha(#ffffff, 0.3); }"
         ".xoai-mode-done label { color: #ffffff; }"
+        ".xoai-mode-done.xoai-mode-counting { background-image: linear-gradient(160deg, #ff9f5a, #e0603f);"
+        "  box-shadow: 0 2px 8px alpha(#e0603f, 0.5), inset 0 1px alpha(#ffffff, 0.3); }"
         ".xoai-mode-discard { border-radius: 16px; font-size: 1.05em; }"
         ".xoai-quick-tile.xoai-tablet-tile.xoai-touch-switch { min-width: 100px; }"
         ".xoai-touch-switch label { font-size: 0.85em; }"
@@ -1245,7 +1247,7 @@ void QuickTools::showModeBar(bool on, std::function<void()> done, std::function<
                                  for (size_t i = 0; i < n; i++) {
                                      const size_t k = self->modeLevels.size();
                                      const float v = i + k >= n ? self->modeLevels[i + k - n] : 0.0F;
-                                     const double bh = 3 + (h - 6) * std::min(1.0, std::sqrt(v / 0.25));
+                                     const double bh = 3 + (h - 6) * std::min(1.0, std::sqrt(v / 0.05));
                                      cairo_rectangle(cr, 2 + i * 6.0, (h - bh) / 2, 4, bh);
                                  }
                                  cairo_set_source_rgb(cr, 0.71, 0.48, 1.0);
@@ -1272,6 +1274,23 @@ void QuickTools::showModeBar(bool on, std::function<void()> done, std::function<
                                  }
                              }),
                              this);
+            // The countdown: a bar along the bottom of Done that drains to nothing
+            g_signal_connect_after(modeDone, "draw", G_CALLBACK(+[](GtkWidget* w, cairo_t* cr, gpointer d) -> gboolean {
+                                       auto* self = static_cast<QuickTools*>(d);
+                                       if (self->modeCountdown < 0) {
+                                           return FALSE;
+                                       }
+                                       const double width = gtk_widget_get_allocated_width(w) - 24;
+                                       const double h = gtk_widget_get_allocated_height(w);
+                                       cairo_set_source_rgba(cr, 1, 1, 1, 0.35);
+                                       cairo_rectangle(cr, 12, h - 9, width, 4);
+                                       cairo_fill(cr);
+                                       cairo_set_source_rgb(cr, 1, 1, 1);
+                                       cairo_rectangle(cr, 12, h - 9, width * std::clamp(self->modeCountdown, 0.0, 1.0), 4);
+                                       cairo_fill(cr);
+                                       return FALSE;
+                                   }),
+                                   this);
             gtk_box_pack_end(GTK_BOX(modeBar), modeDone, FALSE, FALSE, 0);
             GtkWidget* discard = gtk_button_new_with_label("Discard");
             gtk_style_context_add_class(gtk_widget_get_style_context(discard), "xoai-mode-discard");
@@ -1311,6 +1330,7 @@ void QuickTools::showModeBar(bool on, std::function<void()> done, std::function<
         gtk_widget_show(modeBar);
     } else {
         modeOn = false;
+        setModeCountdown(-1);
         modeOnDone = nullptr;
         modeOnDiscard = nullptr;
         if (modeBar) {
@@ -1332,6 +1352,19 @@ void QuickTools::setModeInfo(const std::string& info, const std::string& doneLab
     }
     if (modeDone) {
         gtk_button_set_label(GTK_BUTTON(modeDone), doneLabel.c_str());
+    }
+}
+
+void QuickTools::setModeCountdown(double left) {
+    if (left == modeCountdown) {
+        return;
+    }
+    modeCountdown = left;
+    if (modeDone) {
+        GtkStyleContext* ctx = gtk_widget_get_style_context(modeDone);
+        left >= 0 ? gtk_style_context_add_class(ctx, "xoai-mode-counting")
+                  : gtk_style_context_remove_class(ctx, "xoai-mode-counting");
+        gtk_widget_queue_draw(modeDone);
     }
 }
 

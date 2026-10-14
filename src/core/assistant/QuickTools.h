@@ -69,6 +69,8 @@ public:
     void showModeBar(bool on, std::function<void()> done = {}, std::function<void()> discard = {});
     void setModeInfo(const std::string& info, const std::string& doneLabel = "Done");
     void pushModeLevel(float rms);
+    /// The auto-finish countdown drawn on Done: the part still to go (1 … 0), or <0 for none
+    void setModeCountdown(double left);
     bool modeBarShown() const { return modeOn; }
     /// Called by the Focus button with the state wanted (the owner routes it through its action)
     std::function<void(bool)> onFocus;
@@ -116,6 +118,7 @@ private:
     GtkWidget* modeDone = nullptr;       ///< (in modeBar)
     GtkWidget* modeLevel = nullptr;      ///< (in modeBar)
     std::vector<float> modeLevels;
+    double modeCountdown = -1;
     std::vector<std::pair<GtkWidget*, bool>> modeHidden;  ///< the strip's children and whether they were shown
     std::function<void()> modeOnDone, modeOnDiscard;
     bool modeOn = false;

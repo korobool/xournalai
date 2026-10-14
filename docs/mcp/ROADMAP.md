@@ -853,4 +853,16 @@ Besides the AI lasso (mark first, then say), the owner can highlight what they m
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
 | T14.6.1 | US-14.6 | **Automatic terminal colours** — TerminalDock: aiTerminalAutoColors toggle; the current page's background brightness (polled every 0.5 s) picks a light look (white background, light-background palette) or VTE's own dark one; auto_colors in ai-terminal-view.ini. | `ai: automatic light/dark colours for the AI terminal (T14.6.1)` | ✅ done `3ee7e641c` |
-| T14.6.2 | US-14.6 | **Release 1.12.1** — Changelog, version, full tests. | `ai: release 1.12.1 (T14.6.2)` | ✅ done |
+| T14.6.2 | US-14.6 | **Release 1.12.1** — Changelog, version, full tests. | `ai: release 1.12.1 (T14.6.2)` | ✅ done `a4efee3dd` |
+
+### S14.7 — The AI highlighter hears a quiet microphone → v1.12.2
+
+**US-14.7** — As the owner, I want the AI highlighter to stay on while I'm still talking, and to see clearly when it is about to finish by itself.
+
+- [ ] talking keeps it on through the built-in microphone (speech ~0.01 RMS): voice is judged against the microphone's own noise floor, not a fixed 0.03
+- [ ] the last 5 s before it finishes by itself are counted down on Done: an orange button, 'Done in N…' and a draining bar
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T14.7.1 | US-14.7 | **Adaptive voice detection and a visible countdown** — assistant/VoiceActivity: a level is voice above 3x the 10th percentile of the last ~10 s, clamped 0.005..0.02 (as the speech helper's silence check); McpUi uses it for lastVoiceUs. Countdown 5 s, tick 100 ms; QuickTools::setModeCountdown draws a draining bar on Done (xoai-mode-counting). Level meter scaled for quiet mics. VoiceActivityTest, test_e14_highlighter_quiet_voice.py. | `ai: the AI highlighter hears a quiet microphone; a visible countdown (T14.7.1)` | 🔨 doing |
+| T14.7.2 | US-14.7 | **Release 1.12.2** — Changelog, version, full tests. | `ai: release 1.12.2 (T14.7.2)` | ⬜ todo |

@@ -172,7 +172,7 @@ McpUi::McpUi(McpServer& server): server(server) {
                 rec->pushVoiceLevel(rms);
             }
             if (highlighterArmed) {
-                if (rms > 0.03F) {
+                if (voice.push(rms)) {
                     lastVoiceUs = g_get_monotonic_time();  // (talking keeps the AI highlighter on)
                 }
                 if (quickTools) {
@@ -1134,7 +1134,7 @@ void McpUi::armLasso(bool on) {
 
 namespace {
 constexpr gint64 HIGHLIGHT_QUIET_US = 10 * G_USEC_PER_SEC;  ///< no marks and no voice this long: Done by itself
-constexpr gint64 HIGHLIGHT_COUNTDOWN_US = 3 * G_USEC_PER_SEC; ///< the last part of it is shown on Done
+constexpr gint64 HIGHLIGHT_COUNTDOWN_US = 5 * G_USEC_PER_SEC; ///< the last part of it is shown on Done
 constexpr double HIGHLIGHT_WIDTH = 12;      ///< the marks' width (page points), like a highlighter's
 }  // namespace
 
@@ -1206,6 +1206,7 @@ void McpUi::armHighlighter(bool on) {
     pendingDictation.clear();
     askStatusText = "highlight and speak…";
     highlightStartUs = lastMarkUs = lastVoiceUs = g_get_monotonic_time();
+    voice.reset();
     // The strip becomes the mode bar: Done (or 10 s without marks and words) / Discard (or Escape)
     if (quickTools) {
         quickTools->showModeBar(
@@ -1223,7 +1224,7 @@ void McpUi::armHighlighter(bool on) {
                                          this);
     }
     highlightTimer = g_timeout_add(
-            250,
+            100,  // (smooth enough for the countdown)
             [](gpointer self) -> gboolean {
                 static_cast<McpUi*>(self)->highlightTick();
                 return G_SOURCE_CONTINUE;
@@ -1276,6 +1277,7 @@ void McpUi::highlightTick() {
     info += n == 0 ? std::string("highlight what you mean and say it") :
                      std::to_string(n) + (n == 1 ? " mark" : " marks");
     std::string done = "Done";
+    double left = -1;  // the countdown's part still to go (1 … 0), or none
     if (n > 0) {
         // No marks and no words for a while: Done by itself (the last seconds are counted down on the button)
         const gint64 quiet = now - std::max(lastMarkUs, lastVoiceUs);
@@ -1285,10 +1287,12 @@ void McpUi::highlightTick() {
         }
         if (HIGHLIGHT_QUIET_US - quiet <= HIGHLIGHT_COUNTDOWN_US) {
             done = "Done in " + std::to_string((HIGHLIGHT_QUIET_US - quiet) / G_USEC_PER_SEC + 1) + "…";
+            left = static_cast<double>(HIGHLIGHT_QUIET_US - quiet) / HIGHLIGHT_COUNTDOWN_US;
         }
     }
     if (quickTools) {
         quickTools->setModeInfo(info, done);
+        quickTools->setModeCountdown(left);
     }
 }
 
