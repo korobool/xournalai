@@ -13,5 +13,10 @@
 
 #pragma once
 
+#include <cstdint>  // for uint64_t
+
 /// Call once on the UI thread, before the stall watchdog starts. No-op off X11.
 void installXHangRecovery();
+
+/// The requests the X request log has noted so far (0: the log is off, and HANG reports cannot name requests)
+uint64_t xRequestsLogged();

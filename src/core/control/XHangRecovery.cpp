@@ -18,7 +18,7 @@
 #include <map>     // for map
 
 #include <X11/Xlib.h>    // for NextRequest, LastKnownRequestProcessed, ConnectionNumber
-#include <dlfcn.h>       // for dlsym
+#include <dlfcn.h>       // for dlopen, dlsym
 #include <gdk/gdkx.h>    // for GDK_IS_X11_DISPLAY, gdk_x11_display_get_xdisplay
 #include <sys/socket.h>  // for shutdown
 #include <sys/uio.h>     // for iovec
@@ -241,6 +241,14 @@ void endIfCrashed() {
 }
 }  // namespace
 
+uint64_t xRequestsLogged() {
+#ifdef GDK_WINDOWING_X11
+    return tracedDisplay.load() ? ringNext.load() : 0;
+#else
+    return 0;
+#endif
+}
+
 void installXHangRecovery() {
     const char* after = g_getenv("XOURNALAI_RESCUE_AFTER_MS");  // (tests)
     const int64_t afterUs = after ? g_ascii_strtoll(after, nullptr, 10) * 1000 : 15 * G_USEC_PER_SEC;
@@ -261,9 +269,14 @@ void installXHangRecovery() {
             }
             XFreeExtensionList(names);
         }
-        // (libX11-xcb is loaded by GDK; looked up here so no build dependency is needed)
+        // (libX11-xcb, loaded here: no build dependency. GDK does not link it, and whether audio had loaded it by
+        // now was a race: on the owner's laptop the log never ran, so no HANG report named a request)
         using GetXcb = void* (*)(Display*);
-        if (auto getXcb = reinterpret_cast<GetXcb>(dlsym(RTLD_DEFAULT, "XGetXCBConnection"))) {
+        void* x11xcb = dlopen("libX11-xcb.so.1", RTLD_NOW | RTLD_GLOBAL);
+        auto getXcb = reinterpret_cast<GetXcb>(x11xcb ? dlsym(x11xcb, "XGetXCBConnection") : nullptr);
+        if (!getXcb) {
+            g_warning("The X request log is off (no libX11-xcb): HANG reports will not name the requests");
+        } else {
             tracedConnection = getXcb(x);
             tracedDisplay = x;
         }
@@ -272,7 +285,8 @@ void installXHangRecovery() {
             const uint64_t sent = NextRequest(x) - 1;
             return "X: last request sent #" + std::to_string(sent) + ", last answered #" + std::to_string(answered) +
                    "; unanswered: " + requestsSince(std::max(answered + 1, sent > 15 ? sent - 15 : 0)) +
-                   " | before: " + requestsSince(answered > 6 ? answered - 6 : 0);
+                   " | before: " + requestsSince(answered > 6 ? answered - 6 : 0) + " | logged " +
+                   (tracedDisplay.load() ? std::to_string(ringNext.load()) : std::string("nothing (log off)"));
         });
         xoj::util::stall::setHangHandler(afterUs, [fd] {
             rescueSave();

@@ -29,6 +29,7 @@ def test_1_an_unanswered_x_server_rescues_and_exits(app):
     while time.time() < deadline and not TRACE.exists():  # (the watchdog starts once the app is idle)
         time.sleep(0.1)
     c.call("page_manage", op="insert")  # (something to rescue)
+    assert c.call("app_status")["ui"]["x_requests_logged"] > 0  # the request log runs (it did not on the laptop)
     rescue = app.config_file.parent / "emergencysave.xopp"
     rescue.unlink(missing_ok=True)
     env = app.app_env()  # the app's Xvfb, never the desktop

@@ -2736,8 +2736,9 @@
               "title": "The X request log runs on the laptop",
               "details": "None of the 29 HANG reports on the laptop named a request, though the log works in tests: it was enabled only if XGetXCBConnection (libX11-xcb) was already loaded when the watchdog started, and nothing but PulseAudio's library loads it (a race). Now dlopen'ed; HANG lines say how many requests were logged; app_status ui.x_requests_logged.",
               "commit": "ai: the X request log runs on the laptop; app_status counts what it logged",
-              "status": "doing",
-              "started": "2026-10-17T23:01:26+01:00"
+              "status": "done",
+              "started": "2026-10-17T23:01:26+01:00",
+              "finished": "2026-10-17T23:02:21+01:00"
             },
             {
               "id": "T14.9.3",
