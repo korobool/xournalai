@@ -3,7 +3,7 @@
     "project": "xournalai: embedded MCP server and assistant",
     "branch": "mcp",
     "plan": "docs/mcp/PLAN.md, docs/assistant/ASSISTANT-PLAN.md",
-    "version": "1.12.2",
+    "version": "1.12.3",
     "versioning": [
       "The fork has its own semantic version, XOURNALAI_VERSION, kept in CMakeLists.txt. The application version string becomes <upstream>+ai.<XOURNALAI_VERSION>, e.g. 1.3.7+ai.0.2.0.",
       "Each task is exactly one commit. The commit message is '<planned message> (<task id>)'.",
@@ -2689,8 +2689,9 @@
               "title": "Look for the heap corruption; a crash writes its evidence first",
               "details": "AddressSanitizer build (build-asan; XOAI_BINARY runs the integration tests against it; run.py --file): the whole suite and a 7-minute soak of that session's mix (soak_session.py: see-through terminal with scrolling output, auto colours over light and dark pages, opacity/dock/resize, AI highlighter, zoom and scroll over text pages, thinking zones) found no memory error, so the corruption is not reproduced. CrashHandler now writes the crashing thread's stack (backtrace_symbols_fd) to stderr and crash.log before anything allocates, and prints a version text prepared at start (building it was where the handler hung).",
               "commit": "ai: a crash writes its stack first, without allocating; ASan soak of the session",
-              "status": "doing",
-              "started": "2026-10-17T11:39:29+01:00"
+              "status": "done",
+              "started": "2026-10-17T11:39:29+01:00",
+              "finished": "2026-10-17T12:05:59+01:00"
             },
             {
               "id": "T14.8.3",
@@ -2698,7 +2699,9 @@
               "title": "Release 1.12.3",
               "details": "Changelog, version, full tests.",
               "commit": "ai: release 1.12.3",
-              "status": "todo"
+              "status": "done",
+              "started": "2026-10-17T12:05:59+01:00",
+              "finished": "2026-10-17T12:17:17+01:00"
             }
           ]
         }

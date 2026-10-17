@@ -10,6 +10,17 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.12.3 — A crash never leaves a dead app behind
+- **A crash whose handler hangs now ends the app.** On 2026-10-17 heap corruption aborted the app, and the crash
+  handler then waited forever for the allocator's lock (its own allocation). The dead process kept its window, MCP port
+  7474 and helpers, so the next start's AI terminal could not connect. Now the hang watchdog rescues the document
+  (offered on the next start) and ends the app within seconds; a 25 s deadline ends it in any case.
+- **A crash writes its evidence first**: the crashing thread's stack goes to the journal and to
+  `~/.cache/xournalai/crash.log` before anything allocates, and the version text is prepared at start.
+- The corruption itself was looked for with an AddressSanitizer build (the whole suite and a 7-minute soak of that
+  session's mix, `test/mcp_integration/soak_session.py`) and not reproduced; a repeat now names its culprit.
+- Tests can run against another build (`XOAI_BINARY`), and `run.py --file` runs a scenario outside the suite.
+
 ## 1.12.2 — The AI highlighter hears a quiet microphone
 - **Talking keeps the AI highlighter on**, also through a quiet built-in microphone. It used to count only levels
   above 0.03 RMS as voice; the laptop microphone's speech is ~0.01, so it finished after 10 s while you were still
