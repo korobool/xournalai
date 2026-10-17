@@ -2,6 +2,8 @@
 
 #include <glib.h>
 
+#include "util/PathUtil.h"  // for getExeFile
+
 #include "Json.h"  // for json
 
 namespace xoj::mcp {
@@ -21,14 +23,7 @@ std::string shellArg(const std::string& s) {
 }
 }  // namespace
 
-std::string runningExecutable() {
-    if (gchar* self = g_file_read_link("/proc/self/exe", nullptr)) {
-        std::string s(self);
-        g_free(self);
-        return s;
-    }
-    return "xournalpp";
-}
+std::string runningExecutable() { return Util::getExeFile().string(); }
 
 std::vector<ConnectSnippet> connectSnippets(const std::string& url, const std::string& token, const std::string& exe) {
     const std::string bearer = "Bearer " + token;

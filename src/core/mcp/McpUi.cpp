@@ -1704,14 +1704,7 @@ bool checked(GtkWidget* dialog, const std::string& name) {
 
 #ifdef ENABLE_AI_TERMINAL
 namespace {
-std::string selfExecutable() {
-    std::string exe = "xournalpp";
-    if (char* self = g_file_read_link("/proc/self/exe", nullptr)) {
-        exe = self;
-        g_free(self);
-    }
-    return exe;
-}
+std::string selfExecutable() { return Util::getExeFile().string(); }
 
 /// Whether Claude Code has a stored conversation for `folder` (~/.claude/projects/<folder, non-alphanumerics as ->/)
 bool hasClaudeHistory(const std::string& folder) {

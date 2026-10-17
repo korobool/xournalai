@@ -9,6 +9,7 @@
 #include "control/Control.h"            // for Control
 #include "control/settings/Settings.h"  // for Settings
 #include "tools/Tools.h"
+#include "util/PathUtil.h"  // for getExeFile
 
 #include "ElementJson.h"  // for audioFolderProvider
 #include "McpHttpServer.h"
@@ -157,12 +158,7 @@ void McpServer::start() {
     {
         assistant::CompanionSetup setup;
         setup.port = options.port;
-        if (char* self = g_file_read_link("/proc/self/exe", nullptr)) {
-            setup.executable = self;
-            g_free(self);
-        } else {
-            setup.executable = "xournalpp";
-        }
+        setup.executable = Util::getExeFile().string();
         assistant::Companion::ensure(setup);
     }
 #ifdef ENABLE_AI_TERMINAL

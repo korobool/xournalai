@@ -11,6 +11,7 @@
 #include <gtk/gtk.h>
 
 #include "control/CrashHandler.h"  // for rescueSave, crashing
+#include "util/PathUtil.h"         // for getExeFile
 #include "util/StallWatch.h"       // for setHangHandler
 
 #ifdef GDK_WINDOWING_X11
@@ -26,9 +27,9 @@
 
 namespace {
 /// A fresh xournalai, 2 s after this one closes its display: it offers the rescued document. At most twice in a row
-/// (XOURNALAI_RELAUNCHES counts), never in tests.
+/// (XOURNALAI_RELAUNCHES counts), in tests only when XOURNALAI_TEST_RELAUNCH asks.
 void relaunch() {
-    if (g_getenv("XOURNALAI_TEST_HOOKS")) {
+    if (g_getenv("XOURNALAI_TEST_HOOKS") && !g_getenv("XOURNALAI_TEST_RELAUNCH")) {
         return;
     }
     const char* count = g_getenv("XOURNALAI_RELAUNCHES");
@@ -37,12 +38,15 @@ void relaunch() {
         g_warning("Not restarting xournalai again (restarted %d times in a row after a frozen display)", n);
         return;
     }
-    gchar* self = g_file_read_link("/proc/self/exe", nullptr);
-    if (!self) {
+    // (not /proc/self/exe as it is: after an update replaced the binary it ends in " (deleted)", and the restart
+    // silently failed, 2026-10-17 23:04)
+    const std::string self = Util::getExeFile().string();
+    if (!g_file_test(self.c_str(), G_FILE_TEST_IS_EXECUTABLE)) {
+        g_warning("Could not restart xournalai: %s is gone", self.c_str());
         return;
     }
     const std::string next = std::to_string(n + 1);
-    gchar* exe = g_shell_quote(self);
+    gchar* exe = g_shell_quote(self.c_str());
     const std::string script = "sleep 2; XOURNALAI_RELAUNCHES=" + next + " exec " + exe;
     const gchar* argv[] = {"/bin/sh", "-c", script.c_str(), nullptr};
     GError* err = nullptr;
@@ -50,10 +54,9 @@ void relaunch() {
         g_warning("Could not restart xournalai: %s", err ? err->message : "?");
         g_clear_error(&err);
     } else {
-        g_message("Restarting xournalai in 2 s (the rescued document will be offered)");
+        g_message("Restarting xournalai in 2 s (the rescued document will be offered): %s", self.c_str());
     }
     g_free(exe);
-    g_free(self);
 }
 }  // namespace
 

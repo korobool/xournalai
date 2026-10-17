@@ -11,6 +11,8 @@
 #include <libsoup/soup.h>
 #include <unistd.h>  // for setsid
 
+#include "util/PathUtil.h"  // for getExeFile
+
 #include "Json.h"
 #include "McpConfig.h"
 #include "McpProtocol.h"
@@ -499,11 +501,8 @@ int runStdioBridge(const char* executable) {
     b.url = b.cfg.url();
     if (executable && *executable) {
         b.executable = executable;
-    } else if (char* self = g_file_read_link("/proc/self/exe", nullptr)) {
-        b.executable = self;
-        g_free(self);
     } else {
-        b.executable = "xournalpp";
+        b.executable = Util::getExeFile().string();
     }
     b.http = soup_session_new_with_options("timeout", 0u, "idle-timeout", 0u, nullptr);
     b.loop = g_main_loop_new(nullptr, false);

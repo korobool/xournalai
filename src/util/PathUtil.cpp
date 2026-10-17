@@ -102,6 +102,17 @@ auto Util::getExePath() -> fs::path {
     ssize_t count = readlink("/proc/self/exe", result.data(), PATH_MAX);
     return fs::path{std::string(result.data(), as_unsigned(std::max(ssize_t{0}, count)))}.parent_path();
 }
+
+auto Util::getExeFile() -> fs::path {
+    std::array<char, PATH_MAX> result{};
+    ssize_t count = readlink("/proc/self/exe", result.data(), PATH_MAX);
+    std::string path(result.data(), as_unsigned(std::max(ssize_t{0}, count)));
+    constexpr std::string_view deleted = " (deleted)";
+    if (path.size() > deleted.size() && path.compare(path.size() - deleted.size(), deleted.size(), deleted) == 0) {
+        path.resize(path.size() - deleted.size());
+    }
+    return path.empty() ? fs::path("xournalpp") : fs::path(path);
+}
 #endif
 #endif
 

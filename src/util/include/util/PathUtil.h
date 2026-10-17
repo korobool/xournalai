@@ -158,6 +158,11 @@ auto system_single_byte_filename(const fs::path& path) -> std::string;
 [[maybe_unused]] [[nodiscard]] fs::path getDataPath();
 [[maybe_unused]] [[nodiscard]] fs::path getLocalePath();
 [[maybe_unused]] [[nodiscard]] fs::path getExePath();  ///< folder containing the executable
+#if !defined(_WIN32) && !defined(__APPLE__)
+/// (xournalai) This running executable, also after an update replaced its file (/proc/self/exe then names it
+/// "<path> (deleted)"; the path itself is the updated one). "xournalpp" if unknown.
+[[maybe_unused]] [[nodiscard]] fs::path getExeFile();
+#endif
 fs::path getBuiltInPaletteDirectoryPath();
 fs::path getCustomPaletteDirectoryPath();
 
