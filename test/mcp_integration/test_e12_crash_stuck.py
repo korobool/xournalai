@@ -1,6 +1,7 @@
 """E12: a crash whose handler hangs (2026-10-17: heap corruption left the allocator's lock held, the crash handler
 waited for it forever, and the dead app kept its window, its MCP port and its helpers, so the next start's AI terminal
-could not connect). Now the hang watchdog rescues the document and ends the app."""
+could not connect). Now the hang watchdog rescues the document and ends the app, and the crashing thread's stack is
+written first, without allocating."""
 
 import pathlib
 import subprocess
@@ -38,3 +39,9 @@ def test_1_a_stuck_crash_handler_rescues_and_ends_the_app(app):
     log = app.read_log()
     assert "[Crash Handler] Crashed 1 time(s) with signal 6" in log, log[-2000:]
     assert "the crash handler is stuck: ending the app" in log, log[-2000:]
+    # the evidence is written first, without allocating: the crashing thread's stack, in the log and in crash.log
+    crash = (app.home / "cache" / "xournalai" / "crash.log").read_text()
+    assert "xournalai crashed: signal 6" in crash and "xournalai " in crash, crash[:500]
+    frames = crash.split("the crashing thread:", 1)[1]
+    assert len([l for l in frames.splitlines() if "xournalpp" in l or "lib" in l]) >= 5, frames[:1000]
+    assert "xournalai crashed: signal 6" in log

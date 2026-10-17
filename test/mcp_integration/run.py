@@ -26,11 +26,14 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("files", nargs="*", help="substrings of scenario file names")
     ap.add_argument("-k", default="", help="substring of test names")
+    ap.add_argument("--file", action="append", default=[], help="a scenario file to run (any name, e.g. a soak)")
     opts = ap.parse_args()
 
     files = sorted(HERE.glob("test_*.py"))
     if opts.files:
         files = [f for f in files if any(s in f.name for s in opts.files)]
+    if opts.file:
+        files = [pathlib.Path(p).resolve() for p in opts.file]
     LOG.parent.mkdir(exist_ok=True)
     log = LOG.open("w")
 

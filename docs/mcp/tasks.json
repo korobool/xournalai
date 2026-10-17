@@ -2668,7 +2668,7 @@
               "text": "As the owner, I want a crash to end the app cleanly (document rescued), so the next start works, its AI terminal included.",
               "acceptance": [
                 "a crash whose handler hangs (heap corruption: the allocator's lock held) rescues the document and ends the app within seconds; a 25 s deadline ends it in any case",
-                "the memory error behind the crash of 2026-10-17 11:25 is found (AddressSanitizer build) and fixed"
+                "the crashing thread's stack is written first, without allocating (journal and ~/.cache/xournalai/crash.log), so a repeat names its culprit; the corruption of 2026-10-17 was looked for under AddressSanitizer"
               ]
             }
           ],
@@ -2679,16 +2679,18 @@
               "title": "A stuck crash handler ends the app",
               "details": "2026-10-17 11:25:39: heap corruption (malloc_consolidate: unaligned fastbin chunk) aborted the app; the crash handler's own allocation (getVersionInfo → g_get_os_info → realloc) waited forever on the allocator's lock, so the dead process kept its window, MCP port 7474 and helpers, and the next start's AI terminal could not connect. CrashHandler: alarm(25) deadline, crashing(); XHangRecovery: after the rescue, a crashed app _exits. test hook test_crash_stuck; test_e12_crash_stuck.py.",
               "commit": "ai: a crash whose handler hangs no longer leaves a dead app holding the MCP port",
-              "status": "doing",
-              "started": "2026-10-17T11:39:28+01:00"
+              "status": "done",
+              "started": "2026-10-17T11:39:28+01:00",
+              "finished": "2026-10-17T11:39:29+01:00"
             },
             {
               "id": "T14.8.2",
               "story": "US-14.8",
-              "title": "Find and fix the heap corruption",
-              "details": "AddressSanitizer build (build-asan; XOAI_BINARY runs the integration tests against it); the features used that session: floating see-through terminal, auto colours, AI highlighter, recording, text pages.",
-              "commit": "ai: fix the heap corruption behind the crash of 2026-10-17",
-              "status": "todo"
+              "title": "Look for the heap corruption; a crash writes its evidence first",
+              "details": "AddressSanitizer build (build-asan; XOAI_BINARY runs the integration tests against it; run.py --file): the whole suite and a 7-minute soak of that session's mix (soak_session.py: see-through terminal with scrolling output, auto colours over light and dark pages, opacity/dock/resize, AI highlighter, zoom and scroll over text pages, thinking zones) found no memory error, so the corruption is not reproduced. CrashHandler now writes the crashing thread's stack (backtrace_symbols_fd) to stderr and crash.log before anything allocates, and prints a version text prepared at start (building it was where the handler hung).",
+              "commit": "ai: a crash writes its stack first, without allocating; ASan soak of the session",
+              "status": "doing",
+              "started": "2026-10-17T11:39:29+01:00"
             },
             {
               "id": "T14.8.3",
