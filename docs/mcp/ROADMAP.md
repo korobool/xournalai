@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.12.4**
+Current version: **1.12.5**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -907,5 +907,5 @@ Besides the AI lasso (mark first, then say), the owner can highlight what they m
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
 | T14.10.1 | US-14.10 | **SIGTERM no longer crashes at exit** — 2026-10-17 23:36: SIGTERM (force close: emergency save, then exit(1)) ended in 'terminate called without an active exception': the stall watchdog's static std::thread was still joinable when exit() ran the static destructors, so every logout or kill was a crash. StallWatch stops itself at exit (atexit, before the thread's destructor); stop() detaches when exit() runs on the watchdog itself. test_e12_sigterm: SIGTERM to the app alone (the harness's group kill ended Xvfb first, hiding it). | `ai: SIGTERM no longer crashes xournalai at exit (T14.10.1)` | ✅ done `c361face9` |
-| T14.10.2 | US-14.10 | **An X error during drawing is logged and survived** — 2026-10-18 00:00:08: the app ended with SIGTRAP in GDK's X error handler, reached from GTK's drawing (cairo_mask -> XRenderCreatePicture; the error came in with the events). Its text was lost (stderr went to a deleted file). Xlib asks the display's wire-to-error converters (XESetWireToError) before the error handler, for every error; ours logs and drops RENDER's errors and BadAlloc, and passes the rest on (GDK and its traps unchanged). XESetError was no use: Xlib lets extensions suppress only errors seen by _XReply. app_status ui.x_errors_survived; test hook test_x_error (a FreePicture of no picture: BadPicture); test_e12_x_error. | `ai: an X error during drawing is logged and survived (T14.10.2)` | ✅ done |
-| T14.10.3 | US-14.10 | **Release 1.12.5** —  | ` (T14.10.3)` | ⬜ todo |
+| T14.10.2 | US-14.10 | **An X error during drawing is logged and survived** — 2026-10-18 00:00:08: the app ended with SIGTRAP in GDK's X error handler, reached from GTK's drawing (cairo_mask -> XRenderCreatePicture; the error came in with the events). Its text was lost (stderr went to a deleted file). Xlib asks the display's wire-to-error converters (XESetWireToError) before the error handler, for every error; ours logs and drops RENDER's errors and BadAlloc, and passes the rest on (GDK and its traps unchanged). XESetError was no use: Xlib lets extensions suppress only errors seen by _XReply. app_status ui.x_errors_survived; test hook test_x_error (a FreePicture of no picture: BadPicture); test_e12_x_error. | `ai: an X error during drawing is logged and survived (T14.10.2)` | ✅ done `60f765233` |
+| T14.10.3 | US-14.10 | **Release 1.12.5** — Full check: build-noterm and build-nomcp ok; unit tests 204/208 (the ControlLoadHandler group that fails under parallel ctest, all pass on rerun); integration 247/247. | `ai: release 1.12.5 (closing and X errors do not crash the app) (T14.10.3)` | ✅ done |

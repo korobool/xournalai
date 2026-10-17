@@ -10,6 +10,15 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.12.5 — Closing and X errors do not crash the app
+- **SIGTERM no longer crashes xournalai.** A logout or `kill` saved the document for recovery and then crashed at exit
+  ("terminate called without an active exception"), because the freeze watchdog's thread was still running when the
+  app's static objects were destroyed. The watchdog now stops itself at exit.
+- **An X error during drawing no longer ends the app.** On 2026-10-18 at 00:00 GDK ended the app on an X error that
+  came back while GTK drew a widget (`cairo_mask` → `XRenderCreatePicture`). RENDER's errors and BadAlloc are now
+  logged in the journal with the request they answer, and the app goes on (at worst one frame is drawn incompletely);
+  GDK still handles every other error. `app_status` counts them (`ui.x_errors_survived`).
+
 ## 1.12.4 — A freeze restarts one app, and its report names the X request
 - **After a freeze, one app comes back, not two.** On 2026-10-17 at 22:44 the X server stopped answering the app; the
   watchdog rescued the document and restarted xournalai, as designed. At the same moment the MCP bridge of the agent
