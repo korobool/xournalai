@@ -9,7 +9,7 @@
 #include "control/Control.h"         // for Control
 #include "control/ToolEnums.h"       // for toolTypeToString
 #include "control/ToolHandler.h"     // for ToolHandler
-#include "control/XHangRecovery.h"   // for xRequestsLogged
+#include "control/XHangRecovery.h"   // for xRequestsLogged, xErrorsSurvivedCount
 #include "mcp/McpConfig.h"
 #include "mcp/McpHttpServer.h"
 #include "mcp/McpServer.h"
@@ -63,7 +63,8 @@ static json uiStalls() {
     return {{"stalls", sum.count},
             {"longest_stall_ms", sum.maxUs / 1000},
             {"recent_stalls", recent},
-            {"x_requests_logged", xRequestsLogged()}};  // (0: a freeze report could not name the X requests)
+            {"x_requests_logged", xRequestsLogged()},  // (0: a freeze report could not name the X requests)
+            {"x_errors_survived", xErrorsSurvivedCount()}};
 }
 
 /// Local speech to text for Ask: state (unavailable, downloading, starting, ready, listening, transcribing), model

@@ -13,6 +13,7 @@
 #include "control/Control.h"                 // for Control
 #include "control/CrashHandler.h"            // for simulateStuckCrashHandler
 #include "control/RecordingObserver.h"       // for recordingObserver
+#include "control/XHangRecovery.h"           // for provokeRenderError
 #include "control/settings/Settings.h"       // for Settings
 #include "control/settings/SettingsEnums.h"  // for InputDeviceTypeOption
 #include "control/zoom/ZoomControl.h"        // for ZoomControl
@@ -138,6 +139,21 @@ void registerTestTools(McpServer& server) {
         return ToolResult::structured({});
     };
     server.getRegistry().addTool(std::move(crash));
+
+    ToolSpec xError;
+    xError.name = "test_x_error";
+    xError.title = "Test hook: an X error";
+    xError.description = "Test hook (XOURNALAI_TEST_HOOKS=1 only): sends a RENDER request the X server answers with "
+                         "an error (BadPicture), as during GTK's drawing on 2026-10-18. The app must log it and live.";
+    xError.inputSchema = schema::object({}, {});
+    xError.tier = Tier::Ui;
+    xError.handler = [](const json&) -> ToolResult {
+        if (!provokeRenderError()) {
+            throw ToolError("No X11 display with the error hook");
+        }
+        return ToolResult::structured({{"sent", true}});
+    };
+    server.getRegistry().addTool(std::move(xError));
 
     ToolSpec pen;
     pen.name = "test_pen";

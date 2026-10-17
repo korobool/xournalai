@@ -20,3 +20,8 @@ void installXHangRecovery();
 
 /// The requests the X request log has noted so far (0: the log is off, and HANG reports cannot name requests)
 uint64_t xRequestsLogged();
+
+/// X errors logged and dropped instead of ending the app (RENDER's and BadAlloc; GDK ends it on the others)
+uint64_t xErrorsSurvivedCount();
+/// (Tests) Sends a RENDER request that the server answers with an error; false off X11
+bool provokeRenderError();

@@ -295,8 +295,59 @@ std::string probeResult() {
     return "a second connection has no answer either (" +
            std::to_string((g_get_monotonic_time() - probe.startUs) / 1000) + " ms)";
 }
+
+// X errors: GDK ends the app on any it did not trap (2026-10-18 00:00, in GTK's drawing: cairo_mask ->
+// XRenderCreatePicture; its message went to a lost stderr). Xlib asks the display's wire-to-error converters before
+// the error handler, and one that answers False drops the error: the RENDER ones (cairo's drawing, a frame may come
+// out incomplete) and BadAlloc are logged and dropped there; the rest still reach GDK, its traps included.
+using WireToError = Bool (*)(Display*, XErrorEvent*, void*);
+WireToError previousWireToError[256] = {};
+std::atomic<uint64_t> xErrorsSurvived{0};
+std::atomic<Display*> errorDisplay{nullptr};
+
+Bool onWireError(Display* d, XErrorEvent* e, void* wire) {
+    const auto ext = extensionNames.find(e->request_code);
+    const bool render = ext != extensionNames.end() && ext->second == "RENDER";
+    if (render || e->error_code == BadAlloc) {
+        xErrorsSurvived++;
+        char text[96] = "";
+        XGetErrorText(d, e->error_code, text, sizeof text);
+        g_warning("X error '%s' (code %d) for request %s on 0x%lx: ignored (a frame may be drawn incompletely)", text,
+                  e->error_code,
+                  describe({e->serial, static_cast<uint8_t>(e->request_code), static_cast<uint8_t>(e->minor_code)})
+                          .c_str(),
+                  e->resourceid);
+        return False;
+    }
+    const WireToError previous = previousWireToError[e->error_code];
+    return previous ? previous(d, e, wire) : True;
+}
 }  // namespace
 #endif
+
+uint64_t xErrorsSurvivedCount() {
+#ifdef GDK_WINDOWING_X11
+    return xErrorsSurvived.load();
+#else
+    return 0;
+#endif
+}
+
+bool provokeRenderError() {
+#ifdef GDK_WINDOWING_X11
+    Display* d = errorDisplay.load();
+    using FreePicture = void (*)(Display*, unsigned long);
+    auto freePicture = d ? lookup<FreePicture>("XRenderFreePicture") : nullptr;
+    if (!freePicture) {
+        return false;
+    }
+    freePicture(d, 0x7fffff);  // (no such picture: BadPicture, which GDK would end the app for)
+    XFlush(d);
+    return true;
+#else
+    return false;
+#endif
+}
 
 namespace {
 /// The UI thread froze in the crash handler (stuck on the allocator's lock after heap corruption): the document is
@@ -336,6 +387,13 @@ void installXHangRecovery() {
                 }
             }
             XFreeExtensionList(names);
+        }
+        using SetWireToError = WireToError (*)(Display*, int, WireToError);
+        if (auto setWireToError = lookup<SetWireToError>("XESetWireToError")) {
+            for (int code = 1; code < 256; code++) {
+                previousWireToError[code] = setWireToError(x, code, onWireError);
+            }
+            errorDisplay = x;
         }
         // (libX11-xcb, loaded here: no build dependency. GDK does not link it, and whether audio had loaded it by
         // now was a race: on the owner's laptop the log never ran, so no HANG report named a request)
