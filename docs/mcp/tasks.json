@@ -2771,6 +2771,32 @@
               "finished": "2026-10-17T23:37:59+01:00"
             }
           ]
+        },
+        {
+          "id": "S14.10",
+          "title": "Closing and X errors do not crash the app",
+          "version": "1.12.5",
+          "stories": [
+            {
+              "id": "US-14.10",
+              "text": "As the owner, I want a logout or kill to close xournalai cleanly, and an X error to be reported instead of ending the app.",
+              "acceptance": [
+                "SIGTERM saves the document for recovery and exits without a crash",
+                "an X protocol error during drawing names the failing request and does not end the app"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T14.10.1",
+              "story": "US-14.10",
+              "title": "SIGTERM no longer crashes at exit",
+              "details": "2026-10-17 23:36: SIGTERM (force close: emergency save, then exit(1)) ended in 'terminate called without an active exception': the stall watchdog's static std::thread was still joinable when exit() ran the static destructors, so every logout or kill was a crash. StallWatch stops itself at exit (atexit, before the thread's destructor); stop() detaches when exit() runs on the watchdog itself. test_e12_sigterm: SIGTERM to the app alone (the harness's group kill ended Xvfb first, hiding it).",
+              "commit": "ai: SIGTERM no longer crashes xournalai at exit",
+              "status": "done",
+              "finished": "2026-10-18T00:09:31+01:00"
+            }
+          ]
         }
       ]
     }

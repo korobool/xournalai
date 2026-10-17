@@ -4,6 +4,7 @@
 #include <atomic>     // for atomic
 #include <chrono>     // for milliseconds
 #include <cstdio>     // for FILE, fprintf
+#include <cstdlib>    // for atexit
 #include <deque>      // for deque
 #include <mutex>      // for mutex, lock_guard
 #include <thread>     // for thread, this_thread
@@ -326,6 +327,10 @@ void start() {
     beatSource = g_timeout_add_full(G_PRIORITY_HIGH, BEAT_US / 1000, onBeat, nullptr, nullptr);
     running = true;
     watchdog = std::thread(watch);
+    // exit() (SIGTERM's force close) must not destroy the thread still joinable: that is std::terminate, a crash at
+    // every SIGTERM (2026-10-17). atexit runs before the static thread's destructor.
+    static const bool stopsAtExit = std::atexit([] { stop(); }) == 0;
+    (void)stopsAtExit;
 }
 
 void stop() {
@@ -334,7 +339,11 @@ void stop() {
     }
     running = false;
     if (watchdog.joinable()) {
-        watchdog.join();
+        if (watchdog.get_id() == std::this_thread::get_id()) {
+            watchdog.detach();  // (exit() called from the watchdog itself)
+        } else {
+            watchdog.join();
+        }
     }
     if (beatSource) {
         g_source_remove(beatSource);
