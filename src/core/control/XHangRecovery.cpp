@@ -18,11 +18,16 @@
 #include <atomic>  // for atomic
 #include <map>     // for map
 
+#include <chrono>   // for milliseconds
+#include <cstdlib>  // for free
+#include <thread>   // for thread, sleep_for
+
 #include <X11/Xlib.h>    // for NextRequest, LastKnownRequestProcessed, ConnectionNumber
 #include <dlfcn.h>       // for dlopen, dlsym
 #include <gdk/gdkx.h>    // for GDK_IS_X11_DISPLAY, gdk_x11_display_get_xdisplay
 #include <sys/socket.h>  // for shutdown
 #include <sys/uio.h>     // for iovec
+#include <xcb/xcb.h>     // (types only: the functions are looked up, libX11 loads libxcb)
 #endif
 
 namespace {
@@ -231,6 +236,66 @@ extern "C" int xcb_writev(void* c, struct iovec* vector, int count, uint64_t req
     }
     return real(c, vector, count, requests);
 }
+
+namespace {
+/// A second connection's round trip, started when a hang is reported: does the X server answer anyone? Answered
+/// while this app waits, the server ignores only this app; not answered, it is busy or someone grabbed it.
+struct Probe {
+    std::atomic<uint64_t> hang{0};  ///< the hang it is for (this app's last sent request)
+    std::atomic<int64_t> startUs{0};
+    std::atomic<int64_t> answeredUs{0};
+    std::atomic<bool> failed{false};
+};
+Probe probe;
+
+template <typename F>
+F lookup(const char* name) {
+    return reinterpret_cast<F>(dlsym(RTLD_DEFAULT, name));
+}
+
+void probeServer(const char* displayName, uint64_t hang) {
+    if (probe.hang.exchange(hang) == hang) {
+        return;  // (already asked during this hang)
+    }
+    probe.answeredUs = 0;
+    probe.failed = false;
+    probe.startUs = g_get_monotonic_time();
+    std::thread([name = std::string(displayName ? displayName : "")] {
+        auto connect = lookup<decltype(&xcb_connect)>("xcb_connect");
+        auto hasError = lookup<decltype(&xcb_connection_has_error)>("xcb_connection_has_error");
+        auto ask = lookup<decltype(&xcb_get_input_focus)>("xcb_get_input_focus");
+        auto reply = lookup<decltype(&xcb_get_input_focus_reply)>("xcb_get_input_focus_reply");
+        auto disconnect = lookup<decltype(&xcb_disconnect)>("xcb_disconnect");
+        if (!connect || !hasError || !ask || !reply || !disconnect) {
+            probe.failed = true;
+            return;
+        }
+        xcb_connection_t* c = connect(name.c_str(), nullptr);  // (a silent server keeps this thread: harmless)
+        if (hasError(c)) {
+            probe.failed = true;
+        } else {
+            free(reply(c, ask(c), nullptr));
+            probe.answeredUs = g_get_monotonic_time();
+        }
+        disconnect(c);
+    }).detach();
+}
+
+std::string probeResult() {
+    if (!probe.startUs) {
+        return "";
+    }
+    if (probe.failed) {
+        return "a second connection fails";
+    }
+    if (const int64_t answered = probe.answeredUs) {
+        return "a second connection was answered in " + std::to_string((answered - probe.startUs) / 1000) +
+               " ms (the server serves others)";
+    }
+    return "a second connection has no answer either (" +
+           std::to_string((g_get_monotonic_time() - probe.startUs) / 1000) + " ms)";
+}
+}  // namespace
 #endif
 
 namespace {
@@ -283,20 +348,30 @@ void installXHangRecovery() {
             tracedConnection = getXcb(x);
             tracedDisplay = x;
         }
-        xoj::util::stall::setHangReporter([x] {
+        const std::string displayName = DisplayString(x);
+        xoj::util::stall::setHangReporter([x, displayName] {
             const uint64_t answered = LastKnownRequestProcessed(x);
             const uint64_t sent = NextRequest(x) - 1;
-            return "X: last request sent #" + std::to_string(sent) + ", last answered #" + std::to_string(answered) +
+            probeServer(displayName.c_str(), sent);
+            return "X: " + probeResult() + "; last request sent #" + std::to_string(sent) + ", last answered #" +
+                   std::to_string(answered) +
                    "; unanswered: " + requestsSince(std::max(answered + 1, sent > 15 ? sent - 15 : 0)) +
                    " | before: " + requestsSince(answered > 6 ? answered - 6 : 0) + " | logged " +
                    (tracedDisplay.load() ? std::to_string(ringNext.load()) : std::string("nothing (log off)"));
         });
-        xoj::util::stall::setHangHandler(afterUs, [fd] {
+        xoj::util::stall::setHangHandler(afterUs, [fd, x, displayName] {
+            probeServer(displayName.c_str(), NextRequest(x) - 1);  // (asked at the first report, if tracing)
             rescueSave();
             endIfCrashed();
+            for (int i = 0; i < 20 && !probe.answeredUs && !probe.failed &&
+                            g_get_monotonic_time() - probe.startUs < 2 * G_USEC_PER_SEC;
+                 i++) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
             // waiting for a reply, or to send (the server stopped reading): either way stuck on the X server
             const bool onX = xoj::util::stall::uiThreadIn({"libxcb.so"});
-            g_message("Frozen: the UI thread is %s", onX ? "waiting on the X server" : "busy (not on X)");
+            g_message("Frozen: the UI thread is %s; %s", onX ? "waiting on the X server" : "busy (not on X)",
+                      probeResult().c_str());
             if (onX) {
                 g_warning("The X server does not answer (the UI waits for it): closing the display connection; "
                           "your document was rescued and is offered on the next start");

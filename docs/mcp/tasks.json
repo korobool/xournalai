@@ -2757,7 +2757,8 @@
               "title": "A freeze report says whether the X server answers others",
               "details": "23:17 the first freeze with the request log on: the server answered up to CopyArea (the end of a frame) and nothing after (FreePicture, FreePixmap, SYNC SetCounter, then GDK's GetProperty for an event), and only the UI thread was in X. To tell a server that ignores only this app from one that is busy or grabbed, the first HANG report opens a second connection (xcb, its own thread) and times a round trip; HANG lines and the journal's 'Frozen' message say whether it was answered.",
               "commit": "ai: a freeze report says whether the X server answers a second connection",
-              "status": "todo"
+              "status": "done",
+              "finished": "2026-10-17T23:24:30+01:00"
             },
             {
               "id": "T14.9.5",
