@@ -10,6 +10,27 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.12.4 — A freeze restarts one app, and its report names the X request
+- **After a freeze, one app comes back, not two.** On 2026-10-17 at 22:44 the X server stopped answering the app; the
+  watchdog rescued the document and restarted xournalai, as designed. At the same moment the MCP bridge of the agent
+  in the dying app's AI terminal started a second app for a tool call. That one took port 7474 and the rescued
+  document, and the restarted one had no MCP server, so its AI terminal could not work. Once a bridge has seen the app
+  running, it no longer starts one: a tool call while the app is closed or restarting is answered with "not open, try
+  again in a few seconds", and the tools come back when the app does.
+- **Freeze reports can name the X request again.** The log of recent X requests started only if another library had
+  already loaded libX11-xcb, which on the laptop it had not, so none of its 29 freeze reports named a request. The
+  app now loads it itself; HANG lines say how many requests were logged, and `app_status` shows it
+  (`ui.x_requests_logged`).
+- **The restart after a freeze works after an update.** At 23:04 and 23:17 the frozen app was rescued and closed,
+  but its restart never came: an install had replaced the binary while the app ran, so the path it restarts from
+  (`/proc/self/exe`) ended in " (deleted)". The app now uses the updated binary's path for the restart, and also for
+  the agent's MCP command and hooks; it warns if the file is gone.
+- **A freeze report says whether the X server answers others.** The first report from 23:17 shows the server stopped
+  after the end of a frame (`CopyArea`) and never answered what followed (`FreePicture`, `FreePixmap`, `SYNC
+  SetCounter`, GDK's `GetProperty`). Now the report also opens a second connection to the server and times one round
+  trip: answered means the server ignores only this app, unanswered means it is busy or held by another client. The
+  answer is in the HANG line and in the journal's "Frozen" message.
+
 ## 1.12.3 — A crash never leaves a dead app behind
 - **A crash whose handler hangs now ends the app.** On 2026-10-17 heap corruption aborted the app, and the crash
   handler then waited forever for the allocator's lock (its own allocation). The dead process kept its window, MCP port

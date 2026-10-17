@@ -2764,10 +2764,11 @@
               "id": "T14.9.5",
               "story": "US-14.9",
               "title": "Release 1.12.4",
-              "details": "",
-              "commit": "",
-              "status": "doing",
-              "started": "2026-10-17T23:02:37+01:00"
+              "details": "Full check: build-noterm and build-nomcp ok; unit tests 204/208 (the ControlLoadHandler group that fails under parallel ctest, all pass on rerun); integration 244/245 (test_e13 test_7_record_button_beside_tools failed once, its file passes 17/17 on rerun).",
+              "commit": "ai: release 1.12.4 (a freeze restarts one app, and its report names the X request)",
+              "status": "done",
+              "started": "2026-10-17T23:02:37+01:00",
+              "finished": "2026-10-17T23:37:59+01:00"
             }
           ]
         }
