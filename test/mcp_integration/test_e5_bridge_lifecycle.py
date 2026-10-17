@@ -85,10 +85,11 @@ def test_bridge_waits_for_the_app(app):
         st = b.request("tools/call", {"name": "app_status", "arguments": {}})
         assert st["result"]["structuredContent"]["app"] == "xournalai"
 
-        later.stop()  # the user closes it: the tools stay listed, calls ask for the app instead of relaunching it
-        assert len(b.request("tools/list")["result"]["tools"]) > 50
-        r = b.request("tools/call", {"name": "doc_info", "arguments": {}})["result"]
+        later.stop()  # the user closes it (or it restarts itself after a freeze): calls ask for the app instead of
+        # starting another one, also when a call comes first (2026-10-17: such a call started a second app)
+        r = b.request("tools/call", {"name": "doc_info", "arguments": {}}, timeout=10)["result"]
         assert r["isError"] and "not open" in r["content"][0]["text"]
+        assert len(b.request("tools/list")["result"]["tools"]) > 50  # the tools stay listed
         time.sleep(1)
         assert subprocess.run(["pgrep", "-f", f"xournalpp --mcp --mcp-port={later.port}"], capture_output=True,
                               text=True).stdout.strip() == "", "a closed app must not be reopened by the agent"

@@ -2704,6 +2704,50 @@
               "finished": "2026-10-17T12:17:17+01:00"
             }
           ]
+        },
+        {
+          "id": "S14.9",
+          "title": "A freeze restarts one app, and its report names the X request",
+          "version": "1.12.4",
+          "stories": [
+            {
+              "id": "US-14.9",
+              "text": "As the owner, I want a frozen app to come back as exactly one app with my document, its AI terminal working, and the freeze report to say what the X server left unanswered.",
+              "acceptance": [
+                "once an agent's bridge has seen the app running, it never starts another: a tool call while the app is closed or restarting is answered with 'not open', and the tools come back when the restarted app appears",
+                "the X request log runs on the owner's laptop (app_status ui.x_requests_logged > 0), so the next HANG report names the unanswered requests"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T14.9.1",
+              "story": "US-14.9",
+              "title": "An agent's bridge never starts a second app after a freeze",
+              "details": "2026-10-17 22:44: the X server stopped answering (UI thread in XSync from GDK's paint); the watchdog rescued the document and restarted the app, and at the same moment the bridge of the agent in the dying app's AI terminal got 'connection refused' on a tool call and started another app (--mcp, in the terminal's scope). That one took port 7474 and the rescue; the restarted one had the file but no MCP port. The bridge now answers a tool call offline once the app has been seen (closed or restarting) instead of starting it. test_e5_bridge_lifecycle: a call first after the app went away.",
+              "commit": "ai: an agent's bridge never starts a second app after a freeze",
+              "status": "done",
+              "started": "2026-10-17T23:01:26+01:00",
+              "finished": "2026-10-17T23:02:21+01:00"
+            },
+            {
+              "id": "T14.9.2",
+              "story": "US-14.9",
+              "title": "The X request log runs on the laptop",
+              "details": "None of the 29 HANG reports on the laptop named a request, though the log works in tests: it was enabled only if XGetXCBConnection (libX11-xcb) was already loaded when the watchdog started, and nothing but PulseAudio's library loads it (a race). Now dlopen'ed; HANG lines say how many requests were logged; app_status ui.x_requests_logged.",
+              "commit": "ai: the X request log runs on the laptop; app_status counts what it logged",
+              "status": "doing",
+              "started": "2026-10-17T23:01:26+01:00"
+            },
+            {
+              "id": "T14.9.3",
+              "story": "US-14.9",
+              "title": "Release 1.12.4",
+              "details": "",
+              "commit": "",
+              "status": "todo"
+            }
+          ]
         }
       ]
     }

@@ -186,13 +186,16 @@ bool answerOffline(Bridge* b, const std::string& method, const json& id) {
         if (!b->everOnline) {
             return false;  // first use: start the application and forward
         }
-        // The user closed the application: don't reopen it behind their back
+        // The application was closed, or it is restarting after a freeze (it starts itself again): don't start
+        // another one
         if (!id.is_null()) {
             writeLine(rpc::resultResponse(
                               id, {{"content",
                                     {{{"type", "text"},
-                                      {"text", "xournalai is not open right now (the user closed it). Ask the user to "
-                                               "open xournalai, then call the tool again - no reconnect is needed."}}}},
+                                      {"text", "xournalai is not open right now (the user closed it, or it is "
+                                               "restarting after a freeze, which takes a few seconds). Call the tool "
+                                               "again in a few seconds; if it is still not open, ask the user to open "
+                                               "xournalai. No reconnect is needed."}}}},
                                    {"isError", true}})
                               .dump());
         }
@@ -362,8 +365,10 @@ void onResponse(GObject* source, GAsyncResult* res, gpointer data) {
         }
         g_object_unref(p->msg);
         p->msg = nullptr;
-        if (refused && p->method != "tools/call") {
-            // Not running: answer for it and wait for the user to start it (no window pops up by itself)
+        if (refused && (p->method != "tools/call" || b->everOnline)) {
+            // Not running: answer for it and wait for the user to start it (no window pops up by itself). A tool call
+            // after the app was seen running too: it was closed, or it restarts itself after a freeze (starting it
+            // here as well made two of them, 2026-10-17)
             if (!b->offline) {
                 log("xournalai is not running; its tools appear when it starts");
             }
