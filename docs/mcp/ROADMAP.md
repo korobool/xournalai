@@ -865,4 +865,17 @@ Besides the AI lasso (mark first, then say), the owner can highlight what they m
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
 | T14.7.1 | US-14.7 | **Adaptive voice detection and a visible countdown** — assistant/VoiceActivity: a level is voice above 3x the 10th percentile of the last ~10 s, clamped 0.005..0.02 (as the speech helper's silence check); McpUi uses it for lastVoiceUs. Countdown 5 s, tick 100 ms; QuickTools::setModeCountdown draws a draining bar on Done (xoai-mode-counting). Level meter scaled for quiet mics. VoiceActivityTest, test_e14_highlighter_quiet_voice.py. | `ai: the AI highlighter hears a quiet microphone; a visible countdown (T14.7.1)` | ✅ done `42c4bfde2` |
-| T14.7.2 | US-14.7 | **Release 1.12.2** — Changelog, version, full tests. | `ai: release 1.12.2 (T14.7.2)` | ✅ done |
+| T14.7.2 | US-14.7 | **Release 1.12.2** — Changelog, version, full tests. | `ai: release 1.12.2 (T14.7.2)` | ✅ done `8102f4366` |
+
+### S14.8 — A crash never leaves a dead app behind → v1.12.3
+
+**US-14.8** — As the owner, I want a crash to end the app cleanly (document rescued), so the next start works, its AI terminal included.
+
+- [ ] a crash whose handler hangs (heap corruption: the allocator's lock held) rescues the document and ends the app within seconds; a 25 s deadline ends it in any case
+- [ ] the memory error behind the crash of 2026-10-17 11:25 is found (AddressSanitizer build) and fixed
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T14.8.1 | US-14.8 | **A stuck crash handler ends the app** — 2026-10-17 11:25:39: heap corruption (malloc_consolidate: unaligned fastbin chunk) aborted the app; the crash handler's own allocation (getVersionInfo → g_get_os_info → realloc) waited forever on the allocator's lock, so the dead process kept its window, MCP port 7474 and helpers, and the next start's AI terminal could not connect. CrashHandler: alarm(25) deadline, crashing(); XHangRecovery: after the rescue, a crashed app _exits. test hook test_crash_stuck; test_e12_crash_stuck.py. | `ai: a crash whose handler hangs no longer leaves a dead app holding the MCP port (T14.8.1)` | 🔨 doing |
+| T14.8.2 | US-14.8 | **Find and fix the heap corruption** — AddressSanitizer build (build-asan; XOAI_BINARY runs the integration tests against it); the features used that session: floating see-through terminal, auto colours, AI highlighter, recording, text pages. | `ai: fix the heap corruption behind the crash of 2026-10-17 (T14.8.2)` | ⬜ todo |
+| T14.8.3 | US-14.8 | **Release 1.12.3** — Changelog, version, full tests. | `ai: release 1.12.3 (T14.8.3)` | ⬜ todo |

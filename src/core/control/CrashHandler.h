@@ -22,3 +22,8 @@ void emergencySave();
 bool rescueSave();
 /// A clean quit: a rescue file written by this run is not needed any more
 void discardRescue();
+/// (xournalai) A crash happened and its handler runs: a frozen UI now is that handler stuck (after heap corruption,
+/// on the allocator's lock), not a hang to wait out
+bool crashing();
+/// (tests) The next crash's handler hangs, as on the allocator's lock after heap corruption
+void simulateStuckCrashHandler();

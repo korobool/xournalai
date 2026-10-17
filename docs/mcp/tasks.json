@@ -2657,6 +2657,48 @@
               "finished": "2026-10-14T13:13:25+01:00"
             }
           ]
+        },
+        {
+          "id": "S14.8",
+          "title": "A crash never leaves a dead app behind",
+          "version": "1.12.3",
+          "stories": [
+            {
+              "id": "US-14.8",
+              "text": "As the owner, I want a crash to end the app cleanly (document rescued), so the next start works, its AI terminal included.",
+              "acceptance": [
+                "a crash whose handler hangs (heap corruption: the allocator's lock held) rescues the document and ends the app within seconds; a 25 s deadline ends it in any case",
+                "the memory error behind the crash of 2026-10-17 11:25 is found (AddressSanitizer build) and fixed"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T14.8.1",
+              "story": "US-14.8",
+              "title": "A stuck crash handler ends the app",
+              "details": "2026-10-17 11:25:39: heap corruption (malloc_consolidate: unaligned fastbin chunk) aborted the app; the crash handler's own allocation (getVersionInfo → g_get_os_info → realloc) waited forever on the allocator's lock, so the dead process kept its window, MCP port 7474 and helpers, and the next start's AI terminal could not connect. CrashHandler: alarm(25) deadline, crashing(); XHangRecovery: after the rescue, a crashed app _exits. test hook test_crash_stuck; test_e12_crash_stuck.py.",
+              "commit": "ai: a crash whose handler hangs no longer leaves a dead app holding the MCP port",
+              "status": "doing",
+              "started": "2026-10-17T11:39:28+01:00"
+            },
+            {
+              "id": "T14.8.2",
+              "story": "US-14.8",
+              "title": "Find and fix the heap corruption",
+              "details": "AddressSanitizer build (build-asan; XOAI_BINARY runs the integration tests against it); the features used that session: floating see-through terminal, auto colours, AI highlighter, recording, text pages.",
+              "commit": "ai: fix the heap corruption behind the crash of 2026-10-17",
+              "status": "todo"
+            },
+            {
+              "id": "T14.8.3",
+              "story": "US-14.8",
+              "title": "Release 1.12.3",
+              "details": "Changelog, version, full tests.",
+              "commit": "ai: release 1.12.3",
+              "status": "todo"
+            }
+          ]
         }
       ]
     }

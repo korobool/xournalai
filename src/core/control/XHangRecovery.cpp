@@ -1,14 +1,16 @@
 #include "XHangRecovery.h"
 
 #include <algorithm>  // for max
+#include <csignal>    // for SIGABRT
 #include <cstdint>    // for int64_t
 #include <cstdlib>  // for atoi
 #include <string>   // for string
 
 #include <glib.h>
+#include <unistd.h>  // for _exit
 #include <gtk/gtk.h>
 
-#include "control/CrashHandler.h"  // for rescueSave
+#include "control/CrashHandler.h"  // for rescueSave, crashing
 #include "util/StallWatch.h"       // for setHangHandler
 
 #ifdef GDK_WINDOWING_X11
@@ -228,6 +230,17 @@ extern "C" int xcb_writev(void* c, struct iovec* vector, int count, uint64_t req
 }
 #endif
 
+namespace {
+/// The UI thread froze in the crash handler (stuck on the allocator's lock after heap corruption): the document is
+/// rescued, so end the dead app now instead of leaving its window, MCP port and helpers to the next start
+void endIfCrashed() {
+    if (crashing()) {
+        g_message("Crashed, and the crash handler is stuck: ending the app (the document was rescued)");
+        _exit(128 + SIGABRT);
+    }
+}
+}  // namespace
+
 void installXHangRecovery() {
     const char* after = g_getenv("XOURNALAI_RESCUE_AFTER_MS");  // (tests)
     const int64_t afterUs = after ? g_ascii_strtoll(after, nullptr, 10) * 1000 : 15 * G_USEC_PER_SEC;
@@ -263,6 +276,7 @@ void installXHangRecovery() {
         });
         xoj::util::stall::setHangHandler(afterUs, [fd] {
             rescueSave();
+            endIfCrashed();
             // waiting for a reply, or to send (the server stopped reading): either way stuck on the X server
             const bool onX = xoj::util::stall::uiThreadIn({"libxcb.so"});
             g_message("Frozen: the UI thread is %s", onX ? "waiting on the X server" : "busy (not on X)");
@@ -276,5 +290,8 @@ void installXHangRecovery() {
         return;
     }
 #endif
-    xoj::util::stall::setHangHandler(afterUs, [] { rescueSave(); });
+    xoj::util::stall::setHangHandler(afterUs, [] {
+        rescueSave();
+        endIfCrashed();
+    });
 }

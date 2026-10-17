@@ -3,6 +3,7 @@
 // test_touch feeds synthetic touchscreen events into the canvas through GTK's normal event path (including the
 // scrolled window's capture-phase gestures), so pinch zoom can be tested on a display without a touchscreen.
 
+#include <csignal>       // for raise, SIGABRT
 #include <map>           // for map
 #include <shared_mutex>  // for shared_lock
 
@@ -10,6 +11,7 @@
 
 #include "assistant/SpeechToText.h"          // for SpeechToText
 #include "control/Control.h"                 // for Control
+#include "control/CrashHandler.h"            // for simulateStuckCrashHandler
 #include "control/RecordingObserver.h"       // for recordingObserver
 #include "control/settings/Settings.h"       // for Settings
 #include "control/settings/SettingsEnums.h"  // for InputDeviceTypeOption
@@ -121,6 +123,21 @@ void registerTestTools(McpServer& server) {
         return ToolResult::structured({{"blocked_ms", ms}});
     };
     server.getRegistry().addTool(std::move(block));
+
+    ToolSpec crash;
+    crash.name = "test_crash_stuck";
+    crash.title = "Test hook: a crash whose handler hangs";
+    crash.description = "Test hook (XOURNALAI_TEST_HOOKS=1 only): aborts on the UI thread with the crash handler "
+                        "stuck, as after heap corruption (the allocator's lock held). The app must rescue the "
+                        "document and end by itself.";
+    crash.inputSchema = schema::object({}, {});
+    crash.tier = Tier::Ui;
+    crash.handler = [](const json&) -> ToolResult {
+        simulateStuckCrashHandler();
+        std::raise(SIGABRT);
+        return ToolResult::structured({});
+    };
+    server.getRegistry().addTool(std::move(crash));
 
     ToolSpec pen;
     pen.name = "test_pen";

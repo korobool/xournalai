@@ -9,6 +9,7 @@
 
 #ifdef __unix__
 #include <glib-unix.h>  // for g_unix_signal_add
+#include <unistd.h>     // for alarm, pause
 #endif
 
 #include "control/xojfile/SaveHandler.h"  // for SaveHandler
@@ -22,6 +23,12 @@
 static std::atomic<const Document*> document = nullptr;
 static std::atomic<int> alreadyCrashed = 0;
 static std::atomic<bool> rescued = false;  // this run wrote a rescue file
+static std::atomic<bool> stuckForTests = false;
+/// (xournalai) A crash handler still running after this long is stuck: the process ends
+constexpr unsigned CRASH_DEADLINE_S = 25;
+
+bool crashing() { return alreadyCrashed > 0; }
+void simulateStuckCrashHandler() { stuckForTests = true; }
 
 extern "C" void forceClose(int sig) {
     g_warning("Force close requested with signal %i", sig);
@@ -90,10 +97,24 @@ void discardRescue() {
 /// Print a backtrace and try to make an emergency save
 extern "C" void crashHandler(int sig) {
     int crash = ++alreadyCrashed;
+#ifdef __unix__
+    if (crash == 1) {
+        // (xournalai) After heap corruption the allocator's lock stays held and the allocations below wait for it
+        // forever: the dead app kept its window, its MCP port (the next start's AI terminal could not connect) and its
+        // helpers (2026-10-17). A deadline ends it; the hang watchdog rescues the document and ends it sooner.
+        std::signal(SIGALRM, SIG_DFL);
+        alarm(CRASH_DEADLINE_S);
+    }
+#endif
 
     std::cerr << "\n\n\n*************************************************************************\n\n";
     std::cerr << "[Crash Handler] Crashed " << crash << " time(s) with signal " << sig << std::endl;
     if (crash == 1) {  // Avoid a loop in case we crash again on emergencySave()
+#ifdef __unix__
+        while (stuckForTests) {  // (where the real one waited: the version info allocates)
+            pause();
+        }
+#endif
         std::cerr << xoj::util::getVersionInfo() << std::endl;
 
         std::cerr << "\nTry to get a stacktrace...\n";
