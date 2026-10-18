@@ -22,6 +22,9 @@ def test_1_a_hang_is_reported_with_the_stacks(app):
     log = TRACE.read_text()
     assert " start pid " in log.splitlines()[0], log[:200]
     assert " HANG 2s so far: " in log, log
+    hang = [x for x in log.splitlines() if " HANG 2s so far: " in x][0]
+    if "[X: " in hang:  # (busy, not waiting for the server: which the server shows by answering others)
+        assert "the UI thread is not on X; a second connection was answered in" in hang, hang
     stacks = log.split(" HANG ", 1)[1]
     assert "-- thread" in stacks and "(UI)" in stacks, stacks[:500]
     ui = stacks.split("(UI)", 1)[1].split("-- thread", 1)[0]

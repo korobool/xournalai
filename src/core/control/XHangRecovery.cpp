@@ -410,8 +410,15 @@ void installXHangRecovery() {
         xoj::util::stall::setHangReporter([x, displayName] {
             const uint64_t answered = LastKnownRequestProcessed(x);
             const uint64_t sent = NextRequest(x) - 1;
+            // (said first: a UI busy drawing an export looked like a stalled server, 2026-10-18 04:27)
+            const bool onX = xoj::util::stall::uiThreadIn({"libxcb.so"});
             probeServer(displayName.c_str(), sent);
-            return "X: " + probeResult() + "; last request sent #" + std::to_string(sent) + ", last answered #" +
+            // A server that serves others answers in a few ms: without the wait it was always "no answer (0 ms)"
+            for (int i = 0; i < 25 && !probe.answeredUs && !probe.failed; i++) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            }
+            return std::string("X: the UI thread ") + (onX ? "waits on the X server" : "is not on X") + "; " +
+                   probeResult() + "; last request sent #" + std::to_string(sent) + ", last answered #" +
                    std::to_string(answered) +
                    "; unanswered: " + requestsSince(std::max(answered + 1, sent > 15 ? sent - 15 : 0)) +
                    " | before: " + requestsSince(answered > 6 ? answered - 6 : 0) + " | logged " +

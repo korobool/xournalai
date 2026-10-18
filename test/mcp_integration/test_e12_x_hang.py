@@ -56,6 +56,7 @@ def test_1_an_unanswered_x_server_rescues_and_exits(app):
     line = [x for x in log.splitlines() if "running the hang handler" in x][0]
     # a second connection asks the grabbed server too: no answer (on the laptop: does it serve others?)
     assert "a second connection has no answer either" in line, line
+    assert "the UI thread waits on the X server" in line, line
     assert "unanswered: #" in line and "before: #" in line, line  # the requests themselves, by type
     unanswered = line.split("unanswered: ")[1].split(" | ")[0]
     assert any(name in unanswered for name in ("GetInputFocus", "GetImage", "GetProperty", "PutImage", "RENDER", "op")), unanswered
