@@ -11,6 +11,7 @@
 #include "control/xojfile/SaveHandler.h"  // for SaveHandler
 #include "mcp/McpServer.h"
 #include "mcp/Media.h"
+#include "mcp/OffUi.h"
 #include "mcp/PathText.h"
 #include "mcp/Schema.h"
 #include "mcp/XJson.h"
@@ -101,7 +102,8 @@ void registerExportTools(McpServer& server) {
               schema::withDefault(schema::enumeration("Where the result goes", {"path", "inline"}), "path")}},
             {"format"});
     exp.tier = Tier::Files;
-    exp.handler = [ctrl, srv](const json& j) {
+    // png and svg render off the UI thread: a big page took seconds and froze the pen (2026-10-18 04:27, 2.7 s)
+    exp.asyncHandler = [ctrl, srv](const json& j, Responder respond) {
         requireDocument(ctrl);
         Args args(j);
         args.rejectUnknown({"format", "pages", "region", "layers", "element_ids", "background", "dpi", "path",
@@ -174,48 +176,66 @@ void registerExportTools(McpServer& server) {
         }
 
         if (format == "png" || format == "svg") {
-            std::vector<std::pair<size_t, std::string>> outputs;
-            size_t total = 0;
-            for (size_t p: pages) {
-                api::RenderOptions o;
-                o.page = p;
-                o.region = region;
-                o.background = background;
-                o.dpi = args.number("dpi", 150, 10, 1200);
-                o.maxPixels = 16000;
-                if (!layers.empty()) {
-                    o.layers = layers;
+            const double dpi = args.number("dpi", 150, 10, 1200);
+            std::vector<fs::path> paths;  // (checked here: overwriting may need a permission)
+            if (!inlineResult) {
+                for (size_t p: pages) {
+                    paths.push_back(outputPath(format, pages.size() > 1 ? std::optional<size_t>(p) : std::nullopt));
+                    checkWritable(paths.back());
                 }
-                std::string data = format == "png" ? api::renderPage(doc, o).png : api::renderSvg(doc, o);
-                total += data.size();
-                outputs.emplace_back(p, std::move(data));
             }
-            if (inlineResult) {
-                if (total > MAX_INLINE_BYTES) {
-                    throw ToolError("Result too large for inline delivery (" + std::to_string(total / 1024) +
-                                    " KB); use delivery=path");
-                }
-                result = ToolResult::structured(summary);
-                for (auto& [p, data]: outputs) {
-                    if (format == "png") {
-                        result.addImage(base64Encode(data), "image/png");
-                    } else {
-                        result.addText("SVG of page " + std::to_string(p + 1) + ":\n" + data);
-                    }
-                }
-                return result;
-            }
-            for (auto& [p, data]: outputs) {
-                const fs::path file = outputPath(format, pages.size() > 1 ? std::optional<size_t>(p) : std::nullopt);
-                checkWritable(file);
-                std::ofstream out(file, std::ios::binary);
-                out.write(data.data(), static_cast<std::streamsize>(data.size()));
-                if (!out) {
-                    throw ToolError("Could not write " + toUtf8(file));
-                }
-                files.push_back(toUtf8(file));
-            }
-        } else if (format == "xjson") {
+            runOffUi(
+                    ctrl,
+                    [doc, format, pages, region, background, dpi, layers, inlineResult, paths, summary]() {
+                        std::vector<std::pair<size_t, std::string>> outputs;
+                        size_t total = 0;
+                        for (size_t p: pages) {
+                            api::RenderOptions o;
+                            o.page = p;
+                            o.region = region;
+                            o.background = background;
+                            o.dpi = dpi;
+                            o.maxPixels = 16000;
+                            if (!layers.empty()) {
+                                o.layers = layers;
+                            }
+                            std::string data = format == "png" ? api::renderPage(doc, o).png : api::renderSvg(doc, o);
+                            total += data.size();
+                            outputs.emplace_back(p, std::move(data));
+                        }
+                        if (inlineResult) {
+                            if (total > MAX_INLINE_BYTES) {
+                                throw ToolError("Result too large for inline delivery (" +
+                                                std::to_string(total / 1024) + " KB); use delivery=path");
+                            }
+                            ToolResult result = ToolResult::structured(summary);
+                            for (auto& [p, data]: outputs) {
+                                if (format == "png") {
+                                    result.addImage(base64Encode(data), "image/png");
+                                } else {
+                                    result.addText("SVG of page " + std::to_string(p + 1) + ":\n" + data);
+                                }
+                            }
+                            return result;
+                        }
+                        json files = json::array();
+                        for (size_t i = 0; i < outputs.size(); i++) {
+                            const std::string& data = outputs[i].second;
+                            std::ofstream out(paths[i], std::ios::binary);
+                            out.write(data.data(), static_cast<std::streamsize>(data.size()));
+                            if (!out) {
+                                throw ToolError("Could not write " + toUtf8(paths[i]));
+                            }
+                            files.push_back(toUtf8(paths[i]));
+                        }
+                        json done = summary;
+                        done["files"] = files;
+                        return ToolResult::structured(done, "Exported " + std::to_string(files.size()) + " file(s).");
+                    },
+                    std::move(respond));
+            return;
+        }
+        if (format == "xjson") {
             std::vector<const Element*> elements;
             {
                 std::shared_lock lock(*doc);
@@ -243,7 +263,9 @@ void registerExportTools(McpServer& server) {
                 if (text.size() > MAX_INLINE_BYTES) {
                     throw ToolError("Result too large for inline delivery; use delivery=path");
                 }
-                return ToolResult::structured(std::move(xj), std::to_string(elements.size()) + " element(s) as xjson:");
+                respond(ToolResult::structured(std::move(xj),
+                                               std::to_string(elements.size()) + " element(s) as xjson:"));
+                return;
             }
             const fs::path file = outputPath("xjson", std::nullopt);
             checkWritable(file);
@@ -296,12 +318,13 @@ void registerExportTools(McpServer& server) {
                 result = ToolResult::structured(summary);
                 result.addText("Base64 " + format + " (" + std::to_string(data.size()) + " bytes):");
                 result.addText(base64Encode(data));
-                return result;
+                respond(std::move(result));
+                return;
             }
             files.push_back(toUtf8(file));
         }
         summary["files"] = files;
-        return ToolResult::structured(summary, "Exported " + std::to_string(files.size()) + " file(s).");
+        respond(ToolResult::structured(summary, "Exported " + std::to_string(files.size()) + " file(s)."));
     };
     server.getRegistry().addTool(std::move(exp));
 }

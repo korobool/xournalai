@@ -208,12 +208,19 @@ RenderedImage renderPage(Document* doc, const RenderOptions& o) {
 namespace xoj::api {
 
 std::string renderSvg(Document* doc, const RenderOptions& o) {
-    std::shared_lock lock(*doc);
+    std::shared_lock lock(*doc);  // (only to copy the page, as in renderPage)
     if (o.page >= doc->getPageCount()) {
         throw std::invalid_argument("Page " + std::to_string(o.page + 1) + " does not exist");
     }
     ConstPageRef page = doc->getPage(o.page);
     const auto region = clampRegion(page, o);
+    XojPdfPageSPtr pdfPage =
+            page->getBackgroundType().isPdfPage() ? doc->getPdfPage(page->getPdfPageNr()) : XojPdfPageSPtr();
+    const Range area(region.x, region.y, region.x + region.width, region.y + region.height);
+    if (PageRef snapshot = xoj::model::snapshotPage(*page, &area)) {
+        page = snapshot;
+        lock.unlock();
+    }
     std::string out;
     cairo_surface_t* surface = cairo_svg_surface_create_for_stream(
             [](void* closure, const unsigned char* data, unsigned int length) {
@@ -224,8 +231,7 @@ std::string renderSvg(Document* doc, const RenderOptions& o) {
     cairo_t* cr = cairo_create(surface);
     cairo_translate(cr, -region.x, -region.y);
     try {
-        drawContent(cr, page->getBackgroundType().isPdfPage() ? doc->getPdfPage(page->getPdfPageNr()) : nullptr, page,
-                    o);
+        drawContent(cr, pdfPage, page, o);
     } catch (...) {
         cairo_destroy(cr);
         cairo_surface_destroy(surface);

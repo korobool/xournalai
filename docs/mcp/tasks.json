@@ -2816,6 +2816,48 @@
               "finished": "2026-10-18T00:24:54+01:00"
             }
           ]
+        },
+        {
+          "id": "S14.11",
+          "title": "Exports do not freeze the pen",
+          "version": "1.12.6",
+          "stories": [
+            {
+              "id": "US-14.11",
+              "text": "As the owner, I want the companion's exports to run without freezing my pen, and a freeze report to say at once whether the X server is to blame.",
+              "acceptance": [
+                "export png and svg render off the UI thread",
+                "a freeze report says whether the UI thread waits on the X server, and whether the server answers a second connection"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T14.11.1",
+              "story": "US-14.11",
+              "title": "export renders png and svg off the UI thread",
+              "details": "2026-10-18 04:27 and 04:32: 2.7 s and 2.6 s freezes while the companion exported pages (the UI thread in cairo_stroke from renderPage, called by export on the UI thread; 32 such stalls in the trace, the longest 9.8 s). png and svg now render on the render thread (runOffUi, as render does); paths and overwrite permission are checked first on the UI thread. renderSvg copies the page under a short lock, as renderPage. test_e9 test_5.",
+              "commit": "ai: export renders png and svg off the UI thread",
+              "status": "doing",
+              "started": "2026-10-18T04:35:36+01:00"
+            },
+            {
+              "id": "T14.11.2",
+              "story": "US-14.11",
+              "title": "A freeze report says whether the UI waits on X",
+              "details": "The 2-s HANG report asked the second connection and printed its state at once: 'no answer either (0 ms)', also when the UI thread was only busy drawing an export (04:27), which looked like an X server stall. The report now says whether the UI thread is on X and waits briefly for the second connection.",
+              "commit": "ai: a freeze report says whether the UI waits on X",
+              "status": "todo"
+            },
+            {
+              "id": "T14.11.3",
+              "story": "US-14.11",
+              "title": "Release 1.12.6",
+              "details": "",
+              "commit": "ai: release 1.12.6 (exports do not freeze the pen)",
+              "status": "todo"
+            }
+          ]
         }
       ]
     }
