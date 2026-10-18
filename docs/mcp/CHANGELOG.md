@@ -10,6 +10,17 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.12.6 — Exports do not freeze the pen
+- **Exporting png and svg no longer freezes the window.** On 2026-10-18 at 04:27 and 04:32 the window froze for about
+  2.7 s each time the companion exported a page: `export` drew the page on the UI thread (the stall trace holds 32
+  such freezes, the longest 9.8 s). It now draws on the render thread, as `render` does; the output paths and the
+  overwrite permission are still checked first. An svg export copies the page and lets go of the document at once,
+  so the pen does not wait for it either.
+- **A freeze report says at once whether the X server is to blame.** The 2-second HANG line in the stall trace now
+  starts with "the UI thread waits on the X server" or "the UI thread is not on X", and gives a second connection
+  up to 250 ms to be answered. Before, it always said "a second connection has no answer either (0 ms)", which made a
+  UI busy drawing an export look like a stalled server.
+
 ## 1.12.5 — Closing and X errors do not crash the app
 - **SIGTERM no longer crashes xournalai.** A logout or `kill` saved the document for recovery and then crashed at exit
   ("terminate called without an active exception"), because the freeze watchdog's thread was still running when the

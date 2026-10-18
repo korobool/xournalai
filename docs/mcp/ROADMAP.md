@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.12.5**
+Current version: **1.12.6**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -920,5 +920,5 @@ Besides the AI lasso (mark first, then say), the owner can highlight what they m
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
 | T14.11.1 | US-14.11 | **export renders png and svg off the UI thread** — 2026-10-18 04:27 and 04:32: 2.7 s and 2.6 s freezes while the companion exported pages (the UI thread in cairo_stroke from renderPage, called by export on the UI thread; 32 such stalls in the trace, the longest 9.8 s). png and svg now render on the render thread (runOffUi, as render does); paths and overwrite permission are checked first on the UI thread. renderSvg copies the page under a short lock, as renderPage. test_e9 test_5. | `ai: export renders png and svg off the UI thread (T14.11.1)` | ✅ done `603f5b649` |
-| T14.11.2 | US-14.11 | **A freeze report says whether the UI waits on X** — The 2-s HANG report asked the second connection and printed its state at once: 'no answer either (0 ms)', also when the UI thread was only busy drawing an export (04:27), which looked like an X server stall. The report now says whether the UI thread is on X and waits briefly for the second connection. | `ai: a freeze report says whether the UI waits on X (T14.11.2)` | 🔨 doing |
-| T14.11.3 | US-14.11 | **Release 1.12.6** —  | `ai: release 1.12.6 (exports do not freeze the pen) (T14.11.3)` | ⬜ todo |
+| T14.11.2 | US-14.11 | **A freeze report says whether the UI waits on X** — The 2-s HANG report asked the second connection and printed its state at once: 'no answer either (0 ms)', also when the UI thread was only busy drawing an export (04:27), which looked like an X server stall. The report now says whether the UI thread is on X and waits briefly for the second connection. | `ai: a freeze report says whether the UI waits on X (T14.11.2)` | ✅ done `b2aba4b44` |
+| T14.11.3 | US-14.11 | **Release 1.12.6** — Full check: build-noterm and build-nomcp ok; unit tests 203/208 (the ControlLoadHandler group that fails under parallel ctest, all pass on rerun); integration 247/248: test_e13 test_7 read the toolbar row's geometry before it was laid out again after test_6 (1 in 2 runs); it now waits for it (5/5). | `ai: release 1.12.6 (exports do not freeze the pen) (T14.11.3)` | ✅ done |

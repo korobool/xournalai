@@ -108,9 +108,13 @@ def test_6_tools_button_beside_the_toolbars(app):
 def test_7_record_button_beside_tools(app):
     """A big Record button next to Tools (experimental), as tall; hidden on request and remembered."""
     c = app.client()
-    rec, tools = widgets(c, "aiRecordButton")[0], widgets(c, "aiQuickToolsButton")[0]
-    assert rec.get("visible", True)
-    assert rec["bbox"][0] + rec["bbox"][2] <= tools["bbox"][0] and abs(rec["bbox"][3] - tools["bbox"][3]) <= 2
+
+    def beside():  # (after test_6 showed Tools again, the toolbar row may still be laid out)
+        rec, tools = widgets(c, "aiRecordButton")[0], widgets(c, "aiQuickToolsButton")[0]
+        return rec.get("visible", True) and rec["bbox"][0] + rec["bbox"][2] <= tools["bbox"][0] and \
+            abs(rec["bbox"][3] - tools["bbox"][3]) <= 2
+
+    assert wait(beside), (widgets(c, "aiRecordButton"), widgets(c, "aiQuickToolsButton"))
     c.call("action_run", action="win.ai-record-button", state=False)
     assert wait(lambda: not widgets(c, "aiRecordButton")[0].get("visible", True))
     assert json.load(open(app.home / "config" / "xournalpp" / "quick-tools.json"))["uses"]["_recordButton"] == 0
