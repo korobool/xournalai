@@ -10,6 +10,13 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.12.7 — PDF exports do not freeze the pen
+- **Exporting PDF and xopp no longer freezes the window either.** After 1.12.6 the remaining freezes on 2026-10-19
+  were the companion's PDF exports of the magazine, 2–4 s each. `export` now writes pdf and xopp on the render
+  thread as well. The PDF exporter reads the document itself, so during a PDF export an edit waits for it to finish;
+  before, everything waited. Opening a file (`file_open`, 1–2 s for the magazine) still happens on the UI thread: it
+  replaces the document anyway.
+
 ## 1.12.6 — Exports do not freeze the pen
 - **Exporting png and svg no longer freezes the window.** On 2026-10-18 at 04:27 and 04:32 the window froze for about
   2.7 s each time the companion exported a page: `export` drew the page on the UI thread (the stall trace holds 32

@@ -3,7 +3,7 @@
     "project": "xournalai: embedded MCP server and assistant",
     "branch": "mcp",
     "plan": "docs/mcp/PLAN.md, docs/assistant/ASSISTANT-PLAN.md",
-    "version": "1.12.6",
+    "version": "1.12.7",
     "versioning": [
       "The fork has its own semantic version, XOURNALAI_VERSION, kept in CMakeLists.txt. The application version string becomes <upstream>+ai.<XOURNALAI_VERSION>, e.g. 1.3.7+ai.0.2.0.",
       "Each task is exactly one commit. The commit message is '<planned message> (<task id>)'.",
@@ -2884,16 +2884,19 @@
               "title": "export writes pdf and xopp off the UI thread",
               "details": "2026-10-19 08:33-09:45 (1.12.6): with png and svg off the UI thread, the remaining freezes were PDF exports of the magazine, 2.1-3.8 s each, while the companion exported issue PDFs (and file_open, 1-2 s, which replaces the document anyway). pdf and xopp are now written on the render thread (runOffUi). The exporters read the live document, so it is held for reading during a PDF export (an edit then waits for it; before, everything waited); xopp prepares under the lock and writes without it. test_e9 test_5 exports pdf and xopp too (1.12.6: 1565 and 981 ms stalls).",
               "commit": "ai: export writes pdf and xopp off the UI thread",
-              "status": "doing",
-              "started": "2026-10-19T09:48:32+01:00"
+              "status": "done",
+              "started": "2026-10-19T09:48:32+01:00",
+              "finished": "2026-10-19T09:48:32+01:00"
             },
             {
               "id": "T14.12.2",
               "story": "US-14.12",
               "title": "Release 1.12.7",
-              "details": "",
+              "details": "Full check: build-noterm and build-nomcp ok; unit tests 204/208 (the ControlLoadHandler group that fails under parallel ctest, all pass on rerun); integration 248/248.",
               "commit": "ai: release 1.12.7 (PDF exports do not freeze the pen)",
-              "status": "todo"
+              "status": "done",
+              "started": "2026-10-19T09:48:32+01:00",
+              "finished": "2026-10-19T09:58:47+01:00"
             }
           ]
         }

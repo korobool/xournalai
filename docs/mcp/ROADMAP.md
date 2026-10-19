@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.12.6**
+Current version: **1.12.7**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -931,5 +931,5 @@ Besides the AI lasso (mark first, then say), the owner can highlight what they m
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T14.12.1 | US-14.12 | **export writes pdf and xopp off the UI thread** — 2026-10-19 08:33-09:45 (1.12.6): with png and svg off the UI thread, the remaining freezes were PDF exports of the magazine, 2.1-3.8 s each, while the companion exported issue PDFs (and file_open, 1-2 s, which replaces the document anyway). pdf and xopp are now written on the render thread (runOffUi). The exporters read the live document, so it is held for reading during a PDF export (an edit then waits for it; before, everything waited); xopp prepares under the lock and writes without it. test_e9 test_5 exports pdf and xopp too (1.12.6: 1565 and 981 ms stalls). | `ai: export writes pdf and xopp off the UI thread (T14.12.1)` | 🔨 doing |
-| T14.12.2 | US-14.12 | **Release 1.12.7** —  | `ai: release 1.12.7 (PDF exports do not freeze the pen) (T14.12.2)` | ⬜ todo |
+| T14.12.1 | US-14.12 | **export writes pdf and xopp off the UI thread** — 2026-10-19 08:33-09:45 (1.12.6): with png and svg off the UI thread, the remaining freezes were PDF exports of the magazine, 2.1-3.8 s each, while the companion exported issue PDFs (and file_open, 1-2 s, which replaces the document anyway). pdf and xopp are now written on the render thread (runOffUi). The exporters read the live document, so it is held for reading during a PDF export (an edit then waits for it; before, everything waited); xopp prepares under the lock and writes without it. test_e9 test_5 exports pdf and xopp too (1.12.6: 1565 and 981 ms stalls). | `ai: export writes pdf and xopp off the UI thread (T14.12.1)` | ✅ done `97a77ada2` |
+| T14.12.2 | US-14.12 | **Release 1.12.7** — Full check: build-noterm and build-nomcp ok; unit tests 204/208 (the ControlLoadHandler group that fails under parallel ctest, all pass on rerun); integration 248/248. | `ai: release 1.12.7 (PDF exports do not freeze the pen) (T14.12.2)` | ✅ done |
