@@ -100,7 +100,7 @@ def test_4_editing_does_not_wait_for_a_long_render(app):
 
 
 def test_5_exports_do_not_freeze_the_ui(app):
-    # export rendered png and svg on the UI thread: 2.7 s for the owner's page (2026-10-18 04:27)
+    # export drew on the UI thread: 2.7 s for a png of the owner's page (2026-10-18 04:27)
     tmp_path = pathlib.Path(tempfile.mkdtemp(prefix="xoai-export-"))
     c = app.client()
     settle(c)
@@ -108,8 +108,12 @@ def test_5_exports_do_not_freeze_the_ui(app):
     png = c.call("export", format="png", pages="1", dpi=300, path=str(tmp_path / "heavy.png"))
     svg = c.call("export", format="svg", pages="1", path=str(tmp_path / "heavy.svg"))
     inline = c.call_raw("export", format="png", pages="1", dpi=30, delivery="inline")
+    pdf = c.call("export", format="pdf", path=str(tmp_path / "heavy.pdf"))  # (pdf and xopp too: 2-4 s, 2026-10-19)
+    xopp = c.call("export", format="xopp", path=str(tmp_path / "heavy.xopp"))
     time.sleep(0.3)
     assert not long_ones(new_stalls(c, before)), new_stalls(c, before)
     assert png["files"] == [str(tmp_path / "heavy.png")] and (tmp_path / "heavy.png").stat().st_size > 10000, png
     assert svg["files"] == [str(tmp_path / "heavy.svg")] and (tmp_path / "heavy.svg").stat().st_size > 10000, svg
     assert len(xoai.Mcp.images(inline)) == 1, inline
+    assert open(pdf["files"][0], "rb").read(5) == b"%PDF-", pdf
+    assert xopp["files"] == [str(tmp_path / "heavy.xopp")] and (tmp_path / "heavy.xopp").stat().st_size > 10000, xopp

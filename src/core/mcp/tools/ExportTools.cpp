@@ -169,7 +169,6 @@ void registerExportTools(McpServer& server) {
         };
 
         json files = json::array();
-        ToolResult result;
         json summary = {{"format", format}, {"pages", json::array()}};
         for (size_t p: pages) {
             summary["pages"].push_back(p + 1);
@@ -280,48 +279,60 @@ void registerExportTools(McpServer& server) {
             if (!inlineResult) {
                 checkWritable(file);
             }
-            if (format == "pdf") {
-                std::string range;
-                for (size_t p: pages) {
-                    range += (range.empty() ? "" : ",") + std::to_string(p + 1);
-                }
-                std::string layerRange;
-                for (size_t l: layers) {
-                    layerRange += (layerRange.empty() ? "" : ",") + std::to_string(l);
-                }
-                try {
-                    ExportHelper::exportPdf(doc, file, range.c_str(), layers.empty() ? nullptr : layerRange.c_str(),
-                                            background ? EXPORT_BACKGROUND_ALL : EXPORT_BACKGROUND_NONE, false);
-                } catch (const std::exception& e) {
-                    throw ToolError(std::string("PDF export failed: ") + e.what());
-                }
-            } else {
-                if (pages.size() != doc->getPageCount()) {
-                    throw ToolError("xopp export copies the whole document; omit 'pages' (use xjson for parts)");
-                }
-                SaveHandler saver;
-                {
-                    std::shared_lock lock(*doc);
-                    saver.prepareSave(doc, file);
-                }
-                saver.saveTo(file);
-                if (!saver.getErrorMessage().empty()) {
-                    throw ToolError("xopp export failed: " + saver.getErrorMessage());
-                }
+            if (format == "xopp" && pages.size() != doc->getPageCount()) {
+                throw ToolError("xopp export copies the whole document; omit 'pages' (use xjson for parts)");
             }
-            if (inlineResult) {
-                std::string data = readFile(file);
-                fs::remove(file);
-                if (data.size() > MAX_INLINE_BYTES) {
-                    throw ToolError("Result too large for inline delivery; use delivery=path");
-                }
-                result = ToolResult::structured(summary);
-                result.addText("Base64 " + format + " (" + std::to_string(data.size()) + " bytes):");
-                result.addText(base64Encode(data));
-                respond(std::move(result));
-                return;
+            std::string range;
+            for (size_t p: pages) {
+                range += (range.empty() ? "" : ",") + std::to_string(p + 1);
             }
-            files.push_back(toUtf8(file));
+            std::string layerRange;
+            for (size_t l: layers) {
+                layerRange += (layerRange.empty() ? "" : ",") + std::to_string(l);
+            }
+            // Off the UI thread too: a PDF of the owner's magazine took 2-4 s (2026-10-19 09:44). The exporters read
+            // the document itself, so it is held for reading meanwhile: an edit waits for the export, nothing else
+            runOffUi(
+                    ctrl,
+                    [doc, format, file, range, layerRange, background, inlineResult, summary]() {
+                        if (format == "pdf") {
+                            std::shared_lock lock(*doc);
+                            try {
+                                ExportHelper::exportPdf(doc, file, range.c_str(),
+                                                        layerRange.empty() ? nullptr : layerRange.c_str(),
+                                                        background ? EXPORT_BACKGROUND_ALL : EXPORT_BACKGROUND_NONE,
+                                                        false);
+                            } catch (const std::exception& e) {
+                                throw ToolError(std::string("PDF export failed: ") + e.what());
+                            }
+                        } else {
+                            SaveHandler saver;
+                            {
+                                std::shared_lock lock(*doc);
+                                saver.prepareSave(doc, file);
+                            }
+                            saver.saveTo(file);
+                            if (!saver.getErrorMessage().empty()) {
+                                throw ToolError("xopp export failed: " + saver.getErrorMessage());
+                            }
+                        }
+                        if (inlineResult) {
+                            std::string data = readFile(file);
+                            fs::remove(file);
+                            if (data.size() > MAX_INLINE_BYTES) {
+                                throw ToolError("Result too large for inline delivery; use delivery=path");
+                            }
+                            ToolResult result = ToolResult::structured(summary);
+                            result.addText("Base64 " + format + " (" + std::to_string(data.size()) + " bytes):");
+                            result.addText(base64Encode(data));
+                            return result;
+                        }
+                        json done = summary;
+                        done["files"] = json::array({toUtf8(file)});
+                        return ToolResult::structured(done, "Exported 1 file(s).");
+                    },
+                    std::move(respond));
+            return;
         }
         summary["files"] = files;
         respond(ToolResult::structured(summary, "Exported " + std::to_string(files.size()) + " file(s)."));

@@ -921,4 +921,15 @@ Besides the AI lasso (mark first, then say), the owner can highlight what they m
 |---|---|---|---|---|
 | T14.11.1 | US-14.11 | **export renders png and svg off the UI thread** — 2026-10-18 04:27 and 04:32: 2.7 s and 2.6 s freezes while the companion exported pages (the UI thread in cairo_stroke from renderPage, called by export on the UI thread; 32 such stalls in the trace, the longest 9.8 s). png and svg now render on the render thread (runOffUi, as render does); paths and overwrite permission are checked first on the UI thread. renderSvg copies the page under a short lock, as renderPage. test_e9 test_5. | `ai: export renders png and svg off the UI thread (T14.11.1)` | ✅ done `603f5b649` |
 | T14.11.2 | US-14.11 | **A freeze report says whether the UI waits on X** — The 2-s HANG report asked the second connection and printed its state at once: 'no answer either (0 ms)', also when the UI thread was only busy drawing an export (04:27), which looked like an X server stall. The report now says whether the UI thread is on X and waits briefly for the second connection. | `ai: a freeze report says whether the UI waits on X (T14.11.2)` | ✅ done `b2aba4b44` |
-| T14.11.3 | US-14.11 | **Release 1.12.6** — Full check: build-noterm and build-nomcp ok; unit tests 203/208 (the ControlLoadHandler group that fails under parallel ctest, all pass on rerun); integration 247/248: test_e13 test_7 read the toolbar row's geometry before it was laid out again after test_6 (1 in 2 runs); it now waits for it (5/5). | `ai: release 1.12.6 (exports do not freeze the pen) (T14.11.3)` | ✅ done |
+| T14.11.3 | US-14.11 | **Release 1.12.6** — Full check: build-noterm and build-nomcp ok; unit tests 203/208 (the ControlLoadHandler group that fails under parallel ctest, all pass on rerun); integration 247/248: test_e13 test_7 read the toolbar row's geometry before it was laid out again after test_6 (1 in 2 runs); it now waits for it (5/5). | `ai: release 1.12.6 (exports do not freeze the pen) (T14.11.3)` | ✅ done `bebcb63a6` |
+
+### S14.12 — PDF exports do not freeze the pen → v1.12.7
+
+**US-14.12** — As the owner, I want the companion's PDF and xopp exports to run without freezing my pen.
+
+- [ ] export pdf and xopp run off the UI thread
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T14.12.1 | US-14.12 | **export writes pdf and xopp off the UI thread** — 2026-10-19 08:33-09:45 (1.12.6): with png and svg off the UI thread, the remaining freezes were PDF exports of the magazine, 2.1-3.8 s each, while the companion exported issue PDFs (and file_open, 1-2 s, which replaces the document anyway). pdf and xopp are now written on the render thread (runOffUi). The exporters read the live document, so it is held for reading during a PDF export (an edit then waits for it; before, everything waited); xopp prepares under the lock and writes without it. test_e9 test_5 exports pdf and xopp too (1.12.6: 1565 and 981 ms stalls). | `ai: export writes pdf and xopp off the UI thread (T14.12.1)` | 🔨 doing |
+| T14.12.2 | US-14.12 | **Release 1.12.7** —  | `ai: release 1.12.7 (PDF exports do not freeze the pen) (T14.12.2)` | ⬜ todo |
