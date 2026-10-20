@@ -1,5 +1,6 @@
 #include "TooltipGuard.h"
 
+#include "gui/KeyboardFocus.h"                    // for noteKeyEvent
 #include "gui/inputdevices/PenButtonObserver.h"  // for penBarrelGone
 
 namespace xoj::gui {
@@ -34,6 +35,9 @@ void filter(GdkEvent* event, gpointer) {
         if (source && isTooltipHover(type, gdk_device_get_source(source), state, overCanvas)) {
             return;  // (nothing else needs the hover of a pen over a button: no tooltip timer starts)
         }
+    }
+    if (type == GDK_KEY_PRESS || type == GDK_KEY_RELEASE || type == GDK_FOCUS_CHANGE) {
+        noteKeyEvent(event);  // (dictation with a held key keeps the keyboard while the pen draws)
     }
     gtk_main_do_event(event);
 }

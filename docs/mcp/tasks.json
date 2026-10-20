@@ -2953,7 +2953,10 @@
               "title": "Drawing while a key is held keeps the keyboard",
               "details": "Holding space in the terminal (Claude Code's push-to-talk) while starting a stroke moved the keyboard to the canvas. While a key is held in a text input (pressed and still repeating, so a lost release cannot stick), a stroke draws but leaves the keyboard there. Its own commit, so that it can be reverted alone.",
               "commit": "ai: drawing while a key is held in the terminal keeps the keyboard there",
-              "status": "todo"
+              "status": "done",
+              "started": "2026-10-20T12:21:46+01:00",
+              "finished": "2026-10-20T12:30:49+01:00",
+              "note": "test_e15_focus 7/7; KeyboardFocus unit tests 3/3"
             },
             {
               "id": "T15.1.4",

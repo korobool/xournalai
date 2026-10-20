@@ -12,6 +12,7 @@
 #include "control/Control.h"                            // for Control
 #include "control/DeviceListHelper.h"                   // for InputDevice
 #include "control/settings/Settings.h"                  // for Settings
+#include "gui/KeyboardFocus.h"                          // for keyHeld, textInputWithKeyboard
 #include "gui/XournalView.h"                            // for XournalView
 #include "gui/dialog/DeviceTestingArea.h"               // for DeviceTestingArea
 #include "gui/inputdevices/GeometryToolInputHandler.h"  // for GeometryToolInputHandler
@@ -255,6 +256,11 @@ void InputContext::resetGeometryToolInputHandler() { this->geometryToolInputHand
  * Focus the widget
  */
 void InputContext::focusWidget() {
+    // A stroke started while a key is held in the AI terminal or an input field (push-to-talk dictation) draws but
+    // leaves the keyboard there: else the held space scrolled the canvas a screen per repeat (2026-10-20)
+    if (xoj::gui::keyHeld() && xoj::gui::textInputWithKeyboard(widget)) {
+        return;
+    }
     if (!gtk_widget_has_focus(widget)) {
         gtk_widget_grab_focus(widget);
     }

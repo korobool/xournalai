@@ -19,4 +19,15 @@ namespace xoj::gui {
 /// terminal, an entry, a text view; not a spin button such as the page number), visible and sensitive; else nullptr
 GtkWidget* textInputWithKeyboard(GtkWidget* widget);
 
+/**
+ * Follows the keys held down, from the app's event filter (all key events pass there; the main window's own key
+ * handler gives some to the focused widget before its other handlers could see them). A key counts as held while
+ * it repeats: pressed, not released, and its last press (or repeat) less than a moment ago, so a release that never
+ * arrived cannot leave it held. Modifiers don't count.
+ */
+void noteKeyEvent(const GdkEvent* event);
+
+/// Whether a key is held down now (e.g. space for push-to-talk dictation in the AI terminal)
+bool keyHeld();
+
 }  // namespace xoj::gui

@@ -1,8 +1,15 @@
 #include "KeyboardFocus.h"
 
+#include <set>  // for set
+
 namespace xoj::gui {
 
 namespace {
+std::set<guint16> heldKeys;  ///< hardware keycodes
+gint64 lastPressUs = 0;
+/// Longer than the keyboard's delay before it repeats (GNOME: 500 ms), so that a held key stays held
+constexpr gint64 HOLD_US = 800 * 1000;
+
 bool isTextInput(GtkWidget* w) {
     if (GTK_IS_SPIN_BUTTON(w)) {
         return false;  // (typing a page number: the canvas should have the keys afterwards)
@@ -27,5 +34,28 @@ GtkWidget* textInputWithKeyboard(GtkWidget* widget) {
     }
     return isTextInput(focus) ? focus : nullptr;
 }
+
+void noteKeyEvent(const GdkEvent* event) {
+    switch (event->type) {
+        case GDK_KEY_PRESS:
+            if (!event->key.is_modifier) {
+                heldKeys.insert(event->key.hardware_keycode);
+                lastPressUs = g_get_monotonic_time();
+            }
+            break;
+        case GDK_KEY_RELEASE:
+            heldKeys.erase(event->key.hardware_keycode);
+            break;
+        case GDK_FOCUS_CHANGE:
+            if (!event->focus_change.in) {
+                heldKeys.clear();  // (its releases go to another window)
+            }
+            break;
+        default:
+            break;
+    }
+}
+
+bool keyHeld() { return !heldKeys.empty() && g_get_monotonic_time() - lastPressUs < HOLD_US; }
 
 }  // namespace xoj::gui

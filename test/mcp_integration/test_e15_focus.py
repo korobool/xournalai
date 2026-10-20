@@ -176,3 +176,25 @@ def test_6_the_canvas_stays_usable_while_an_agent_saves(app):
     assert len(c.call("page_elements", page=page, detail="bbox", limit=5000)["elements"]) == before + 1
     # (the stroke came after the save began: it is not in the file yet)
     assert c.call("file_info")["modified"]
+
+
+def test_7_a_stroke_while_a_key_is_held_in_the_terminal_leaves_the_keyboard_there(app):
+    c = app.client()
+    if (c.call("file_info").get("path") or "").endswith("heavy.xopp"):
+        c.call("file_open", path=os.path.join(DIR, "doc.xopp"), on_unsaved="save")
+    setup_document(c)
+    open_terminal(app, c)
+    page = c.call("view")["current_page"]
+    before = len(c.call("page_elements", page=page, detail="bbox", limit=5000)["elements"])
+    x, y = app.canvas_center(c)
+    app._xdo("keydown", "space")  # push-to-talk: held while drawing
+    try:
+        app.user_drag([(x - 40 + i * 8, y + (i % 3)) for i in range(10)], step_delay=0.005)
+    finally:
+        app._xdo("keyup", "space")
+    assert len(c.call("page_elements", page=page, detail="bbox", limit=5000)["elements"]) == before + 1
+    app.user_key("BackSpace")  # (the spaces the shell got)
+    assert terminal_has_keys(app, "after-held-stroke")
+    time.sleep(1)  # nothing held any more: a stroke takes the keyboard, as always
+    app.user_drag([(x - 40 + i * 8, y + 20 + (i % 3)) for i in range(10)])
+    assert not terminal_has_keys(app, "after-plain-stroke")
