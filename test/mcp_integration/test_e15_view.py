@@ -95,3 +95,35 @@ def test_5_pages_coming_and_going_above_keep_the_view(app):
     time.sleep(0.3)
     assert view(c) == (3, region), (view(c), region)
     assert mine_on(3)
+
+
+def test_6_the_users_selection_survives_agent_work_on_other_pages(app):
+    c = app.client()
+    setup(c)
+    stroke = [{"points": [[100, 100], [160, 130]]}]
+    mine = c.call("create_strokes", page=2, strokes=stroke, animate=False)["created"][0]["id"]
+    theirs = c.call("create_strokes", page=4, strokes=stroke, animate=False)["created"][0]["id"]
+
+    def select_mine():
+        c.call("elements_select", element_ids=[mine])  # (as if the user had selected it)
+        assert c.call("view").get("selection")
+
+    def commit(page):
+        t = c.call("transaction_begin", label="t", page=page, region=[0, 0, 300, 300], base_ids=[])
+        c.call("create_strokes", page=page, layer=t["draft_layer"], strokes=stroke, animate=False)
+        c.call("transaction_commit", transaction=t["transaction"], ops=[{"op": "draw", "animate": False}])
+
+    select_mine()
+    for what, step in [("draw", lambda: c.call("create_strokes", page=4, strokes=stroke, animate=False)),
+                       ("commit", lambda: commit(4)),
+                       ("move", lambda: c.call("elements_edit", element_ids=[theirs], op="move", dx=5, dy=5)),
+                       ("delete", lambda: c.call("elements_delete", element_ids=[theirs]))]:
+        step()
+        assert c.call("view").get("selection"), f"{what} on page 4 dropped the selection on page 2"
+    # on its own page the agent goes first
+    c.call("create_strokes", page=2, strokes=stroke, animate=False)
+    assert not c.call("view").get("selection")
+    # and an element the user holds can still be changed: the selection lets go of it
+    select_mine()
+    c.call("elements_edit", element_ids=[mine], op="move", dx=10, dy=0)
+    assert not c.call("view").get("selection")

@@ -164,7 +164,7 @@ void DrawApi::insert(const DrawTarget& target, std::vector<ElementPtr> elements,
         }
         page = doc->getPage(target.page);
     }
-    control->clearSelectionEndText();
+    control->clearSelectionEndTextOn(page);  // (the user's selection and text on other pages stay)
 
     DrawResult result;
     result.operation = nextOperation();

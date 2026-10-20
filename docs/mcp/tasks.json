@@ -3022,9 +3022,11 @@
               "id": "T15.2.4",
               "story": "US-15.2",
               "title": "The user's selection survives work on other pages",
-              "details": "Every agent draw, edit and commit dropped the user's selection and ended their text editing (clearSelectionEndText), on any page. Only work on the selection's (or the text's) own page drops it; there the agent has priority.",
+              "details": "Every agent draw, edit and commit dropped the user's selection and ended their text editing (clearSelectionEndText), on any page. Only work on the selection's (or the text's) own page drops it; there the agent has priority. DrawApi (draws, commits) and EditApi (edits, deletes by id) end the user's selection and text editing only on their page (Control::clearSelectionEndTextOn), and a selection that holds a requested element lets go of it first. Clipboard copy, cut and paste still work through a selection. test_e15_view 6/6 (test_6 fails on 1.13.0).",
               "commit": "ai: agents drop the user's selection only on its own page",
-              "status": "todo"
+              "status": "done",
+              "started": "2026-10-20T13:08:52+01:00",
+              "finished": "2026-10-20T13:13:16+01:00"
             },
             {
               "id": "T15.2.5",

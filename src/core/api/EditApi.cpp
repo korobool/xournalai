@@ -30,6 +30,7 @@
 
 #include "DocumentApi.h"  // for locateId
 #include "DrawApi.h"      // for resolveLayer
+#include "ElementIds.h"   // for ElementIds
 
 namespace xoj::api {
 
@@ -72,6 +73,20 @@ private:
     std::vector<Element*> elements;
 };
 
+/// Whether the user's selection holds one of these elements (a selection takes them out of their layer)
+bool selectionHolds(Control* control, const std::vector<std::string>& ids) {
+    MainWindow* win = control->getWindow();
+    const EditSelection* sel = win ? win->getXournal()->getSelection() : nullptr;
+    if (!sel) {
+        return false;
+    }
+    for (const Element* e: sel->getElementsView()) {
+        if (std::find(ids.begin(), ids.end(), ElementIds::get().idOf(e)) != ids.end()) {
+            return true;
+        }
+    }
+    return false;
+}
 }  // namespace
 
 void EditApi::addUndo(std::unique_ptr<UndoAction> a) {
@@ -86,9 +101,21 @@ ElementGroup EditApi::resolve(const std::vector<std::string>& ids) {
     if (ids.empty()) {
         throw std::invalid_argument("No element ids given");
     }
-    control->clearSelectionEndText();
-    ElementGroup g;
+    // The agent goes first on its page: the user's selection ends if it holds one of these elements, and the user's
+    // selection and text editing end if they are on that page (before: on any page). Before the elements are looked
+    // up: ending text editing replaces the edited element
+    if (selectionHolds(control, ids)) {
+        control->clearSelection();
+    }
     Document* doc = control->getDocument();
+    {
+        std::shared_lock lock(*doc);
+        const ElementLocation loc = locateId(doc, ids.front());
+        PageRef page = doc->getPage(loc.page);
+        lock.unlock();
+        control->clearSelectionEndTextOn(page);
+    }
+    ElementGroup g;
     std::shared_lock lock(*doc);
     std::map<Layer*, size_t> layerSlot;
     bool first = true;
