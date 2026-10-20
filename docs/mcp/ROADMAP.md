@@ -932,4 +932,44 @@ Besides the AI lasso (mark first, then say), the owner can highlight what they m
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
 | T14.12.1 | US-14.12 | **export writes pdf and xopp off the UI thread** — 2026-10-19 08:33-09:45 (1.12.6): with png and svg off the UI thread, the remaining freezes were PDF exports of the magazine, 2.1-3.8 s each, while the companion exported issue PDFs (and file_open, 1-2 s, which replaces the document anyway). pdf and xopp are now written on the render thread (runOffUi). The exporters read the live document, so it is held for reading during a PDF export (an edit then waits for it; before, everything waited); xopp prepares under the lock and writes without it. test_e9 test_5 exports pdf and xopp too (1.12.6: 1565 and 981 ms stalls). | `ai: export writes pdf and xopp off the UI thread (T14.12.1)` | ✅ done `97a77ada2` |
-| T14.12.2 | US-14.12 | **Release 1.12.7** — Full check: build-noterm and build-nomcp ok; unit tests 204/208 (the ControlLoadHandler group that fails under parallel ctest, all pass on rerun); integration 248/248. | `ai: release 1.12.7 (PDF exports do not freeze the pen) (T14.12.2)` | ✅ done |
+| T14.12.2 | US-14.12 | **Release 1.12.7** — Full check: build-noterm and build-nomcp ok; unit tests 204/208 (the ControlLoadHandler group that fails under parallel ctest, all pass on rerun); integration 248/248. | `ai: release 1.12.7 (PDF exports do not freeze the pen) (T14.12.2)` | ✅ done `f455b1dc6` |
+
+## E15 — Your keyboard, your view: agents work beside you (release 1.14.0)
+
+While agents save, add pages and draw, the owner keeps typing and dictating where they type, and keeps looking at the page they work on; the view moves only when they ask (docs/mcp/FOCUS.md).
+
+### S15.1 — The keyboard stays where you type → v1.13.0
+
+**US-15.1** — As the owner, I want the AI terminal and the AI input fields to keep my keyboard while saves, page changes and agents' work happen, so that typing and dictation are never cut off.
+
+- [ ] a save (mine or an agent's) leaves the keyboard in the terminal or the AI input field
+- [ ] a page becoming current (my scrolling, an agent's page work) does not take the keyboard from them
+- [ ] an agent's save does not grey out the window or show a busy cursor, and keeps my selection
+- [ ] drawing while a key is held in the terminal (dictation) keeps the keyboard there; otherwise drawing takes it, as before
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T15.1.1 | US-15.1 | **Programmatic focus moves leave the keyboard in text inputs** — 2026-10-20: after every save the canvas took the keyboard (BlockingJob), and so did every page that became current (XojPageView::setSelected), also from the owner's own scrolling; a space held for dictation then scrolled the canvas a screen per repeat. XournalView::requestFocus no longer takes the keyboard from a visible, sensitive text input (the AI terminal, an entry, a text view); the user's own clicks and strokes on the canvas still do. | `ai: the keyboard stays in the terminal and the AI input fields (T15.1.1)` | ✅ done |
+| T15.1.2 | US-15.1 | **Agents' saves are quiet** — file_save / file_save_as from agents (after every commit in the magazine workflow) greyed out all actions, set a busy cursor, showed the status bar (the layout jumped) and dropped the user's selection and text editing. Agents' saves now run without blocking the window; the AI strip shows the running save. A selection stays: its elements are written at their places from copies; text being edited is saved as it was before the edit. | `ai: agents' saves do not block the window or drop the selection (T15.1.2)` | ⬜ todo |
+| T15.1.3 | US-15.1 | **Drawing while a key is held keeps the keyboard** — Holding space in the terminal (Claude Code's push-to-talk) while starting a stroke moved the keyboard to the canvas. While a key is held in a text input (pressed and still repeating, so a lost release cannot stick), a stroke draws but leaves the keyboard there. Its own commit, so that it can be reverted alone. | `ai: drawing while a key is held in the terminal keeps the keyboard there (T15.1.3)` | ⬜ todo |
+| T15.1.4 | US-15.1 | **Release 1.13.0** —  | `ai: release 1.13.0 (the keyboard stays where you type) (T15.1.4)` | ⬜ todo |
+
+### S15.2 — The agent works without moving your view → v1.14.0
+
+**US-15.2** — As the owner, I want agents to change pages and layers without scrolling me away, and to move my view only when I ask for it.
+
+- [ ] page_manage and layer_manage change any page without scrolling the view or changing the current page
+- [ ] inserting or deleting a page above the visible one keeps what I see in place
+- [ ] an agent's work drops my selection only when it works on the same page
+- [ ] where an agent works is shown as a chip 'AI -> p. N' that takes me there
+- [ ] agents move the view only through the navigation tools, and not in the middle of my stroke or selection
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T15.2.1 | US-15.2 | **Page operations without the view** — page_manage drove the window: it scrolled to the page and made it current before and after each window action (insert jumped the owner's view to the new page). insert, delete, duplicate, move, background and size now work on the given page in the document, with the same undo steps; only goto (and an explicit show) moves the view. | `ai: page operations no longer move the user's view (T15.2.1)` | ⬜ todo |
+| T15.2.2 | US-15.2 | **Layer operations on any page** — layer_manage made the page current because LayerController works on the current page; it now works on the given page. | `ai: layer operations no longer move the user's view (T15.2.2)` | ⬜ todo |
+| T15.2.3 | US-15.2 | **The view stays put when pages come and go above it** — A page inserted or deleted above the visible one shifted the content under the user by a page and changed the current page. The scroll position follows the content, and the current page stays the same page. | `ai: pages added or removed above keep the view in place (T15.2.3)` | ⬜ todo |
+| T15.2.4 | US-15.2 | **The user's selection survives work on other pages** — Every agent draw, edit and commit dropped the user's selection and ended their text editing (clearSelectionEndText), on any page. Only work on the selection's (or the text's) own page drops it; there the agent has priority. | `ai: agents drop the user's selection only on its own page (T15.2.4)` | ⬜ todo |
+| T15.2.5 | US-15.2 | **A chip shows where the agent works** — Instead of moving the view: 'AI -> p. N' at the edge of the canvas while an agent changes a page that is not in view; a tap goes there. | `ai: a chip shows the page an agent works on (T15.2.5)` | ⬜ todo |
+| T15.2.6 | US-15.2 | **Navigation waits for the user's gesture** — The navigation tools (page_manage goto, view scroll and zoom, elements_select, show_message) move the view when asked, but not in the middle of the user's stroke, selection drag or typing: they wait (briefly) for it to end. Side effects that moved the view (clipboard copy and cut, show_message on another page) no longer do. | `ai: agents' navigation waits for the user's gesture (T15.2.6)` | ⬜ todo |
+| T15.2.7 | US-15.2 | **Release 1.14.0** —  | `ai: release 1.14.0 (the agent works without moving your view) (T15.2.7)` | ⬜ todo |

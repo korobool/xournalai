@@ -13,6 +13,8 @@
 
 #include <string>  // for string
 
+#include <glib-object.h>  // for GWeakRef
+
 #include "Job.h"  // for Job, JobType
 
 class Control;
@@ -31,4 +33,9 @@ public:
 
 protected:
     Control* control;
+
+private:
+    /// The text input the user typed in when the job began (the AI terminal, an AI input field): blocking makes the
+    /// canvas insensitive, and an input field shown over it (the AI Lasso's) with it, which loses the keyboard
+    GWeakRef keyboardOwner;
 };

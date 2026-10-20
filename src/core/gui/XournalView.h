@@ -66,6 +66,7 @@ public:
 
     void layerChanged(size_t page);
 
+    /// Gives the canvas the keyboard, unless a text input the user types in has it (see gui/KeyboardFocus.h)
     void requestFocus();
 
     void forceUpdatePagenumbers();

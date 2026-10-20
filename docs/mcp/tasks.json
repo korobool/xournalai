@@ -2901,6 +2901,144 @@
           ]
         }
       ]
+    },
+    {
+      "id": "E15",
+      "title": "Your keyboard, your view: agents work beside you",
+      "release": "1.14.0",
+      "goal": "While agents save, add pages and draw, the owner keeps typing and dictating where they type, and keeps looking at the page they work on; the view moves only when they ask (docs/mcp/FOCUS.md).",
+      "stages": [
+        {
+          "id": "S15.1",
+          "title": "The keyboard stays where you type",
+          "version": "1.13.0",
+          "stories": [
+            {
+              "id": "US-15.1",
+              "text": "As the owner, I want the AI terminal and the AI input fields to keep my keyboard while saves, page changes and agents' work happen, so that typing and dictation are never cut off.",
+              "acceptance": [
+                "a save (mine or an agent's) leaves the keyboard in the terminal or the AI input field",
+                "a page becoming current (my scrolling, an agent's page work) does not take the keyboard from them",
+                "an agent's save does not grey out the window or show a busy cursor, and keeps my selection",
+                "drawing while a key is held in the terminal (dictation) keeps the keyboard there; otherwise drawing takes it, as before"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T15.1.1",
+              "story": "US-15.1",
+              "title": "Programmatic focus moves leave the keyboard in text inputs",
+              "details": "2026-10-20: after every save the canvas took the keyboard (BlockingJob), and so did every page that became current (XojPageView::setSelected), also from the owner's own scrolling; a space held for dictation then scrolled the canvas a screen per repeat. XournalView::requestFocus no longer takes the keyboard from a visible, sensitive text input (the AI terminal, an entry, a text view); the user's own clicks and strokes on the canvas still do.",
+              "commit": "ai: the keyboard stays in the terminal and the AI input fields",
+              "status": "done",
+              "started": "2026-10-20T12:00:34+01:00",
+              "finished": "2026-10-20T12:13:36+01:00",
+              "note": "terminal and AI input field keep the keyboard: test_e15_focus 4/4 (3 fail on 1.12.7)"
+            },
+            {
+              "id": "T15.1.2",
+              "story": "US-15.1",
+              "title": "Agents' saves are quiet",
+              "details": "file_save / file_save_as from agents (after every commit in the magazine workflow) greyed out all actions, set a busy cursor, showed the status bar (the layout jumped) and dropped the user's selection and text editing. Agents' saves now run without blocking the window; the AI strip shows the running save. A selection stays: its elements are written at their places from copies; text being edited is saved as it was before the edit.",
+              "commit": "ai: agents' saves do not block the window or drop the selection",
+              "status": "todo"
+            },
+            {
+              "id": "T15.1.3",
+              "story": "US-15.1",
+              "title": "Drawing while a key is held keeps the keyboard",
+              "details": "Holding space in the terminal (Claude Code's push-to-talk) while starting a stroke moved the keyboard to the canvas. While a key is held in a text input (pressed and still repeating, so a lost release cannot stick), a stroke draws but leaves the keyboard there. Its own commit, so that it can be reverted alone.",
+              "commit": "ai: drawing while a key is held in the terminal keeps the keyboard there",
+              "status": "todo"
+            },
+            {
+              "id": "T15.1.4",
+              "story": "US-15.1",
+              "title": "Release 1.13.0",
+              "details": "",
+              "commit": "ai: release 1.13.0 (the keyboard stays where you type)",
+              "status": "todo"
+            }
+          ]
+        },
+        {
+          "id": "S15.2",
+          "title": "The agent works without moving your view",
+          "version": "1.14.0",
+          "stories": [
+            {
+              "id": "US-15.2",
+              "text": "As the owner, I want agents to change pages and layers without scrolling me away, and to move my view only when I ask for it.",
+              "acceptance": [
+                "page_manage and layer_manage change any page without scrolling the view or changing the current page",
+                "inserting or deleting a page above the visible one keeps what I see in place",
+                "an agent's work drops my selection only when it works on the same page",
+                "where an agent works is shown as a chip 'AI -> p. N' that takes me there",
+                "agents move the view only through the navigation tools, and not in the middle of my stroke or selection"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T15.2.1",
+              "story": "US-15.2",
+              "title": "Page operations without the view",
+              "details": "page_manage drove the window: it scrolled to the page and made it current before and after each window action (insert jumped the owner's view to the new page). insert, delete, duplicate, move, background and size now work on the given page in the document, with the same undo steps; only goto (and an explicit show) moves the view.",
+              "commit": "ai: page operations no longer move the user's view",
+              "status": "todo"
+            },
+            {
+              "id": "T15.2.2",
+              "story": "US-15.2",
+              "title": "Layer operations on any page",
+              "details": "layer_manage made the page current because LayerController works on the current page; it now works on the given page.",
+              "commit": "ai: layer operations no longer move the user's view",
+              "status": "todo"
+            },
+            {
+              "id": "T15.2.3",
+              "story": "US-15.2",
+              "title": "The view stays put when pages come and go above it",
+              "details": "A page inserted or deleted above the visible one shifted the content under the user by a page and changed the current page. The scroll position follows the content, and the current page stays the same page.",
+              "commit": "ai: pages added or removed above keep the view in place",
+              "status": "todo"
+            },
+            {
+              "id": "T15.2.4",
+              "story": "US-15.2",
+              "title": "The user's selection survives work on other pages",
+              "details": "Every agent draw, edit and commit dropped the user's selection and ended their text editing (clearSelectionEndText), on any page. Only work on the selection's (or the text's) own page drops it; there the agent has priority.",
+              "commit": "ai: agents drop the user's selection only on its own page",
+              "status": "todo"
+            },
+            {
+              "id": "T15.2.5",
+              "story": "US-15.2",
+              "title": "A chip shows where the agent works",
+              "details": "Instead of moving the view: 'AI -> p. N' at the edge of the canvas while an agent changes a page that is not in view; a tap goes there.",
+              "commit": "ai: a chip shows the page an agent works on",
+              "status": "todo"
+            },
+            {
+              "id": "T15.2.6",
+              "story": "US-15.2",
+              "title": "Navigation waits for the user's gesture",
+              "details": "The navigation tools (page_manage goto, view scroll and zoom, elements_select, show_message) move the view when asked, but not in the middle of the user's stroke, selection drag or typing: they wait (briefly) for it to end. Side effects that moved the view (clipboard copy and cut, show_message on another page) no longer do.",
+              "commit": "ai: agents' navigation waits for the user's gesture",
+              "status": "todo"
+            },
+            {
+              "id": "T15.2.7",
+              "story": "US-15.2",
+              "title": "Release 1.14.0",
+              "details": "",
+              "commit": "ai: release 1.14.0 (the agent works without moving your view)",
+              "status": "todo"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

@@ -21,6 +21,7 @@
 #include "control/tools/CursorSelectionType.h"   // for CURSOR_SELECTION_NONE
 #include "control/tools/EditSelection.h"         // for EditSelection
 #include "control/zoom/ZoomControl.h"            // for ZoomControl
+#include "gui/KeyboardFocus.h"                   // for textInputWithKeyboard
 #include "gui/MainWindow.h"                      // for MainWindow
 #include "gui/PdfFloatingToolbox.h"              // for PdfFloatingToolbox
 #include "gui/inputdevices/GeometryToolInputHandler.h"  // for GeometryToolInputHandler
@@ -360,7 +361,13 @@ void XournalView::onSettingsChanged() {
 }
 
 // send the focus back to the appropriate widget
-void XournalView::requestFocus() { gtk_widget_grab_focus(this->widget); }
+void XournalView::requestFocus() {
+    // (after saves and when a page becomes current: not from the AI terminal or an input field the user types in)
+    if (xoj::gui::textInputWithKeyboard(this->widget)) {
+        return;
+    }
+    gtk_widget_grab_focus(this->widget);
+}
 
 auto XournalView::searchTextOnPage(const std::string& text, size_t pageNumber, size_t index, size_t* occurrences,
                                    XojPdfRectangle* matchRect) -> bool {
