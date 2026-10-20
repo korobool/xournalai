@@ -123,3 +123,56 @@ def test_4_a_stroke_on_the_canvas_still_takes_the_keyboard(app):
     app.user_drag([(x - 60 + i * 6, y + (i % 5)) for i in range(20)])
     time.sleep(0.3)
     assert not terminal_has_keys(app, "after-stroke")
+
+
+def saved_strokes(path):
+    """The strokes in a saved .xopp, as lists of numbers"""
+    import gzip
+    import re
+    xml = gzip.open(path).read().decode()
+    return [[float(v) for v in m.split()] for m in re.findall(r"<stroke[^>]*>([^<]*)</stroke>", xml)]
+
+
+def test_5_an_agents_save_keeps_the_users_selection_and_writes_it(app):
+    c = app.client()
+    setup_document(c)
+    sid = c.call("create_strokes", page=1, strokes=[{"points": [[321, 321], [333, 345]]}],
+                 animate=False)["created"][0]["id"]
+    c.call("elements_select", element_ids=[sid])  # (as if the user had selected it: it is out of its layer now)
+    assert c.call("view").get("selection")
+    c.call("file_save")
+    assert c.call("view").get("selection"), "the save dropped the user's selection"
+    path = c.call("file_info")["path"]
+    assert any(s[:2] == [321, 321] for s in saved_strokes(path)), "the selected stroke is missing from the file"
+    assert not c.call("file_info")["modified"]
+
+
+def test_6_the_canvas_stays_usable_while_an_agent_saves(app):
+    import random
+    import threading
+    import xoai
+    c = app.client()
+    heavy = os.path.join(DIR, "heavy.xopp")
+    rnd = random.Random(7)
+    xoai.make_xopp(heavy, [[xoai.stroke([(30 + i * 9 + rnd.uniform(-1, 1), 30 + k * 0.85) for i in range(60)])
+                            for k in range(900)] for _ in range(12)])
+    c.call("file_open", path=heavy, on_unsaved="save")
+    c.call("create_strokes", page=2, strokes=[{"points": [[10, 10], [20, 20]]}], animate=False)
+    page = c.call("view")["current_page"]
+    before = len(c.call("page_elements", page=page, detail="bbox", limit=5000)["elements"])
+    agent = app.client()
+    th = threading.Thread(target=lambda: agent.call("file_save"))
+    th.start()
+    seen = []
+    while th.is_alive() and len(seen) < 4:
+        canvas = [w for w in c.call("ui_inspect", max_depth=40, all=True)["widgets"] if w["type"] == "GtkXournal"]
+        seen.append(canvas[0].get("enabled", True))
+        time.sleep(0.05)
+    x, y = app.canvas_center(c)
+    app.user_drag([(x - 50 + i * 5, y + (i % 4)) for i in range(20)], step_delay=0.005)  # the user draws meanwhile
+    th.join()
+    assert len(seen) >= 3, seen  # (the save took long enough to look)
+    assert all(seen), seen  # a blocked window makes the canvas insensitive
+    assert len(c.call("page_elements", page=page, detail="bbox", limit=5000)["elements"]) == before + 1
+    # (the stroke came after the save began: it is not in the file yet)
+    assert c.call("file_info")["modified"]

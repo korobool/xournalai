@@ -66,7 +66,7 @@ void handleUnsaved(McpServer* srv, Control* ctrl, const std::string& policy, con
                             "on_unsaved=\"discard\"");
         }
         lock.unlock();
-        ctrl->save([next, respond](bool ok) {
+        ctrl->saveInBackground([next, respond](bool ok) {
             if (ok) {
                 next();
             } else {
@@ -94,7 +94,8 @@ void saveTo(Control* ctrl, const Responder& respond, std::optional<fs::path> new
         doc->setFilepath(*newPath);
         doc->unlock();
     }
-    ctrl->save([ctrl, respond](bool ok) {
+    // (in the background: agents save after every change, and a blocked window cut the user off)
+    ctrl->saveInBackground([ctrl, respond](bool ok) {
         if (!ok) {
             respond(ToolResult::error("Saving failed (see the application for details)"));
             return;

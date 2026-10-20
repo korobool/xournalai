@@ -57,6 +57,11 @@ public:
     bool isChangedAutosave();
     void documentAutosaved();
     void documentSaved();
+    /// The newest undo step: what a save that starts now writes
+    UndoAction* lastAction() const;
+    /// The document was saved as it was at undo step `at` (lastAction() when the save began): later changes stay
+    /// unsaved (agents' saves run while the user draws)
+    void documentSaved(UndoAction* at);
 
 private:
     void clearRedo();

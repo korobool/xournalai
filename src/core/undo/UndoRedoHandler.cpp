@@ -240,3 +240,9 @@ void UndoRedoHandler::documentAutosaved() {
 void UndoRedoHandler::documentSaved() {
     this->savedUndo = this->undoList.empty() ? nullptr : this->undoList.back().get();
 }
+
+auto UndoRedoHandler::lastAction() const -> UndoAction* {
+    return this->undoList.empty() ? nullptr : this->undoList.back().get();
+}
+
+void UndoRedoHandler::documentSaved(UndoAction* at) { this->savedUndo = at; }

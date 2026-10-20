@@ -1,8 +1,10 @@
 #include "SaveHandler.h"
 
+#include <algorithm>   // for stable_sort
 #include <cinttypes>   // for PRIx32
 #include <cstdint>     // for uint32_t
 #include <cstdio>      // for sprintf, size_t
+#include <limits>      // for numeric_limits
 
 #include <cairo.h>                  // for cairo_surface_t
 #include <gdk-pixbuf/gdk-pixbuf.h>  // for gdk_pixbuf_save
@@ -49,6 +51,11 @@ using TagType = xoj::xml_tags::Type;
 SaveHandler::SaveHandler() {
     this->firstPdfPageVisited = false;
     this->attachBgId = 1;
+}
+
+void SaveHandler::setHeldOut(const Layer* layer, InsertionOrderRef elements) {
+    this->heldOutLayer = layer;
+    this->heldOut = std::move(elements);
 }
 
 void SaveHandler::prepareSave(const Document* doc, const fs::path& target) {
@@ -188,98 +195,123 @@ void SaveHandler::visitLayer(XmlNode* page, const Layer* l) {
         layer->setAttrib(xoj::xml_attrs::NAME_STR, l->getName().c_str());
     }
 
-    for (const auto& e: l->getElementsView()) {
-        if (e->getType() == ELEMENT_STROKE) {
-            auto* s = dynamic_cast<const Stroke*>(e);
-            auto* stroke = new XmlPointNode(TAG_NAMES[TagType::STROKE]);
-            layer->addChild(stroke);
-            visitStroke(stroke, s);
-        } else if (e->getType() == ELEMENT_TEXT) {
-            const Text* t = dynamic_cast<const Text*>(e);
-            if (t->getText().empty()) {
-                g_warning("Trying to save an empty Text element. Discarding it!");
-                continue;
-            }
-            auto* text = new XmlTextNode(TAG_NAMES[TagType::TEXT], t->getText());
-            layer->addChild(text);
-
-            const XojFont& f = t->getFont();
-
-            text->setAttrib(xoj::xml_attrs::FONT_STR, f.getName().c_str());
-            if (isMatrixHomogeneousScaling(*t)) {
-                // Save as file version 4 for backward compatibility
-                text->setAttrib(xoj::xml_attrs::SIZE_STR, t->getTransformation().xx * f.getSize());
-                const auto& origin = t->getTransformation().shift;
-                text->setAttrib(xoj::xml_attrs::X_COORD_STR, origin.x);
-                text->setAttrib(xoj::xml_attrs::Y_COORD_STR, origin.y);
-            } else {
-                text->setAttrib(xoj::xml_attrs::SIZE_STR, f.getSize());
-                text->setAttrib(xoj::xml_attrs::MATRIX_STR, makeMatrixVector(*t));
-            }
-            text->setAttrib(xoj::xml_attrs::COLOR_STR, getColorStr(t->getColor()).c_str());
-            if (auto w = t->getWrap(); w != Text::NO_WRAP) {
-                text->setAttrib(xoj::xml_attrs::WRAP_STR, w);
-            }
-            if (auto al = t->getAlign(); al != TextAlignment::LEFT) {
-                text->setAttrib(xoj::xml_attrs::ALIGN_STR, TextAlignment::NAMES[al]);
-            }
-            if (t->getJustify()) {
-                text->setAttrib(xoj::xml_attrs::JUSTIFY_STR, xoj::xml_values::TRUE_STR);
-            }
-
-            writeAudio(text, *t);
-        } else if (e->getType() == ELEMENT_IMAGE) {
-            auto* i = dynamic_cast<const Image*>(e);
-            auto* image = new XmlImageNode(TAG_NAMES[TagType::IMAGE]);
-            layer->addChild(image);
-
-            image->setImage(i->getImage());
-            if (isMatrixPositiveScaling(*i)) {
-                // Save as file version 4 for backward compatibility
-                Range r(i->getBoundingBox());
-                image->setAttrib(xoj::xml_attrs::LEFT_POS_STR, r.minX);
-                image->setAttrib(xoj::xml_attrs::TOP_POS_STR, r.minY);
-                image->setAttrib(xoj::xml_attrs::RIGHT_POS_STR, r.maxX);
-                image->setAttrib(xoj::xml_attrs::BOTTOM_POS_STR, r.maxY);
-                // Add metadata to allow for lazy loading
-                const auto& s = i->getNaturalSize();
-                image->setAttrib(xoj::xml_attrs::NATURAL_SIZE_STR, std::vector<double>{s.width, s.height});
-            } else {
-                image->setAttrib(xoj::xml_attrs::MATRIX_STR, makeMatrixVector(*i));
-            }
-        } else if (e->getType() == ELEMENT_TEXIMAGE) {
-            auto* i = dynamic_cast<const TexImage*>(e);
-            auto* image = new XmlTexNode(TAG_NAMES[TagType::TEXIMAGE], std::string(i->getBinaryData()));
-            layer->addChild(image);
-
-            image->setAttrib(xoj::xml_attrs::TEXT_STR, i->getText().c_str());
-            if (isMatrixPositiveScaling(*i)) {
-                // Save as file version 4 for backward compatibility
-                Range r(i->getBoundingBox());
-                image->setAttrib(xoj::xml_attrs::LEFT_POS_STR, r.minX);
-                image->setAttrib(xoj::xml_attrs::TOP_POS_STR, r.minY);
-                image->setAttrib(xoj::xml_attrs::RIGHT_POS_STR, r.maxX);
-                image->setAttrib(xoj::xml_attrs::BOTTOM_POS_STR, r.maxY);
-                // Add metadata to allow for lazy loading
-                const auto& s = i->getNaturalSize();
-                image->setAttrib(xoj::xml_attrs::NATURAL_SIZE_STR, std::vector<double>{s.width, s.height});
-            } else {
-                image->setAttrib(xoj::xml_attrs::MATRIX_STR, makeMatrixVector(*i));
-            }
-        } else if (e->getType() == ELEMENT_LINK) {
-            auto* l = dynamic_cast<const Link*>(e);
-            auto* link = new XmlTextNode(TAG_NAMES[TagType::LINK], l->getText());
-            layer->addChild(link);
-
-            const XojFont& f = l->getFont();
-
-            link->setAttrib(xoj::xml_attrs::ALIGN_STR, TextAlignment::NAMES[l->getAlignment()]);
-            link->setAttrib(xoj::xml_attrs::FONT_STR, f.getName().c_str());
-            link->setAttrib(xoj::xml_attrs::SIZE_STR, f.getSize());
-            link->setAttrib(xoj::xml_attrs::MATRIX_STR, makeMatrixVector(*l));
-            link->setAttrib(xoj::xml_attrs::COLOR_STR, getColorStr(l->getColor()).c_str());
-            link->setAttrib(xoj::xml_attrs::URL_STR, l->getUrl().c_str());
+    if (l != heldOutLayer) {
+        for (const auto& e: l->getElementsView()) {
+            visitElement(layer, e);
         }
+        return;
+    }
+    // With the selection's elements at their former positions (those from the clipboard have none: at the end)
+    InsertionOrderRef order = heldOut;
+    std::stable_sort(order.begin(), order.end(), [](const auto& a, const auto& b) {
+        return (a.pos < 0 ? std::numeric_limits<Element::Index>::max() : a.pos) <
+               (b.pos < 0 ? std::numeric_limits<Element::Index>::max() : b.pos);
+    });
+    auto next = order.begin();
+    Element::Index position = 0;
+    for (const auto& e: l->getElementsView()) {
+        for (; next != order.end() && next->pos >= 0 && next->pos <= position; ++next, ++position) {
+            visitElement(layer, next->e);
+        }
+        visitElement(layer, e);
+        ++position;
+    }
+    for (; next != order.end(); ++next) {
+        visitElement(layer, next->e);
+    }
+}
+
+void SaveHandler::visitElement(XmlNode* layer, const Element* e) {
+    if (e->getType() == ELEMENT_STROKE) {
+        auto* s = dynamic_cast<const Stroke*>(e);
+        auto* stroke = new XmlPointNode(TAG_NAMES[TagType::STROKE]);
+        layer->addChild(stroke);
+        visitStroke(stroke, s);
+    } else if (e->getType() == ELEMENT_TEXT) {
+        const Text* t = dynamic_cast<const Text*>(e);
+        if (t->getText().empty()) {
+            g_warning("Trying to save an empty Text element. Discarding it!");
+            return;
+        }
+        auto* text = new XmlTextNode(TAG_NAMES[TagType::TEXT], t->getText());
+        layer->addChild(text);
+
+        const XojFont& f = t->getFont();
+
+        text->setAttrib(xoj::xml_attrs::FONT_STR, f.getName().c_str());
+        if (isMatrixHomogeneousScaling(*t)) {
+            // Save as file version 4 for backward compatibility
+            text->setAttrib(xoj::xml_attrs::SIZE_STR, t->getTransformation().xx * f.getSize());
+            const auto& origin = t->getTransformation().shift;
+            text->setAttrib(xoj::xml_attrs::X_COORD_STR, origin.x);
+            text->setAttrib(xoj::xml_attrs::Y_COORD_STR, origin.y);
+        } else {
+            text->setAttrib(xoj::xml_attrs::SIZE_STR, f.getSize());
+            text->setAttrib(xoj::xml_attrs::MATRIX_STR, makeMatrixVector(*t));
+        }
+        text->setAttrib(xoj::xml_attrs::COLOR_STR, getColorStr(t->getColor()).c_str());
+        if (auto w = t->getWrap(); w != Text::NO_WRAP) {
+            text->setAttrib(xoj::xml_attrs::WRAP_STR, w);
+        }
+        if (auto al = t->getAlign(); al != TextAlignment::LEFT) {
+            text->setAttrib(xoj::xml_attrs::ALIGN_STR, TextAlignment::NAMES[al]);
+        }
+        if (t->getJustify()) {
+            text->setAttrib(xoj::xml_attrs::JUSTIFY_STR, xoj::xml_values::TRUE_STR);
+        }
+
+        writeAudio(text, *t);
+    } else if (e->getType() == ELEMENT_IMAGE) {
+        auto* i = dynamic_cast<const Image*>(e);
+        auto* image = new XmlImageNode(TAG_NAMES[TagType::IMAGE]);
+        layer->addChild(image);
+
+        image->setImage(i->getImage());
+        if (isMatrixPositiveScaling(*i)) {
+            // Save as file version 4 for backward compatibility
+            Range r(i->getBoundingBox());
+            image->setAttrib(xoj::xml_attrs::LEFT_POS_STR, r.minX);
+            image->setAttrib(xoj::xml_attrs::TOP_POS_STR, r.minY);
+            image->setAttrib(xoj::xml_attrs::RIGHT_POS_STR, r.maxX);
+            image->setAttrib(xoj::xml_attrs::BOTTOM_POS_STR, r.maxY);
+            // Add metadata to allow for lazy loading
+            const auto& s = i->getNaturalSize();
+            image->setAttrib(xoj::xml_attrs::NATURAL_SIZE_STR, std::vector<double>{s.width, s.height});
+        } else {
+            image->setAttrib(xoj::xml_attrs::MATRIX_STR, makeMatrixVector(*i));
+        }
+    } else if (e->getType() == ELEMENT_TEXIMAGE) {
+        auto* i = dynamic_cast<const TexImage*>(e);
+        auto* image = new XmlTexNode(TAG_NAMES[TagType::TEXIMAGE], std::string(i->getBinaryData()));
+        layer->addChild(image);
+
+        image->setAttrib(xoj::xml_attrs::TEXT_STR, i->getText().c_str());
+        if (isMatrixPositiveScaling(*i)) {
+            // Save as file version 4 for backward compatibility
+            Range r(i->getBoundingBox());
+            image->setAttrib(xoj::xml_attrs::LEFT_POS_STR, r.minX);
+            image->setAttrib(xoj::xml_attrs::TOP_POS_STR, r.minY);
+            image->setAttrib(xoj::xml_attrs::RIGHT_POS_STR, r.maxX);
+            image->setAttrib(xoj::xml_attrs::BOTTOM_POS_STR, r.maxY);
+            // Add metadata to allow for lazy loading
+            const auto& s = i->getNaturalSize();
+            image->setAttrib(xoj::xml_attrs::NATURAL_SIZE_STR, std::vector<double>{s.width, s.height});
+        } else {
+            image->setAttrib(xoj::xml_attrs::MATRIX_STR, makeMatrixVector(*i));
+        }
+    } else if (e->getType() == ELEMENT_LINK) {
+        auto* l = dynamic_cast<const Link*>(e);
+        auto* link = new XmlTextNode(TAG_NAMES[TagType::LINK], l->getText());
+        layer->addChild(link);
+
+        const XojFont& f = l->getFont();
+
+        link->setAttrib(xoj::xml_attrs::ALIGN_STR, TextAlignment::NAMES[l->getAlignment()]);
+        link->setAttrib(xoj::xml_attrs::FONT_STR, f.getName().c_str());
+        link->setAttrib(xoj::xml_attrs::SIZE_STR, f.getSize());
+        link->setAttrib(xoj::xml_attrs::MATRIX_STR, makeMatrixVector(*l));
+        link->setAttrib(xoj::xml_attrs::COLOR_STR, getColorStr(l->getColor()).c_str());
+        link->setAttrib(xoj::xml_attrs::URL_STR, l->getUrl().c_str());
     }
 }
 

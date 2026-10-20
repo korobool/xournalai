@@ -21,7 +21,8 @@ class Control;
 
 class BlockingJob: public Job {
 public:
-    BlockingJob(Control* control, const std::string& name);
+    /// `blockUi` false: runs like the others, with the window usable (an agent's save)
+    BlockingJob(Control* control, const std::string& name, bool blockUi = true);
 
 protected:
     ~BlockingJob() override;
@@ -33,6 +34,7 @@ public:
 
 protected:
     Control* control;
+    const bool blocksUi;
 
 private:
     /// The text input the user typed in when the job began (the AI terminal, an AI input field): blocking makes the

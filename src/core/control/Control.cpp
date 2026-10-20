@@ -2157,6 +2157,19 @@ void Control::save(std::function<void(bool)> callback) { saveImpl(false, std::mo
 
 void Control::saveAs(std::function<void(bool)> callback) { saveImpl(true, std::move(callback)); }
 
+void Control::saveInBackground(std::function<void(bool)> callback) {
+    this->doc->lock_shared();
+    const bool untitled = this->doc->getFilepath().empty();
+    this->doc->unlock_shared();
+    if (untitled) {
+        save(std::move(callback));
+        return;
+    }
+    auto* job = new SaveJob(this, std::move(callback), true);
+    this->scheduler->addJob(job, JOB_PRIORITY_URGENT);
+    job->unref();
+}
+
 void Control::saveImpl(bool saveAs, std::function<void(bool)> callback) {
     // clear selection before saving
     clearSelectionEndText();
@@ -2203,6 +2216,12 @@ void Control::resetSavedStatus() {
 
     this->undoRedo->documentSaved();
     RecentManager::addRecentFileFilename(filepath);
+    this->updateWindowTitle();
+}
+
+void Control::resetSavedStatus(UndoAction* savedAt) {
+    resetSavedStatus();
+    this->undoRedo->documentSaved(savedAt);
     this->updateWindowTitle();
 }
 

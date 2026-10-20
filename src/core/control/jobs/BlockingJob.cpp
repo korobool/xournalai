@@ -10,10 +10,14 @@
 #include "util/Util.h"          // for execInUiThread
 #include "util/glib_casts.h"    // for wrap_for_once_v
 
-BlockingJob::BlockingJob(Control* control, const std::string& name): control(control) {
+BlockingJob::BlockingJob(Control* control, const std::string& name, bool blockUi):
+        control(control), blocksUi(blockUi) {
     MainWindow* win = control->getWindow();
-    g_weak_ref_init(&keyboardOwner, win ? xoj::gui::textInputWithKeyboard(win->getXournal()->getWidget()) : nullptr);
-    control->block(name);
+    g_weak_ref_init(&keyboardOwner, win && blockUi ? xoj::gui::textInputWithKeyboard(win->getXournal()->getWidget()) :
+                                                      nullptr);
+    if (blockUi) {
+        control->block(name);
+    }
 }
 
 BlockingJob::~BlockingJob() {
@@ -23,6 +27,9 @@ BlockingJob::~BlockingJob() {
 
 void BlockingJob::execute() {
     this->run();
+    if (!this->blocksUi) {
+        return;
+    }
 
     // (a reference, given up on the UI thread)
     auto* owner = static_cast<GtkWidget*>(g_weak_ref_get(&keyboardOwner));

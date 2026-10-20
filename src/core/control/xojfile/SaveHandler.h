@@ -16,8 +16,9 @@
 #include <string>  // for string
 #include <vector>  // for vector
 
-#include "control/xml/XmlNode.h"    // for XmlNode
-#include "model/BackgroundImage.h"  // for BackgroundImage
+#include "control/xml/XmlNode.h"             // for XmlNode
+#include "model/BackgroundImage.h"           // for BackgroundImage
+#include "model/ElementInsertionPosition.h"  // for InsertionOrderRef
 #include "model/PageRef.h"          // for PageRef
 #include "util/Color.h"             // for Color
 
@@ -38,6 +39,12 @@ public:
 public:
     /// Prepare an XML tree corresponding to the document - Needs read-only access to the Document
     void prepareSave(const Document* doc, const fs::path& target);
+    /**
+     * Elements that belong to `layer` but are out of it (a selection holds them while the user works with it):
+     * prepareSave() writes them at their positions in it, as ending the selection would put them back. They must
+     * stay valid until prepareSave() returns.
+     */
+    void setHeldOut(const Layer* layer, InsertionOrderRef elements);
     /// Writes the XML to the given path. Does not access the Document instance
     void saveTo(const fs::path& filepath, ProgressListener* listener = nullptr);
     /**
@@ -56,6 +63,7 @@ protected:
 
     virtual void visitPage(XmlNode* root, ConstPageRef p, const Document* doc, int id, const fs::path& target);
     virtual void visitLayer(XmlNode* page, const Layer* l);
+    void visitElement(XmlNode* layer, const Element* e);
     virtual void visitStroke(XmlPointNode* stroke, const Stroke* s);
 
     /**
@@ -74,6 +82,9 @@ protected:
     int attachBgId;
 
     std::string errorMessage;
+
+    const Layer* heldOutLayer = nullptr;
+    InsertionOrderRef heldOut;
 
     struct ImageInfo {
         BackgroundImage image;  ///< This is a wrapped shared pointer

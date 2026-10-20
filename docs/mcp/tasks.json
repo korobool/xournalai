@@ -2942,7 +2942,10 @@
               "title": "Agents' saves are quiet",
               "details": "file_save / file_save_as from agents (after every commit in the magazine workflow) greyed out all actions, set a busy cursor, showed the status bar (the layout jumped) and dropped the user's selection and text editing. Agents' saves now run without blocking the window; the AI strip shows the running save. A selection stays: its elements are written at their places from copies; text being edited is saved as it was before the edit.",
               "commit": "ai: agents' saves do not block the window or drop the selection",
-              "status": "todo"
+              "status": "done",
+              "started": "2026-10-20T12:13:44+01:00",
+              "finished": "2026-10-20T12:21:45+01:00",
+              "note": "test_e15_focus 6/6 (5 and 6 fail on 1.12.7)"
             },
             {
               "id": "T15.1.3",

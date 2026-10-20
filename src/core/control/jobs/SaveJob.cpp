@@ -7,12 +7,16 @@
 
 #include "control/Control.h"              // for Control
 #include "control/jobs/BlockingJob.h"     // for BlockingJob
+#include "control/tools/EditSelection.h"  // for EditSelection
 #include "control/xojfile/SaveHandler.h"  // for SaveHandler
+#include "gui/MainWindow.h"               // for MainWindow
+#include "gui/XournalView.h"              // for XournalView
 #include "model/Document.h"               // for Document
 #include "model/PageRef.h"                // for PageRef
 #include "model/PageType.h"               // for PageType
 #include "model/XojPage.h"                // for XojPage
 #include "pdf/base/XojPdfPage.h"          // for XojPdfPageSPtr, XojPdfPage
+#include "undo/UndoRedoHandler.h"         // for UndoRedoHandler
 #include "util/PathUtil.h"                // for clearExtensions, safeRename...
 #include "util/XojMsgBox.h"               // for XojMsgBox
 #include "util/i18n.h"                    // for FS, _, _F
@@ -21,8 +25,18 @@
 #include "filesystem.h"  // for path, filesystem_error, remove
 
 
-SaveJob::SaveJob(Control* control, std::function<void(bool)> callback):
-        BlockingJob(control, _("Save")), callback(std::move(callback)) {}
+SaveJob::SaveJob(Control* control, std::function<void(bool)> callback, bool inBackground):
+        BlockingJob(control, _("Save"), !inBackground), callback(std::move(callback)) {
+    this->savedAt = control->getUndoRedoHandler()->lastAction();
+    if (MainWindow* win = control->getWindow(); inBackground && win) {
+        if (const EditSelection* sel = win->getXournal()->getSelection()) {
+            this->selectionLayer = sel->getSourceLayer();
+            for (const auto& p: sel->getInsertionOrder()) {
+                this->selectionCopies.emplace_back(p.e->clone(), p.pos);
+            }
+        }
+    }
+}
 
 SaveJob::~SaveJob() = default;
 
@@ -39,7 +53,7 @@ void SaveJob::afterRun() {
         XojMsgBox::showErrorToUser(control->getGtkWindow(), this->lastError);
         callback(false);
     } else {
-        this->control->resetSavedStatus();
+        this->control->resetSavedStatus(this->savedAt);
         callback(true);
     }
 }
@@ -108,6 +122,9 @@ auto SaveJob::save() -> bool {
     fs::path target = doc->getFilepath();
     Util::safeReplaceExtension(target, "xopp");
 
+    if (this->selectionLayer) {
+        h.setHeldOut(this->selectionLayer, refInsertionOrder(this->selectionCopies));
+    }
     h.prepareSave(doc, target);
     doc->unlock_shared();
 
@@ -128,7 +145,7 @@ auto SaveJob::save() -> bool {
         }
     }
 
-    h.saveTo(target, this->control);
+    h.saveTo(target, this->blocksUi ? this->control : nullptr);  // (the progress bar is the blocked window's)
 
     doc->lock();
     h.updateDocumentInfo(doc);

@@ -136,9 +136,18 @@ public:
     void saveAs(std::function<void(bool)> callback = [](bool) {});
 
     /**
+     * @brief Saves an agent's work without blocking the window: no greyed-out actions, busy cursor or progress bar,
+     * the canvas keeps drawing, and the user's selection and text editing stay (2026-10-20: agents save after every
+     * change, and each save cut the user off). Asks for a place like save() if the document has none.
+     */
+    void saveInBackground(std::function<void(bool)> callback);
+
+    /**
      * Marks the current document as saved if it is currently marked as unsaved.
      */
     void resetSavedStatus();
+    /// After a save that began at undo step `savedAt` (see UndoRedoHandler::documentSaved)
+    void resetSavedStatus(UndoAction* savedAt);
 
     /**
      * Close the current document, prompting to save unsaved changes.
