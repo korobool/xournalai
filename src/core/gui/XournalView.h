@@ -27,6 +27,7 @@
 #include "model/DocumentChangeType.h"      // for DocumentChangeType
 #include "model/DocumentListener.h"        // for DocumentListener
 #include "pdf/base/XojPdfPage.h"           // for XojPdfRectangle
+#include "util/Point.h"                    // for Point
 #include "util/Util.h"                     // for npos
 
 class Control;
@@ -172,6 +173,10 @@ private:
 
     /// Updates what depends on the number of pages (pages were inserted or deleted)
     void pageCountChanged();
+    /// The current and the selected page keep pointing to their pages after `page` was inserted or deleted
+    void shiftPageIndices(size_t page, bool inserted);
+    /// Scrolls so that the current page is where it was on the screen (`before`: its position then)
+    void keepInPlace(xoj::util::Point<int> before);
 
 private:
     /**

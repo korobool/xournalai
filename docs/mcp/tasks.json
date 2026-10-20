@@ -3012,9 +3012,11 @@
               "id": "T15.2.3",
               "story": "US-15.2",
               "title": "The view stays put when pages come and go above it",
-              "details": "A page inserted or deleted above the visible one shifted the content under the user by a page and changed the current page. The scroll position follows the content, and the current page stays the same page.",
+              "details": "A page inserted or deleted above the visible one shifted the content under the user by a page and changed the current page. The scroll position follows the content, and the current page stays the same page. XournalView keeps the current page where it was on the screen when another page is inserted or deleted (scrolls by the shift), and moves its current/selected indices with it instead of re-selecting (which would end the user's text editing). Deleting the current page itself still goes to the next one. test_e15_view 5/5 (test_5 fails without the anchor).",
               "commit": "ai: pages added or removed above keep the view in place",
-              "status": "todo"
+              "status": "done",
+              "started": "2026-10-20T13:01:20+01:00",
+              "finished": "2026-10-20T13:08:51+01:00"
             },
             {
               "id": "T15.2.4",

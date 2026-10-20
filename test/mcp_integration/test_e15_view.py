@@ -72,3 +72,26 @@ def test_4_layer_operations_elsewhere_leave_the_view(app):
         assert view(c) == before, (args, view(c), before)
     # add, copy (+2), merge_down, delete (-2): the page has its one layer again, and the work happened there
     assert len(r["layers"]) == 1, r["layers"]
+
+
+def test_5_pages_coming_and_going_above_keep_the_view(app):
+    c = app.client()
+    setup(c)
+    mine = c.call("create_strokes", page=3, strokes=[{"points": [[300, 420], [340, 440]]}],
+                  animate=False)["created"][0]["id"]
+    c.call("view", op="scroll", page=3, region=[0, 380, 200, 120])  # the user looks at the middle of page 3
+    time.sleep(0.3)
+    page, region = view(c)
+    assert page == 3, page
+
+    def mine_on(n):
+        return any(e["id"] == mine for e in c.call("page_elements", page=n, detail="bbox", limit=5000)["elements"])
+
+    c.call("page_manage", op="insert", page=0)  # above: the same page is now page 4, still where it was
+    time.sleep(0.3)
+    assert view(c) == (4, region), (view(c), region)
+    assert mine_on(4)
+    c.call("page_manage", op="delete", page=1)  # and back
+    time.sleep(0.3)
+    assert view(c) == (3, region), (view(c), region)
+    assert mine_on(3)

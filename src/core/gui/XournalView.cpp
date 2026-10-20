@@ -602,6 +602,18 @@ void XournalView::pageChanged(size_t page) {
 
 void XournalView::pageDeleted(size_t page) {
     const size_t currentPageNo = control->getCurrentPageNo();
+    // Another page went (e.g. an agent's): what the user sees stays in place. Before, the view went to the top of
+    // the current page
+    if (currentPageNo != npos && currentPageNo < viewPages.size() && page != currentPageNo) {
+        const auto before = getLayout()->getPixelCoordinatesOfEntry(currentPageNo);
+        viewPages.erase(begin(viewPages) + static_cast<long>(page));
+        shiftPageIndices(page, false);
+        layoutPages();
+        keepInPlace(before);
+        getLayout()->updateVisibility();
+        pageCountChanged();
+        return;
+    }
 
     viewPages.erase(begin(viewPages) + static_cast<long>(page));
 
@@ -613,6 +625,32 @@ void XournalView::pageDeleted(size_t page) {
         control->getScrollHandler()->scrollToPage(currentPageNo);
     }
     pageCountChanged();
+}
+
+void XournalView::shiftPageIndices(size_t page, bool inserted) {
+    // (the same pages stay current and selected: re-selecting them would end the user's text editing)
+    for (size_t* i: {&this->currentPage, &this->lastSelectedPage}) {
+        if (*i == npos) {
+            continue;
+        }
+        if (inserted && page <= *i) {
+            ++*i;
+        } else if (!inserted && page < *i) {
+            --*i;
+        } else if (!inserted && page == *i) {
+            *i = npos;
+        }
+    }
+}
+
+void XournalView::keepInPlace(xoj::util::Point<int> before) {
+    if (this->currentPage >= this->viewPages.size()) {
+        return;
+    }
+    const auto after = getLayout()->getPixelCoordinatesOfEntry(this->currentPage);
+    if (after.x != before.x || after.y != before.y) {
+        getLayout()->scrollRelative(after.x - before.x, after.y - before.y);
+    }
 }
 
 auto XournalView::getTextEditor() const -> TextEditor* {
@@ -633,9 +671,17 @@ void XournalView::pageInserted(size_t page) {
     auto pageView = std::make_unique<XojPageView>(this, doc->getPage(page));
     doc->unlock_shared();
 
+    // What the user sees stays in place: a page inserted above (e.g. an agent's) shifted it by a page (2026-10-20)
+    const bool anchored = this->currentPage < this->viewPages.size();
+    const auto before = anchored ? getLayout()->getPixelCoordinatesOfEntry(this->currentPage) : xoj::util::Point<int>{};
+
     viewPages.insert(begin(viewPages) + as_signed(page), std::move(pageView));
+    shiftPageIndices(page, true);
 
     layoutPages();
+    if (anchored) {
+        keepInPlace(before);
+    }
     // check which pages are visible and select the most visible page
     Layout* layout = this->getLayout();
     layout->updateVisibility();
