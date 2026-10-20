@@ -57,6 +57,17 @@ public:
     void changePdfPagesBackground(const fs::path& filepath, bool attachPdf);
     void insertNewPage(size_t position, bool automatedInsertion = false);
 
+    /*
+     * For agents (xournalai), on any page, without making it current: agents work beside the user, whose view stays
+     * where it is (2026-10-20). No dialogs.
+     */
+    /// A new page as insertNewPage() makes it after `like`: the settings for new pages, else like `like` (also when
+    /// the settings ask for an image or PDF background, which needs a dialog)
+    PageRef newPageLike(const PageRef& like) const;
+    /// One undo step, like changeCurrentPageBackground(); not for image or PDF backgrounds
+    void changePageBackground(size_t pageNr, const PageType& pageType);
+    void changePageSize(size_t pageNr, const PaperSize& pageSize);
+
     // DocumentListener
 public:
     void documentChanged(DocumentChangeType type) override;

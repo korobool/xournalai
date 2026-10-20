@@ -540,6 +540,22 @@ void Control::clearSelectionEndText() {
     }
 }
 
+void Control::clearSelectionEndTextOn(const PageRef& page) {
+    if (!win || !page) {
+        return;
+    }
+    XournalView* xournal = win->getXournal();
+    if (EditSelection* sel = xournal->getSelection();
+        sel && (sel->getSourcePage() == page || (sel->getView() && sel->getView()->getPage() == page))) {
+        clearSelection();
+    }
+    for (const auto& v: xournal->getViewPages()) {
+        if (v->getTextEditor() && v->getPage() == page) {
+            v->endText();
+        }
+    }
+}
+
 void Control::selectAllOnPage() {
     auto pageNr = getCurrentPageNo();
     if (pageNr == npos) {
@@ -783,6 +799,53 @@ void Control::deletePage() {
 
     scrollHandler->scrollToPage(pNr);
     this->win->getXournal()->forceUpdatePagenumbers();
+}
+
+auto Control::deletePageAt(size_t pNr) -> bool {
+    this->doc->lock_shared();
+    const size_t count = this->doc->getPageCount();
+    PageRef page = pNr < count ? this->doc->getPage(pNr) : nullptr;
+    this->doc->unlock_shared();
+    if (!page || count < 2) {
+        return false;
+    }
+    clearSelectionEndTextOn(page);
+    if (geometryToolController) {
+        doc->lock_shared();
+        const bool onIt = doc->indexOf(geometryToolController->getPage()) == pNr;
+        doc->unlock_shared();
+        if (onIt) {
+            resetGeometryTool();
+        }
+    }
+    firePageDeleted(pNr);  // (first the event, then the page, as deletePage() does)
+    this->doc->lock();
+    doc->deletePage(pNr);
+    this->doc->unlock();
+    this->undoRedo->addUndoAction(std::make_unique<InsertDeletePageUndoAction>(page, pNr, false));
+    updatePageActions();
+    return true;
+}
+
+void Control::movePage(size_t from, size_t to) {
+    for (size_t pos = from; pos != to; pos = to > pos ? pos + 1 : pos - 1) {
+        const size_t other = to > pos ? pos + 1 : pos - 1;
+        auto lock = std::unique_lock(*this->doc);
+        if (pos >= doc->getPageCount() || other >= doc->getPageCount()) {
+            return;
+        }
+        PageRef page = doc->getPage(pos);
+        PageRef otherPage = doc->getPage(other);
+        doc->deletePage(pos);
+        doc->insertPage(page, other);
+        lock.unlock();
+        // (as movePageTowardsBeginning/End record it)
+        this->undoRedo->addUndoAction(
+                std::make_unique<SwapUndoAction>(std::min(pos, other), other < pos, page, otherPage));
+        firePageDeleted(pos);
+        firePageInserted(other);
+    }
+    updatePageActions();
 }
 
 void Control::duplicatePage() {

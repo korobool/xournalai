@@ -448,6 +448,10 @@ void ZoomControl::setZoomStep(double zoomStep) { this->zoomStep = zoomStep; }
 void ZoomControl::setZoomStepScroll(double zoomStep) { this->zoomStepScroll = zoomStep; }
 
 void ZoomControl::pageSizeChanged(size_t page) {
+    // (the fitting zooms follow the current page: an agent resizing another one must not zoom the user's view)
+    if (page != view->getCurrentPage()) {
+        return;
+    }
     updateZoomPresentationValue(page);
     updateZoomFitValue(page);
 }

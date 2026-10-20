@@ -170,6 +170,9 @@ private:
 
     void cleanupBufferCache();
 
+    /// Updates what depends on the number of pages (pages were inserted or deleted)
+    void pageCountChanged();
+
 private:
     /**
      * Scrollbars

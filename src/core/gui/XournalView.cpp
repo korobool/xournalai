@@ -612,6 +612,7 @@ void XournalView::pageDeleted(size_t page) {
     } else {
         control->getScrollHandler()->scrollToPage(currentPageNo);
     }
+    pageCountChanged();
 }
 
 auto XournalView::getTextEditor() const -> TextEditor* {
@@ -638,6 +639,17 @@ void XournalView::pageInserted(size_t page) {
     // check which pages are visible and select the most visible page
     Layout* layout = this->getLayout();
     layout->updateVisibility();
+    pageCountChanged();
+}
+
+void XournalView::pageCountChanged() {
+    // ("Page n of N" and the page actions: also when the current page stays, as with an agent's page work)
+    size_t pdfPage = npos;
+    if (this->currentPage < this->viewPages.size()) {
+        pdfPage = this->viewPages[this->currentPage]->getPage()->getPdfPageNr();
+    }
+    control->updatePageNumbers(this->currentPage, pdfPage);
+    control->updatePageActions();
 }
 
 auto XournalView::getZoom() const -> double { return control->getZoomControl()->getZoom(); }

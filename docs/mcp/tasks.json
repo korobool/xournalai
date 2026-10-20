@@ -2992,9 +2992,11 @@
               "id": "T15.2.1",
               "story": "US-15.2",
               "title": "Page operations without the view",
-              "details": "page_manage drove the window: it scrolled to the page and made it current before and after each window action (insert jumped the owner's view to the new page). insert, delete, duplicate, move, background and size now work on the given page in the document, with the same undo steps; only goto (and an explicit show) moves the view.",
+              "details": "page_manage drove the window: it scrolled to the page and made it current before and after each window action (insert jumped the owner's view to the new page). insert, delete, duplicate, move, background and size now work on the given page in the document, with the same undo steps; only goto (and an explicit show) moves the view. On the way: a size change on another page re-fitted the zoom to that page (ZoomControl now follows the current page only), and 'Page n of N' and the goto actions followed only a change of the current page (now also any insert or delete). An insert with a background is one undo step. test_e15_view 3/3 (all fail on 1.13.0).",
               "commit": "ai: page operations no longer move the user's view",
-              "status": "todo"
+              "status": "done",
+              "started": "2026-10-20T12:46:31+01:00",
+              "finished": "2026-10-20T12:57:49+01:00"
             },
             {
               "id": "T15.2.2",

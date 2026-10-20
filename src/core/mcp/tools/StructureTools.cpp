@@ -28,16 +28,6 @@ void gotoPage(Control* ctrl, size_t index) {
     ctrl->firePageSelected(index);
 }
 
-void runWinAction(Control* ctrl, const char* name) {
-    GActionGroup* g = G_ACTION_GROUP(ctrl->getWindow()->getWindow());
-    if (!g_action_group_get_action_enabled(g, name)) {
-        throw ToolError(std::string("The app does not allow '") + name +
-                        "' right now (e.g. the last page cannot "
-                        "be deleted)");
-    }
-    g_action_group_activate_action(g, name, nullptr);
-}
-
 size_t pageCount(Control* ctrl) { return ctrl->getDocument()->getPageCount(); }
 
 /// Resolves a layer argument (1-based index or name) on a page; returns the 1-based index
@@ -82,7 +72,10 @@ void registerStructureTools(McpServer& server) {
     page.description =
             "Page operations (undoable like in the app): insert (after 'page', 0 = at the beginning; optional "
             "background), delete, duplicate, move (to position 'to'), background (paper type and/or color), size "
-            "(width/height in points; A4 = 595 x 842), goto (show a page).";
+            "(width/height in points; A4 = 595 x 842), goto (show a page). Only goto moves the user's view: the "
+            "others change the page where it is and leave the user on theirs (an inserted page does not become the "
+            "current one: pass its number as 'page' to later calls). show=true also takes the user there; use it "
+            "only when the user asked to be taken there.";
     page.inputSchema = schema::object({{"op", schema::enumeration("Operation", {"insert", "delete", "duplicate", "move",
                                                                                 "background", "size", "goto"})},
                                        {"page", schema::integer("Page (1-based); default: current page")},
@@ -90,13 +83,17 @@ void registerStructureTools(McpServer& server) {
                                        {"background", schema::enumeration("insert/background: paper type", formats)},
                                        {"color", schema::string("background: paper color")},
                                        {"width", schema::number("size: width in points")},
-                                       {"height", schema::number("size: height in points")}},
+                                       {"height", schema::number("size: height in points")},
+                                       {"show", schema::withDefault(
+                                                        schema::boolean("Also take the user's view to the page (only "
+                                                                        "when they asked for it)"),
+                                                        false)}},
                                       {"op"});
     page.tier = Tier::Ui;
     page.handler = [ctrl, formats, srv = &server](const json& j) {
         requireDocument(ctrl);
         Args args(j);
-        args.rejectUnknown({"op", "page", "to", "background", "color", "width", "height"});
+        args.rejectUnknown({"op", "page", "to", "background", "color", "width", "height", "show"});
         const std::string op =
                 args.choice("op", {"insert", "delete", "duplicate", "move", "background", "size", "goto"}, "");
         auto format = [&]() -> std::optional<PageType> {
@@ -110,29 +107,48 @@ void registerStructureTools(McpServer& server) {
             }
             return PageType(PageTypeHandler::getPageTypeFormatForString(f));
         };
-        ctrl->clearSelectionEndText();
+        // (on the document, without the window's page actions: they work on the current page, and making a page
+        // current moved the user's view, 2026-10-20)
+        PageBackgroundChangeController* backgrounds = ctrl->getPageBackgroundChangeController();
+        const bool show = args.boolean("show", false);
+        auto done = [&](size_t index, const std::string& text = "") {
+            if (show) {
+                gotoPage(ctrl, index);
+            }
+            return ToolResult::structured(pageState(ctrl, index), text);
+        };
         if (op == "insert") {
             const auto after =
                     static_cast<size_t>(args.integer("page", static_cast<int64_t>(api::currentPageIndex(ctrl) + 1), 0,
                                                      static_cast<int64_t>(pageCount(ctrl))));
-            gotoPage(ctrl, after == 0 ? 0 : after - 1);
-            runWinAction(ctrl, after == 0 ? "new-page-before" : "new-page-after");
-            const size_t inserted = after;  // 0-based index of the new page
-            gotoPage(ctrl, inserted);
-            if (auto f = format()) {
-                ctrl->getPageBackgroundChangeController()->changeCurrentPageBackground(*f);
+            PageRef like;
+            {
+                std::shared_lock lock(*ctrl->getDocument());
+                like = ctrl->getDocument()->getPage(after == 0 ? 0 : after - 1);
             }
-            return ToolResult::structured(pageState(ctrl, inserted), "Inserted page " + std::to_string(inserted + 1));
+            PageRef page = backgrounds->newPageLike(like);
+            if (auto f = format()) {
+                page->setBackgroundType(*f);
+            }
+            ctrl->insertPage(page, after, false);  // after = the 0-based index of the new page
+            return done(after, "Inserted page " + std::to_string(after + 1));
         }
         const size_t index = resolvePageIndex(ctrl, args);
+        PageRef target;
+        {
+            std::shared_lock lock(*ctrl->getDocument());
+            target = ctrl->getDocument()->getPage(index);
+        }
         if (op == "goto") {
             gotoPage(ctrl, index);
             return ToolResult::structured(pageState(ctrl, index));
         }
+        ctrl->clearSelectionEndTextOn(target);
         if (op == "delete") {
             const std::string backup = srv->backup("before-delete-page");
-            gotoPage(ctrl, index);
-            runWinAction(ctrl, "delete-page");
+            if (!ctrl->deletePageAt(index)) {
+                throw ToolError("The app does not allow deleting it (the last page cannot be deleted)");
+            }
             json out = {{"deleted_page", index + 1}, {"page_count", pageCount(ctrl)}};
             if (!backup.empty()) {
                 out["backup"] = backup;
@@ -140,42 +156,31 @@ void registerStructureTools(McpServer& server) {
             return ToolResult::structured(std::move(out));
         }
         if (op == "duplicate") {
-            gotoPage(ctrl, index);
-            runWinAction(ctrl, "duplicate-page");
-            return ToolResult::structured(pageState(ctrl, index + 1),
-                                          "Duplicated as page " + std::to_string(index + 2));
+            ctrl->insertPage(std::make_shared<XojPage>(*target), index + 1, false);
+            return done(index + 1, "Duplicated as page " + std::to_string(index + 2));
         }
         if (op == "move") {
             const auto to = static_cast<size_t>(args.integer("to", 0, 1, static_cast<int64_t>(pageCount(ctrl)))) - 1;
-            size_t pos = index;
-            while (pos != to) {
-                gotoPage(ctrl, pos);
-                runWinAction(ctrl, to > pos ? "move-page-towards-end" : "move-page-towards-beginning");
-                pos = to > pos ? pos + 1 : pos - 1;
-            }
-            gotoPage(ctrl, to);
-            return ToolResult::structured(pageState(ctrl, to), "Moved to position " + std::to_string(to + 1));
+            ctrl->movePage(index, to);
+            return done(to, "Moved to position " + std::to_string(to + 1));
         }
         if (op == "background") {
-            gotoPage(ctrl, index);
-            if (auto f = format()) {
-                ctrl->getPageBackgroundChangeController()->changeCurrentPageBackground(*f);
-            }
-            if (args.has("color")) {
-                PageRef p = ctrl->getDocument()->getPage(index);
-                p->setBackgroundColor(parseColor(args.raw("color")));
-                ctrl->firePageChanged(index);
-            }
             if (!args.has("background") && !args.has("color")) {
                 throw ToolError("Give 'background' (paper type) and/or 'color'");
             }
-            return ToolResult::structured(pageState(ctrl, index));
+            if (auto f = format()) {
+                backgrounds->changePageBackground(index, *f);
+            }
+            if (args.has("color")) {
+                target->setBackgroundColor(parseColor(args.raw("color")));
+                ctrl->firePageChanged(index);
+            }
+            return done(index);
         }
         // size
-        gotoPage(ctrl, index);
         const double w = args.number("width", 0, 10, 20000), h = args.number("height", 0, 10, 20000);
-        ctrl->getPageBackgroundChangeController()->changeCurrentPageSize(PaperSize(w, h));
-        return ToolResult::structured(pageState(ctrl, index));
+        backgrounds->changePageSize(index, PaperSize(w, h));
+        return done(index);
     };
     server.getRegistry().addTool(std::move(page));
 

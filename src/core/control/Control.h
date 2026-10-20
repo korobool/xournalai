@@ -253,6 +253,10 @@ public:
     void deletePage();
     void movePageTowardsBeginning();
     void movePageTowardsEnd();
+    /// For agents: deletes page `pageNr` (not the last one left) without scrolling; false if it cannot
+    bool deletePageAt(size_t pageNr);
+    /// For agents: moves page `from` to position `to`, one undo step per position like the menu, without scrolling
+    void movePage(size_t from, size_t to);
 
     /**
      * Ask the user whether a page with the given id
@@ -280,6 +284,9 @@ public:
     void enableAutosave(bool enable);
 
     void clearSelectionEndText();
+    /// Ends the user's selection and text editing if they are on `page` (an agent changes it: the agent goes first);
+    /// on other pages they stay
+    void clearSelectionEndTextOn(const PageRef& page);
 
     void selectAllOnPage();
 
