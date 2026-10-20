@@ -10,6 +10,19 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.15.1 — AI zones do not flood the X server
+- **The freezes while agents work: found and much reduced.** On 2026-10-20 at 15:23 the window froze for 15 s
+  (rescued and restarted) while it asked the X server for a new range of resource ids. Every pixmap and picture
+  takes one of the app's ~2 million ids, and the app had used them all: it had sent 148 million X requests in 68
+  minutes. While an agent works, its AI zone is animated. The overlay it is drawn on lies over the whole window,
+  so every frame redrew and relaid out the entire window, and the zone's spinner ran at 60 frames a second. At
+  each of those frames cairo uploaded every icon and every piece of the page shadows again, as new pixmaps. Now
+  the overlay redraws only what moves (the zone's outline and status pill) and relays out its buttons only when
+  they move, the spinner is a still stop icon, and the page shadows are kept on the X server. An animated zone
+  went from ~41 700 X requests and 59 frames a second to 3 500–9 000 and ~20 (measured on Xvfb).
+  `app_status.ui.x_requests_by_kind` counts the requests by kind, for the next time. Still heavy: zooming
+  (~60 000 a second while it lasts) and an idle window (~1 500, GTK's own widgets).
+
 ## 1.15.0 — The on-screen keyboard only when called
 - **GNOME's on-screen keyboard no longer pops up and down by itself in xournalai.** In tablet mode GNOME Shell 42 opens
   its keyboard whenever a text field of any app tells the input method (IBus) that it has the keyboard, closes it
