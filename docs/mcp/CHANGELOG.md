@@ -10,6 +10,16 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.15.0 — The on-screen keyboard only when called
+- **GNOME's on-screen keyboard no longer pops up and down by itself in xournalai.** In tablet mode GNOME Shell 42 opens
+  its keyboard whenever a text field of any app tells the input method (IBus) that it has the keyboard, closes it
+  when it lets go, and slides the window up and down with it. In xournalai the keyboard moves between the AI
+  terminal, the AI input fields and the canvas all the time, so the screen jumped. Now xournalai's text fields use
+  GTK's own input method, and GNOME never hears of them: swipe up from the bottom edge of the screen to call the
+  keyboard, and it stays until you close it. Typing, keyboard layouts (us, ru, ua) and compose keep working; only
+  IBus input engines would not, and the session uses none. AI Agent → "Screen keyboard only when called" turns it
+  back to automatic (remembered, takes effect at once). Programs in the AI terminal keep the session's input method.
+
 ## 1.14.0 — The agent works without moving your view
 - **Agents' page and layer work no longer moves your view.** `page_manage` drove the window: before and after every
   operation it scrolled to the page and made it the current one, so on 2026-10-20 an insert at the end took the

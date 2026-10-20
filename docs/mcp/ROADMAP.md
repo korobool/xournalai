@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.14.0**
+Current version: **1.15.0**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -990,5 +990,5 @@ While agents save, add pages and draw, the owner keeps typing and dictating wher
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T15.3.1 | US-15.4 | **Manual on-screen keyboard** — GNOME Shell 42 (X11) opens its keyboard on every IBus focus-in of any app and closes it on focus-out, sliding the window with it; it ignores GTK's inhibit-OSK hint. In manual mode (the default) the app's text fields use GTK's own input method (gtk-im-module), so GNOME never hears of them. GTK_IM_MODULE is taken out of the environment at start (it would override that) and given back to programs started from the app. The owner's layouts are XKB ones: typing, layout switching and compose keep working. Menu: AI Agent → 'Screen keyboard only when called (swipe up from the bottom edge)'; assistant.screen_keyboard in mcp.json; app_status.screen_keyboard. test_e15_screen_keyboard 3/3. | `ai: GNOME's on-screen keyboard only when called (T15.3.1)` | ✅ done |
-| T15.3.2 | US-15.4 | **Release 1.15.0** —  | `ai: release 1.15.0 (the on-screen keyboard only when called) (T15.3.2)` | ⬜ todo |
+| T15.3.1 | US-15.4 | **Manual on-screen keyboard** — GNOME Shell 42 (X11) opens its keyboard on every IBus focus-in of any app and closes it on focus-out, sliding the window with it; it ignores GTK's inhibit-OSK hint. In manual mode (the default) the app's text fields use GTK's own input method (gtk-im-module), so GNOME never hears of them. GTK_IM_MODULE is taken out of the environment at start (it would override that) and given back to programs started from the app. The owner's layouts are XKB ones: typing, layout switching and compose keep working. Menu: AI Agent → 'Screen keyboard only when called (swipe up from the bottom edge)'; assistant.screen_keyboard in mcp.json; app_status.screen_keyboard. test_e15_screen_keyboard 3/3. | `ai: GNOME's on-screen keyboard only when called (T15.3.1)` | ✅ done `8004321cc` |
+| T15.3.2 | US-15.4 | **Release 1.15.0** — Full check: build-noterm and build-nomcp ok; unit tests 207/211 (the ControlLoadHandler group that fails under parallel ctest, all pass on rerun); integration 269/269. | `ai: release 1.15.0 (the on-screen keyboard only when called) (T15.3.2)` | ✅ done |
