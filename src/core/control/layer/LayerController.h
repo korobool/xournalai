@@ -45,6 +45,14 @@ public:
     void moveElementsFromLayerToFreeLayer(PageRef page, Layer* layer, const std::vector<const Element*>& elts,
                                           Layer* freeLayer, Layer::Index newLayerId);
 
+    /**
+     * For agents (xournalai): the operations below work on page `pageNr` instead of the current page, until
+     * workOnCurrentPage(). The page does not become current (that moved the user's view, 2026-10-20), and the user's
+     * selection and text editing end only if they are on it.
+     */
+    void workOnPage(size_t pageNr);
+    void workOnCurrentPage();
+
     // Listener handling
 public:
     void addListener(LayerCtrlListener* listener);
@@ -116,6 +124,11 @@ private:
     std::list<LayerCtrlListener*> listener;
 
     size_t selectedPage;
+    bool onAgentsPage = false;
+    size_t usersPage = 0;  ///< the current page while working on an agent's
+
+    /// Ends the user's selection and text editing before a change (only on the page worked on, for an agent)
+    void endUserEditing();
 
     friend class LayerRenameUndoAction;
 };

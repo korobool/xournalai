@@ -55,3 +55,20 @@ def test_3_an_inserted_page_is_one_undo_step(app):
     assert c.call("doc_info")["page_count"] == count + 1
     c.call("action_run", action="win.undo")
     assert c.call("doc_info")["page_count"] == count
+
+
+def test_4_layer_operations_elsewhere_leave_the_view(app):
+    c = app.client()
+    setup(c)
+    before = view(c)
+    steps = [dict(op="add", page=5, name="AI notes"), dict(op="rename", page=5, layer="AI notes", name="AI draft 2"),
+             dict(op="hide", page=5, layer="AI draft 2"), dict(op="show", page=5, layer="AI draft 2"),
+             dict(op="copy", page=5, layer="AI draft 2"), dict(op="move_down", page=5, layer=3),
+             dict(op="merge_down", page=5, layer=2), dict(op="select", page=5, layer=1),
+             dict(op="delete", page=5, layer=2)]
+    for args in steps:
+        r = c.call("layer_manage", **args)
+        time.sleep(0.1)
+        assert view(c) == before, (args, view(c), before)
+    # add, copy (+2), merge_down, delete (-2): the page has its one layer again, and the work happened there
+    assert len(r["layers"]) == 1, r["layers"]

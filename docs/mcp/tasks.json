@@ -3002,9 +3002,11 @@
               "id": "T15.2.2",
               "story": "US-15.2",
               "title": "Layer operations on any page",
-              "details": "layer_manage made the page current because LayerController works on the current page; it now works on the given page.",
+              "details": "layer_manage made the page current because LayerController works on the current page; it now works on the given page. LayerController::workOnPage/workOnCurrentPage: for one agent call its operations use the given page, the layer panel is rebuilt for the user's page afterwards, and the user's selection ends only if it is on that page. test_e15_view 4/4.",
               "commit": "ai: layer operations no longer move the user's view",
-              "status": "todo"
+              "status": "done",
+              "started": "2026-10-20T12:57:49+01:00",
+              "finished": "2026-10-20T13:01:20+01:00"
             },
             {
               "id": "T15.2.3",

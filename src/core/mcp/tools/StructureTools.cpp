@@ -190,7 +190,7 @@ void registerStructureTools(McpServer& server) {
     layer.description =
             "Layer operations on a page (like the layer panel): add (optional name, above the selected layer), "
             "rename, show, hide, select (make it the drawing layer), delete, copy, merge_down, move_up, move_down. "
-            "Identify the layer by number (1 = bottom) or name.";
+            "Identify the layer by number (1 = bottom) or name. The user's view stays where it is.";
     layer.inputSchema = schema::object(
             {{"op", schema::enumeration("Operation", {"add", "rename", "show", "hide", "select", "delete", "copy",
                                                       "merge_down", "move_up", "move_down"})},
@@ -209,9 +209,14 @@ void registerStructureTools(McpServer& server) {
                 "");
         const size_t index = resolvePageIndex(ctrl, args);
         PageRef p = ctrl->getDocument()->getPage(index);
-        ctrl->clearSelectionEndText();
-        gotoPage(ctrl, index);
+        ctrl->clearSelectionEndTextOn(p);
         LayerController* lc = ctrl->getLayerController();
+        // (on that page, without making it current: that moved the user's view, 2026-10-20)
+        lc->workOnPage(index);
+        struct Back {
+            LayerController* lc;
+            ~Back() { lc->workOnCurrentPage(); }
+        } back{lc};
         size_t layerIndex = std::max<size_t>(p->getSelectedLayerId(), 1);
         if (args.has("layer")) {
             layerIndex = resolveLayerArg(p, args.raw("layer"));

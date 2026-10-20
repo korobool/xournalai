@@ -31,6 +31,10 @@ void LayerController::documentChanged(DocumentChangeType type) {
 }
 
 void LayerController::pageSelected(size_t page) {
+    if (onAgentsPage) {
+        usersPage = page;  // (back to it in workOnCurrentPage)
+        return;
+    }
     if (selectedPage == page) {
         return;
     }
@@ -110,6 +114,31 @@ void LayerController::moveElementsFromLayerToFreeLayer(PageRef page, Layer* laye
 }
 
 
+void LayerController::workOnPage(size_t pageNr) {
+    if (!onAgentsPage) {
+        usersPage = selectedPage;
+        onAgentsPage = true;
+    }
+    selectedPage = pageNr;
+}
+
+void LayerController::workOnCurrentPage() {
+    if (!onAgentsPage) {
+        return;
+    }
+    onAgentsPage = false;
+    selectedPage = usersPage;
+    fireRebuildLayerMenu();  // (the layer panel showed the other page meanwhile)
+}
+
+void LayerController::endUserEditing() {
+    if (onAgentsPage) {
+        control->clearSelectionEndTextOn(getCurrentPage());
+    } else {
+        control->clearSelectionEndText();
+    }
+}
+
 void LayerController::addListener(LayerCtrlListener* listener) { this->listener.push_back(listener); }
 
 void LayerController::removeListener(LayerCtrlListener* listener) { this->listener.remove(listener); }
@@ -175,7 +204,7 @@ void LayerController::showOrHideAllLayer(bool show) {
 }
 
 void LayerController::addNewLayer(bool belowCurrentLayer) {
-    control->clearSelectionEndText();
+    endUserEditing();
 
     auto lock = std::unique_lock(*control->getDocument());
     PageRef p = getCurrentPage();
@@ -196,7 +225,7 @@ void LayerController::addNewLayer(bool belowCurrentLayer) {
 }
 
 void LayerController::deleteCurrentLayer() {
-    control->clearSelectionEndText();
+    endUserEditing();
 
     auto lock = std::unique_lock(*control->getDocument());
     PageRef p = getCurrentPage();
@@ -225,7 +254,7 @@ void LayerController::deleteCurrentLayer() {
 }
 
 void LayerController::moveCurrentLayer(bool up) {
-    control->clearSelectionEndText();
+    endUserEditing();
 
     auto lock = std::unique_lock(*control->getDocument());
     PageRef p = getCurrentPage();
@@ -272,7 +301,7 @@ void LayerController::moveCurrentLayer(bool up) {
 }
 
 void LayerController::mergeCurrentLayerDown() {
-    control->clearSelectionEndText();
+    endUserEditing();
 
     auto lock = std::shared_lock(*control->getDocument());
     PageRef page = getCurrentPage();
@@ -322,7 +351,7 @@ void LayerController::mergeCurrentLayerDown() {
 }
 
 void LayerController::copyCurrentLayer() {
-    control->clearSelectionEndText();
+    endUserEditing();
 
     auto lock = std::unique_lock(*control->getDocument());
     PageRef p = getCurrentPage();
@@ -369,7 +398,7 @@ void LayerController::setLayerVisible(Layer::Index layerId, bool visible) {
  */
 void LayerController::switchToLay(Layer::Index layerId, bool hideShow, bool clearSelection) {
     if (clearSelection) {
-        control->clearSelectionEndText();
+        endUserEditing();
     }
 
     auto lock = std::shared_lock(*control->getDocument());
