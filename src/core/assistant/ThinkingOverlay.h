@@ -106,6 +106,21 @@ private:
     std::string recMessage;
     gint64 recMessageUntilUs = 0;
     void drawRecording(cairo_t* cr);
+    /// Where the recording pill is (next to the pen, else at the top of the canvas)
+    GdkRectangle recordingRect() const;
+    /*
+     * Redraws: only the parts that change. A redraw of the whole overlay, which lies over the whole window,
+     * repainted the window with its toolbars and icons at every frame while an agent worked: ~40 000 X requests a
+     * second, which used up the app's X resource ids within minutes; the 2026-10-20 15:23 freeze waited for a new
+     * range of them (XC-MISC)
+     */
+    void invalidate(const GdkRectangle& r);
+    /// The area of points on a page (each `size` page points wide), in the overlay's coordinates
+    GdkRectangle pointsArea(size_t page, const std::vector<xoj::util::Point<double>>& points, double size) const;
+    void invalidateRecording();
+    void invalidateLasso();
+    void invalidateMarks();
+    GdkRectangle lassoDrawn{}, marksDrawn{}, recordingDrawn{};
     void drawZonePill(cairo_t* cr, const Zone& z, double zx, double zy, double zw, double zh, double alpha);
     void ensureTimer();
     struct MarkSet {

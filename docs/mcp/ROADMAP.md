@@ -934,7 +934,7 @@ Besides the AI lasso (mark first, then say), the owner can highlight what they m
 | T14.12.1 | US-14.12 | **export writes pdf and xopp off the UI thread** — 2026-10-19 08:33-09:45 (1.12.6): with png and svg off the UI thread, the remaining freezes were PDF exports of the magazine, 2.1-3.8 s each, while the companion exported issue PDFs (and file_open, 1-2 s, which replaces the document anyway). pdf and xopp are now written on the render thread (runOffUi). The exporters read the live document, so it is held for reading during a PDF export (an edit then waits for it; before, everything waited); xopp prepares under the lock and writes without it. test_e9 test_5 exports pdf and xopp too (1.12.6: 1565 and 981 ms stalls). | `ai: export writes pdf and xopp off the UI thread (T14.12.1)` | ✅ done `97a77ada2` |
 | T14.12.2 | US-14.12 | **Release 1.12.7** — Full check: build-noterm and build-nomcp ok; unit tests 204/208 (the ControlLoadHandler group that fails under parallel ctest, all pass on rerun); integration 248/248. | `ai: release 1.12.7 (PDF exports do not freeze the pen) (T14.12.2)` | ✅ done `f455b1dc6` |
 
-## E15 — Your keyboard, your view: agents work beside you (release 1.15.0)
+## E15 — Your keyboard, your view: agents work beside you (release 1.15.1)
 
 While agents save, add pages and draw, the owner keeps typing and dictating where they type, and keeps looking at the page they work on; the view moves only when they ask (docs/mcp/FOCUS.md).
 
@@ -991,4 +991,16 @@ While agents save, add pages and draw, the owner keeps typing and dictating wher
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
 | T15.3.1 | US-15.4 | **Manual on-screen keyboard** — GNOME Shell 42 (X11) opens its keyboard on every IBus focus-in of any app and closes it on focus-out, sliding the window with it; it ignores GTK's inhibit-OSK hint. In manual mode (the default) the app's text fields use GTK's own input method (gtk-im-module), so GNOME never hears of them. GTK_IM_MODULE is taken out of the environment at start (it would override that) and given back to programs started from the app. The owner's layouts are XKB ones: typing, layout switching and compose keep working. Menu: AI Agent → 'Screen keyboard only when called (swipe up from the bottom edge)'; assistant.screen_keyboard in mcp.json; app_status.screen_keyboard. test_e15_screen_keyboard 3/3. | `ai: GNOME's on-screen keyboard only when called (T15.3.1)` | ✅ done `8004321cc` |
-| T15.3.2 | US-15.4 | **Release 1.15.0** — Full check: build-noterm and build-nomcp ok; unit tests 207/211 (the ControlLoadHandler group that fails under parallel ctest, all pass on rerun); integration 269/269. | `ai: release 1.15.0 (the on-screen keyboard only when called) (T15.3.2)` | ✅ done |
+| T15.3.2 | US-15.4 | **Release 1.15.0** — Full check: build-noterm and build-nomcp ok; unit tests 207/211 (the ControlLoadHandler group that fails under parallel ctest, all pass on rerun); integration 269/269. | `ai: release 1.15.0 (the on-screen keyboard only when called) (T15.3.2)` | ✅ done `eace1533b` |
+
+### S15.4 — AI zones do not flood the X server → v1.15.1
+
+**US-15.5** — As the owner, I want the window not to freeze while agents work: the app must not flood the X server.
+
+- [ ] an AI zone being animated costs a few thousand X requests a second, not ~40 000
+- [ ] app_status counts the X requests by kind, to find what loads the server
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T15.4.1 | US-15.5 | **AI zones and page shadows no longer flood the X server** — 2026-10-20 15:23: the window froze for 15 s (rescued, restarted) while asking the X server for a new range of resource ids (XCreatePixmap -> _XAllocIDs -> xcb_generate_id -> XC-MISC); Xorg had read all of the app's requests, its main thread was idle and it served others. The app had sent 148 million requests in 68 minutes: an AI zone's animation redrew the whole window (the overlay lies over all of it) and relaid it out (queue_resize, show_all, restyling its button) at every frame, and its GtkSpinner drew 60 frames a second; every frame made new pixmaps for icons, CSS and the eight page-shadow pieces (cairo uploads image sources each time), using up the two million ids within minutes. The overlay now redraws only what changes (the zone's outline ring and status pill at each frame, its whole area when it moves or changes, the recording pill, the lasso and marks by their areas), places its buttons only when they move, shows a still stop icon instead of the spinner, and the page shadows are kept on the X server. An AI zone: ~41 700 -> 3 500-9 000 requests and 59 -> 18-20 frames a second (Xvfb). app_status.ui.x_requests_by_kind counts the requests by kind. Not yet: zooming still costs ~60 000 a second while it lasts, and an idle window ~1 500 (GTK's own widgets). | `ai: AI zones no longer flood the X server (T15.4.1)` | ✅ done |
+| T15.4.2 | US-15.5 | **Release 1.15.1** —  | `ai: release 1.15.1 (AI zones do not flood the X server) (T15.4.2)` | ⬜ todo |

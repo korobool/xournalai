@@ -2905,7 +2905,7 @@
     {
       "id": "E15",
       "title": "Your keyboard, your view: agents work beside you",
-      "release": "1.15.0",
+      "release": "1.15.1",
       "goal": "While agents save, add pages and draw, the owner keeps typing and dictating where they type, and keeps looking at the page they work on; the view moves only when they ask (docs/mcp/FOCUS.md).",
       "stages": [
         {
@@ -3113,6 +3113,41 @@
               "status": "done",
               "started": "2026-10-20T14:26:24+01:00",
               "finished": "2026-10-20T14:26:25+01:00"
+            }
+          ]
+        },
+        {
+          "id": "S15.4",
+          "title": "AI zones do not flood the X server",
+          "version": "1.15.1",
+          "stories": [
+            {
+              "id": "US-15.5",
+              "text": "As the owner, I want the window not to freeze while agents work: the app must not flood the X server.",
+              "acceptance": [
+                "an AI zone being animated costs a few thousand X requests a second, not ~40 000",
+                "app_status counts the X requests by kind, to find what loads the server"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T15.4.1",
+              "story": "US-15.5",
+              "title": "AI zones and page shadows no longer flood the X server",
+              "details": "2026-10-20 15:23: the window froze for 15 s (rescued, restarted) while asking the X server for a new range of resource ids (XCreatePixmap -> _XAllocIDs -> xcb_generate_id -> XC-MISC); Xorg had read all of the app's requests, its main thread was idle and it served others. The app had sent 148 million requests in 68 minutes: an AI zone's animation redrew the whole window (the overlay lies over all of it) and relaid it out (queue_resize, show_all, restyling its button) at every frame, and its GtkSpinner drew 60 frames a second; every frame made new pixmaps for icons, CSS and the eight page-shadow pieces (cairo uploads image sources each time), using up the two million ids within minutes. The overlay now redraws only what changes (the zone's outline ring and status pill at each frame, its whole area when it moves or changes, the recording pill, the lasso and marks by their areas), places its buttons only when they move, shows a still stop icon instead of the spinner, and the page shadows are kept on the X server. An AI zone: ~41 700 -> 3 500-9 000 requests and 59 -> 18-20 frames a second (Xvfb). app_status.ui.x_requests_by_kind counts the requests by kind. Not yet: zooming still costs ~60 000 a second while it lasts, and an idle window ~1 500 (GTK's own widgets).",
+              "commit": "ai: AI zones no longer flood the X server",
+              "status": "done",
+              "started": "2026-10-20T16:05:05+01:00",
+              "finished": "2026-10-20T16:05:05+01:00"
+            },
+            {
+              "id": "T15.4.2",
+              "story": "US-15.5",
+              "title": "Release 1.15.1",
+              "details": "",
+              "commit": "ai: release 1.15.1 (AI zones do not flood the X server)",
+              "status": "todo"
             }
           ]
         }

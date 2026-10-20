@@ -5,6 +5,7 @@
 #include <cstdint>    // for int64_t
 #include <cstdlib>  // for atoi
 #include <string>   // for string
+#include <vector>   // for vector
 
 #include <glib.h>
 #include <unistd.h>  // for _exit
@@ -77,6 +78,9 @@ struct SentRequest {
 };
 constexpr size_t RING = 64;
 SentRequest ring[RING];
+/// Requests by kind since the start: [major opcode][minor & 63] (core requests: minor 0)
+std::atomic<uint64_t> kindCount[256][64];
+std::atomic<uint64_t> kindBytes[256][64];
 std::atomic<uint64_t> ringNext{0};
 std::atomic<Display*> tracedDisplay{nullptr};
 std::atomic<void*> tracedConnection{nullptr};  ///< its xcb connection (XGetXCBConnection)
@@ -224,6 +228,9 @@ extern "C" int xcb_writev(void* c, struct iovec* vector, int count, uint64_t req
             }
             const uint64_t i = ringNext.fetch_add(1);
             ring[i % RING] = {seq++, b[0], b[1]};
+            const int minor = b[0] < 128 ? 0 : (b[1] & 63);  // (core requests: one kind per major opcode)
+            kindCount[b[0]][minor].fetch_add(1, std::memory_order_relaxed);
+            kindBytes[b[0]][minor].fetch_add(len, std::memory_order_relaxed);
             if (len == 0) {
                 break;
             }
@@ -359,6 +366,23 @@ void endIfCrashed() {
     }
 }
 }  // namespace
+
+auto xRequestTotals() -> std::vector<XRequestKind> {
+    std::vector<XRequestKind> out;
+#ifdef GDK_WINDOWING_X11
+    for (int major = 0; major < 256; major++) {
+        for (int minor = 0; minor < (major < 128 ? 1 : 64); minor++) {
+            const uint64_t n = kindCount[major][minor].load();
+            if (n) {
+                std::string name = describe({0, static_cast<uint8_t>(major), static_cast<uint8_t>(minor)});
+                out.push_back({name.substr(name.find(' ') + 1), n, kindBytes[major][minor].load()});
+            }
+        }
+    }
+    std::sort(out.begin(), out.end(), [](const auto& a, const auto& b) { return a.count > b.count; });
+#endif
+    return out;
+}
 
 uint64_t xRequestsLogged() {
 #ifdef GDK_WINDOWING_X11

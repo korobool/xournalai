@@ -14,12 +14,23 @@
 #pragma once
 
 #include <cstdint>  // for uint64_t
+#include <string>   // for string
+#include <vector>   // for vector
 
 /// Call once on the UI thread, before the stall watchdog starts. No-op off X11.
 void installXHangRecovery();
 
 /// The requests the X request log has noted so far (0: the log is off, and HANG reports cannot name requests)
 uint64_t xRequestsLogged();
+
+/// The X requests sent since the start, by kind (e.g. "PutImage", "RENDER:8"): how many, and their bytes. For
+/// finding what loads the X server (2026-10-20: ~40 000 requests a second while an AI zone was animated)
+struct XRequestKind {
+    std::string name;
+    uint64_t count;
+    uint64_t bytes;
+};
+std::vector<XRequestKind> xRequestTotals();
 
 /// X errors logged and dropped instead of ending the app (RENDER's and BadAlloc; GDK ends it on the others)
 uint64_t xErrorsSurvivedCount();

@@ -34,6 +34,7 @@ Shadow::Shadow() {
 }
 
 Shadow::~Shadow() {
+    this->onServer.clear();
     cairo_surface_destroy(this->edgeBottomLeft);
     cairo_surface_destroy(this->edgeBottomRight);
     cairo_surface_destroy(this->edgeTopLeft);
@@ -82,16 +83,35 @@ void Shadow::drawShadowEdge(cairo_t* cr, int x, int y, int width, int height, co
     }
 }
 
+auto Shadow::onTarget(cairo_t* cr, cairo_surface_t* image) -> cairo_surface_t* {
+    cairo_surface_t* target = cairo_get_target(cr);
+    if (cairo_surface_get_type(target) != CAIRO_SURFACE_TYPE_XLIB) {
+        return image;
+    }
+    auto& copy = this->onServer[image];
+    if (!copy) {
+        copy.reset(cairo_surface_create_similar(target, CAIRO_CONTENT_COLOR_ALPHA, cairo_image_surface_get_width(image),
+                                                cairo_image_surface_get_height(image)),
+                   xoj::util::adopt);
+        cairo_t* c = cairo_create(copy.get());
+        cairo_set_operator(c, CAIRO_OPERATOR_SOURCE);
+        cairo_set_source_surface(c, image, 0, 0);
+        cairo_paint(c);
+        cairo_destroy(c);
+    }
+    return copy.get();
+}
+
 void Shadow::paintEdge(cairo_t* cr, cairo_surface_t* image, int x, int y, int width, int height) {
-    cairo_set_source_surface(cr, image, x - width, y - height);
+    cairo_set_source_surface(cr, onTarget(cr, image), x - width, y - height);
     cairo_rectangle(cr, x - width, y - height, width * 2, height * 2);
     cairo_fill(cr);
 }
 
 static constexpr int PATTERN_LENGTH = 200;  ///< Why not?
 
-static void setPattern(cairo_t* cr, cairo_surface_t* patt, double offsetX, double offsetY) {
-    cairo_pattern_t* p = cairo_pattern_create_for_surface(patt);
+void Shadow::setPattern(cairo_t* cr, cairo_surface_t* patt, double offsetX, double offsetY) {
+    cairo_pattern_t* p = cairo_pattern_create_for_surface(onTarget(cr, patt));
     cairo_pattern_set_extend(p, CAIRO_EXTEND_REPEAT);
     cairo_matrix_t m;
     cairo_matrix_init_translate(&m, -offsetX, -offsetY);

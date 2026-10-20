@@ -33,12 +33,52 @@ struct ThinkingOverlay::Zone {
     State state = State::Queued;
     gint64 createdUs = 0;
     gint64 stateUs = 0;
-    GtkWidget* button = nullptr;  ///< weak: spinner button (click to cancel)
-    GtkWidget* spinner = nullptr;
+    GtkWidget* button = nullptr;  ///< weak: its stop button (click to cancel)
+    GtkWidget* spinner = nullptr;  ///< (a still stop icon: a GtkSpinner redrew the window 60 times a second)
     GtkWidget* label = nullptr;
     GdkRectangle rect{0, 0, 0, 0};
     bool visible = false;
+    GdkRectangle drawn{0, 0, 0, 0};  ///< where its outline and status pill were drawn last
+    int shownState = -1;             ///< the state its button shows (-1: none yet)
+    GdkRectangle drawnRect{0, 0, 0, 0};  ///< `rect` when its whole area was last redrawn
+    int drawnState = -1;                 ///< likewise its state, and its text
+    std::string drawnText;
+    mutable GdkRectangle pill{0, 0, 0, 0};  ///< where its status pill was drawn (it animates, the veil does not)
 };
+
+namespace {
+/// Where a zone is drawn: its outline (4 px out) and its status pill (above it, or below when there is no room;
+/// up to ~330 px wide and kept on the canvas, so it may lie to the left of the zone)
+GdkRectangle zoneArea(const GdkRectangle& r) {
+    constexpr int PILL_W = 344, PILL_H = 4 + 6 + 32 + 4;
+    return {r.x - PILL_W, r.y - PILL_H, r.width + 2 * PILL_W, r.height + 2 * PILL_H};
+}
+
+GdkRectangle unite(const GdkRectangle& a, const GdkRectangle& b) {
+    if (a.width <= 0 || a.height <= 0) {
+        return b;
+    }
+    if (b.width <= 0 || b.height <= 0) {
+        return a;
+    }
+    GdkRectangle u;
+    gdk_rectangle_union(&a, &b, &u);
+    return u;
+}
+
+/// Positions an overlay child (through get-child-position), relaid out only when it moved
+void placeChild(GtkWidget* w, int x, int y) {
+    x = std::max(0, x) + 1;  // (+1: never NULL)
+    y = std::max(0, y) + 1;
+    if (GPOINTER_TO_INT(g_object_get_data(G_OBJECT(w), "ai-x")) == x &&
+        GPOINTER_TO_INT(g_object_get_data(G_OBJECT(w), "ai-y")) == y) {
+        return;
+    }
+    g_object_set_data(G_OBJECT(w), "ai-x", GINT_TO_POINTER(x));
+    g_object_set_data(G_OBJECT(w), "ai-y", GINT_TO_POINTER(y));
+    gtk_widget_queue_resize(w);
+}
+}  // namespace
 
 const char* ThinkingOverlay::name(State s) {
     switch (s) {
@@ -127,7 +167,7 @@ int ThinkingOverlay::add(size_t page, const xoj::util::Rectangle<double>& area, 
         gtk_widget_set_tooltip_text(z->button, "The AI is working here. Click to stop it.");
         gtk_widget_set_can_focus(z->button, FALSE);
         GtkWidget* box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
-        z->spinner = gtk_spinner_new();
+        z->spinner = gtk_image_new_from_icon_name("process-stop-symbolic", GTK_ICON_SIZE_BUTTON);
         gtk_box_pack_start(GTK_BOX(box), z->spinner, FALSE, FALSE, 0);  // the status text is drawn, not a widget
         gtk_widget_set_tooltip_text(z->button, (text + " (click to stop)").c_str());
         gtk_container_add(GTK_CONTAINER(z->button), box);
@@ -194,6 +234,7 @@ std::vector<ThinkingOverlay::Info> ThinkingOverlay::zones() const {
 
 void ThinkingOverlay::removeZone(size_t index) {
     Zone* z = list[index];
+    invalidate(z->drawn);
     dropMarksOf(z->id);
     if (z->button) {
         GtkWidget* b = z->button;
@@ -211,11 +252,25 @@ void ThinkingOverlay::layout() {
         if (r) {
             z->rect = *r;
         }
+        // its whole part of the overlay, where it was and where it is now, when it moved (scrolling, zooming) or
+        // changed; its animation redraws less (onTick)
+        const GdkRectangle now = z->visible ? zoneArea(z->rect) : GdkRectangle{0, 0, 0, 0};
+        if (!gdk_rectangle_equal(&now, &z->drawn) || z->drawnState != static_cast<int>(z->state) ||
+            z->drawnText != z->text) {
+            invalidate(z->drawn);
+            invalidate(now);
+            z->drawn = now;
+            z->drawnState = static_cast<int>(z->state);
+            z->drawnText = z->text;
+        }
         if (!z->button) {
             continue;
         }
         if (!z->visible || z->state == State::Done) {
-            gtk_widget_hide(z->button);
+            if (gtk_widget_get_visible(z->button)) {
+                gtk_widget_hide(z->button);
+            }
+            z->shownState = -1;
             continue;
         }
         // a compact spinner inside the zone's top-right corner: it only takes input where the AI is working (the
@@ -231,41 +286,78 @@ void ThinkingOverlay::layout() {
             y = std::min(y, area->y + area->height - 32);
         }
         // positioned by get-child-position (margins would give the button an input area reaching the corner)
-        g_object_set_data(G_OBJECT(z->button), "ai-x", GINT_TO_POINTER(std::max(0, x) + 1));  // +1: never NULL
-        g_object_set_data(G_OBJECT(z->button), "ai-y", GINT_TO_POINTER(std::max(0, y) + 1));
-        gtk_widget_queue_resize(z->button);
-        gtk_widget_show_all(z->button);
-        if (z->state == State::Thinking) {
-            gtk_spinner_start(GTK_SPINNER(z->spinner));
-        } else {
-            gtk_spinner_stop(GTK_SPINNER(z->spinner));
-            if (z->state == State::Queued) {
-                gtk_widget_hide(z->spinner);
+        placeChild(z->button, x, y);
+        if (z->shownState != static_cast<int>(z->state)) {  // (each frame, this restyled and relaid out the window)
+            z->shownState = static_cast<int>(z->state);
+            gtk_widget_show_all(z->button);
+            GtkStyleContext* ctx = gtk_widget_get_style_context(z->button);
+            gtk_style_context_remove_class(ctx, "destructive-action");
+            if (z->state == State::Failed) {
+                gtk_style_context_add_class(ctx, "destructive-action");
             }
-        }
-        GtkStyleContext* ctx = gtk_widget_get_style_context(z->button);
-        gtk_style_context_remove_class(ctx, "destructive-action");
-        if (z->state == State::Failed) {
-            gtk_style_context_add_class(ctx, "destructive-action");
         }
     }
     if (chip) {
         const auto area = bounds ? bounds() : std::nullopt;
         if (chipText.empty() || !area) {
-            gtk_widget_hide(chip);
+            if (gtk_widget_get_visible(chip)) {
+                gtk_widget_hide(chip);
+            }
         } else {
             GtkRequisition nat;
             gtk_widget_get_preferred_size(chip, nullptr, &nat);
-            const int x = std::max(area->x, area->x + area->width - nat.width - 12), y = area->y + 8;
-            g_object_set_data(G_OBJECT(chip), "ai-x", GINT_TO_POINTER(x + 1));  // (+1: never NULL)
-            g_object_set_data(G_OBJECT(chip), "ai-y", GINT_TO_POINTER(y + 1));
-            gtk_widget_queue_resize(chip);
-            gtk_widget_show(chip);
+            placeChild(chip, std::max(area->x, area->x + area->width - nat.width - 12), area->y + 8);
+            if (!gtk_widget_get_visible(chip)) {
+                gtk_widget_show(chip);
+            }
         }
     }
-    if (canvas) {
-        gtk_widget_queue_draw(canvas);
+}
+
+void ThinkingOverlay::invalidate(const GdkRectangle& r) {
+    if (canvas && r.width > 0 && r.height > 0) {
+        gtk_widget_queue_draw_area(canvas, r.x, r.y, r.width, r.height);
     }
+}
+
+GdkRectangle ThinkingOverlay::pointsArea(size_t page, const std::vector<xoj::util::Point<double>>& points,
+                                         double size) const {
+    GdkRectangle out{0, 0, 0, 0};
+    for (const auto& p: points) {
+        if (auto r = mapper ? mapper(page, xoj::util::Rectangle<double>(p.x - size / 2, p.y - size / 2, size, size)) :
+                              std::nullopt) {
+            out = unite(out, *r);
+        }
+    }
+    if (out.width > 0) {
+        out = {out.x - 4, out.y - 4, out.width + 8, out.height + 8};  // (the line's width, antialiasing)
+    }
+    return out;
+}
+
+void ThinkingOverlay::invalidateRecording() {
+    const GdkRectangle now = (rec != Recording::Off || g_get_monotonic_time() < recMessageUntilUs) ?
+                                     recordingRect() :
+                                     GdkRectangle{0, 0, 0, 0};
+    invalidate(unite(recordingDrawn, now));
+    recordingDrawn = now;
+}
+
+void ThinkingOverlay::invalidateLasso() {
+    const GdkRectangle now = lasso.size() > 1 ? pointsArea(lassoPage, lasso, 1) : GdkRectangle{0, 0, 0, 0};
+    invalidate(unite(lassoDrawn, now));
+    lassoDrawn = now;
+}
+
+void ThinkingOverlay::invalidateMarks() {
+    GdkRectangle now{0, 0, 0, 0};
+    for (const auto& set: markList) {
+        for (const auto& m: set.marks) {
+            now = unite(now, pointsArea(set.page, m.points, m.width));
+        }
+    }
+    invalidate(unite(marksDrawn, now));
+    marksDrawn = now;
 }
 
 void ThinkingOverlay::setPageChip(const std::string& text, std::function<void()> onTap) {
@@ -307,6 +399,19 @@ gboolean ThinkingOverlay::onTick(gpointer data) {
     }
     self->phase += 0.6;
     self->layout();  // follows scrolling and zooming
+    for (const Zone* z: self->list) {
+        if (!z->visible) {
+            continue;
+        }
+        // what moves: the dashed outline (4 px out, 2 px wide) and the status pill
+        const GdkRectangle& r = z->rect;
+        self->invalidate({r.x - 7, r.y - 7, r.width + 14, 5});
+        self->invalidate({r.x - 7, r.y + r.height + 2, r.width + 14, 5});
+        self->invalidate({r.x - 7, r.y - 7, 5, r.height + 14});
+        self->invalidate({r.x + r.width + 2, r.y - 7, 5, r.height + 14});
+        self->invalidate(z->pill);
+    }
+    self->invalidateRecording();
     if (self->list.empty() && self->rec == Recording::Off && g_get_monotonic_time() >= self->recMessageUntilUs) {
         self->timer = 0;
         return G_SOURCE_REMOVE;
@@ -329,18 +434,14 @@ void ThinkingOverlay::setRecording(Recording r, std::optional<std::pair<size_t, 
         recAnchor = anchor;
     }
     ensureTimer();
-    if (canvas) {
-        gtk_widget_queue_draw(canvas);
-    }
+    invalidateRecording();
 }
 
 void ThinkingOverlay::flashRecording(const std::string& message) {
     recMessage = message;
     recMessageUntilUs = g_get_monotonic_time() + 2200 * 1000;
     ensureTimer();
-    if (canvas) {
-        gtk_widget_queue_draw(canvas);
-    }
+    invalidateRecording();
 }
 
 void ThinkingOverlay::pushLevel(float rms) {
@@ -393,6 +494,7 @@ void ThinkingOverlay::drawZonePill(cairo_t* cr, const Zone& z, double zx, double
     if (area) {
         x = std::clamp(x, area->x + 4.0, std::max(area->x + 4.0, area->x + area->width - W - 4.0));
     }
+    z.pill = {static_cast<int>(x) - 3, static_cast<int>(y) - 3, static_cast<int>(W) + 8, static_cast<int>(H) + 9};
     cairo_push_group(cr);
     pillPath(cr, x + 1, y + 3, W, H);
     cairo_set_source_rgba(cr, 0, 0, 0, 0.22);
@@ -447,8 +549,12 @@ void ThinkingOverlay::drawZonePill(cairo_t* cr, const Zone& z, double zx, double
     cairo_restore(cr);
 }
 
-void ThinkingOverlay::drawRecording(cairo_t* cr) {
-    constexpr double W = 190, H = 40, R = H / 2;
+namespace {
+constexpr double REC_W = 190, REC_H = 40;
+}
+
+GdkRectangle ThinkingOverlay::recordingRect() const {
+    constexpr double W = REC_W, H = REC_H;
     // Where: next to the pen (not under the hand), else at the top of the canvas; always inside the canvas
     const auto area = bounds ? bounds() : std::nullopt;
     double x = area ? area->x + (area->width - W) / 2 : 40, y = area ? area->y + 12 : 40;
@@ -463,6 +569,14 @@ void ThinkingOverlay::drawRecording(cairo_t* cr) {
         x = std::clamp(x, area->x + 6.0, area->x + area->width - W - 6.0);
         y = std::clamp(y, area->y + 6.0, area->y + area->height - H - 6.0);
     }
+    // (with its shadow)
+    return {static_cast<int>(x) - 4, static_cast<int>(y) - 4, static_cast<int>(W) + 10, static_cast<int>(H) + 12};
+}
+
+void ThinkingOverlay::drawRecording(cairo_t* cr) {
+    constexpr double W = REC_W, H = REC_H, R = H / 2;
+    const GdkRectangle where = recordingRect();
+    const double x = where.x + 4, y = where.y + 4;
     auto pill = [&](double px, double py) { pillPath(cr, px, py, W, H); };
     // shadow, body, hairline
     pill(x + 1, y + 3);
@@ -542,9 +656,7 @@ void ThinkingOverlay::setMarks(int key, size_t page, std::vector<Mark> marks) {
     } else {
         markList.push_back({key, page, std::move(marks), 0});
     }
-    if (canvas) {
-        gtk_widget_queue_draw(canvas);
-    }
+    invalidateMarks();
 }
 
 void ThinkingOverlay::bindMarks(int key, int zone) {
@@ -560,17 +672,15 @@ void ThinkingOverlay::dropMarksOf(int zone) {
     markList.erase(std::remove_if(markList.begin(), markList.end(),
                                   [&](const MarkSet& m) { return zone != 0 && m.zone == zone; }),
                    markList.end());
-    if (canvas && markList.size() != before) {
-        gtk_widget_queue_draw(canvas);
+    if (markList.size() != before) {
+        invalidateMarks();
     }
 }
 
 void ThinkingOverlay::setLasso(size_t page, std::vector<xoj::util::Point<double>> points) {
     lassoPage = page;
     lasso = std::move(points);
-    if (canvas) {
-        gtk_widget_queue_draw(canvas);
-    }
+    invalidateLasso();
 }
 
 gboolean ThinkingOverlay::onDraw(GtkWidget*, cairo_t* cr, gpointer data) {

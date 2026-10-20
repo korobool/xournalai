@@ -65,6 +65,13 @@ static json uiStalls() {
             {"longest_stall_ms", sum.maxUs / 1000},
             {"recent_stalls", recent},
             {"x_requests_logged", xRequestsLogged()},  // (0: a freeze report could not name the X requests)
+            {"x_requests_by_kind", [] {
+                 json kinds = json::object();
+                 for (const auto& k: xRequestTotals()) {
+                     kinds[k.name] = {k.count, k.bytes};
+                 }
+                 return kinds;
+             }()},
             {"x_errors_survived", xErrorsSurvivedCount()}};
 }
 
