@@ -6,7 +6,8 @@
 
 #include <vte/vte.h>
 
-#include "util/PathUtil.h"  // for getConfigFile
+#include "gui/ScreenKeyboard.h"  // for sessionInputMethod
+#include "util/PathUtil.h"       // for getConfigFile
 
 namespace xoj::assistant {
 
@@ -900,6 +901,9 @@ void TerminalDock::spawn(Tab* tab) {
     argv.push_back(nullptr);
 
     gchar** env = g_get_environ();
+    if (const char* im = gui::screen_keyboard::sessionInputMethod()) {
+        env = g_environ_setenv(env, "GTK_IM_MODULE", im, FALSE);  // (the app took it out for itself)
+    }
     for (const auto& kv: tab->spec.env) {
         const auto eq = kv.find('=');
         if (eq != std::string::npos) {

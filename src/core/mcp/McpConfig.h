@@ -44,6 +44,9 @@ struct McpConfig {
         bool speech = true;                   ///< Ask: listen while the pen's button is held (local speech to text)
         std::string speechModel = "base.en";  ///< whisper.cpp model (ggml-<name>.bin in the models folder)
         bool shareRecordings = true;          ///< tell the serving session when an audio recording ends
+        /// GNOME's on-screen keyboard (tablet mode): "manual" (only when called: swipe up from the bottom edge) or
+        /// "auto" (it opens whenever a text field gets the keyboard)
+        std::string screenKeyboard = "manual";
     } assistant;
     fs::path backupDir;  ///< where those copies go
 

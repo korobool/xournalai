@@ -2905,7 +2905,7 @@
     {
       "id": "E15",
       "title": "Your keyboard, your view: agents work beside you",
-      "release": "1.14.0",
+      "release": "1.15.0",
       "goal": "While agents save, add pages and draw, the owner keeps typing and dictating where they type, and keeps looking at the page they work on; the view moves only when they ask (docs/mcp/FOCUS.md).",
       "stages": [
         {
@@ -3075,6 +3075,42 @@
               "status": "done",
               "started": "2026-10-20T14:06:43+01:00",
               "finished": "2026-10-20T14:06:44+01:00"
+            }
+          ]
+        },
+        {
+          "id": "S15.3",
+          "title": "The on-screen keyboard only when called",
+          "version": "1.15.0",
+          "stories": [
+            {
+              "id": "US-15.4",
+              "text": "As the owner, in tablet mode I want GNOME's on-screen keyboard to stop popping up and down by itself in xournalai (the screen jumps), and to call it myself when I need it.",
+              "acceptance": [
+                "in manual mode xournalai's text fields and terminal no longer open or close GNOME's keyboard",
+                "the keyboard still comes with the swipe up from the bottom edge, and typing works as before",
+                "a menu switch turns it back to automatic, remembered; programs in the AI terminal keep the session's input method"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T15.3.1",
+              "story": "US-15.4",
+              "title": "Manual on-screen keyboard",
+              "details": "GNOME Shell 42 (X11) opens its keyboard on every IBus focus-in of any app and closes it on focus-out, sliding the window with it; it ignores GTK's inhibit-OSK hint. In manual mode (the default) the app's text fields use GTK's own input method (gtk-im-module), so GNOME never hears of them. GTK_IM_MODULE is taken out of the environment at start (it would override that) and given back to programs started from the app. The owner's layouts are XKB ones: typing, layout switching and compose keep working. Menu: AI Agent → 'Screen keyboard only when called (swipe up from the bottom edge)'; assistant.screen_keyboard in mcp.json; app_status.screen_keyboard. test_e15_screen_keyboard 3/3.",
+              "commit": "ai: GNOME's on-screen keyboard only when called",
+              "status": "done",
+              "started": "2026-10-20T14:07:34+01:00",
+              "finished": "2026-10-20T14:13:55+01:00"
+            },
+            {
+              "id": "T15.3.2",
+              "story": "US-15.4",
+              "title": "Release 1.15.0",
+              "details": "",
+              "commit": "ai: release 1.15.0 (the on-screen keyboard only when called)",
+              "status": "todo"
             }
           ]
         }

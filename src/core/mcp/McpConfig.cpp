@@ -71,6 +71,7 @@ McpConfig McpConfig::load() {
                 cfg.assistant.permissionMode = a.value("permission_mode", cfg.assistant.permissionMode);
                 cfg.assistant.command = a.value("command", cfg.assistant.command);
                 cfg.assistant.autoImprove = a.value("auto_improve", cfg.assistant.autoImprove);
+                cfg.assistant.screenKeyboard = a.value("screen_keyboard", cfg.assistant.screenKeyboard);
                 if (a.contains("rules") && a["rules"].is_array()) {
                     cfg.assistant.rules.clear();
                     for (const auto& r: a["rules"]) {
@@ -150,7 +151,8 @@ void McpConfig::save() const {
                 {"max_parallel", assistant.maxParallel},
                 {"speech", assistant.speech},
                 {"speech_model", assistant.speechModel},
-                {"share_recordings", assistant.shareRecordings}}},
+                {"share_recordings", assistant.shareRecordings},
+                {"screen_keyboard", assistant.screenKeyboard}}},
               {"backup_dir", toUtf8(backupDir)},
               {"_help",
                {{"url", url()},

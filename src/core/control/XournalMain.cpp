@@ -55,6 +55,7 @@
 #include "filesystem.h"       // for path, operator/, exists
 #ifdef ENABLE_MCP
 #include "assistant/ServingState.h"  // for runHook
+#include "gui/ScreenKeyboard.h"      // for takeOverInputMethod, setManual
 #include "mcp/McpConfig.h"           // for McpConfig
 #include "mcp/McpStdioBridge.h"      // for runStdioBridge
 #endif
@@ -437,6 +438,10 @@ void on_open_files(GApplication* application, gpointer f, gint numFiles, gchar* 
 }
 
 void on_startup(GApplication* application, XMPtr app_data) {
+#ifdef ENABLE_MCP
+    // (before any text field gets the keyboard)
+    xoj::gui::screen_keyboard::setManual(xoj::mcp::McpConfig::load().assistant.screenKeyboard != "auto");
+#endif
     XournalMain::initLocalisation();
     ensure_input_model_compatibility();
     const MigrateResult migrateResult = migrateSettings();
@@ -645,6 +650,9 @@ void XournalMain::initLocalisation() {
 }
 
 auto XournalMain::run(int argc, char** argv) -> int {
+#ifdef ENABLE_MCP
+    xoj::gui::screen_keyboard::takeOverInputMethod(argc, argv);  // (before GTK and any thread)
+#endif
 
     XournalMainPrivate app_data;
     GtkApplication* app = gtk_application_new("io.github.korobool.xournalai", APP_FLAGS);

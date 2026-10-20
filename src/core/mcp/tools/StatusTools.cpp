@@ -10,6 +10,7 @@
 #include "control/ToolEnums.h"       // for toolTypeToString
 #include "control/ToolHandler.h"     // for ToolHandler
 #include "control/XHangRecovery.h"   // for xRequestsLogged, xErrorsSurvivedCount
+#include "gui/ScreenKeyboard.h"  // for screen_keyboard
 #include "mcp/McpConfig.h"
 #include "mcp/McpHttpServer.h"
 #include "mcp/McpServer.h"
@@ -68,6 +69,22 @@ static json uiStalls() {
 }
 
 /// Local speech to text for Ask: state (unavailable, downloading, starting, ready, listening, transcribing), model
+/// GNOME's on-screen keyboard: only when called (manual), and the input method the text fields use
+static json screenKeyboardStatus() {
+    gchar* im = nullptr;
+    if (GtkSettings* settings = gtk_settings_get_default()) {
+        g_object_get(settings, "gtk-im-module", &im, nullptr);
+    }
+    const char* env = g_getenv("GTK_IM_MODULE");
+    const char* session = gui::screen_keyboard::sessionInputMethod();
+    json out = {{"manual", gui::screen_keyboard::isManual()},
+                {"input_method", im ? json(im) : json(nullptr)},
+                {"env_GTK_IM_MODULE", env ? json(env) : json(nullptr)},
+                {"session_input_method", session ? json(session) : json(nullptr)}};
+    g_free(im);
+    return out;
+}
+
 static json speechStatus(McpServer* srv) {
     auto* sp = srv->getUi() ? srv->getUi()->speech() : nullptr;
     if (!sp) {
@@ -117,6 +134,7 @@ void registerStatusTools(McpServer& server) {
                     {"user_tool", toolSummary(ctrl)},
                     {"ui", uiStalls()},
                     {"speech", speechStatus(srv)},
+                    {"screen_keyboard", screenKeyboardStatus()},
                     {"ask", srv->getUi() ? srv->getUi()->askStatus() : json({{"state", "off"}})},
                     {"recordings", srv->getUi() ? srv->getUi()->recordingStatus() : json({{"pending", 0}})},
                     {"coordinates", "page points (1/72 inch), origin top-left of each page, pages numbered from 1"}};

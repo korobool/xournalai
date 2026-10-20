@@ -11,6 +11,7 @@
 #include "control/layer/LayerController.h"  // for LayerController
 #include "control/zoom/ZoomControl.h"       // for ZoomControl
 #include "gui/Layout.h"                     // for Layout
+#include "gui/ScreenKeyboard.h"             // for screen_keyboard
 #include "gui/MainWindow.h"                 // for MainWindow
 #include "gui/PageView.h"                   // for XojPageView
 #include "gui/XournalView.h"                // for XournalView
@@ -286,6 +287,7 @@ McpUi::~McpUi() {
               "mcp-connect",      "mcp-settings",    "ai-terminal",      "ai-terminal-open", "ai-terminal-custom",
               "ai-quick-tools",   "ai-tools-button", "ai-record-button", "ai-fullscreen-button", "ai-focus", "ai-highlighter", "ai-focus-button", "ai-act",           "ai-toolbar",
               "ai-stop",          "ai-auto-improve", "ai-ask",           "ai-rule-formulas", "ai-rule-text",
+              "ai-screen-keyboard-manual",
               "ai-rule-diagrams", "ai-rule-colours"}) {
             g_action_map_remove_action(G_ACTION_MAP(window), name);
         }
@@ -486,6 +488,19 @@ void McpUi::installActions() {
                      }),
                      this);
     add(autoImp);
+    // GNOME's on-screen keyboard only when called (tablet mode): see gui/ScreenKeyboard.h (remembered)
+    GSimpleAction* osk = g_simple_action_new_stateful("ai-screen-keyboard-manual", nullptr,
+                                                      g_variant_new_boolean(gui::screen_keyboard::isManual()));
+    g_signal_connect(osk, "change-state", G_CALLBACK(+[](GSimpleAction* a, GVariant* v, gpointer) {
+                         g_simple_action_set_state(a, v);
+                         const bool manual = g_variant_get_boolean(v);
+                         gui::screen_keyboard::setManual(manual);
+                         McpConfig cfg = McpConfig::load();
+                         cfg.assistant.screenKeyboard = manual ? "manual" : "auto";
+                         cfg.save();
+                     }),
+                     nullptr);
+    add(osk);
     for (const char* rule: {"formulas", "text", "diagrams", "colours"}) {
         const bool enabled =
                 std::find(assistantCfg.rules.begin(), assistantCfg.rules.end(), rule) != assistantCfg.rules.end();
@@ -607,6 +622,7 @@ void McpUi::buildMenu() {
              {"Big Full screen button", "win.ai-fullscreen-button"},
              {"Big Focus button", "win.ai-focus-button"},
              {"Focus: only the big buttons (F9)", "win.ai-focus"},
+             {"Screen keyboard only when called (swipe up from the bottom edge)", "win.ai-screen-keyboard-manual"},
              {"AI highlighter: highlight while speaking (Ctrl+Alt+H)", "win.ai-highlighter"},
              {"Stop current AI work", "win.ai-stop"}});
     {
