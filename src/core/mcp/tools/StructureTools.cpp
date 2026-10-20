@@ -90,7 +90,7 @@ void registerStructureTools(McpServer& server) {
                                                         false)}},
                                       {"op"});
     page.tier = Tier::Ui;
-    page.handler = [ctrl, formats, srv = &server](const json& j) {
+    page.asyncHandler = [ctrl, formats, srv = &server](const json& j, Responder respond) {
         requireDocument(ctrl);
         Args args(j);
         args.rejectUnknown({"op", "page", "to", "background", "color", "width", "height", "show"});
@@ -111,11 +111,27 @@ void registerStructureTools(McpServer& server) {
         // current moved the user's view, 2026-10-20)
         PageBackgroundChangeController* backgrounds = ctrl->getPageBackgroundChangeController();
         const bool show = args.boolean("show", false);
+        // Taking the user there waits until they are between gestures
+        auto go = [ctrl, respond](size_t index, std::string text) {
+            PageRef page;
+            {
+                std::shared_lock lock(*ctrl->getDocument());
+                page = ctrl->getDocument()->getPage(index);
+            }
+            whenUserBetweenGestures(ctrl, [ctrl, page, text, respond] {
+                size_t now = ctrl->getDocument()->indexOf(page);  // (pages may have moved meanwhile)
+                if (now != npos) {
+                    gotoPage(ctrl, now);
+                }
+                respond(ToolResult::structured(pageState(ctrl, now == npos ? 0 : now), text));
+            });
+        };
         auto done = [&](size_t index, const std::string& text = "") {
             if (show) {
-                gotoPage(ctrl, index);
+                go(index, text);
+            } else {
+                respond(ToolResult::structured(pageState(ctrl, index), text));
             }
-            return ToolResult::structured(pageState(ctrl, index), text);
         };
         if (op == "insert") {
             const auto after =
@@ -131,7 +147,8 @@ void registerStructureTools(McpServer& server) {
                 page->setBackgroundType(*f);
             }
             ctrl->insertPage(page, after, false);  // after = the 0-based index of the new page
-            return done(after, "Inserted page " + std::to_string(after + 1));
+            done(after, "Inserted page " + std::to_string(after + 1));
+            return;
         }
         const size_t index = resolvePageIndex(ctrl, args);
         PageRef target;
@@ -140,8 +157,8 @@ void registerStructureTools(McpServer& server) {
             target = ctrl->getDocument()->getPage(index);
         }
         if (op == "goto") {
-            gotoPage(ctrl, index);
-            return ToolResult::structured(pageState(ctrl, index));
+            go(index, "");
+            return;
         }
         ctrl->clearSelectionEndTextOn(target);
         if (op == "delete") {
@@ -153,16 +170,19 @@ void registerStructureTools(McpServer& server) {
             if (!backup.empty()) {
                 out["backup"] = backup;
             }
-            return ToolResult::structured(std::move(out));
+            respond(ToolResult::structured(std::move(out)));
+            return;
         }
         if (op == "duplicate") {
             ctrl->insertPage(std::make_shared<XojPage>(*target), index + 1, false);
-            return done(index + 1, "Duplicated as page " + std::to_string(index + 2));
+            done(index + 1, "Duplicated as page " + std::to_string(index + 2));
+            return;
         }
         if (op == "move") {
             const auto to = static_cast<size_t>(args.integer("to", 0, 1, static_cast<int64_t>(pageCount(ctrl)))) - 1;
             ctrl->movePage(index, to);
-            return done(to, "Moved to position " + std::to_string(to + 1));
+            done(to, "Moved to position " + std::to_string(to + 1));
+            return;
         }
         if (op == "background") {
             if (!args.has("background") && !args.has("color")) {
@@ -175,12 +195,13 @@ void registerStructureTools(McpServer& server) {
                 target->setBackgroundColor(parseColor(args.raw("color")));
                 ctrl->firePageChanged(index);
             }
-            return done(index);
+            done(index);
+            return;
         }
         // size
         const double w = args.number("width", 0, 10, 20000), h = args.number("height", 0, 10, 20000);
         backgrounds->changePageSize(index, PaperSize(w, h));
-        return done(index);
+        done(index);
     };
     server.getRegistry().addTool(std::move(page));
 

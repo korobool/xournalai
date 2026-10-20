@@ -3042,9 +3042,11 @@
               "id": "T15.2.6",
               "story": "US-15.2",
               "title": "Navigation waits for the user's gesture",
-              "details": "The navigation tools (page_manage goto, view scroll and zoom, elements_select, show_message) move the view when asked, but not in the middle of the user's stroke, selection drag or typing: they wait (briefly) for it to end. Side effects that moved the view (clipboard copy and cut, show_message on another page) no longer do.",
+              "details": "The navigation tools (page_manage goto, view scroll and zoom, elements_select, show_message) move the view when asked, but not in the middle of the user's stroke, selection drag or typing: they wait (briefly) for it to end. Side effects that moved the view (clipboard copy and cut, show_message on another page) no longer do. whenUserBetweenGestures (ToolUtil): no stroke, drag or touch gesture on the canvas (InputContext::userGestureRunning), no key held, none pressed in the last 1.5 s; at most 8 s. view (all changes), page_manage goto and show, and elements_select wait for it; their arguments are checked at once. show_message on a page out of view says '(p. N)' at the top of the visible area; clipboard copy/cut select where the elements are. test_e15_view 9/9 (8 and 9 fail on 1.13.0).",
               "commit": "ai: agents' navigation waits for the user's gesture",
-              "status": "todo"
+              "status": "done",
+              "started": "2026-10-20T13:18:15+01:00",
+              "finished": "2026-10-20T13:28:21+01:00"
             },
             {
               "id": "T15.2.7",

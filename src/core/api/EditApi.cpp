@@ -318,7 +318,7 @@ size_t EditApi::remove(const ElementGroup& g) {
     return count;
 }
 
-void EditApi::select(const ElementGroup& g) {
+void EditApi::select(const ElementGroup& g, bool show) {
     if (g.byLayer.size() != 1) {
         throw std::invalid_argument("A selection can only contain elements of one layer");
     }
@@ -334,11 +334,18 @@ void EditApi::select(const ElementGroup& g) {
             layerIndex = i + 1;
         }
     }
-    if (control->getCurrentPageNo() != g.pageIndex) {
+    LayerController* layerCtrl = control->getLayerController();
+    const bool elsewhere = control->getCurrentPageNo() != g.pageIndex;
+    if (elsewhere && show) {
         control->getScrollHandler()->scrollToPage(g.pageIndex);
         control->firePageSelected(g.pageIndex);
+    } else if (elsewhere) {
+        layerCtrl->workOnPage(g.pageIndex);  // (its layer, without making it current)
     }
-    control->getLayerController()->switchToLay(layerIndex);
+    layerCtrl->switchToLay(layerIndex);
+    if (elsewhere && !show) {
+        layerCtrl->workOnCurrentPage();
+    }
     InsertionOrderRef refs;
     for (Element* e: g.byLayer[0].second) {
         refs.emplace_back(e, g.byLayer[0].first->indexOf(e));

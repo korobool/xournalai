@@ -53,6 +53,13 @@ std::optional<xoj::util::Rectangle<double>> parseRegion(const Args& args, const 
 void whenReady(std::function<bool()> condition, std::function<void(bool)> then, unsigned timeoutMs = 2000,
                unsigned intervalMs = 40);
 
+/**
+ * @brief Runs `then` once the user is between gestures (or after `maxMs` anyway): no stroke, drag or touch gesture on
+ * the canvas, no key held, and none pressed in the last moment (typing, dictation). Agents move the user's view
+ * only when asked, and even then not in the middle of what the user does (2026-10-20).
+ */
+void whenUserBetweenGestures(Control* ctrl, std::function<void()> then, unsigned maxMs = 8000);
+
 /// Throws ToolError unless a main window and document exist
 void requireDocument(Control* ctrl);
 

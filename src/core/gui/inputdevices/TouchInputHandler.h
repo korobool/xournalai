@@ -55,6 +55,9 @@ public:
     explicit TouchInputHandler(InputContext* inputContext);
     ~TouchInputHandler() override = default;
 
+    /// Fingers on the canvas (scrolling or zooming; xournalai: agents' navigation waits for their end)
+    bool isActive() const { return primarySequence || secondarySequence; }
+
     bool handleImpl(InputEvent const& event) override;
     void onBlock() override;
     void onUnblock() override;

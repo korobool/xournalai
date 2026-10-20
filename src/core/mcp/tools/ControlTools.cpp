@@ -233,7 +233,9 @@ void registerControlTools(McpServer& server) {
     view.title = "View";
     view.description = "The user's view: op=get (current page, zoom, visible region of the page in points, fullscreen, "
                        "presentation mode, sidebar), zoom (factor, 1 = 100%), zoom_fit, zoom_100, scroll (show 'page', "
-                       "optionally 'region'), fullscreen / presentation / sidebar (on=true/false).";
+                       "optionally 'region'), fullscreen / presentation / sidebar (on=true/false). Change the view only "
+                       "when the user asked for it (\"show me page 7\", \"zoom in on the diagram\"); the change waits "
+                       "until the user is between strokes and typing (at most a few seconds).";
     view.inputSchema = schema::object(
             {{"op",
               schema::withDefault(schema::enumeration("Operation", {"get", "zoom", "zoom_fit", "zoom_100", "scroll",
@@ -252,31 +254,52 @@ void registerControlTools(McpServer& server) {
         const std::string op = args.choice(
                 "op", {"get", "zoom", "zoom_fit", "zoom_100", "scroll", "fullscreen", "presentation", "sidebar"},
                 "get");
+        if (op == "get") {
+            respond(ToolResult::structured(viewJson(ctrl)));
+            return;
+        }
+        // The arguments are checked now; the view changes once the user is between gestures
+        std::function<void()> change;
         if (op == "zoom") {
-            g_action_group_change_action_state(
-                    win(ctrl), "zoom", g_variant_new_double(args.number("factor", 1, DEFAULT_ZOOM_MIN, DEEP_ZOOM_MAX)));
-        } else if (op == "zoom_fit") {
-            g_action_group_activate_action(win(ctrl), "zoom-fit", nullptr);
-        } else if (op == "zoom_100") {
-            g_action_group_activate_action(win(ctrl), "zoom-100", nullptr);
+            const double factor = args.number("factor", 1, DEFAULT_ZOOM_MIN, DEEP_ZOOM_MAX);
+            change = [ctrl, factor] {
+                g_action_group_change_action_state(win(ctrl), "zoom", g_variant_new_double(factor));
+            };
+        } else if (op == "zoom_fit" || op == "zoom_100") {
+            change = [ctrl, action = op == "zoom_fit" ? "zoom-fit" : "zoom-100"] {
+                g_action_group_activate_action(win(ctrl), action, nullptr);
+            };
         } else if (op == "scroll") {
-            const size_t page = resolvePageIndex(ctrl, args);
-            if (auto r = parseRegion(args)) {
-                ctrl->getScrollHandler()->scrollToPage(page,
-                                                       XojPdfRectangle(r->x, r->y, r->x + r->width, r->y + r->height));
-            } else {
-                ctrl->getScrollHandler()->scrollToPage(page);
+            PageRef page;
+            {
+                std::shared_lock lock(*ctrl->getDocument());
+                page = ctrl->getDocument()->getPage(resolvePageIndex(ctrl, args));
             }
-            ctrl->firePageSelected(page);
-        } else if (op != "get") {
+            change = [ctrl, page, r = parseRegion(args)] {
+                const size_t index = ctrl->getDocument()->indexOf(page);  // (pages may have moved meanwhile)
+                if (index == npos) {
+                    return;
+                }
+                if (r) {
+                    ctrl->getScrollHandler()->scrollToPage(
+                            index, XojPdfRectangle(r->x, r->y, r->x + r->width, r->y + r->height));
+                } else {
+                    ctrl->getScrollHandler()->scrollToPage(index);
+                }
+                ctrl->firePageSelected(index);
+            };
+        } else {
             const char* action = op == "fullscreen"   ? "fullscreen" :
                                  op == "presentation" ? "presentation-mode" :
                                                         "show-sidebar";
-            setActionState(ctrl, action, args.boolean("on", true));
+            change = [ctrl, action, on = args.boolean("on", true)] { setActionState(ctrl, action, on); };
         }
-        // Layout changes settle asynchronously
-        whenReady([] { return false; }, [ctrl, respond](bool) { respond(ToolResult::structured(viewJson(ctrl))); },
-                  op == "get" ? 0 : 150);
+        whenUserBetweenGestures(ctrl, [ctrl, change, respond] {
+            change();
+            // Layout changes settle asynchronously
+            whenReady([] { return false; }, [ctrl, respond](bool) { respond(ToolResult::structured(viewJson(ctrl))); },
+                      150);
+        });
     };
     server.getRegistry().addTool(std::move(view));
 
@@ -322,7 +345,7 @@ void registerControlTools(McpServer& server) {
             }
             api::EditApi edit(ctrl);
             auto g = edit.resolve(ids);
-            edit.select(g);
+            edit.select(g, false);  // (where they are: copying does not move the user's view)
             g_action_group_activate_action(win(ctrl), op.c_str(), nullptr);
             ctrl->clearSelectionEndText();  // put copied elements back into their layer
             respond(ToolResult::structured({{op == "copy" ? "copied" : "cut", ids.size()}}));

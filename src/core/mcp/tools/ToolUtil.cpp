@@ -10,6 +10,11 @@
 #include "api/DocumentApi.h"                   // for currentPageIndex
 #include "control/Control.h"                   // for Control
 #include "control/pagetype/PageTypeHandler.h"  // for PageTypeHandler
+#include "gui/KeyboardFocus.h"                 // for keyHeld, lastKeyPress
+#include "gui/MainWindow.h"                    // for MainWindow
+#include "gui/XournalView.h"                   // for XournalView
+#include "gui/inputdevices/InputContext.h"     // for InputContext
+#include "gui/widgets/XournalWidget.h"         // for GtkXournal
 #include "model/Document.h"                    // for Document
 #include "model/Layer.h"                       // for Layer
 #include "model/XojPage.h"                     // for XojPage
@@ -174,6 +179,17 @@ void whenReady(std::function<bool()> condition, std::function<void(bool)> then, 
                 return G_SOURCE_CONTINUE;
             },
             state);
+}
+
+void whenUserBetweenGestures(Control* ctrl, std::function<void()> then, unsigned maxMs) {
+    constexpr gint64 TYPING_US = 1500 * 1000;  ///< a pause in typing or dictation
+    auto between = [ctrl] {
+        MainWindow* win = ctrl->getWindow();
+        const InputContext* input = win ? GTK_XOURNAL(win->getXournal()->getWidget())->input : nullptr;
+        return !(input && input->userGestureRunning()) && !xoj::gui::keyHeld() &&
+               g_get_monotonic_time() - xoj::gui::lastKeyPress() > TYPING_US;
+    };
+    whenReady(between, [then = std::move(then)](bool) { then(); }, maxMs, 100);
 }
 
 void requireDocument(Control* ctrl) {

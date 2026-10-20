@@ -58,4 +58,6 @@ void noteKeyEvent(const GdkEvent* event) {
 
 bool keyHeld() { return !heldKeys.empty() && g_get_monotonic_time() - lastPressUs < HOLD_US; }
 
+gint64 lastKeyPress() { return lastPressUs; }
+
 }  // namespace xoj::gui

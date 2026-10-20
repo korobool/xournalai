@@ -66,7 +66,8 @@ public:
     /// Deletes the elements (undoable; their ids come back with undo)
     size_t remove(const ElementGroup& g);
     /// Shows the elements as the user's selection (switches to their layer); all must be on one layer
-    void select(const ElementGroup& g);
+    /// `show`: also take the user's view there (else the selection is made where it is, e.g. to copy it)
+    void select(const ElementGroup& g, bool show = true);
 
 private:
     Control* control;

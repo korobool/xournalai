@@ -113,6 +113,8 @@ public:
     Settings* getSettings() const;
     HandRecognition* getHandRecognition() const;
     ScrollHandling* getScrollHandling() const;
+    /// (xournalai) The user is in the middle of a stroke, a drag or a touch gesture on the canvas
+    bool userGestureRunning() const;
     void setGeometryToolInputHandler(std::unique_ptr<GeometryToolInputHandler> handler);
     GeometryToolInputHandler* getGeometryToolInputHandler() const;
     void resetGeometryToolInputHandler();

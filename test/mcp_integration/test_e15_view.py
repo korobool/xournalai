@@ -161,3 +161,38 @@ def test_7_a_chip_shows_where_an_agent_works_out_of_view(app):
     c.call("create_strokes", page=1, strokes=stroke, animate=False)
     assert wait_for(lambda: chip(c) == "AI ↑ p. 1"), chip(c)
     assert wait_for(lambda: chip(c) is None, timeout=16)  # quiet for a while: it goes
+
+
+def test_8_navigation_waits_for_the_users_stroke(app):
+    import threading
+    c = app.client()
+    setup(c)
+    x, y = app.canvas_center(c)
+    agent = app.client()
+    app._xdo("mousemove", x, y)
+    app._xdo("mousedown", 1)  # the user is in the middle of a stroke
+    try:
+        for i in range(5):
+            app._xdo("mousemove", x + i * 5, y + i)
+        th = threading.Thread(target=lambda: agent.call("page_manage", op="goto", page=5))
+        th.start()
+        time.sleep(1.0)
+        assert view(c)[0] == 2, "the view moved in the middle of the stroke"
+        assert th.is_alive()
+    finally:
+        app._xdo("mouseup", 1)
+    th.join(timeout=10)
+    assert view(c)[0] == 5  # right after it
+
+
+def test_9_a_message_or_a_copy_elsewhere_keeps_the_view(app):
+    c = app.client()
+    setup(c)
+    before = view(c)
+    r = c.call("show_message", text="Drawing the map here", page=6, x=100, y=100, seconds=1)
+    assert r["page"] == 6
+    sid = c.call("create_strokes", page=6, strokes=[{"points": [[100, 100], [160, 130]]}],
+                 animate=False)["created"][0]["id"]
+    c.call("clipboard", op="copy", element_ids=[sid])
+    time.sleep(0.3)
+    assert view(c) == before, (view(c), before)

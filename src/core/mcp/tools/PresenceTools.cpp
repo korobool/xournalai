@@ -26,7 +26,8 @@ void registerPresenceTools(McpServer& server) {
     msg.description =
             "Shows a short message to the user as a callout on the canvas, pointing at a spot of a page (x, y in "
             "page points; default: the top of the visible area), for 'seconds'. Use it to comment on what the user "
-            "is drawing without leaving the app. The page is scrolled into view if needed.";
+            "is drawing without leaving the app. On a page out of the user's view it is shown at the top of the "
+            "visible area with the page number: the view stays (to take the user there, ask first and use view).";
     msg.inputSchema = schema::object({{"text", schema::string("Message (short; use \\n for line breaks)")},
                                       {"page", schema::integer("Page (1-based); default: current page")},
                                       {"x", schema::number("Anchor x in page points")},
@@ -42,9 +43,8 @@ void registerPresenceTools(McpServer& server) {
         XournalView* xv = ctrl->getWindow()->getXournal();
         GtkWidget* widget = xv->getWidget();
         GtkXournal* xw = GTK_XOURNAL(widget);
-        if (ctrl->getCurrentPageNo() != page) {
-            xv->scrollTo(page);
-        }
+        // (out of view: the view stays, the message says where; it used to scroll there, 2026-10-20)
+        const bool inView = xv->isPageVisible(page, nullptr);
         XojPageView* view = xv->getViewFor(page);
         if (!view) {
             throw ToolError("The page is not available");
@@ -53,7 +53,7 @@ void registerPresenceTools(McpServer& server) {
         const auto pos = view->getPixelPosition();
         const double hx = gtk_adjustment_get_value(xw->hadjustment), vy = gtk_adjustment_get_value(xw->vadjustment);
         GdkRectangle target;
-        if (args.has("x") && args.has("y")) {
+        if (inView && args.has("x") && args.has("y")) {
             target.x = static_cast<int>(pos.x + args.number("x") * zoom - hx);
             target.y = static_cast<int>(pos.y + args.number("y") * zoom - vy);
         } else {
@@ -67,7 +67,8 @@ void registerPresenceTools(McpServer& server) {
         gtk_popover_set_pointing_to(GTK_POPOVER(popover), &target);
         gtk_popover_set_position(GTK_POPOVER(popover), GTK_POS_TOP);
         GtkWidget* label = gtk_label_new(nullptr);
-        gchar* markup = g_markup_printf_escaped("<b>AI</b>  %s", args.str("text").c_str());
+        const std::string text = (inView ? "" : "(p. " + std::to_string(page + 1) + ") ") + args.str("text");
+        gchar* markup = g_markup_printf_escaped("<b>AI</b>  %s", text.c_str());
         gtk_label_set_markup(GTK_LABEL(label), markup);
         g_free(markup);
         gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);

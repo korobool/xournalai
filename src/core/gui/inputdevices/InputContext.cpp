@@ -242,6 +242,11 @@ auto InputContext::getScrollHandling() const -> ScrollHandling* { return this->s
 
 auto InputContext::getHandRecognition() const -> HandRecognition* { return this->handRecognition.get(); }
 
+auto InputContext::userGestureRunning() const -> bool {
+    return (stylusHandler && stylusHandler->isPressed()) || (mouseHandler && mouseHandler->isPressed()) ||
+           (touchDrawingHandler && touchDrawingHandler->isPressed()) || (touchHandler && touchHandler->isActive());
+}
+
 void InputContext::setGeometryToolInputHandler(std::unique_ptr<GeometryToolInputHandler> handler) {
     this->geometryToolInputHandler = std::move(handler);
 }

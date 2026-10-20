@@ -30,4 +30,7 @@ void noteKeyEvent(const GdkEvent* event);
 /// Whether a key is held down now (e.g. space for push-to-talk dictation in the AI terminal)
 bool keyHeld();
 
+/// When the last key was pressed (or repeated), g_get_monotonic_time(); 0 if none yet
+gint64 lastKeyPress();
+
 }  // namespace xoj::gui

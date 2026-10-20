@@ -91,6 +91,9 @@ public:
     explicit PenInputHandler(InputContext* inputContext);
     ~PenInputHandler() override;
 
+    /// A stroke or drag of this device class is in progress (xournalai: agents' navigation waits for its end)
+    bool isPressed() const { return deviceClassPressed; }
+
 protected:
     /**
      * Action for the start of an input

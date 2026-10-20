@@ -66,17 +66,26 @@ void registerEditTools(McpServer& server) {
     select.title = "Select elements";
     select.description =
             "Shows elements as the user's selection in the app (switching to their page and layer), e.g. to point "
-            "something out or before app actions like copy. All elements must be on one layer.";
+            "something out or before app actions like copy. All elements must be on one layer. It moves the user's "
+            "view to them: once the user is between strokes and typing (at most a few seconds).";
     select.inputSchema = targetSchema({});
     select.tier = Tier::Ui;
-    select.handler = [ctrl](const json& j) {
+    select.asyncHandler = [ctrl](const json& j, Responder respond) {
         requireDocument(ctrl);
         Args args(j);
         args.rejectUnknown({"element_ids", "operation"});
-        api::EditApi edit(ctrl);
-        auto g = edit.resolve(idsFrom(args));
-        edit.select(g);
-        return ToolResult::structured(groupJson(g), "Selected.");
+        auto ids = idsFrom(args);
+        api::EditApi(ctrl).resolve(ids);  // (unknown ids are reported at once)
+        whenUserBetweenGestures(ctrl, [ctrl, ids, respond] {
+            try {
+                api::EditApi edit(ctrl);
+                auto g = edit.resolve(ids);
+                edit.select(g);
+                respond(ToolResult::structured(groupJson(g), "Selected."));
+            } catch (const std::exception& e) {  // (gone meanwhile)
+                respond(ToolResult::error(e.what()));
+            }
+        });
     };
     server.getRegistry().addTool(std::move(select));
 
