@@ -94,6 +94,11 @@ ThinkingOverlay::~ThinkingOverlay() {
     while (!list.empty()) {
         removeZone(list.size() - 1);
     }
+    if (chip) {
+        GtkWidget* c = chip;
+        g_object_remove_weak_pointer(G_OBJECT(chip), reinterpret_cast<gpointer*>(&chip));
+        gtk_widget_destroy(c);
+    }
     if (canvas) {
         GtkWidget* c = canvas;
         g_object_remove_weak_pointer(G_OBJECT(canvas), reinterpret_cast<gpointer*>(&canvas));
@@ -244,9 +249,48 @@ void ThinkingOverlay::layout() {
             gtk_style_context_add_class(ctx, "destructive-action");
         }
     }
+    if (chip) {
+        const auto area = bounds ? bounds() : std::nullopt;
+        if (chipText.empty() || !area) {
+            gtk_widget_hide(chip);
+        } else {
+            GtkRequisition nat;
+            gtk_widget_get_preferred_size(chip, nullptr, &nat);
+            const int x = std::max(area->x, area->x + area->width - nat.width - 12), y = area->y + 8;
+            g_object_set_data(G_OBJECT(chip), "ai-x", GINT_TO_POINTER(x + 1));  // (+1: never NULL)
+            g_object_set_data(G_OBJECT(chip), "ai-y", GINT_TO_POINTER(y + 1));
+            gtk_widget_queue_resize(chip);
+            gtk_widget_show(chip);
+        }
+    }
     if (canvas) {
         gtk_widget_queue_draw(canvas);
     }
+}
+
+void ThinkingOverlay::setPageChip(const std::string& text, std::function<void()> onTap) {
+    chipText = text;
+    chipTap = std::move(onTap);
+    if (overlay && !chip && !text.empty()) {
+        chip = gtk_button_new_with_label("");
+        gtk_buildable_set_name(GTK_BUILDABLE(chip), "aiAgentPageChip");
+        gtk_widget_set_can_focus(chip, FALSE);  // (never the keyboard's)
+        gtk_style_context_add_class(gtk_widget_get_style_context(chip), "osd");
+        gtk_widget_set_tooltip_text(chip, "An agent is changing this page. Click to go there.");
+        g_signal_connect(chip, "clicked", G_CALLBACK(+[](GtkButton*, gpointer self) {
+                             auto tap = static_cast<ThinkingOverlay*>(self)->chipTap;  // (it may hide the chip)
+                             if (tap) {
+                                 tap();
+                             }
+                         }),
+                         this);
+        gtk_overlay_add_overlay(GTK_OVERLAY(overlay), chip);
+        g_object_add_weak_pointer(G_OBJECT(chip), reinterpret_cast<gpointer*>(&chip));
+    }
+    if (chip) {
+        gtk_button_set_label(GTK_BUTTON(chip), text.c_str());
+    }
+    layout();
 }
 
 gboolean ThinkingOverlay::onTick(gpointer data) {

@@ -3032,9 +3032,11 @@
               "id": "T15.2.5",
               "story": "US-15.2",
               "title": "A chip shows where the agent works",
-              "details": "Instead of moving the view: 'AI -> p. N' at the edge of the canvas while an agent changes a page that is not in view; a tap goes there.",
+              "details": "Instead of moving the view: 'AI -> p. N' at the edge of the canvas while an agent changes a page that is not in view; a tap goes there. ThinkingOverlay::setPageChip: a small osd button 'AI ↓ p. N' (↑ when above) at the top right of the canvas, never the keyboard's. McpUi shows it for the agent's document events on pages out of view, follows the page if pages move, and hides it when the user gets there or 12 s after the last such change. test_e15_view 7/7.",
               "commit": "ai: a chip shows the page an agent works on",
-              "status": "todo"
+              "status": "done",
+              "started": "2026-10-20T13:13:16+01:00",
+              "finished": "2026-10-20T13:18:15+01:00"
             },
             {
               "id": "T15.2.6",

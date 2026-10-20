@@ -7,8 +7,10 @@
 
 #include "api/AgentGate.h"                  // for AgentGate
 #include "control/Control.h"                // for Control
+#include "control/ScrollHandler.h"          // for ScrollHandler
 #include "control/layer/LayerController.h"  // for LayerController
 #include "control/zoom/ZoomControl.h"       // for ZoomControl
+#include "gui/Layout.h"                     // for Layout
 #include "gui/MainWindow.h"                 // for MainWindow
 #include "gui/PageView.h"                   // for XojPageView
 #include "gui/XournalView.h"                // for XournalView
@@ -104,7 +106,10 @@ McpUi::McpUi(McpServer& server): server(server) {
     buildToolbar();
     buildThinking();
     if (auto* hub = server.getEvents()) {
-        hub->addListener([this](const api::DocEvent& e) { noteUserStroke(e); });
+        hub->addListener([this](const api::DocEvent& e) {
+            noteUserStroke(e);
+            noteAgentWork(e);
+        });
     }
 #ifdef ENABLE_AI_TERMINAL
     buildTerminal();
@@ -209,6 +214,9 @@ McpUi::McpUi(McpServer& server): server(server) {
 McpUi::~McpUi() {
     if (highlightTimer) {
         g_source_remove(highlightTimer);
+    }
+    if (agentChipTimer) {
+        g_source_remove(agentChipTimer);
     }
     if (toolWatch) {
         GAction* sel = G_ACTION(server.getControl()->getActionDatabase()->getAction(Action::SELECT_TOOL).get());
@@ -1999,6 +2007,66 @@ std::string McpUi::aiAction(const std::string& kind, const std::string& text) {
     }
 #endif
     return desc;
+}
+
+void McpUi::noteAgentWork(const api::DocEvent& e) {
+    if (!thinkingOverlay || e.origin != "agent" ||
+        (e.type != "element_added" && e.type != "element_removed" && e.type != "element_changed" &&
+         e.type != "page_inserted")) {
+        return;
+    }
+    Control* ctrl = server.getControl();
+    const auto visible = ctrl->getWindow()->getXournal()->getLayout()->getVisiblePages();
+    if (std::find(visible.begin(), visible.end(), e.page) != visible.end()) {
+        return;  // (the user sees it)
+    }
+    {
+        std::shared_lock lock(*ctrl->getDocument());
+        if (e.page >= ctrl->getDocument()->getPageCount()) {
+            return;
+        }
+        agentPage = ctrl->getDocument()->getPage(e.page);
+    }
+    agentWorkUs = g_get_monotonic_time();
+    updateAgentChip();
+    if (!agentChipTimer) {
+        agentChipTimer = g_timeout_add(
+                500,
+                +[](gpointer self) -> gboolean {
+                    auto* ui = static_cast<McpUi*>(self);
+                    ui->updateAgentChip();
+                    if (!ui->agentPage) {
+                        ui->agentChipTimer = 0;
+                        return G_SOURCE_REMOVE;
+                    }
+                    return G_SOURCE_CONTINUE;
+                },
+                this);
+    }
+}
+
+void McpUi::updateAgentChip() {
+    constexpr gint64 SHOWN_US = 12 * G_USEC_PER_SEC;  ///< after the agent's last change out of view
+    Control* ctrl = server.getControl();
+    size_t page = npos;
+    if (agentPage) {
+        std::shared_lock lock(*ctrl->getDocument());
+        page = ctrl->getDocument()->indexOf(agentPage);  // (pages may have moved)
+    }
+    const auto visible = ctrl->getWindow()->getXournal()->getLayout()->getVisiblePages();
+    if (page == npos || g_get_monotonic_time() - agentWorkUs > SHOWN_US ||
+        std::find(visible.begin(), visible.end(), page) != visible.end()) {
+        agentPage.reset();  // gone, quiet for a while, or the user went there
+        thinkingOverlay->setPageChip("");
+        return;
+    }
+    const bool above = !visible.empty() && page < *std::min_element(visible.begin(), visible.end());
+    thinkingOverlay->setPageChip(std::string("AI ") + (above ? "↑" : "↓") + " p. " + std::to_string(page + 1),
+                                 [this, page] {
+                                     server.getControl()->getScrollHandler()->scrollToPage(page);
+                                     agentPage.reset();
+                                     thinkingOverlay->setPageChip("");
+                                 });
 }
 
 void McpUi::noteUserStroke(const api::DocEvent& e) {

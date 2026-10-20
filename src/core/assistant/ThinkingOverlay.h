@@ -80,6 +80,11 @@ public:
     void pushLevel(float rms);
     /// A short message in the recording pill for a moment (e.g. "Didn't catch that")
     void flashRecording(const std::string& message);
+
+    /// Where an agent works out of the user's view (instead of taking the view there): a small chip at the top right
+    /// of the canvas, e.g. "AI ↓ p. 7"; a tap calls `onTap`. Empty text hides it.
+    void setPageChip(const std::string& text, std::function<void()> onTap = {});
+    const std::string& pageChip() const { return chipText; }
     static const char* name(State s);
 
 private:
@@ -117,6 +122,9 @@ private:
     guint timer = 0;
     gulong positionHandler = 0;
     double phase = 0;
+    GtkWidget* chip = nullptr;  ///< weak
+    std::string chipText;
+    std::function<void()> chipTap;
 };
 
 }  // namespace xoj::assistant

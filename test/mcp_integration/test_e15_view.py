@@ -127,3 +127,37 @@ def test_6_the_users_selection_survives_agent_work_on_other_pages(app):
     select_mine()
     c.call("elements_edit", element_ids=[mine], op="move", dx=10, dy=0)
     assert not c.call("view").get("selection")
+
+
+def chip(c):
+    for w in c.call("ui_inspect", max_depth=80, all=True)["widgets"]:
+        if w.get("name") == "aiAgentPageChip" and w.get("visible", True):
+            return w.get("label") or w.get("text") or ""
+    return None
+
+
+def wait_for(pred, timeout=6):
+    end = time.time() + timeout
+    while time.time() < end:
+        if pred():
+            return True
+        time.sleep(0.2)
+    return pred()
+
+
+def test_7_a_chip_shows_where_an_agent_works_out_of_view(app):
+    c = app.client()
+    setup(c, pages=7)
+    stroke = [{"points": [[100, 100], [160, 130]]}]
+    c.call("create_strokes", page=6, strokes=stroke, animate=False)
+    assert wait_for(lambda: chip(c) == "AI ↓ p. 6"), chip(c)
+    assert view(c)[0] == 2  # the user stays
+    c.call("create_strokes", page=2, strokes=stroke, animate=False)  # in view: nothing new to point at
+    time.sleep(0.5)
+    assert chip(c) == "AI ↓ p. 6", chip(c)
+    target = [w for w in c.call("ui_inspect", max_depth=80, all=True)["widgets"] if w.get("name") == "aiAgentPageChip"]
+    c.call("ui_interact", op="click", target=target[0]["id"])  # the user goes there
+    assert wait_for(lambda: view(c)[0] == 6 and chip(c) is None), (view(c), chip(c))
+    c.call("create_strokes", page=1, strokes=stroke, animate=False)
+    assert wait_for(lambda: chip(c) == "AI ↑ p. 1"), chip(c)
+    assert wait_for(lambda: chip(c) is None, timeout=16)  # quiet for a while: it goes

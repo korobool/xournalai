@@ -155,6 +155,13 @@ private:
     std::unique_ptr<assistant::ThinkingOverlay> thinkingOverlay;
     int lastServingState = 0;
 
+    // Where an agent works out of the user's view: a chip "AI ↓ p. N" instead of taking the view there
+    void noteAgentWork(const api::DocEvent& e);
+    void updateAgentChip();
+    PageRef agentPage;
+    gint64 agentWorkUs = 0;
+    guint agentChipTimer = 0;
+
     // Handwritten markers (*! **! *w! *c! *r!) among the user's fresh strokes
     void noteUserStroke(const api::DocEvent& e);
     void scanMarkers();
