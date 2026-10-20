@@ -10,6 +10,34 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.14.0 — The agent works without moving your view
+- **Agents' page and layer work no longer moves your view.** `page_manage` drove the window: before and after every
+  operation it scrolled to the page and made it the current one, so on 2026-10-20 an insert at the end took the
+  owner from page 1 to page 7. insert, delete, duplicate, move, background and size now change the given page in
+  the document, with the same undo steps (an insert with a background is one step now); `layer_manage` works on
+  any page likewise. Only `goto` moves the view, or `show=true` when you asked to be taken there. An inserted
+  page no longer becomes the current one, so agents pass its number to their next calls. A size change on another
+  page no longer re-fits your zoom, and "Page n of N" follows inserts and deletes.
+- **Pages added or removed above keep what you see in place.** The scroll position follows the content, and the
+  page you are on stays current under its new number. Before, the content under you moved by a page, and a
+  deletion took you to the top of your page.
+- **Your selection and text editing survive agents' work on other pages.** Every agent draw, edit and commit used
+  to drop your selection and end your text editing, on any page. Now only work on that same page does: there the
+  agent goes first.
+- **A chip shows where an agent works.** When an agent changes a page you are not looking at, a small "AI ↓ p. 7"
+  (↑ when it is above) appears at the top right of the canvas; a tap takes you there. It goes when you get there
+  or 12 s after the agent's last change out of view.
+- **Agents move the view only when asked, and not in the middle of what you do.** `view` (scroll, zoom, full
+  screen…), `page_manage goto`/`show` and `elements_select` wait until you are between strokes, drags and typing
+  (at most 8 s). `show_message` on a page out of view no longer scrolls there: it says "(p. N)" at the top of the
+  visible area. Copying or cutting elements on another page no longer goes there either.
+- **Undo, redo, the highlighter and the object pointer among the big buttons.** In Focus, the row of big buttons
+  now also has the ordinary highlighter, the pointer (pick an object with a tap), undo and redo. In a narrow window
+  some give way, in this order: Auto-improve first (it is in Tools too), then the command, the lasso, the pointer;
+  the terminal stays, since it opens only from there. On a 1920-pixel screen all of them fit. The row now fills the room it has: every tile used
+  to be counted as wide as the Touch switch, so with the laptop's screen upright (1200 wide) two or three tiles were
+  missing before an empty stretch.
+
 ## 1.13.0 — The keyboard stays where you type
 - **Saves and page changes no longer take the keyboard from the AI terminal or the AI input fields.** On 2026-10-20 the
   owner held space to dictate in the AI terminal, an agent saved (as agents do after every change), and the canvas
