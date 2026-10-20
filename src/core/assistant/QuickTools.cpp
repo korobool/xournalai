@@ -995,11 +995,25 @@ void QuickTools::refreshFullscreen() {
 }
 
 namespace {
-/// The tablet buttons shown in Focus, left to right by priority (the last ones give way first)
-constexpr const char* TABLET[] = {"touch",  "auto-improve", "ai-highlighter", "ask",     "pen",
-                                  "eraser", "select",       "command",        "terminal"};
-constexpr size_t TABLET_FIRST = 2;    ///< the switches first (a gap after them: hard to hit by accident)
-constexpr size_t TABLET_ACTIONS = 7;  ///< asking and drawing; a gap, then the AI actions
+/// The tablet buttons shown in Focus, left to right, in groups. The highlighter, the pointer (picks an object with a
+/// tap), undo and redo: the owner's request, 2026-10-20
+constexpr const char* TABLET[] = {"touch", "ai-highlighter", "ask",      "pen",     "highlighter",
+                                  "eraser", "select",        "select-object", "undo", "redo",
+                                  "terminal", "command",     "auto-improve"};
+constexpr size_t TABLET_FIRST = 1;     ///< the touch switch first (a gap after it: hard to hit by accident)
+constexpr size_t TABLET_HISTORY = 8;   ///< asking and drawing; a gap, then undo and redo
+constexpr size_t TABLET_ACTIONS = 10;  ///< a gap, then the AI actions
+constexpr size_t TABLET_LAST = 12;     ///< a gap, then the Auto-improve switch
+bool gapBefore(size_t i) {
+    return i == TABLET_FIRST || i == TABLET_HISTORY || i == TABLET_ACTIONS || i == TABLET_LAST;
+}
+/// Which ones stay when the room runs out, most needed first: the terminal opens only from here, Auto-improve is in
+/// Tools too (the owner, 2026-10-20)
+constexpr const char* TABLET_PRIORITY[] = {"touch",       "ai-highlighter", "ask",           "pen",
+                                           "terminal",    "eraser",         "highlighter",   "undo",
+                                           "redo",        "select-object",  "select",        "command",
+                                           "auto-improve"};
+static_assert(std::size(TABLET_PRIORITY) == std::size(TABLET));
 
 /// The switches among the tablet buttons: they say their state under the icon
 bool isSwitch(const std::string& id) { return id == "touch" || id == "auto-improve"; }
@@ -1046,8 +1060,8 @@ void QuickTools::buildTablet(GtkWidget* outer) {
                              static_cast<QuickTools*>(d)->refreshTablet();
                          }),
                          this);
-        if (i == TABLET_ACTIONS || i == TABLET_FIRST) {
-            g_object_set(b, "margin-start", 14, nullptr);  // (the gap between drawing and AI)
+        if (gapBefore(i)) {
+            g_object_set(b, "margin-start", 14, nullptr);  // (the gaps between the groups)
         }
         gtk_box_pack_start(GTK_BOX(tiles), b, FALSE, FALSE, 0);
         tabletTiles.emplace_back(TABLET[i], b);
@@ -1106,27 +1120,46 @@ void QuickTools::refreshTablet() {
     };
     const bool highlighting = stateOf("ai-highlighter");
     const bool asking = stateOf("ai-ask");
-    // In priority order, as many as the width there is takes (the colour button counts while it is shown)
+    // As many as the width there is takes, in priority order (the colour button counts while it is shown)
     const bool colours = active == TOOL_PEN && !highlighting;
     int room = tabletFits < 0 ? G_MAXINT : tabletFits - 8;
-    bool full = false;
-    int tileW = 0;  // (all tiles are alike; a hidden one has no width: measured on the first, always shown)
-    if (!tabletTiles.empty() && tabletTiles[0].second) {
-        gtk_widget_get_preferred_width(tabletTiles[0].second, nullptr, &tileW);
+    // The switches say their state under the icon and are wider; the other tiles are alike. A hidden tile has no
+    // width: each is measured while shown, and remembered (before, every tile counted as wide as the first switch,
+    // which left room for two or three tiles empty, 2026-10-20). Their minimum (what a full row gives them), without
+    // the gaps before the groups (counted below)
+    auto widthOf = [&](const std::string& id, GtkWidget* w) {
+        int& known = tabletWidths[isSwitch(id) ? id : std::string()];
+        if (w && gtk_widget_get_visible(w)) {
+            int minimum = 0;
+            gtk_widget_get_preferred_width(w, &minimum, nullptr);
+            known = std::max(known, minimum - gtk_widget_get_margin_start(w) - gtk_widget_get_margin_end(w));
+        }
+        return known > 0 ? known : TABLET_W + 10;
+    };
+    for (const auto& [id, w]: tabletTiles) {
+        widthOf(id, w);  // (the shown ones first: their widths stand for the hidden ones)
     }
-    tileW = std::max(tileW, TABLET_W);
+    std::map<std::string, bool> keep;
+    for (const char* wanted: TABLET_PRIORITY) {
+        for (size_t i = 0; i < tabletTiles.size(); i++) {
+            auto& [id, w] = tabletTiles[i];
+            if (id != wanted || !w) {
+                continue;
+            }
+            int need = widthOf(id, w) + 6 + (gapBefore(i) ? 14 : 0);
+            if (id == "pen" && colours && colourButton) {
+                need += widthOf("colours", colourButton) + 6;
+            }
+            keep[id] = need <= room;
+            if (keep[id]) {
+                room -= need;
+            }
+        }
+    }
     for (size_t i = 0; i < tabletTiles.size(); i++) {
         auto& [id, w] = tabletTiles[i];
         if (!w) {
             continue;
-        }
-        int need = tileW + 6 + (i == TABLET_ACTIONS || i == TABLET_FIRST ? 14 : 0);
-        if (id == "pen" && colours && colourButton) {
-            need += tileW + 6;
-        }
-        full = full || need > room;
-        if (!full) {
-            room -= need;
         }
         bool on = (id == "ai-highlighter" && highlighting) || (id == "ask" && asking) ||
                   (id == "touch" && control->getSettings()->getTouchDrawingEnabled()) ||
@@ -1149,7 +1182,7 @@ void QuickTools::refreshTablet() {
             gtk_widget_show_all(content);
             on ? gtk_style_context_add_class(sc, "xoai-touch-on") : gtk_style_context_remove_class(sc, "xoai-touch-on");
         }
-        const bool fits = !full;
+        const bool fits = keep[id];
         if (gtk_widget_get_visible(w) != fits) {
             gtk_widget_set_visible(w, fits);
         }

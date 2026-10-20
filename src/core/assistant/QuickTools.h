@@ -132,6 +132,7 @@ private:
     GtkWidget* colourButton = nullptr;  ///< weak
     std::vector<std::pair<std::string, GtkWidget*>> tabletTiles;  ///< weak; reserved: their addresses are watched
     int tabletFits = -1;
+    std::map<std::string, int> tabletWidths;  ///< natural widths: of each switch, and ("") of the other tiles
     int touchShown = -1;  ///< what the touch switch shows (-1: not yet)
     int autoShown = -1;   ///< what the Auto-improve switch shows
     GtkWidget* focusButton = nullptr;    ///< weak

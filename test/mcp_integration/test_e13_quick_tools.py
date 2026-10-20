@@ -297,8 +297,8 @@ def test_16_touch_switch_first_and_off_by_default(app):
     c.call("action_run", action="win.ai-focus", state=True)
     assert wait(lambda: widgets(c, "aiTablet-touch")[0].get("visible", True))
     tiles = sorted([w for w in widgets(c, prefix="aiTablet-") if w.get("visible", True)], key=lambda w: w["bbox"][0])
-    assert tiles[0]["name"] == "aiTablet-touch" and tiles[1]["name"] == "aiTablet-auto-improve"
-    assert tiles[2]["bbox"][0] - (tiles[1]["bbox"][0] + tiles[1]["bbox"][2]) >= 14  # (a gap: not hit by accident)
+    assert tiles[0]["name"] == "aiTablet-touch"
+    assert tiles[1]["bbox"][0] - (tiles[0]["bbox"][0] + tiles[0]["bbox"][2]) >= 14  # (a gap: not hit by accident)
     c.call("action_run", action="win.ai-highlighter", state=True)
     c.call("action_run", action="win.ai-highlighter", state=False)
     c.call("action_run", action="win.ai-focus", state=False)
@@ -312,8 +312,11 @@ def test_16_touch_switch_first_and_off_by_default(app):
 
 
 def test_17_auto_improve_switch(app):
-    """Auto-improve is the second switch: it shows its state and toggles the same setting as the menu."""
+    """Auto-improve is the other switch: it shows its state and toggles the same setting as the menu. It comes last
+    and gives way first (it is in Tools too; the owner, 2026-10-20): a wide window has room for it."""
     c = app.client()
+    app._xdo("search", "--sync", "--limit", "1", "--pid", app.proc.pid, "--onlyvisible", "--class", "xournal",
+             "windowsize", "--sync", "1920", "1000")
     state = lambda: [a.get("state") for a in c.call("actions_list", filter="ai-auto-improve")["actions"]
                      if a["name"] == "win.ai-auto-improve"][0]
     labels = lambda: [w.get("label") or "" for w in c.call("ui_inspect", max_depth=80, all=True)["widgets"]]
@@ -325,3 +328,62 @@ def test_17_auto_improve_switch(app):
     c.call("action_run", action="win.ai-auto-improve", state=False)  # (the menu / Ctrl+Alt+I)
     assert wait(lambda: "Auto-improve off" in labels())
     c.call("action_run", action="win.ai-focus", state=False)
+    app._xdo("search", "--sync", "--limit", "1", "--pid", app.proc.pid, "--onlyvisible", "--class", "xournal",
+             "windowsize", "--sync", "800", "600")
+
+
+def test_18_focus_has_the_highlighter_pointer_undo_and_redo(app):
+    """The owner's request (2026-10-20): in Focus, the highlighter, the object pointer, undo and redo are big
+    buttons too (in a window as wide as the owner's: room for all of them)."""
+    c = app.client()
+    shown = lambda name: bool(widgets(c, name)) and widgets(c, name)[0].get("visible", True)
+    click = lambda t: c.call("ui_interact", op="click", target=widgets(c, "aiTablet-" + t)[0]["id"])
+    # (no window manager on the test display: full screen would not widen it; the window is sized directly)
+    app._xdo("search", "--sync", "--limit", "1", "--pid", app.proc.pid, "--onlyvisible", "--class", "xournal",
+             "windowsize", "--sync", "1920", "1000")  # (the owner's screens are 1920 wide)
+    c.call("action_run", action="win.ai-focus", state=True)
+    try:
+        assert wait(lambda: all(shown("aiTablet-" + t) for t in ("highlighter", "select-object", "undo", "redo")))
+        click("highlighter")
+        assert wait(lambda: c.call("tool_get")["tool"] == "highlighter")
+        click("select-object")
+        assert wait(lambda: c.call("tool_get")["tool"] == "selectObject"), c.call("tool_get")["tool"]
+        page = c.call("view")["current_page"]
+        count = lambda: len(c.call("page_elements", page=page, detail="bbox", limit=5000)["elements"])
+        before = count()
+        c.call("create_strokes", page=page, strokes=[{"points": [[50, 50], [90, 90]]}], animate=False)
+        assert count() == before + 1
+        click("undo")
+        assert wait(lambda: count() == before)
+        click("redo")
+        assert wait(lambda: count() == before + 1)
+    finally:
+        c.call("action_run", action="win.ai-focus", state=False)
+        app._xdo("search", "--sync", "--limit", "1", "--pid", app.proc.pid, "--onlyvisible", "--class", "xournal",
+                 "windowsize", "--sync", "800", "600")
+
+
+def test_19_the_row_fills_its_room(app):
+    """2026-10-20, the laptop's screen upright (1200 wide): the row stopped two or three tiles short of the right-hand
+    buttons, because every tile was counted as wide as the Touch switch."""
+    c = app.client()
+    c.call("action_run", action="win.ai-focus", state=True)
+    c.call("tool_set", tool="eraser")
+    try:
+        for width in (1200, 1500):
+            app._xdo("search", "--sync", "--limit", "1", "--pid", app.proc.pid, "--onlyvisible", "--class",
+                     "xournal", "windowsize", "--sync", str(width), "900")
+            time.sleep(1.5)
+            shown = [w for w in widgets(c, prefix="aiTablet-") if w.get("visible", True)]
+            if len(shown) == len(widgets(c, prefix="aiTablet-")) - 1:  # (all but the pen's colours: nothing hidden)
+                continue
+            tile = widgets(c, "aiTablet-ask")[0]["bbox"][2]
+            gap = widgets(c, "aiFocusButton")[0]["bbox"][0] - max(w["bbox"][0] + w["bbox"][2] for w in shown)
+            assert gap < tile + 6 + 14, (width, gap, [w["name"] for w in shown])
+            # the terminal opens only from here: it stays; Auto-improve (in Tools too) gives way first
+            names = [w["name"] for w in shown]
+            assert "aiTablet-terminal" in names and "aiTablet-auto-improve" not in names, names
+    finally:
+        c.call("action_run", action="win.ai-focus", state=False)
+        app._xdo("search", "--sync", "--limit", "1", "--pid", app.proc.pid, "--onlyvisible", "--class", "xournal",
+                 "windowsize", "--sync", "800", "600")
