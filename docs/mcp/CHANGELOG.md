@@ -10,6 +10,25 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.13.0 — The keyboard stays where you type
+- **Saves and page changes no longer take the keyboard from the AI terminal or the AI input fields.** On 2026-10-20 the
+  owner held space to dictate in the AI terminal, an agent saved (as agents do after every change), and the canvas
+  took the keyboard: the held space then scrolled the document a screen per repeat, and the dictation ended. Every
+  save and export, and every page that became current (also from the owner's own scrolling, or an agent's page work),
+  moved the keyboard to the canvas. Now these moves leave it in the terminal, an AI Lasso or AI Highlighter input
+  field, or any other text field that has it. Starting to draw on the canvas still takes it, as before. The canvas
+  being made insensitive during your own save used to drop an AI input field's keyboard too: it is given back after
+  the save, with its text intact.
+- **Agents' saves no longer block the window.** `file_save` and `file_save_as` used to grey out the menus and
+  toolbars, set a busy cursor, show the progress bar (the window's layout jumped) and make the canvas insensitive, so
+  the pen did not draw while an agent saved. They now save in the background; the AI strip shows the running save.
+  Your selection stays selected (its elements are saved at their places from copies), and text you are editing stays
+  open (it is saved as it was before the edit). Changes made while a save runs stay marked unsaved: before, the end
+  of any save marked them saved. Your own Ctrl+S works as before.
+- **Drawing while a key is held in the terminal keeps the keyboard there.** A stroke started while you hold a key in
+  the AI terminal or an input field (push-to-talk dictation) draws, and the keyboard stays where the key is held. A
+  key counts as held only while it keeps repeating, so a lost release cannot leave it stuck.
+
 ## 1.12.7 — PDF exports do not freeze the pen
 - **Exporting PDF and xopp no longer freezes the window either.** After 1.12.6 the remaining freezes on 2026-10-19
   were the companion's PDF exports of the magazine, 2–4 s each. `export` now writes pdf and xopp on the render
