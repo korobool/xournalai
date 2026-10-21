@@ -10,6 +10,16 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.15.2 — The pale 2 mm grid by default
+- **"Pale graph (2 mm)" paper, the new default:** 2 mm squares with very pale (#f3f3f3), thin (0.2 pt) lines. It
+  is in the paper list next to the others. New documents start on it, and new pages take the paper of the page
+  before them, as before. If your settings still had the former default (the 2.5 mm fine graph) for new documents,
+  they move to the pale grid; a paper you chose yourself is kept.
+- **Agents' pages get it too.** An agent that asked `page_manage` for a "graph" page got the coarse 5 mm Graph,
+  and could not set the pale grid at all (on 2026-10-21 it patched the saved file instead). A paper type now means
+  your default style of it, so "graph" is the pale grid, and `background_config` sets a paper's parameters exactly
+  (e.g. `r1=14.17` for 5 mm squares), within safe bounds.
+
 ## 1.15.1 — AI zones do not flood the X server
 - **The freezes while agents work: found and much reduced.** On 2026-10-20 at 15:23 the window froze for 15 s
   (rescued and restarted) while it asked the X server for a new range of resource ids. Every pixmap and picture

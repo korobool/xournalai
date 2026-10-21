@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.15.1**
+Current version: **1.15.2**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -1015,5 +1015,5 @@ While agents save, add pages and draw, the owner keeps typing and dictating wher
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T15.5.1 | US-15.6 | **The pale 2 mm grid, the default for new pages and agents** — 2026-10-21: the companion added pages to et24-2.xopp with page_manage insert background="graph": a bare format, so they got the coarse 5 mm Graph, and no tool could set the pale grid the owner uses (the agent patched the saved file). pagetemplates.ini: 'Pale graph (2 mm)', graph with r1=5.669, lw=0.2, f1=0xf3f3f3, af1=0x383838; the default page template; a pageTemplate still on the former default (the 2.5 mm fine graph, r1=7.087) moves to it when the settings load, another choice is kept. page_manage: a paper type is the user's default style of it (the template's config when it is that format), background_config sets the parameters exactly (r1 1-2000, lw/blw 0-50 points; "" = the plain format); without a paper an inserted page is like the page before it, as before. test_e15_paper 5/5 (all fail on 1.15.1). | `ai: the pale 2 mm grid, the default for new pages and agents (T15.5.1)` | ✅ done |
-| T15.5.2 | US-15.6 | **Release 1.15.2** —  | `ai: release 1.15.2 (the pale 2 mm grid by default) (T15.5.2)` | ⬜ todo |
+| T15.5.1 | US-15.6 | **The pale 2 mm grid, the default for new pages and agents** — 2026-10-21: the companion added pages to et24-2.xopp with page_manage insert background="graph": a bare format, so they got the coarse 5 mm Graph, and no tool could set the pale grid the owner uses (the agent patched the saved file). pagetemplates.ini: 'Pale graph (2 mm)', graph with r1=5.669, lw=0.2, f1=0xf3f3f3, af1=0x383838; the default page template; a pageTemplate still on the former default (the 2.5 mm fine graph, r1=7.087) moves to it when the settings load, another choice is kept. page_manage: a paper type is the user's default style of it (the template's config when it is that format), background_config sets the parameters exactly (r1 1-2000, lw/blw 0-50 points; "" = the plain format); without a paper an inserted page is like the page before it, as before. test_e15_paper 5/5 (all fail on 1.15.1). | `ai: the pale 2 mm grid, the default for new pages and agents (T15.5.1)` | ✅ done `31e85afc9` |
+| T15.5.2 | US-15.6 | **Release 1.15.2** — Full check: build-noterm and build-nomcp ok; unit tests 207/211 (the ControlLoadHandler group that fails under parallel ctest, all pass on rerun); integration 276/276. | `ai: release 1.15.2 (the pale 2 mm grid by default) (T15.5.2)` | ✅ done |
