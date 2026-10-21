@@ -30,6 +30,11 @@ name=Fine graph (2.5 mm, light)
 format=graph
 config=r1=7.087,lw=0.35,f1=0xe0e0e0,af1=0x383838
 
+[paleGraph]
+name=Pale graph (2 mm)
+format=graph
+config=r1=5.669,lw=0.2,f1=0xf3f3f3,af1=0x383838
+
 [predefinedDotted]
 name=Dotted
 format=dotted

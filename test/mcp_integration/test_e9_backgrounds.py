@@ -15,9 +15,9 @@ def ruling(img):
     return sum(1 for r, g, b in img.convert("RGB").getdata() if b > 200 and r < 200 and abs(r - g) < 60 and b - r > 40)
 
 
-def test_0_new_documents_get_the_fine_graph(app):
+def test_0_new_documents_get_the_pale_graph(app):
     bg = app.client().call("doc_info")["pages"][0]["background"]
-    assert bg["type"] == "graph" and bg["config"].startswith("r1=7.087,"), bg
+    assert bg["type"] == "graph" and bg["config"].startswith("r1=5.669,"), bg
 
 
 def test_a_lined_page_looks_lined(app):

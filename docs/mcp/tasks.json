@@ -3152,6 +3152,42 @@
               "finished": "2026-10-20T16:18:30+01:00"
             }
           ]
+        },
+        {
+          "id": "S15.5",
+          "title": "The pale 2 mm grid, for new pages and agents",
+          "version": "1.15.2",
+          "stories": [
+            {
+              "id": "US-15.6",
+              "text": "As the owner, I want every new page on the small pale grid, also the pages agents add, so my notes look the same throughout.",
+              "acceptance": [
+                "'Pale graph (2 mm)' is in the paper list: graph, 2 mm squares (r1=5.669), lines 0.2 pt, #f3f3f3",
+                "it is the paper of new documents and pages; a template still on the former default (the 2.5 mm fine graph) moves to it",
+                "page_manage's 'graph' is the user's default style of it, and background_config sets a paper's parameters exactly"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T15.5.1",
+              "story": "US-15.6",
+              "title": "The pale 2 mm grid, the default for new pages and agents",
+              "details": "2026-10-21: the companion added pages to et24-2.xopp with page_manage insert background=\"graph\": a bare format, so they got the coarse 5 mm Graph, and no tool could set the pale grid the owner uses (the agent patched the saved file). pagetemplates.ini: 'Pale graph (2 mm)', graph with r1=5.669, lw=0.2, f1=0xf3f3f3, af1=0x383838; the default page template; a pageTemplate still on the former default (the 2.5 mm fine graph, r1=7.087) moves to it when the settings load, another choice is kept. page_manage: a paper type is the user's default style of it (the template's config when it is that format), background_config sets the parameters exactly (r1 1-2000, lw/blw 0-50 points; \"\" = the plain format); without a paper an inserted page is like the page before it, as before. test_e15_paper 5/5 (all fail on 1.15.1).",
+              "commit": "ai: the pale 2 mm grid, the default for new pages and agents",
+              "status": "done",
+              "started": "2026-10-21T16:50:12+01:00",
+              "finished": "2026-10-21T16:51:56+01:00"
+            },
+            {
+              "id": "T15.5.2",
+              "story": "US-15.6",
+              "title": "Release 1.15.2",
+              "details": "",
+              "commit": "ai: release 1.15.2 (the pale 2 mm grid by default)",
+              "status": "todo"
+            }
+          ]
         }
       ]
     }

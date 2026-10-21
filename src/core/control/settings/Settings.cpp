@@ -20,6 +20,7 @@
 #include "control/settings/SettingsEnums.h"         // for InputDeviceTypeOp...
 #include "gui/toolbarMenubar/model/ColorPalette.h"  // for Palette
 #include "model/FormatDefinitions.h"                // for FormatUnits, XOJ_...
+#include "model/PageType.h"                         // for PageType, PageTypeFormat
 #include "util/Color.h"
 #include "util/PathUtil.h"  // for getConfigFile
 #include "util/Util.h"      // for PRECISION_FORMAT_...
@@ -38,6 +39,10 @@ using std::string;
 constexpr auto const* DEFAULT_FONT = "Sans";
 constexpr auto DEFAULT_FONT_SIZE = 12;
 constexpr auto DEFAULT_TOOLBAR = "Portrait";
+// The paper of new pages: pale thin graph lines, 2 mm squares ("Pale graph (2 mm)" in pagetemplates.ini)
+constexpr auto DEFAULT_PAPER_CONFIG = "r1=5.669,lw=0.2,f1=0xf3f3f3,af1=0x383838";
+// (the default until 1.15.2, "Fine graph (2.5 mm, light)": a template still on it moves to the new default)
+constexpr auto FORMER_DEFAULT_PAPER_CONFIG = "r1=7.087,lw=0.35,f1=0xe0e0e0,af1=0x383838";
 
 #define SAVE_BOOL_PROP(var) xmlNode = saveProperty((const char*)#var, (var) ? "true" : "false", root)
 #define SAVE_STRING_PROP(var) xmlNode = saveProperty((const char*)#var, (var).empty() ? "" : (var).data(), root)
@@ -209,7 +214,7 @@ void Settings::loadDefault() {
     this->backgroundColor = Colors::xopp_gainsboro02;
 
     // clang-format off
-	this->pageTemplateSettings.parse("xoj/template\ncopyLastPageSettings=true\nsize=595.275591x841.889764\nbackgroundType=graph\nbackgroundTypeConfig=r1=7.087,lw=0.35,f1=0xe0e0e0,af1=0x383838\nbackgroundColor=#ffffff\n");
+	this->pageTemplateSettings.parse(std::string("xoj/template\ncopyLastPageSettings=true\nsize=595.275591x841.889764\nbackgroundType=graph\nbackgroundTypeConfig=") + DEFAULT_PAPER_CONFIG + "\nbackgroundColor=#ffffff\n");
     // clang-format on
 
 #ifdef ENABLE_AUDIO
@@ -521,6 +526,11 @@ void Settings::parseItem(xmlDocPtr doc, xmlNodePtr cur) {
         this->pluginDisabled = reinterpret_cast<const char*>(value);
     } else if (xmlStrcmp(name, reinterpret_cast<const xmlChar*>("pageTemplate")) == 0) {
         this->pageTemplateSettings.parse(reinterpret_cast<const char*>(value));
+        PageType paper = this->pageTemplateSettings.getBackgroundType();
+        if (paper.format == PageTypeFormat::Graph && paper.config == FORMER_DEFAULT_PAPER_CONFIG) {
+            paper.config = DEFAULT_PAPER_CONFIG;
+            this->pageTemplateSettings.setBackgroundType(paper);
+        }
     } else if (xmlStrcmp(name, reinterpret_cast<const xmlChar*>("sizeUnit")) == 0) {
         this->sizeUnit = reinterpret_cast<const char*>(value);
     } else if (xmlStrcmp(name, reinterpret_cast<const xmlChar*>("audioFolder")) == 0) {

@@ -8,13 +8,16 @@
 #include "control/ScrollHandler.h"                   // for ScrollHandler
 #include "control/layer/LayerController.h"           // for LayerController
 #include "control/pagetype/PageTypeHandler.h"        // for PageTypeHandler
+#include "control/settings/PageTemplateSettings.h"   // for PageTemplateSettings
+#include "control/settings/Settings.h"               // for Settings
 #include "gui/MainWindow.h"                          // for MainWindow
 #include "mcp/McpServer.h"
 #include "mcp/Schema.h"
-#include "model/Document.h"   // for Document
-#include "model/Layer.h"      // for Layer
-#include "model/PaperSize.h"  // for PaperSize
-#include "model/XojPage.h"    // for XojPage
+#include "model/BackgroundConfig.h"  // for BackgroundConfig
+#include "model/Document.h"          // for Document
+#include "model/Layer.h"             // for Layer
+#include "model/PaperSize.h"         // for PaperSize
+#include "model/XojPage.h"           // for XojPage
 
 #include "ToolUtil.h"
 #include "Tools.h"
@@ -71,8 +74,11 @@ void registerStructureTools(McpServer& server) {
     page.title = "Manage pages";
     page.description =
             "Page operations (undoable like in the app): insert (after 'page', 0 = at the beginning; optional "
-            "background), delete, duplicate, move (to position 'to'), background (paper type and/or color), size "
-            "(width/height in points; A4 = 595 x 842), goto (show a page). Only goto moves the user's view: the "
+            "background; without one it gets the paper of new pages: like the page before it, or the user's default "
+            "paper), delete, duplicate, move (to position 'to'), background (paper type and/or color), size "
+            "(width/height in points; A4 = 595 x 842), goto (show a page). A paper type is the user's default style "
+            "of it (graph: pale thin lines, 2 mm squares, unless they chose another); background_config sets it "
+            "exactly, e.g. r1=14.17 for 5 mm squares. Only goto moves the user's view: the "
             "others change the page where it is and leave the user on theirs (an inserted page does not become the "
             "current one: pass its number as 'page' to later calls). show=true also takes the user there; use it "
             "only when the user asked to be taken there.";
@@ -81,6 +87,11 @@ void registerStructureTools(McpServer& server) {
                                        {"page", schema::integer("Page (1-based); default: current page")},
                                        {"to", schema::integer("move: new position (1-based)")},
                                        {"background", schema::enumeration("insert/background: paper type", formats)},
+                                       {"background_config",
+                                        schema::string("insert/background: the paper's parameters instead of the "
+                                                       "default style, as in a .xopp file (graph: r1 = square size "
+                                                       "in points, lw = line width, f1 = line color 0xRRGGBB; \"\" "
+                                                       "= the plain format)")},
                                        {"color", schema::string("background: paper color")},
                                        {"width", schema::number("size: width in points")},
                                        {"height", schema::number("size: height in points")},
@@ -93,11 +104,15 @@ void registerStructureTools(McpServer& server) {
     page.asyncHandler = [ctrl, formats, srv = &server](const json& j, Responder respond) {
         requireDocument(ctrl);
         Args args(j);
-        args.rejectUnknown({"op", "page", "to", "background", "color", "width", "height", "show"});
+        args.rejectUnknown(
+                {"op", "page", "to", "background", "background_config", "color", "width", "height", "show"});
         const std::string op =
                 args.choice("op", {"insert", "delete", "duplicate", "move", "background", "size", "goto"}, "");
         auto format = [&]() -> std::optional<PageType> {
             if (!args.has("background")) {
+                if (args.has("background_config")) {
+                    throw ToolError("background_config needs 'background' (the paper type it configures)");
+                }
                 return std::nullopt;
             }
             const std::string f = args.str("background");
@@ -105,7 +120,28 @@ void registerStructureTools(McpServer& server) {
                 throw ToolError("background must be one of plain, ruled, lined, staves, graph, dotted, isodotted, "
                                 "isograph");
             }
-            return PageType(PageTypeHandler::getPageTypeFormatForString(f));
+            PageType type(PageTypeHandler::getPageTypeFormatForString(f));
+            // (the user's style of it: a bare "graph" gave agents' pages the coarse 5 mm grid, 2026-10-21)
+            const PageType paper = ctrl->getSettings()->getPageTemplateSettings().getBackgroundType();
+            if (paper.format == type.format) {
+                type.config = paper.config;
+            }
+            if (args.has("background_config")) {
+                type.config = args.str("background_config");
+                // (the painters draw a line every r1 points: a tiny or zero one would hold up the UI)
+                const BackgroundConfig config(type.config);
+                double value = 0;
+                if (config.loadValue(background_config_strings::CFG_RASTER, value) && !(value >= 1 && value <= 2000)) {
+                    throw ToolError("background_config: r1 must be 1 to 2000 points");
+                }
+                for (const char* key:
+                     {background_config_strings::CFG_LINE_WIDTH, background_config_strings::CFG_BOLD_LINE_WIDTH}) {
+                    if (config.loadValue(key, value) && !(value >= 0 && value <= 50)) {
+                        throw ToolError(std::string("background_config: ") + key + " must be 0 to 50 points");
+                    }
+                }
+            }
+            return type;
         };
         // (on the document, without the window's page actions: they work on the current page, and making a page
         // current moved the user's view, 2026-10-20)
@@ -185,10 +221,11 @@ void registerStructureTools(McpServer& server) {
             return;
         }
         if (op == "background") {
-            if (!args.has("background") && !args.has("color")) {
+            const auto f = format();
+            if (!f && !args.has("color")) {
                 throw ToolError("Give 'background' (paper type) and/or 'color'");
             }
-            if (auto f = format()) {
+            if (f) {
                 backgrounds->changePageBackground(index, *f);
             }
             if (args.has("color")) {
