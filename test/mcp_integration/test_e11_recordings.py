@@ -164,3 +164,24 @@ def test_7_recordings_wait_their_turn(app):
     choose(c, "keep")
     st = recordings(c)
     assert st["pending"] == 0 and not st["chooser"] and st["last"]["file"].endswith("b.ogg"), st
+
+
+def test_8_a_chooser_closed_without_a_choice_shows_the_next_recording(app):
+    """2026-10-23: once the chooser had been closed without a choice, it popped up only on an empty queue: every later
+    recording just waited, unseen."""
+    c = app.client()
+    stop_recording(c, "old.ogg", 5000)
+    c.call("ui_interact", op="focus", target=widget(c, "recording-request")["id"])  # (the keyboard is in it)
+    app.user_key("Escape")
+    time.sleep(0.5)
+    assert not recordings(c)["chooser"], "Escape should have closed the chooser"
+    stop_recording(c, "new.ogg", 7000)
+    st = recordings(c)
+    assert st["chooser"] and st["pending"] == 2, st
+    assert widget(c, "recording-title")["label"].startswith("Recording 0:07")  # (the new one first)
+    assert "1 more waiting" in widget(c, "recording-details")["label"]
+    choose(c, "keep")
+    assert recordings(c)["last"]["file"].endswith("new.ogg")
+    assert widget(c, "recording-title")["label"].startswith("Recording 0:05")
+    choose(c, "keep")
+    assert recordings(c)["pending"] == 0

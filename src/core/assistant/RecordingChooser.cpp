@@ -200,6 +200,24 @@ RecordingChooser::RecordingChooser(GtkWidget* canvas, Chosen chosen): canvas(can
     gtk_widget_show_all(box);
     gtk_widget_hide(status);
     g_object_ref(popover);  // kept while this object lives
+
+    // A popover hides with its canvas (Focus mode, full screen, a minimized window): back when the canvas is
+    canvasMapped = g_signal_connect_swapped(canvas, "map", G_CALLBACK(+[](gpointer self) {
+                                                auto* s = static_cast<RecordingChooser*>(self);
+                                                if (!s->reshow) {  // (once it has its size again)
+                                                    s->reshow = g_idle_add(
+                                                            +[](gpointer self) -> gboolean {
+                                                                auto* s = static_cast<RecordingChooser*>(self);
+                                                                s->reshow = 0;
+                                                                if (!s->queue.empty() && !s->visible()) {
+                                                                    s->showFront(true);
+                                                                }
+                                                                return G_SOURCE_REMOVE;
+                                                            },
+                                                            s);
+                                                }
+                                            }),
+                                            this);
 }
 
 void RecordingChooser::setMic(Mic mic) { onMic = std::move(mic); }
@@ -231,6 +249,12 @@ void RecordingChooser::setStatus(const std::string& text) {
 }
 
 RecordingChooser::~RecordingChooser() {
+    if (reshow) {
+        g_source_remove(reshow);
+    }
+    if (canvasMapped && GTK_IS_WIDGET(canvas)) {
+        g_signal_handler_disconnect(canvas, canvasMapped);
+    }
     if (popover) {
         gtk_widget_destroy(popover);
         g_object_unref(popover);
@@ -240,8 +264,15 @@ RecordingChooser::~RecordingChooser() {
 bool RecordingChooser::visible() const { return gtk_widget_get_visible(popover); }
 
 void RecordingChooser::offer(Recording r) {
-    queue.push_back(std::move(r));
-    showFront(queue.size() == 1);  // (else only the count of waiting ones changes)
+    if (visible()) {
+        queue.push_back(std::move(r));
+        showFront(false);  // (it waits its turn: only the count of waiting ones changes)
+        return;
+    }
+    // Closed without a choice (Escape, or the canvas was hidden): this one comes first, and it shows again. Before,
+    // it popped up only on an empty queue: once closed, every later recording just waited, unseen (2026-10-23).
+    queue.push_front(std::move(r));
+    showFront(true);
 }
 
 void RecordingChooser::showFront(bool fresh) {

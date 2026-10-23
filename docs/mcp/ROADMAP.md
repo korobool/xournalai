@@ -1016,4 +1016,16 @@ While agents save, add pages and draw, the owner keeps typing and dictating wher
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
 | T15.5.1 | US-15.6 | **The pale 2 mm grid, the default for new pages and agents** — 2026-10-21: the companion added pages to et24-2.xopp with page_manage insert background="graph": a bare format, so they got the coarse 5 mm Graph, and no tool could set the pale grid the owner uses (the agent patched the saved file). pagetemplates.ini: 'Pale graph (2 mm)', graph with r1=5.669, lw=0.2, f1=0xf3f3f3, af1=0x383838; the default page template; a pageTemplate still on the former default (the 2.5 mm fine graph, r1=7.087) moves to it when the settings load, another choice is kept. page_manage: a paper type is the user's default style of it (the template's config when it is that format), background_config sets the parameters exactly (r1 1-2000, lw/blw 0-50 points; "" = the plain format); without a paper an inserted page is like the page before it, as before. test_e15_paper 5/5 (all fail on 1.15.1). | `ai: the pale 2 mm grid, the default for new pages and agents (T15.5.1)` | ✅ done `31e85afc9` |
-| T15.5.2 | US-15.6 | **Release 1.15.2** — Full check: build-noterm and build-nomcp ok; unit tests 207/211 (the ControlLoadHandler group that fails under parallel ctest, all pass on rerun); integration 276/276. | `ai: release 1.15.2 (the pale 2 mm grid by default) (T15.5.2)` | ✅ done |
+| T15.5.2 | US-15.6 | **Release 1.15.2** — Full check: build-noterm and build-nomcp ok; unit tests 207/211 (the ControlLoadHandler group that fails under parallel ctest, all pass on rerun); integration 276/276. | `ai: release 1.15.2 (the pale 2 mm grid by default) (T15.5.2)` | ✅ done `fbe39f513` |
+
+### S15.6 — The recording chooser always comes back → v1.15.3
+
+**US-15.7** — As the owner, I want to be asked what every recording is, also after I closed the chooser once without choosing.
+
+- [ ] a recording that stops while the chooser is closed shows it, with that recording first
+- [ ] a chooser hidden with the canvas (Focus mode, full screen) shows again when the canvas is back
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T15.6.1 | US-15.7 | **The recording chooser shows again after it was closed without a choice** — 2026-10-23: the big Record button's recordings stopped asking what they are. The chooser had been closed without a choice on 2026-10-22 (Escape closes a non-modal popover with the keyboard in it; a hidden canvas hides it too) after a 61-minute recording; it popped up only when its queue was empty, so that recording stayed first and every later one only raised the 'more waiting' count, unseen (4 waiting). A recording that stops while the chooser is closed now comes first and shows it; ones that stop while it is open wait their turn as before; the canvas's map shows a closed chooser with waiting recordings again. test_e11_recordings 8 (fails on 1.15.2: chooser false, pending 2). | `ai: the recording chooser shows again after it was closed without a choice (T15.6.1)` | ✅ done |
+| T15.6.2 | US-15.7 | **Release 1.15.3** —  | `ai: release 1.15.3 (the recording chooser always comes back) (T15.6.2)` | ⬜ todo |

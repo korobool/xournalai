@@ -3190,6 +3190,41 @@
               "finished": "2026-10-21T17:04:02+01:00"
             }
           ]
+        },
+        {
+          "id": "S15.6",
+          "title": "The recording chooser always comes back",
+          "version": "1.15.3",
+          "stories": [
+            {
+              "id": "US-15.7",
+              "text": "As the owner, I want to be asked what every recording is, also after I closed the chooser once without choosing.",
+              "acceptance": [
+                "a recording that stops while the chooser is closed shows it, with that recording first",
+                "a chooser hidden with the canvas (Focus mode, full screen) shows again when the canvas is back"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T15.6.1",
+              "story": "US-15.7",
+              "title": "The recording chooser shows again after it was closed without a choice",
+              "details": "2026-10-23: the big Record button's recordings stopped asking what they are. The chooser had been closed without a choice on 2026-10-22 (Escape closes a non-modal popover with the keyboard in it; a hidden canvas hides it too) after a 61-minute recording; it popped up only when its queue was empty, so that recording stayed first and every later one only raised the 'more waiting' count, unseen (4 waiting). A recording that stops while the chooser is closed now comes first and shows it; ones that stop while it is open wait their turn as before; the canvas's map shows a closed chooser with waiting recordings again. test_e11_recordings 8 (fails on 1.15.2: chooser false, pending 2).",
+              "commit": "ai: the recording chooser shows again after it was closed without a choice",
+              "status": "done",
+              "started": "2026-10-23T11:08:25+01:00",
+              "finished": "2026-10-23T11:08:26+01:00"
+            },
+            {
+              "id": "T15.6.2",
+              "story": "US-15.7",
+              "title": "Release 1.15.3",
+              "details": "",
+              "commit": "ai: release 1.15.3 (the recording chooser always comes back)",
+              "status": "todo"
+            }
+          ]
         }
       ]
     }

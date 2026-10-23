@@ -5,7 +5,7 @@
  * assistant, notes to keep (a transcript, never instructions), or just the audio. Big targets for a finger or a
  * stylus. "What should AI do?": a request the owner types, dictates (mic or pen button) or builds from chips; it is
  * the owner's own instruction, unlike the recording's speech. Enter sends it with Notes. Recordings that end while
- * it is open wait their turn.
+ * it is open wait their turn; a new one comes first when it was closed without a choice.
  *
  * @license GNU GPLv2 or later
  */
@@ -67,6 +67,8 @@ private:
     Chosen onChosen;
     Mic onMic;
     std::deque<Recording> queue;
+    gulong canvasMapped = 0;  ///< the canvas's "map" handler: shows a closed chooser again
+    guint reshow = 0;         ///< idle source showing it once the canvas has its size
 };
 
 }  // namespace xoj::assistant
