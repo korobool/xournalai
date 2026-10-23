@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.15.2**
+Current version: **1.15.3**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -1027,5 +1027,5 @@ While agents save, add pages and draw, the owner keeps typing and dictating wher
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T15.6.1 | US-15.7 | **The recording chooser shows again after it was closed without a choice** — 2026-10-23: the big Record button's recordings stopped asking what they are. The chooser had been closed without a choice on 2026-10-22 (Escape closes a non-modal popover with the keyboard in it; a hidden canvas hides it too) after a 61-minute recording; it popped up only when its queue was empty, so that recording stayed first and every later one only raised the 'more waiting' count, unseen (4 waiting). A recording that stops while the chooser is closed now comes first and shows it; ones that stop while it is open wait their turn as before; the canvas's map shows a closed chooser with waiting recordings again. test_e11_recordings 8 (fails on 1.15.2: chooser false, pending 2). | `ai: the recording chooser shows again after it was closed without a choice (T15.6.1)` | ✅ done |
-| T15.6.2 | US-15.7 | **Release 1.15.3** —  | `ai: release 1.15.3 (the recording chooser always comes back) (T15.6.2)` | ⬜ todo |
+| T15.6.1 | US-15.7 | **The recording chooser shows again after it was closed without a choice** — 2026-10-23: the big Record button's recordings stopped asking what they are. The chooser had been closed without a choice on 2026-10-22 (Escape closes a non-modal popover with the keyboard in it; a hidden canvas hides it too) after a 61-minute recording; it popped up only when its queue was empty, so that recording stayed first and every later one only raised the 'more waiting' count, unseen (4 waiting). A recording that stops while the chooser is closed now comes first and shows it; ones that stop while it is open wait their turn as before; the canvas's map shows a closed chooser with waiting recordings again. test_e11_recordings 8 (fails on 1.15.2: chooser false, pending 2). | `ai: the recording chooser shows again after it was closed without a choice (T15.6.1)` | ✅ done `26d731062` |
+| T15.6.2 | US-15.7 | **Release 1.15.3** — Full check: build-noterm and build-nomcp ok; unit tests 207/211 (the ControlLoadHandler group that fails under parallel ctest, all pass on rerun); integration 277/277. | `ai: release 1.15.3 (the recording chooser always comes back) (T15.6.2)` | ✅ done |

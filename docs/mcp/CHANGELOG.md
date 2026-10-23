@@ -10,6 +10,13 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.15.3 — The recording chooser always comes back
+- **Every recording asks again what it is.** Once the "what is it?" chooser had been closed without a choice
+  (Escape with the keyboard in it, or the canvas hidden), it popped up only when no recording was waiting. The one
+  it had been closed on stayed first, so every later recording only waited, unseen. Now a recording that stops
+  while the chooser is closed shows it, with that recording first, and a chooser hidden with the canvas comes back
+  when the canvas does. Recordings that stop while it is open still wait their turn.
+
 ## 1.15.2 — The pale 2 mm grid by default
 - **"Pale graph (2 mm)" paper, the new default:** 2 mm squares with very pale (#f3f3f3), thin (0.2 pt) lines. It
   is in the paper list next to the others. New documents start on it, and new pages take the paper of the page
