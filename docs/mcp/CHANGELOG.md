@@ -10,6 +10,14 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.15.4 — The serving terminal finds a conversation running in the background
+- **The AI terminal brings the serving Claude back after a restart.** When a terminal closes while Claude Code is
+  working, Claude Code (2.1) keeps that conversation running in the background, and then refuses `--continue`
+  ("Your most recent conversation is running in the background"). On 2026-10-24 the window closed while the serving
+  session worked, and after the restart its tab only showed that message. The serving tab now looks for a
+  background session in the companion folder (`claude agents`) and attaches to it (`claude attach`); without one it
+  continues the last conversation as before.
+
 ## 1.15.3 — The recording chooser always comes back
 - **Every recording asks again what it is.** Once the "what is it?" chooser had been closed without a choice
   (Escape with the keyboard in it, or the canvas hidden), it popped up only when no recording was waiting. The one

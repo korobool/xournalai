@@ -10,7 +10,7 @@
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 
-Current version: **1.15.3**
+Current version: **1.15.4**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -1039,5 +1039,5 @@ While agents save, add pages and draw, the owner keeps typing and dictating wher
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T15.7.1 | US-15.8 | **The serving terminal attaches to a conversation running in the background** — 2026-10-24: after a restart the serving tab showed 'Your most recent conversation is running in the background (session 1bc62f83...). Use claude agents to find and attach to it' and exited. Claude Code 2.1.310 keeps a conversation that is working when its terminal closes running under its daemon (bg-pty-host, bg-spare); the window had closed while the serving session worked, and then claude --continue refuses. The serving command now asks claude agents --json --cwd <companion> for a background session there and runs claude attach <id>; otherwise claude --continue as before (an older Claude Code without agents prints nothing: --continue). test_e15_serving_attach 2/2 with a fake claude on PATH (both fail on 1.15.3). | `ai: the serving terminal attaches to a conversation running in the background (T15.7.1)` | ✅ done |
-| T15.7.2 | US-15.8 | **Release 1.15.4** —  | `ai: release 1.15.4 (the serving terminal finds a conversation running in the background) (T15.7.2)` | ⬜ todo |
+| T15.7.1 | US-15.8 | **The serving terminal attaches to a conversation running in the background** — 2026-10-24: after a restart the serving tab showed 'Your most recent conversation is running in the background (session 1bc62f83...). Use claude agents to find and attach to it' and exited. Claude Code 2.1.310 keeps a conversation that is working when its terminal closes running under its daemon (bg-pty-host, bg-spare); the window had closed while the serving session worked, and then claude --continue refuses. The serving command now asks claude agents --json --cwd <companion> for a background session there and runs claude attach <id>; otherwise claude --continue as before (an older Claude Code without agents prints nothing: --continue). test_e15_serving_attach 2/2 with a fake claude on PATH (both fail on 1.15.3). | `ai: the serving terminal attaches to a conversation running in the background (T15.7.1)` | ✅ done `711c7d198` |
+| T15.7.2 | US-15.8 | **Release 1.15.4** — Full check: build-noterm and build-nomcp ok; unit tests 206/211 (the ControlLoadHandler group that fails under parallel ctest and one more, all 5 pass on rerun); integration 279/279. | `ai: release 1.15.4 (the serving terminal finds a conversation running in the background) (T15.7.2)` | ✅ done |
