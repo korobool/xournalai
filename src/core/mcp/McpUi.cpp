@@ -1771,7 +1771,14 @@ assistant::TerminalSpec McpUi::terminalSpec(const std::string& kind, bool servin
         // Runs in the companion folder: its CLAUDE.md, .mcp.json (this app) and settings; resumes its last session
         std::string command = std::string("claude") + (bypass ? " --dangerously-skip-permissions" : "");
         if (serving && hasClaudeHistory(folder)) {
-            command += " --continue";  // resume the serving session's last conversation
+            // Resumes the serving session's last conversation. Claude Code (2.1) keeps a conversation that was working
+            // when its terminal closed running in the background, and then refuses --continue ("Your most recent
+            // conversation is running in the background"): the terminal attaches to it instead (2026-10-24)
+            command = "id=$(claude agents --json --cwd " + shq(folder) +
+                      " 2>/dev/null | tr -d '\\n' | tr '{}' '\\n\\n' | grep '\"kind\": *\"background\"' | "
+                      "grep -o '\"id\": *\"[^\"]*\"' | head -n 1 | cut -d '\"' -f 4); "
+                      "if [ -n \"$id\" ]; then exec claude attach \"$id\"; else exec " +
+                      command + " --continue; fi";
         }
         spec = {serving ? "Claude · serving" : "Claude", command, folder, spec.env};
     } else if (kind == "codex") {

@@ -3227,6 +3227,41 @@
               "finished": "2026-10-23T11:23:33+01:00"
             }
           ]
+        },
+        {
+          "id": "S15.7",
+          "title": "The serving terminal finds a conversation running in the background",
+          "version": "1.15.4",
+          "stories": [
+            {
+              "id": "US-15.8",
+              "text": "As the owner, I want the AI terminal to bring back the serving Claude after a restart, also when Claude Code kept it running in the background.",
+              "acceptance": [
+                "a serving conversation running in the background (claude agents) is attached in the serving tab",
+                "without one, the tab continues the last conversation as before"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T15.7.1",
+              "story": "US-15.8",
+              "title": "The serving terminal attaches to a conversation running in the background",
+              "details": "2026-10-24: after a restart the serving tab showed 'Your most recent conversation is running in the background (session 1bc62f83...). Use claude agents to find and attach to it' and exited. Claude Code 2.1.310 keeps a conversation that is working when its terminal closes running under its daemon (bg-pty-host, bg-spare); the window had closed while the serving session worked, and then claude --continue refuses. The serving command now asks claude agents --json --cwd <companion> for a background session there and runs claude attach <id>; otherwise claude --continue as before (an older Claude Code without agents prints nothing: --continue). test_e15_serving_attach 2/2 with a fake claude on PATH (both fail on 1.15.3).",
+              "commit": "ai: the serving terminal attaches to a conversation running in the background",
+              "status": "done",
+              "started": "2026-10-24T10:26:41+01:00",
+              "finished": "2026-10-24T10:26:41+01:00"
+            },
+            {
+              "id": "T15.7.2",
+              "story": "US-15.8",
+              "title": "Release 1.15.4",
+              "details": "",
+              "commit": "ai: release 1.15.4 (the serving terminal finds a conversation running in the background)",
+              "status": "todo"
+            }
+          ]
         }
       ]
     }
