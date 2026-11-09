@@ -41,6 +41,7 @@
 #include "assistant/SpeechToText.h"              // for SpeechToText
 #include "assistant/ThinkingOverlay.h"           // for ThinkingOverlay
 #include "control/RecordingObserver.h"           // for setRecordingObserver
+#include "control/AudioController.h"             // for AudioController
 #include "control/SampleTap.h"                   // for setSampleTap
 #include "control/settings/Settings.h"           // for Settings (the audio folder)
 #include "mcp/LiveNotes.h"                       // for LiveNotes
@@ -297,7 +298,7 @@ McpUi::~McpUi() {
               "mcp-connect",      "mcp-settings",    "ai-terminal",      "ai-terminal-open", "ai-terminal-custom",
               "ai-quick-tools",   "ai-tools-button", "ai-record-button", "ai-fullscreen-button", "ai-focus", "ai-highlighter", "ai-focus-button", "ai-act",           "ai-toolbar",
               "ai-stop",          "ai-auto-improve", "ai-ask",           "ai-rule-formulas", "ai-rule-text",
-              "ai-screen-keyboard-manual",
+              "ai-screen-keyboard-manual", "ai-live-notes",
               "ai-rule-diagrams", "ai-rule-colours"}) {
             g_action_map_remove_action(G_ACTION_MAP(window), name);
         }
@@ -498,6 +499,19 @@ void McpUi::installActions() {
                      }),
                      this);
     add(autoImp);
+    // Live notes (experimental): a long press on the big Record button offers "Record + live notes" (remembered)
+    liveEnabled = assistantCfg.liveNotes.enabled;
+    GSimpleAction* liveAct = g_simple_action_new_stateful("ai-live-notes", nullptr, g_variant_new_boolean(liveEnabled));
+    g_signal_connect(liveAct, "change-state", G_CALLBACK(+[](GSimpleAction* a, GVariant* v, gpointer self) {
+                         g_simple_action_set_state(a, v);
+                         auto* ui = static_cast<McpUi*>(self);
+                         ui->liveEnabled = g_variant_get_boolean(v);
+                         McpConfig cfg = McpConfig::load();
+                         cfg.assistant.liveNotes.enabled = ui->liveEnabled;
+                         cfg.save();
+                     }),
+                     this);
+    add(liveAct);
     // GNOME's on-screen keyboard only when called (tablet mode): see gui/ScreenKeyboard.h (remembered)
     GSimpleAction* osk = g_simple_action_new_stateful("ai-screen-keyboard-manual", nullptr,
                                                       g_variant_new_boolean(gui::screen_keyboard::isManual()));
@@ -634,6 +648,7 @@ void McpUi::buildMenu() {
              {"Focus: only the big buttons (F9)", "win.ai-focus"},
              {"Screen keyboard only when called (swipe up from the bottom edge)", "win.ai-screen-keyboard-manual"},
              {"AI highlighter: highlight while speaking (Ctrl+Alt+H)", "win.ai-highlighter"},
+             {"Live notes: long-press the big Record button (experimental)", "win.ai-live-notes"},
              {"Stop current AI work", "win.ai-stop"}});
     {
         GMenu* s = g_menu_new();
@@ -1032,7 +1047,7 @@ void McpUi::updateRecordingProgress() {
 }
 
 bool McpUi::beginLive(const std::string& name, std::string& error) {
-    const auto& cfg = server.getConfig().assistant.liveNotes;
+    const auto cfg = McpConfig::load().assistant.liveNotes;  // (the file as it is now: edited without a restart)
     if (live && live->listening()) {
         error = "live notes are already on (" + live->recording() + ")";
         return false;
@@ -1073,14 +1088,39 @@ bool McpUi::beginLive(const std::string& name, std::string& error) {
     xoj::audio::setSampleTap([chunker = live->chunker()](const float* frames, size_t count, int channels, int rate) {
         chunker->feed(frames, count, channels, rate);
     });
+    if (quickTools) {
+        quickTools->setLiveActive(true);
+    }
     update();
     return true;
+}
+
+void McpUi::startLiveRecording() {
+#ifdef ENABLE_AUDIO
+    Control* ctrl = server.getControl();
+    AudioController* audio = ctrl->getAudioController();
+    if (!audio || audio->isRecording()) {
+        return;
+    }
+    GAction* a = G_ACTION(ctrl->getActionDatabase()->getAction(Action::AUDIO_RECORD).get());
+    g_action_change_state(a, g_variant_new_boolean(true));  // (the recorder says itself when it can't start)
+    if (!audio->isRecording()) {
+        return;
+    }
+    std::string error;
+    if (!beginLive(audio->getAudioFilename().string(), error)) {
+        g_warning("live notes: %s", error.c_str());  // (the recording goes on as a plain one)
+    }
+#endif
 }
 
 void McpUi::endLive(const std::string& name) {
     if (live && live->listening() && (name.empty() || live->recording() == name)) {
         xoj::audio::setSampleTap(nullptr);  // (no more sound; returns once a block being handed over is in)
         live->recordingEnded();
+        if (quickTools) {
+            quickTools->setLiveActive(false);
+        }
         update();
     }
     pastLive.erase(std::remove_if(pastLive.begin(), pastLive.end(), [](const auto& l) { return l->done(); }),
@@ -2049,6 +2089,9 @@ void McpUi::buildToolbar() {
             });
     // The big Tools button, to the right of the toolbars (no row of its own)
     quickTools->placeButton(mainBox, {server.getControl()->getWindow()->get("tbTop1"), tbTop2, aiToolbar->widget()});
+    quickTools->liveOffered = [this] { return liveEnabled; };
+    quickTools->onLiveRecord = [this] { startLiveRecording(); };
+    quickTools->onCut = [this] { cutLive(); };
     if (GAction* a = g_action_map_lookup_action(G_ACTION_MAP(server.getControl()->getWindow()->getWindow()),
                                                 "ai-tools-button")) {
         g_simple_action_set_state(G_SIMPLE_ACTION(a), g_variant_new_boolean(quickTools->buttonWanted()));

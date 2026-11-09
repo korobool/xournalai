@@ -183,6 +183,12 @@ QuickTools::~QuickTools() {
     if (recordFace) {
         g_object_remove_weak_pointer(G_OBJECT(recordFace), reinterpret_cast<gpointer*>(&recordFace));
     }
+    if (recordLongPress) {
+        g_object_unref(recordLongPress);
+    }
+    if (cutButton) {
+        g_object_remove_weak_pointer(G_OBJECT(cutButton), reinterpret_cast<gpointer*>(&cutButton));
+    }
     if (recordButton) {
         g_object_remove_weak_pointer(G_OBJECT(recordButton), reinterpret_cast<gpointer*>(&recordButton));
     }
@@ -408,6 +414,13 @@ constexpr const char* CSS =
         ".xoai-record-button:active { box-shadow: inset 0 2px 4px alpha(#000000, 0.45); }"
         ".xoai-record-button label { color: #ffffff; font-weight: bold; }"
         ".xoai-record-button image { color: #ff4a4a; }"
+        ".xoai-cut-button { color: #ffffff; border: none; border-radius: 16px; padding: 6px 10px;"
+        "  background-image: linear-gradient(160deg, #b57bff, #7b3fe0);"
+        "  box-shadow: 0 2px 8px alpha(#7b3fe0, 0.5), inset 0 1px alpha(#ffffff, 0.3); }"
+        ".xoai-cut-button:active { box-shadow: inset 0 2px 4px alpha(#000000, 0.4); }"
+        ".xoai-cut-button label, .xoai-cut-button image { color: #ffffff; font-weight: bold; }"
+        ".xoai-quick-tile.xoai-live-tile { background-image: linear-gradient(160deg, alpha(#b57bff, 0.25),"
+        "  alpha(#7b3fe0, 0.18)); }"
         ".xoai-record-button.xoai-recording { background-image: linear-gradient(160deg, #ff5a5a, #d81b3c);"
         "  box-shadow: 0 0 10px alpha(#ff3040, 0.75), inset 0 1px alpha(#ffffff, 0.35); }"
         ".xoai-record-button.xoai-recording image { color: #ffffff; }"
@@ -762,17 +775,44 @@ void QuickTools::placeButton(GtkWidget* mainBox, const std::vector<GtkWidget*>& 
     gtk_buildable_set_name(GTK_BUILDABLE(recordButton), "aiRecordButton");
     g_signal_connect(recordButton, "clicked", G_CALLBACK(+[](GtkButton*, gpointer d) {
                          auto* self = static_cast<QuickTools*>(d);
-                         GAction* a =
-                                 G_ACTION(self->control->getActionDatabase()->getAction(Action::AUDIO_RECORD).get());
-                         GVariant* st = g_action_get_state(a);
-                         const bool on = st && g_variant_get_boolean(st);
-                         if (st) {
-                             g_variant_unref(st);
+                         if (self->suppressRecordClick) {  // (the long press that opened the menu)
+                             self->suppressRecordClick = false;
+                             return;
                          }
-                         g_action_change_state(a, g_variant_new_boolean(!on));
+                         self->toggleRecording();
+                     }),
+                     this);
+    // A long press offers "Record + live notes" (experimental: when switched on)
+    recordLongPress = gtk_gesture_long_press_new(recordButton);
+    gtk_event_controller_set_propagation_phase(GTK_EVENT_CONTROLLER(recordLongPress), GTK_PHASE_CAPTURE);
+    g_signal_connect(recordLongPress, "pressed", G_CALLBACK(+[](GtkGestureLongPress*, double, double, gpointer d) {
+                         auto* self = static_cast<QuickTools*>(d);
+                         if (self->liveOffered && self->liveOffered() && !self->isRecording()) {
+                             self->suppressRecordClick = true;
+                             self->openRecordMenu();
+                         }
                      }),
                      this);
     gtk_box_pack_end(GTK_BOX(outer), recordButton, FALSE, FALSE, 0);
+
+    // ✂: during live notes, sends the piece being spoken now (left of Record)
+    cutButton = gtk_button_new();
+    gtk_container_add(GTK_CONTAINER(cutButton), tileContent("edit-cut-symbolic", "Send now", 34));
+    gtk_style_context_add_class(gtk_widget_get_style_context(cutButton), "xoai-cut-button");
+    gtk_widget_set_size_request(cutButton, 76, -1);
+    g_object_set(cutButton, "margin", 4, "margin-end", 0, nullptr);
+    gtk_widget_set_can_focus(cutButton, FALSE);
+    gtk_widget_set_tooltip_text(cutButton, "Live notes: send what is being said now, without waiting for a pause");
+    gtk_buildable_set_name(GTK_BUILDABLE(cutButton), "aiLiveCutButton");
+    g_signal_connect(cutButton, "clicked", G_CALLBACK(+[](GtkButton*, gpointer d) {
+                         auto* self = static_cast<QuickTools*>(d);
+                         if (self->onCut) {
+                             self->onCut();
+                         }
+                     }),
+                     this);
+    gtk_widget_set_no_show_all(cutButton, TRUE);
+    gtk_box_pack_end(GTK_BOX(outer), cutButton, FALSE, FALSE, 0);
 
     // Full screen: the app's own full-screen toggle, big enough for a finger
     fullscreenButton = gtk_button_new();
@@ -827,6 +867,11 @@ void QuickTools::placeButton(GtkWidget* mainBox, const std::vector<GtkWidget*>& 
     gtk_widget_set_visible(recordButton, wantRecord);
     g_object_add_weak_pointer(G_OBJECT(recordButton), reinterpret_cast<gpointer*>(&recordButton));
     g_object_add_weak_pointer(G_OBJECT(recordFace), reinterpret_cast<gpointer*>(&recordFace));
+    gtk_widget_set_no_show_all(cutButton, FALSE);
+    gtk_widget_show_all(cutButton);  // (its content; the button itself only during live notes)
+    gtk_widget_set_no_show_all(cutButton, TRUE);
+    gtk_widget_hide(cutButton);
+    g_object_add_weak_pointer(G_OBJECT(cutButton), reinterpret_cast<gpointer*>(&cutButton));
     refreshRecord();
     refreshFullscreen();
     gtk_widget_set_no_show_all(fullscreenButton, TRUE);
@@ -874,6 +919,93 @@ bool QuickTools::isRecording() const {
     }
 #endif
     return false;
+}
+
+void QuickTools::toggleRecording() {
+    GAction* a = G_ACTION(control->getActionDatabase()->getAction(Action::AUDIO_RECORD).get());
+    GVariant* st = g_action_get_state(a);
+    const bool on = st && g_variant_get_boolean(st);
+    if (st) {
+        g_variant_unref(st);
+    }
+    g_action_change_state(a, g_variant_new_boolean(!on));
+}
+
+void QuickTools::setLiveActive(bool on) {
+    if (cutButton) {
+        gtk_widget_set_visible(cutButton, on);
+    }
+}
+
+void QuickTools::openRecordMenu() {
+    closePopover();
+    addCss();
+    popover = gtk_popover_new(recordButton);
+    g_object_add_weak_pointer(G_OBJECT(popover), reinterpret_cast<gpointer*>(&popover));
+    gtk_popover_set_position(GTK_POPOVER(popover), GTK_POS_BOTTOM);
+    gtk_buildable_set_name(GTK_BUILDABLE(popover), "aiRecordMenu");
+    GtkWidget* box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+    g_object_set(box, "margin", 10, nullptr);
+    struct Entry {
+        const char* id;
+        const char* icon;
+        const char* label;
+        const char* tip;
+        bool live;
+    };
+    static const Entry entries[] = {
+            {"aiRecordPlain", "media-record-symbolic", "Record", "Record audio, as a tap does", false},
+            {"aiRecordLive", "document-edit-symbolic", "Record +\nlive notes",
+             "Record, and transcribe while you speak: the text goes into a live-notes page, and the AI draws what "
+             "is talked about (experimental)",
+             true},
+    };
+    for (const auto& e: entries) {
+        GtkWidget* tile = gtk_button_new();
+        gtk_container_add(GTK_CONTAINER(tile), tileContent(e.icon, e.label, 36));
+        gtk_style_context_add_class(gtk_widget_get_style_context(tile), "xoai-quick-tile");
+        if (e.live) {
+            gtk_style_context_add_class(gtk_widget_get_style_context(tile), "xoai-live-tile");
+        }
+        gtk_widget_set_size_request(tile, 110, 92);
+        gtk_widget_set_can_focus(tile, FALSE);
+        gtk_widget_set_tooltip_text(tile, e.tip);
+        gtk_buildable_set_name(GTK_BUILDABLE(tile), e.id);
+        g_object_set_data(G_OBJECT(tile), "live", GINT_TO_POINTER(e.live ? 1 : 0));
+        g_signal_connect(tile, "clicked", G_CALLBACK(+[](GtkButton* b, gpointer d) {
+                             auto* self = static_cast<QuickTools*>(d);
+                             const bool live = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(b), "live")) != 0;
+                             if (self->popover) {
+                                 gtk_popover_popdown(GTK_POPOVER(self->popover));
+                             }
+                             if (live) {
+                                 if (self->onLiveRecord) {
+                                     self->onLiveRecord();
+                                 }
+                             } else if (!self->isRecording()) {
+                                 self->toggleRecording();
+                             }
+                         }),
+                         this);
+        gtk_box_pack_start(GTK_BOX(box), tile, FALSE, FALSE, 0);
+    }
+    gtk_container_add(GTK_CONTAINER(popover), box);
+    g_signal_connect(popover, "closed", G_CALLBACK(+[](GtkPopover* p, gpointer d) {
+                         // (closed by a later tap: the long press's own release is long past)
+                         static_cast<QuickTools*>(d)->suppressRecordClick = false;
+                         g_idle_add(
+                                 [](gpointer w) -> gboolean {
+                                     if (GTK_IS_WIDGET(w) && !gtk_widget_in_destruction(GTK_WIDGET(w))) {
+                                         gtk_widget_destroy(GTK_WIDGET(w));
+                                     }
+                                     g_object_unref(w);
+                                     return G_SOURCE_REMOVE;
+                                 },
+                                 g_object_ref(p));
+                     }),
+                     this);
+    gtk_widget_show_all(box);
+    gtk_popover_popup(GTK_POPOVER(popover));
 }
 
 void QuickTools::refreshRecord() {

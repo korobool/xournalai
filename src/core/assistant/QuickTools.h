@@ -59,6 +59,12 @@ public:
     void setRecordVisible(bool visible);
     bool recordWanted() const { return wantRecord; }
     GtkWidget* recordWidget() const { return recordButton; }  ///< (null before placeButton)
+    /// Live notes (experimental): whether a long press on Record offers "Record + live notes"
+    std::function<bool()> liveOffered;
+    std::function<void()> onLiveRecord;  ///< "Record + live notes" chosen
+    std::function<void()> onCut;         ///< ✂ tapped
+    /// A live-notes recording goes on: ✂ (send the piece being spoken now) shows next to Record
+    void setLiveActive(bool on);
     /// The big Full screen button next to Record: toggles the app's full-screen mode
     void setFullscreenVisible(bool visible);
     bool fullscreenWanted() const { return wantFullscreen; }
@@ -100,6 +106,11 @@ private:
     void refreshRecord();
     bool isRecording() const;
     void drawRecordFace(GtkWidget* w, cairo_t* cr);
+    GtkWidget* cutButton = nullptr;  ///< weak: ✂, next to Record during live notes
+    GtkGesture* recordLongPress = nullptr;  ///< (owned: a GTK 3 gesture is not kept by its widget)
+    bool suppressRecordClick = false;  ///< the long press opened the menu: its release is not a click
+    void openRecordMenu();
+    void toggleRecording();
     GtkWidget* recordFace = nullptr;   ///< weak
     GtkWidget* recordLabel = nullptr;  ///< (inside recordButton)
     guint recordPoll = 0;

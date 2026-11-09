@@ -231,6 +231,8 @@ private:
     std::unique_ptr<LiveNotes> live;  ///< the session going on, or the last one
     std::vector<std::unique_ptr<LiveNotes>> pastLive;  ///< ended, still transcribing their last pieces
     void endLive(const std::string& name);
+    void startLiveRecording();  ///< "Record + live notes" (the long press on Record)
+    bool liveEnabled = false;   ///< (the experimental switch)
     json lastRecording;  ///< the last choice (app_status)
     /// Zones of handed-over recordings still being worked on, with "Notes" / "Instructions": the status line shows
     /// their progress

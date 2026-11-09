@@ -3411,9 +3411,11 @@
               "id": "T15.9.4",
               "story": "US-15.12",
               "title": "A long press on Record: Record or Record + live notes; the ✂ button; the experimental switch",
-              "details": "",
-              "commit": "",
-              "status": "todo"
+              "details": "A long press (GtkGestureLongPress, capture phase, kept by QuickTools: a GTK 3 gesture is not kept by its widget) on the big Record button opens, under it, two big tiles: Record and Record + live notes (when the switch is on and nothing records); the press's release is not a click (it starts nothing). Record + live notes starts the recorder through its action and, once it records, McpUi::beginLive with its file name (the settings read afresh from mcp.json). During live notes a purple ✂ 'Send now' shows left of Record (the piece being spoken goes now). AI Agent menu: 'Live notes: long-press the big Record button (experimental)' (assistant.live_notes.enabled, remembered). test_e15_live_notes_ui 3/3 (a real long press on Xvfb: the menu under the button, Escape, no recording started; ✂ during live notes; the switch in mcp.json).",
+              "commit": "ai: a long press on Record: Record or Record + live notes; the ✂ button; the experimental switch",
+              "status": "done",
+              "started": "2026-11-09T14:41:50+00:00",
+              "finished": "2026-11-09T14:41:50+00:00"
             },
             {
               "id": "T15.9.5",
