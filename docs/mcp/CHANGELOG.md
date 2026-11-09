@@ -10,6 +10,37 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.16.4 — A worker's zone lasts for its whole job
+- **A worker's "working here" zone no longer disappears while the worker is still thinking.** On 9 November,
+  workers T3–T5 marked their regions and then thought for 3–5 minutes. Their zones vanished within a minute, so the
+  page looked finished. The cause: whenever the serving session finished a turn (it wakes for every transcript
+  piece), the app closed every zone that the session itself had no subagents for, and worker tabs are separate
+  sessions. Now each zone records which worker opened it:
+  - the zone is labelled «⚙ T4 · …» and stays until that worker ends it, is closed, or its tab's process ends;
+  - its stop button interrupts only that worker;
+  - a worker's connection names the worker (`xournalpp --mcp-stdio` passes on `XOURNALAI_WORKER`).
+- **A worker's region shows as busy as soon as it starts.** `workers(op="start")` takes the worker's region:
+  `page`, `region`, `color` (the topic's) and `status`. The app shows the region at once in the topic's colour,
+  with a moving dashed frame and a light veil, and tells the worker the zone's id in its brief.
+  - `thinking` takes a `color` too;
+  - `thinking_list` says which worker each zone belongs to;
+  - `workers(op="list")` shows each worker's busy zones.
+- **The app follows its workers itself.** The agents don't have to report. Each worker gets hooks of its own
+  (`workers/hooks.json`, passed with `--settings`), and from them the app knows:
+  - its state: starting, busy, finished;
+  - what it is doing: searching the web, reading a page, drawing, waiting for more talk…;
+  - how long it has been working.
+
+  The zone shows this on a second line, for example "searching the web · 2:41". When a worker's turn ends, its
+  job is over: the app closes the zones it left open and wakes the serving session with "Worker T4 has finished
+  its job". `workers(op="list")` shows `state`, `activity` and `working_s`.
+- **Fix:** workers started in one message, as the skill recommends, no longer bypass the cap. A tab whose process
+  was still starting did not count as running, so several workers started at once could exceed
+  `max_parallel` or reuse a name. Now a starting tab counts. A tab closed while its process is still starting ends
+  that process as soon as it appears, so it cannot keep running without a tab.
+- **Companion skill:** no hand-drawn placeholders. Workers get their region through `workers(op="start")`. For a
+  subagent, the serving session opens the zone and puts its id in the subagent's brief.
+
 ## 1.16.3 — Worker sessions in tabs; your Undo leaves live notes alone
 - **Your Undo no longer removes the live-notes page.** Undo history is shared. On 9 November an Undo meant for
   the owner's own drawing removed a live-notes page five seconds after it was made: the log says "Page 2 deleted
