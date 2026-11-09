@@ -75,9 +75,10 @@ TerminalDock::TerminalDock(GtkWidget* mainBox, GtkWidget* contentArea) {
     notebook = gtk_notebook_new();
     gtk_notebook_set_scrollable(GTK_NOTEBOOK(notebook), TRUE);
     buildHeader();
-    // The tabs, and to their right the big keys (about 15% of the width)
-    GtkWidget* body = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-    gtk_box_pack_start(GTK_BOX(body), notebook, TRUE, TRUE, 0);
+    // The tabs, and the big keys to the right of the terminal (under the tab row, which keeps its width: its empty
+    // space is a handle to drag)
+    GtkWidget* body = gtk_overlay_new();
+    gtk_container_add(GTK_CONTAINER(body), notebook);
     buildKeys(body);
     gtk_box_pack_start(GTK_BOX(dock), body, TRUE, TRUE, 0);
     gtk_paned_pack2(GTK_PANED(paned), dock, FALSE, FALSE);
@@ -560,6 +561,7 @@ void TerminalDock::loadView() {
         gtk_widget_set_no_show_all(keysPanel, !showKeys);  // (the dock is shown with show_all)
         gtk_widget_set_visible(keysPanel, showKeys);
     }
+    placeKeys();
     syncing = false;
     if (opacityLabel) {
         gtk_label_set_text(GTK_LABEL(opacityLabel), (std::to_string(static_cast<int>(opacity * 100 + 0.5)) + "%").c_str());
@@ -857,6 +859,7 @@ int TerminalDock::openTab(const TerminalSpec& spec, bool focus) {
     gtk_box_pack_end(GTK_BOX(page), scrollbar, FALSE, FALSE, 0);
     tab->page = page;
     g_object_add_weak_pointer(G_OBJECT(page), reinterpret_cast<gpointer*>(&tab->page));
+    gtk_widget_set_margin_end(page, showKeys ? keysWidth : 0);  // (the keys are there)
 
     // The tab's label, with its close button
     GtkWidget* labelBox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
@@ -1124,15 +1127,16 @@ struct Key {
     const char* bytes;  ///< what the terminal gets, as from the keyboard
     bool repeats;       ///< held: repeats like a held key
     const char* tip;
-    int col, row, width;
+    int col, row, width, height;  ///< in a grid of 5 columns, 3 rows
 };
+/// Space, for dictation, stands apart: the biggest, rightmost, all the height; the others in a column to its left
 const Key KEYS[] = {
-        {"aiTerminalKeyEscape", "Esc", "\x1b", false, "Escape", 0, 0, 1},
-        {"aiTerminalKeyBackspace", "⌫", "\x7f", true, "Backspace (hold to delete more)", 1, 0, 1},
+        {"aiTerminalKeyEscape", "Esc", "\x1b", false, "Escape", 0, 0, 2, 1},
+        {"aiTerminalKeyBackspace", "⌫", "\x7f", true, "Backspace (hold to delete more)", 0, 1, 2, 1},
+        {"aiTerminalKeyEnter", "⏎", "\r", false, "Enter: send", 0, 2, 2, 1},
         {"aiTerminalKeySpace", "Space", " ", true,
-         "Space. Hold it to dictate to Claude Code (its voice mode: /voice), as with the keyboard's space bar", 0, 1,
-         2},
-        {"aiTerminalKeyEnter", "Enter ⏎", "\r", false, "Enter: send", 0, 2, 2},
+         "Space. Hold it to dictate to Claude Code (its voice mode: /voice), as with the keyboard's space bar", 2, 0, 3,
+         3},
 };
 }  // namespace
 
@@ -1142,8 +1146,9 @@ void TerminalDock::buildKeys(GtkWidget* body) {
         gtk_css_provider_load_from_data(
                 p,
                 ".xoai-term-keys { padding: 6px; }"
-                ".xoai-term-key { min-height: 44px; border-radius: 12px; font-size: 1.15em; font-weight: bold; }"
-                ".xoai-term-key-space { font-size: 1.3em; }"
+                ".xoai-term-key { min-height: 22px; padding: 2px 6px; border-radius: 12px; font-size: 1.15em;"
+                "  font-weight: bold; }"
+                ".xoai-term-key-space { font-size: 1.3em; border-radius: 16px; border-width: 2px; }"
                 ".xoai-term-key-enter { color: #ffffff; border: none;"
                 "  background-image: linear-gradient(160deg, #b57bff, #7b3fe0);"
                 "  box-shadow: 0 2px 8px alpha(#7b3fe0, 0.5), inset 0 1px alpha(#ffffff, 0.3); }"
@@ -1169,12 +1174,14 @@ void TerminalDock::buildKeys(GtkWidget* body) {
         gtk_widget_set_tooltip_text(b, k.tip);
         gtk_widget_set_can_focus(b, FALSE);  // (the keyboard stays where it was)
         gtk_widget_set_hexpand(b, TRUE);
-        gtk_widget_set_vexpand(b, k.row == 1);  // (Space gets the height left)
+        gtk_widget_set_vexpand(b, TRUE);
         auto* ctx = gtk_widget_get_style_context(b);
         gtk_style_context_add_class(ctx, "xoai-term-key");
-        if (k.row == 1) {
+        const std::string id = k.id;
+        if (id == "aiTerminalKeySpace") {
             gtk_style_context_add_class(ctx, "xoai-term-key-space");
-        } else if (k.row == 2) {
+            gtk_widget_set_margin_start(b, 10);  // (apart from the others: not hit by mistake)
+        } else if (id == "aiTerminalKeyEnter") {
             gtk_style_context_add_class(ctx, "xoai-term-key-enter");
         }
         g_object_set_data(G_OBJECT(b), "term-key", const_cast<Key*>(&k));
@@ -1222,29 +1229,76 @@ void TerminalDock::buildKeys(GtkWidget* body) {
                              gtk_style_context_remove_class(gtk_widget_get_style_context(w), "xoai-term-key-held");
                          }),
                          this);
-        gtk_grid_attach(GTK_GRID(keysPanel), b, k.col, k.row, k.width, 1);
+        gtk_grid_attach(GTK_GRID(keysPanel), b, k.col, k.row, k.width, k.height);
     }
-    gtk_box_pack_end(GTK_BOX(body), keysPanel, FALSE, FALSE, 0);
-    // About 15% of the dock's width (not less than the keys need, not more than 320 px)
+    gtk_overlay_add_overlay(GTK_OVERLAY(body), keysPanel);
+    // In the room the terminal leaves it (the pages' end margin), about 15% of the dock's width: not less than the
+    // keys need, not more than 320 px
+    g_signal_connect(body, "get-child-position",
+                     G_CALLBACK(+[](GtkOverlay* o, GtkWidget* child, GdkRectangle* r, gpointer d) -> gboolean {
+                         auto* self = static_cast<TerminalDock*>(d);
+                         if (child != self->keysPanel) {
+                             return FALSE;
+                         }
+                         const int w = gtk_widget_get_allocated_width(GTK_WIDGET(o));
+                         const int h = gtk_widget_get_allocated_height(GTK_WIDGET(o));
+                         Tab* tab = self->tabAt(self->currentTab());
+                         int x = 0;
+                         int y = 0;
+                         if (tab && tab->page && gtk_widget_get_mapped(tab->page) &&
+                             gtk_widget_translate_coordinates(tab->page, GTK_WIDGET(o), 0, 0, &x, &y)) {
+                             r->x = x + gtk_widget_get_allocated_width(tab->page);
+                             r->y = y;
+                             r->height = gtk_widget_get_allocated_height(tab->page);
+                         } else {
+                             r->x = w - self->keysWidth;
+                             r->y = 0;
+                             r->height = h;
+                         }
+                         int need = 0;  // (never narrower than the keys: before the first width is set, too)
+                         gtk_widget_get_preferred_width(child, &need, nullptr);
+                         r->width = std::max(self->keysWidth, need);
+                         return TRUE;
+                     }),
+                     this);
     g_signal_connect(body, "size-allocate", G_CALLBACK(+[](GtkWidget*, GdkRectangle* a, gpointer d) {
                          auto* self = static_cast<TerminalDock*>(d);
-                         const int w = std::clamp(a->width * 15 / 100, 110, 320);
+                         int need = 0;
+                         gtk_widget_get_preferred_width(self->keysPanel, &need, nullptr);
+                         const int w = std::max(need, std::clamp(a->width * 15 / 100, 110, 320));
                          if (w != self->keysWidth && !self->keysResize) {
                              self->keysWidth = w;
                              self->keysResize = g_idle_add(
                                      +[](gpointer d) -> gboolean {
                                          auto* self = static_cast<TerminalDock*>(d);
                                          self->keysResize = 0;
-                                         if (self->keysPanel) {
-                                             gtk_widget_set_size_request(self->keysPanel, self->keysWidth, -1);
-                                         }
+                                         self->placeKeys();
                                          return G_SOURCE_REMOVE;
                                      },
                                      self);
                          }
                      }),
                      this);
+    // (the panel follows the tab shown)
+    g_signal_connect_after(notebook, "switch-page", G_CALLBACK(+[](GtkNotebook*, GtkWidget*, guint, gpointer d) {
+                               auto* self = static_cast<TerminalDock*>(d);
+                               if (self->keysPanel) {
+                                   gtk_widget_queue_resize(self->keysPanel);
+                               }
+                           }),
+                           this);
     g_object_add_weak_pointer(G_OBJECT(keysPanel), reinterpret_cast<gpointer*>(&keysPanel));
+}
+
+void TerminalDock::placeKeys() {
+    for (Tab* t: tabs) {
+        if (t->page) {
+            gtk_widget_set_margin_end(t->page, showKeys ? keysWidth : 0);  // (the room for the keys)
+        }
+    }
+    if (keysPanel) {
+        gtk_widget_queue_resize(keysPanel);
+    }
 }
 
 void TerminalDock::setKeysVisible(bool visible) {
@@ -1253,6 +1307,7 @@ void TerminalDock::setKeysVisible(bool visible) {
         gtk_widget_set_no_show_all(keysPanel, !visible);
         gtk_widget_set_visible(keysPanel, visible);
     }
+    placeKeys();
     if (keysButton && gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(keysButton)) != visible) {
         syncing = true;
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(keysButton), visible);
@@ -1263,6 +1318,12 @@ void TerminalDock::setKeysVisible(bool visible) {
 
 void TerminalDock::sendKey(const std::string& bytes, bool held) {
     endHold();
+    // These keys belong to the terminal: it gets the keyboard, as if the owner had tapped it first. Without that
+    // the bytes reached it, but Claude Code (it follows the terminal's focus) didn't take a held Space as
+    // hold-to-talk until the terminal was tapped (2026-11-09)
+    if (Tab* tab = tabAt(currentTab()); tab && tab->term && !gtk_widget_has_focus(GTK_WIDGET(tab->term))) {
+        gtk_widget_grab_focus(GTK_WIDGET(tab->term));
+    }
     if (!feed(currentTab(), bytes)) {
         return;
     }

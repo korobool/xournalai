@@ -110,6 +110,7 @@ private:
     void loadView();
     void saveView() const;
     void buildKeys(GtkWidget* body);
+    void placeKeys();  ///< the pages leave room for the keys (or not, hidden)
     /// Sends `bytes` to the tab shown, as typed; held: again after the keyboard's repeat delay, at its rate, until
     /// endHold (a held key, as a terminal sees one: Claude Code takes a held Space as hold-to-talk)
     void sendKey(const std::string& bytes, bool held);

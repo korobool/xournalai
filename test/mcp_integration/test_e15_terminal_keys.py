@@ -41,6 +41,10 @@ def shown(c):
         c.call("action_run", action="win.ai-terminal")
         time.sleep(0.5)
         ws = widgets(c)
+    if ws["aiTerminalPin"].get("value"):  # (floating: the terminal gets its usual height in the small test window)
+        c.call("ui_interact", op="set_value", target=ws["aiTerminalPin"]["id"], value=False)
+        time.sleep(0.5)
+        ws = widgets(c)
     return ws
 
 
@@ -61,9 +65,15 @@ def test_1_the_keys_are_right_of_the_terminal(app):
     assert panel.get("visible", True), panel
     px, _, pw, _ = panel["bbox"]
     dx, _, dw, _ = dock["bbox"]
-    assert abs((px + pw) - (dx + dw)) < 12 and 0.10 * dw <= pw <= max(0.2 * dw, 120), (panel["bbox"], dock["bbox"])
+    assert abs((px + pw) - (dx + dw)) < 12 and 0.10 * dw <= pw <= max(0.2 * dw, 200), (panel["bbox"], dock["bbox"])  # (15%; in a narrow window, what the keys need)
     for k in ("Space", "Enter", "Backspace", "Escape"):
         assert ws["aiTerminalKey" + k].get("visible", True)
+    # Space, for dictation, stands apart: the biggest, rightmost, all the height (2026-11-09, the owner)
+    sx, sy, sw, sh = ws["aiTerminalKeySpace"]["bbox"]
+    others = [ws["aiTerminalKey" + k]["bbox"] for k in ("Enter", "Backspace", "Escape")]
+    assert all(sx >= x + w + 8 for x, _, w, _ in others), (ws["aiTerminalKeySpace"]["bbox"], others)
+    assert all(sw * sh > 2.5 * w * h for _, _, w, h in others), (ws["aiTerminalKeySpace"]["bbox"], others)
+    assert sh >= sum(h for _, _, _, h in others), (ws["aiTerminalKeySpace"]["bbox"], others)
 
 
 def test_2_taps_send_the_keys(app):
@@ -103,3 +113,17 @@ def test_5_they_can_be_hidden(app):
     c.call("ui_interact", op="click", target=ws["aiTerminalKeysToggle"]["id"])
     time.sleep(0.3)
     assert widgets(c)["aiTerminalKeys"].get("visible", True)
+
+
+def test_6_a_key_gives_the_terminal_the_keyboard(app):
+    """2026-11-09, the owner: Space reached the terminal, but Claude Code took it as hold-to-talk only once the
+    terminal had been tapped: these keys belong to the terminal, it gets the keyboard with the first one."""
+    c = app.client()
+    ws = shown(c)
+    canvas = [w for w in c.call("ui_inspect", max_depth=80, all=True)["widgets"] if w["type"] == "GtkXournal"][0]
+    c.call("ui_interact", op="focus", target=canvas["id"])
+    time.sleep(0.3)
+    start = len(got())
+    press(app, ws["aiTerminalKeySpace"])
+    app.user_key("x")  # (a real key: where the keyboard is)
+    assert got(lambda b: len(b) >= start + 2)[start:] == b" x"
