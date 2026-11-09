@@ -1040,4 +1040,24 @@ While agents save, add pages and draw, the owner keeps typing and dictating wher
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
 | T15.7.1 | US-15.8 | **The serving terminal attaches to a conversation running in the background** — 2026-10-24: after a restart the serving tab showed 'Your most recent conversation is running in the background (session 1bc62f83...). Use claude agents to find and attach to it' and exited. Claude Code 2.1.310 keeps a conversation that is working when its terminal closes running under its daemon (bg-pty-host, bg-spare); the window had closed while the serving session worked, and then claude --continue refuses. The serving command now asks claude agents --json --cwd <companion> for a background session there and runs claude attach <id>; otherwise claude --continue as before (an older Claude Code without agents prints nothing: --continue). test_e15_serving_attach 2/2 with a fake claude on PATH (both fail on 1.15.3). | `ai: the serving terminal attaches to a conversation running in the background (T15.7.1)` | ✅ done `711c7d198` |
-| T15.7.2 | US-15.8 | **Release 1.15.4** — Full check: build-noterm and build-nomcp ok; unit tests 206/211 (the ControlLoadHandler group that fails under parallel ctest and one more, all 5 pass on rerun); integration 279/279. | `ai: release 1.15.4 (the serving terminal finds a conversation running in the background) (T15.7.2)` | ✅ done |
+| T15.7.2 | US-15.8 | **Release 1.15.4** — Full check: build-noterm and build-nomcp ok; unit tests 206/211 (the ControlLoadHandler group that fails under parallel ctest and one more, all 5 pass on rerun); integration 279/279. | `ai: release 1.15.4 (the serving terminal finds a conversation running in the background) (T15.7.2)` | ✅ done `420d487ae` |
+
+### S15.8 — Big targets where the hand is → v1.15.5
+
+**US-15.9** — As the owner, I want the window that asks what a stopped recording is to open right under the big Record button, with big tiles, so that I can answer with one tap without looking for it (in a car too).
+
+- [ ] the recording chooser opens under the Record button (at the bottom of the canvas when the button is off)
+- [ ] its choices are big tiles like the Tools grid's
+- [ ] the AI lasso / AI highlighter window has big tiles too
+
+**US-15.10** — As the owner, I want a panel to the right of the AI terminal with big Space, Enter, Backspace and Escape keys, so that on the tablet I can dictate into Claude (hold Space) and send without the on-screen keyboard.
+
+- [ ] the panel takes about 15% of the terminal area, to its right
+- [ ] holding Space holds the space key in the terminal (Claude's dictation); Enter, Backspace and Escape send their keys
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T15.8.1 | US-15.9 | **The recording chooser opens under the Record button, with big tiles** — 2026-11-09, the owner: the chooser opened in the middle of the canvas, at its bottom: awkward to reach when they can hardly look at the screen (driving), though the big Record button itself is easy to press. It now opens right under the Record button (a popover pointing at it, like the Tools grid under Tools); with the button off, where it was. Redesigned like the Tools grid: the three choices first (big tiles, 40 px icons, Instructions in the AI purple), then the optional request with a big 'Hold to say' mic and Send, bigger chips. Shown again when the button is shown again (as with the canvas). test_e11 test_9 (fails on 1.15.4); test_e11 9/9. | `ai: the recording chooser opens under the Record button, with big tiles (T15.8.1)` | ✅ done |
+| T15.8.2 | US-15.9 | **The Ask window (AI lasso, AI highlighter) with big tiles** — The same redesign for the Ask window (AI lasso, AI highlighter): the seven commands as big tiles four to a row (32 px icons), a header with a big close button, a big 'Hold to say' mic, the text and Send. Still next to the marked area. test_e10_ask, test_e14_ai_highlighter pass. | `ai: the Ask window with big tiles (T15.8.2)` | ⬜ todo |
+| T15.8.3 | US-15.10 | **A key panel next to the AI terminal: Space (held), Enter, Backspace, Escape** —  | ` (T15.8.3)` | ⬜ todo |
+| T15.8.4 | US-15.10 | **Release 1.15.5** —  | ` (T15.8.4)` | ⬜ todo |

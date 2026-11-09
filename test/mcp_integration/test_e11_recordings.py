@@ -185,3 +185,21 @@ def test_8_a_chooser_closed_without_a_choice_shows_the_next_recording(app):
     assert widget(c, "recording-title")["label"].startswith("Recording 0:05")
     choose(c, "keep")
     assert recordings(c)["pending"] == 0
+
+
+def test_9_it_opens_under_the_record_button(app):
+    """2026-11-09: it opened at the bottom of the canvas, in its middle: far from the big Record button that stopped
+    the recording (awkward to reach, in a car too). Now it opens right under it, like the Tools grid under Tools."""
+    c = app.client()
+    button = widget(c, "aiRecordButton")
+    assert shown(button), button
+    stop_recording(c, "here.ogg", 2000)
+    bx, by, bw, bh = button["bbox"]
+    tiles = [widget(c, "recording-" + o)["bbox"] for o in ("instructions", "notes", "keep")]
+    left, top = min(t[0] for t in tiles), min(t[1] for t in tiles)
+    right = max(t[0] + t[2] for t in tiles)
+    assert by + bh <= top <= by + bh + 160, (button["bbox"], tiles)  # (below it: the title is above the tiles)
+    assert left - 40 <= bx + bw / 2 <= right + 40, (button["bbox"], tiles)  # (the popover's arrow points at it)
+    assert all(t[2] >= 120 and t[3] >= 100 for t in tiles), tiles  # (big enough for a finger)
+    choose(c, "keep")
+    assert recordings(c)["pending"] == 0

@@ -16,7 +16,7 @@ struct Option {
 };
 
 const Option OPTIONS[] = {
-        {RecordingChooser::Choice::Instructions, "recording-instructions", "mail-send-symbolic", "Instructions",
+        {RecordingChooser::Choice::Instructions, "recording-instructions", "system-run-symbolic", "Instructions",
          "AI does what I said", "Transcribe it and do what it asks (about this page)"},
         {RecordingChooser::Choice::Notes, "recording-notes", "document-edit-symbolic", "Notes", "transcript to keep",
          "Transcribe it into notes for later, aligned with the ink. What is said in it is never taken as "
@@ -51,23 +51,67 @@ const char* RecordingChooser::name(Choice c) {
     return "?";
 }
 
+namespace {
+/// A big tile like the Tools grid's: an icon over a name (and a hint)
+GtkWidget* tile(const char* id, const char* icon, int px, const char* label, const char* hint, const char* tip) {
+    GtkWidget* b = gtk_button_new();
+    GtkWidget* inner = gtk_box_new(GTK_ORIENTATION_VERTICAL, 3);
+    GtkWidget* image = gtk_image_new_from_icon_name(icon, GTK_ICON_SIZE_DND);
+    gtk_image_set_pixel_size(GTK_IMAGE(image), px);
+    gtk_box_pack_start(GTK_BOX(inner), image, true, true, 0);
+    if (label) {
+        GtkWidget* n = gtk_label_new(label);
+        gtk_style_context_add_class(gtk_widget_get_style_context(n), "xoai-choice-name");
+        gtk_box_pack_start(GTK_BOX(inner), n, false, false, 0);
+    }
+    if (hint) {
+        GtkWidget* h = gtk_label_new(hint);
+        gtk_style_context_add_class(gtk_widget_get_style_context(h), "xoai-choice-hint");
+        gtk_box_pack_start(GTK_BOX(inner), h, false, false, 0);
+    }
+    gtk_container_add(GTK_CONTAINER(b), inner);
+    gtk_widget_set_can_focus(b, false);  // (Escape and typing stay with the request)
+    gtk_buildable_set_name(GTK_BUILDABLE(b), id);
+    gtk_widget_set_tooltip_text(b, tip);
+    return b;
+}
+
+GtkWidget* heading(const char* text) {
+    GtkWidget* l = gtk_label_new(text);
+    gtk_widget_set_halign(l, GTK_ALIGN_START);
+    gtk_style_context_add_class(gtk_widget_get_style_context(l), "xoai-rec-heading");
+    return l;
+}
+}  // namespace
+
 RecordingChooser::RecordingChooser(GtkWidget* canvas, Chosen chosen): canvas(canvas), onChosen(std::move(chosen)) {
     popover = gtk_popover_new(canvas);
     gtk_buildable_set_name(GTK_BUILDABLE(popover), "recording-chooser");
     gtk_popover_set_modal(GTK_POPOVER(popover), false);  // stays until a choice is made; the pen keeps working
     gtk_popover_set_position(GTK_POPOVER(popover), GTK_POS_TOP);
+    // Big tiles like the Tools grid's, for a finger (in a car too): the three choices first, nearest the button
     static GtkCssProvider* css = [] {
         GtkCssProvider* p = gtk_css_provider_new();
-        gtk_css_provider_load_from_data(p,
-                                        ".xoai-rec .xoai-choice { min-width: 132px; min-height: 84px; padding: 4px; }"
-                                        ".xoai-rec .xoai-choice .xoai-choice-name { font-size: 15px; "
-                                        "  font-weight: bold; }"
-                                        ".xoai-rec .xoai-choice .xoai-choice-hint { font-size: 11px; }"
-                                        ".xoai-rec .xoai-rec-title { font-size: 15px; font-weight: bold; }"
-                                        ".xoai-rec entry { font-size: 15px; min-height: 40px; }"
-                                        ".xoai-rec .xoai-big { min-width: 52px; min-height: 44px; }"
-                                        ".xoai-rec .xoai-chip { min-height: 36px; padding: 0 10px; }",
-                                        -1, nullptr);
+        gtk_css_provider_load_from_data(
+                p,
+                ".xoai-rec .xoai-rec-title { font-size: 16px; font-weight: bold; }"
+                ".xoai-rec .xoai-rec-heading { font-size: 0.8em; font-weight: bold; opacity: 0.6; margin-top: 2px; }"
+                ".xoai-rec .xoai-choice { min-width: 128px; min-height: 108px; padding: 6px 4px; border-radius: 14px; }"
+                ".xoai-rec .xoai-choice .xoai-choice-name { font-size: 16px; font-weight: bold; }"
+                ".xoai-rec .xoai-choice .xoai-choice-hint { font-size: 11px; opacity: 0.75; }"
+                ".xoai-rec .xoai-choice.xoai-choice-ai { color: #ffffff; border: none;"
+                "  background-image: linear-gradient(160deg, #b57bff, #7b3fe0);"
+                "  box-shadow: 0 2px 8px alpha(#7b3fe0, 0.5), inset 0 1px alpha(#ffffff, 0.3); }"
+                ".xoai-rec .xoai-choice.xoai-choice-ai label, .xoai-rec .xoai-choice.xoai-choice-ai image {"
+                "  color: #ffffff; }"
+                ".xoai-rec .xoai-choice.xoai-choice-ai:hover {"
+                "  background-image: linear-gradient(160deg, #c393ff, #8d55ec); }"
+                ".xoai-rec entry { font-size: 16px; min-height: 52px; border-radius: 12px; }"
+                ".xoai-rec .xoai-big { min-width: 76px; min-height: 64px; padding: 2px 4px; border-radius: 12px; }"
+                ".xoai-rec .xoai-big label { font-size: 0.85em; }"
+                ".xoai-rec .xoai-rec-close { min-width: 52px; min-height: 52px; border-radius: 14px; }"
+                ".xoai-rec .xoai-chip { min-height: 48px; padding: 0 14px; border-radius: 12px; font-size: 14px; }",
+                -1, nullptr);
         return p;
     }();
     gtk_style_context_add_provider_for_screen(gdk_screen_get_default(), GTK_STYLE_PROVIDER(css),
@@ -90,34 +134,46 @@ RecordingChooser::RecordingChooser(GtkWidget* canvas, Chosen chosen): canvas(can
     gtk_style_context_add_class(gtk_widget_get_style_context(details), "dim-label");
     gtk_box_pack_start(GTK_BOX(texts), title, false, false, 0);
     gtk_box_pack_start(GTK_BOX(texts), details, false, false, 0);
+    gtk_widget_set_valign(texts, GTK_ALIGN_CENTER);
     gtk_box_pack_start(GTK_BOX(head), texts, true, true, 0);
     GtkWidget* closeButton = gtk_button_new_from_icon_name("window-close-symbolic", GTK_ICON_SIZE_LARGE_TOOLBAR);
     gtk_widget_set_valign(closeButton, GTK_ALIGN_START);
     gtk_buildable_set_name(GTK_BUILDABLE(closeButton), "recording-close");
     gtk_widget_set_tooltip_text(closeButton, "Keep only the audio");
     gtk_button_set_relief(GTK_BUTTON(closeButton), GTK_RELIEF_NONE);
+    gtk_widget_set_can_focus(closeButton, false);
+    gtk_style_context_add_class(gtk_widget_get_style_context(closeButton), "xoai-rec-close");
     g_signal_connect_swapped(
             closeButton, "clicked",
             G_CALLBACK(+[](gpointer self) { static_cast<RecordingChooser*>(self)->choose(Choice::Keep); }), this);
     gtk_box_pack_end(GTK_BOX(head), closeButton, false, false, 0);
     gtk_box_pack_start(GTK_BOX(box), head, false, false, 0);
 
+    // The three choices: one tap each
+    GtkWidget* row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+    gtk_box_set_homogeneous(GTK_BOX(row), true);
+    for (const auto& o: OPTIONS) {
+        GtkWidget* b = tile(o.id, o.icon, 40, o.label, o.hint, o.tooltip);
+        gtk_style_context_add_class(gtk_widget_get_style_context(b), "xoai-choice");
+        if (o.choice == Choice::Instructions) {
+            gtk_style_context_add_class(gtk_widget_get_style_context(b), "xoai-choice-ai");
+        }
+        g_object_set_data(G_OBJECT(b), "recording-choice", GINT_TO_POINTER(static_cast<int>(o.choice)));
+        g_signal_connect(b, "clicked", G_CALLBACK(+[](GtkButton* b, gpointer self) {
+                             static_cast<RecordingChooser*>(self)->choose(static_cast<Choice>(
+                                     GPOINTER_TO_INT(g_object_get_data(G_OBJECT(b), "recording-choice"))));
+                         }),
+                         this);
+        gtk_box_pack_start(GTK_BOX(row), b, true, true, 0);
+    }
+    gtk_box_pack_start(GTK_BOX(box), row, false, false, 0);
+
     // What the AI should do: typed, dictated (hold the mic or the pen button) or picked from the chips
+    gtk_box_pack_start(GTK_BOX(box), heading("What should AI do? (optional; sent with Notes)"), false, false, 0);
     GtkWidget* ask = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
-    request = gtk_entry_new();
-    gtk_buildable_set_name(GTK_BUILDABLE(request), "recording-request");
-    gtk_entry_set_placeholder_text(GTK_ENTRY(request),
-                                   "What should AI do? (optional: type, or hold the mic or the pen button)");
-    gtk_entry_set_width_chars(GTK_ENTRY(request), 44);
-    g_signal_connect(request, "activate", G_CALLBACK(+[](GtkEntry*, gpointer self) {
-                         static_cast<RecordingChooser*>(self)->choose(Choice::Notes);  // Enter: notes, as asked
-                     }),
-                     this);
-    gtk_box_pack_start(GTK_BOX(ask), request, true, true, 0);
-    GtkWidget* mic = gtk_button_new_from_icon_name("audio-input-microphone-symbolic", GTK_ICON_SIZE_LARGE_TOOLBAR);
+    GtkWidget* mic = tile("recording-mic", "audio-input-microphone-symbolic", 30, nullptr, "Hold to say",
+                          "Hold to talk (English)");
     gtk_style_context_add_class(gtk_widget_get_style_context(mic), "xoai-big");
-    gtk_buildable_set_name(GTK_BUILDABLE(mic), "recording-mic");
-    gtk_widget_set_tooltip_text(mic, "Hold to talk (English)");
     g_signal_connect(mic, "button-press-event", G_CALLBACK(+[](GtkWidget*, GdkEvent*, gpointer self) -> gboolean {
                          auto* s = static_cast<RecordingChooser*>(self);
                          if (s->onMic) {
@@ -135,20 +191,30 @@ RecordingChooser::RecordingChooser(GtkWidget* canvas, Chosen chosen): canvas(can
                      }),
                      this);
     gtk_box_pack_start(GTK_BOX(ask), mic, false, false, 0);
-    GtkWidget* send = gtk_button_new_from_icon_name("mail-send-symbolic", GTK_ICON_SIZE_LARGE_TOOLBAR);
+    request = gtk_entry_new();
+    gtk_buildable_set_name(GTK_BUILDABLE(request), "recording-request");
+    gtk_entry_set_placeholder_text(GTK_ENTRY(request), "Type, or hold the mic or the pen button");
+    gtk_entry_set_width_chars(GTK_ENTRY(request), 30);
+    gtk_widget_set_valign(request, GTK_ALIGN_CENTER);
+    g_signal_connect(request, "activate", G_CALLBACK(+[](GtkEntry*, gpointer self) {
+                         static_cast<RecordingChooser*>(self)->choose(Choice::Notes);  // Enter: notes, as asked
+                     }),
+                     this);
+    gtk_box_pack_start(GTK_BOX(ask), request, true, true, 0);
+    GtkWidget* send = tile("recording-send", "mail-send-symbolic", 30, nullptr, "Send",
+                           "Notes, with this request (Enter)");
     gtk_style_context_add_class(gtk_widget_get_style_context(send), "xoai-big");
-    gtk_buildable_set_name(GTK_BUILDABLE(send), "recording-send");
-    gtk_widget_set_tooltip_text(send, "Notes, with this request (Enter)");
     g_signal_connect_swapped(
             send, "clicked",
             G_CALLBACK(+[](gpointer self) { static_cast<RecordingChooser*>(self)->choose(Choice::Notes); }), this);
     gtk_box_pack_start(GTK_BOX(ask), send, false, false, 0);
     gtk_box_pack_start(GTK_BOX(box), ask, false, false, 0);
 
-    GtkWidget* chips = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
+    GtkWidget* chips = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
     for (const auto& [id, label, phrase]: CHIPS) {
         GtkWidget* chip = gtk_button_new_with_label(label);
         gtk_style_context_add_class(gtk_widget_get_style_context(chip), "xoai-chip");
+        gtk_widget_set_can_focus(chip, false);
         gtk_buildable_set_name(GTK_BUILDABLE(chip), id);
         g_object_set_data(G_OBJECT(chip), "chip-phrase", const_cast<char*>(phrase));
         g_signal_connect(chip, "clicked", G_CALLBACK(+[](GtkButton* b, gpointer self) {
@@ -156,7 +222,7 @@ RecordingChooser::RecordingChooser(GtkWidget* canvas, Chosen chosen): canvas(can
                                      static_cast<const char*>(g_object_get_data(G_OBJECT(b), "chip-phrase")));
                          }),
                          this);
-        gtk_box_pack_start(GTK_BOX(chips), chip, false, false, 0);
+        gtk_box_pack_start(GTK_BOX(chips), chip, true, true, 0);
     }
     gtk_box_pack_start(GTK_BOX(box), chips, false, false, 0);
 
@@ -166,58 +232,46 @@ RecordingChooser::RecordingChooser(GtkWidget* canvas, Chosen chosen): canvas(can
     gtk_style_context_add_class(gtk_widget_get_style_context(status), "dim-label");
     gtk_box_pack_start(GTK_BOX(box), status, false, false, 0);
 
-    GtkWidget* row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
-    gtk_box_set_homogeneous(GTK_BOX(row), true);
-    for (const auto& o: OPTIONS) {
-        GtkWidget* b = gtk_button_new();
-        GtkWidget* inner = gtk_box_new(GTK_ORIENTATION_VERTICAL, 3);
-        gtk_box_pack_start(GTK_BOX(inner), gtk_image_new_from_icon_name(o.icon, GTK_ICON_SIZE_DND), false, false, 0);
-        GtkWidget* n = gtk_label_new(o.label);
-        gtk_style_context_add_class(gtk_widget_get_style_context(n), "xoai-choice-name");
-        gtk_box_pack_start(GTK_BOX(inner), n, false, false, 0);
-        GtkWidget* h = gtk_label_new(o.hint);
-        gtk_style_context_add_class(gtk_widget_get_style_context(h), "xoai-choice-hint");
-        gtk_style_context_add_class(gtk_widget_get_style_context(h), "dim-label");
-        gtk_box_pack_start(GTK_BOX(inner), h, false, false, 0);
-        gtk_container_add(GTK_CONTAINER(b), inner);
-        gtk_style_context_add_class(gtk_widget_get_style_context(b), "xoai-choice");
-        if (o.choice == Choice::Instructions) {
-            gtk_style_context_add_class(gtk_widget_get_style_context(b), "suggested-action");
-        }
-        gtk_buildable_set_name(GTK_BUILDABLE(b), o.id);
-        gtk_widget_set_tooltip_text(b, o.tooltip);
-        g_object_set_data(G_OBJECT(b), "recording-choice", GINT_TO_POINTER(static_cast<int>(o.choice)));
-        g_signal_connect(b, "clicked", G_CALLBACK(+[](GtkButton* b, gpointer self) {
-                             static_cast<RecordingChooser*>(self)->choose(static_cast<Choice>(
-                                     GPOINTER_TO_INT(g_object_get_data(G_OBJECT(b), "recording-choice"))));
-                         }),
-                         this);
-        gtk_box_pack_start(GTK_BOX(row), b, true, true, 0);
-    }
-    gtk_box_pack_start(GTK_BOX(box), row, false, false, 0);
-
     gtk_container_add(GTK_CONTAINER(popover), box);
     gtk_widget_show_all(box);
     gtk_widget_hide(status);
     g_object_ref(popover);  // kept while this object lives
 
-    // A popover hides with its canvas (Focus mode, full screen, a minimized window): back when the canvas is
-    canvasMapped = g_signal_connect_swapped(canvas, "map", G_CALLBACK(+[](gpointer self) {
-                                                auto* s = static_cast<RecordingChooser*>(self);
-                                                if (!s->reshow) {  // (once it has its size again)
-                                                    s->reshow = g_idle_add(
-                                                            +[](gpointer self) -> gboolean {
-                                                                auto* s = static_cast<RecordingChooser*>(self);
-                                                                s->reshow = 0;
-                                                                if (!s->queue.empty() && !s->visible()) {
-                                                                    s->showFront(true);
-                                                                }
-                                                                return G_SOURCE_REMOVE;
-                                                            },
-                                                            s);
-                                                }
-                                            }),
-                                            this);
+    // A popover hides with the widget it points at (the canvas in Focus mode, full screen, a minimized window; the
+    // Record button when hidden): back when that is shown again
+    canvasMapped = g_signal_connect_swapped(canvas, "map", G_CALLBACK(mapped), this);
+}
+
+void RecordingChooser::mapped(gpointer self) {
+    auto* s = static_cast<RecordingChooser*>(self);
+    if (!s->reshow) {  // (once it has its size again)
+        s->reshow = g_idle_add(
+                +[](gpointer self) -> gboolean {
+                    auto* s = static_cast<RecordingChooser*>(self);
+                    s->reshow = 0;
+                    if (!s->queue.empty() && !s->visible()) {
+                        s->showFront(true);
+                    }
+                    return G_SOURCE_REMOVE;
+                },
+                s);
+    }
+}
+
+void RecordingChooser::setAnchor(GtkWidget* w) {
+    if (anchor == w) {
+        return;
+    }
+    if (anchor) {
+        g_signal_handler_disconnect(anchor, anchorMapped);
+        g_object_remove_weak_pointer(G_OBJECT(anchor), reinterpret_cast<gpointer*>(&anchor));
+    }
+    anchor = w;
+    anchorMapped = 0;
+    if (anchor) {
+        g_object_add_weak_pointer(G_OBJECT(anchor), reinterpret_cast<gpointer*>(&anchor));
+        anchorMapped = g_signal_connect_swapped(anchor, "map", G_CALLBACK(mapped), this);
+    }
 }
 
 void RecordingChooser::setMic(Mic mic) { onMic = std::move(mic); }
@@ -255,6 +309,7 @@ RecordingChooser::~RecordingChooser() {
     if (canvasMapped && GTK_IS_WIDGET(canvas)) {
         g_signal_handler_disconnect(canvas, canvasMapped);
     }
+    setAnchor(nullptr);
     if (popover) {
         gtk_widget_destroy(popover);
         g_object_unref(popover);
@@ -297,10 +352,20 @@ void RecordingChooser::showFront(bool fresh) {
     }
     gtk_entry_set_text(GTK_ENTRY(request), "");
     setStatus("");
-    // Above the status line, in the middle of the canvas
-    const GdkRectangle at{gtk_widget_get_allocated_width(canvas) / 2, gtk_widget_get_allocated_height(canvas) - 8, 1,
-                          1};
-    gtk_popover_set_pointing_to(GTK_POPOVER(popover), &at);
+    // Right under the big Record button, like the Tools grid under its button: the hand that stopped the recording
+    // is there (in a car too). Before, it opened in the middle of the canvas, at its bottom (2026-11-09)
+    if (anchor && gtk_widget_get_mapped(anchor)) {
+        gtk_popover_set_relative_to(GTK_POPOVER(popover), anchor);
+        const GdkRectangle at{0, 0, gtk_widget_get_allocated_width(anchor), gtk_widget_get_allocated_height(anchor)};
+        gtk_popover_set_pointing_to(GTK_POPOVER(popover), &at);
+        gtk_popover_set_position(GTK_POPOVER(popover), GTK_POS_BOTTOM);
+    } else {  // (the button is off: above the status line, in the middle of the canvas)
+        gtk_popover_set_relative_to(GTK_POPOVER(popover), canvas);
+        const GdkRectangle at{gtk_widget_get_allocated_width(canvas) / 2, gtk_widget_get_allocated_height(canvas) - 8,
+                              1, 1};
+        gtk_popover_set_pointing_to(GTK_POPOVER(popover), &at);
+        gtk_popover_set_position(GTK_POPOVER(popover), GTK_POS_TOP);
+    }
     gtk_popover_popup(GTK_POPOVER(popover));
 }
 

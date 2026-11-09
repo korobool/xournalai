@@ -2,8 +2,8 @@
  * xournalai (based on Xournal++)
  *
  * When a recording stops, the owner decides what it is before anything happens: spoken instructions for the
- * assistant, notes to keep (a transcript, never instructions), or just the audio. Big targets for a finger or a
- * stylus. "What should AI do?": a request the owner types, dictates (mic or pen button) or builds from chips; it is
+ * assistant, notes to keep (a transcript, never instructions), or just the audio. It opens under the big Record
+ * button, with big tiles like the Tools grid's for a finger or a stylus. "What should AI do?": a request the owner types, dictates (mic or pen button) or builds from chips; it is
  * the owner's own instruction, unlike the recording's speech. Enter sends it with Notes. Recordings that end while
  * it is open wait their turn; a new one comes first when it was closed without a choice.
  *
@@ -48,6 +48,8 @@ public:
     bool visible() const;
 
     void setMic(Mic mic);
+    /// The big Record button: the chooser opens under it while it is shown (else at the bottom of the canvas)
+    void setAnchor(GtkWidget* recordButton);
     /// Appends dictated text to the request (after a space)
     void appendText(const std::string& more);
     /// A short status under the request ("listening…", "nothing heard", …); "" hides it
@@ -57,6 +59,7 @@ private:
     void showFront(bool fresh);  ///< fresh: a new recording is in front (else only the count changed)
     void choose(Choice c);
     void addPhrase(const std::string& phrase);  ///< a chip: "…; phrase"
+    static void mapped(gpointer self);          ///< the canvas or the anchor is shown again
 
     GtkWidget* canvas = nullptr;
     GtkWidget* popover = nullptr;  ///< owned via the canvas (a GtkPopover's relative_to)
@@ -69,6 +72,8 @@ private:
     std::deque<Recording> queue;
     gulong canvasMapped = 0;  ///< the canvas's "map" handler: shows a closed chooser again
     guint reshow = 0;         ///< idle source showing it once the canvas has its size
+    GtkWidget* anchor = nullptr;  ///< weak: the Record button
+    gulong anchorMapped = 0;
 };
 
 }  // namespace xoj::assistant

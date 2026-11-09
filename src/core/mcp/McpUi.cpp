@@ -884,6 +884,7 @@ void McpUi::onRecordingFinished(const std::string& file, const std::string& name
             dictate(pressed);
         });
     }
+    recordingChooser->setAnchor(quickTools ? quickTools->recordWidget() : nullptr);  // (it opens under it)
     // Nothing is sent before the owner says what it is
     recordingChooser->offer({file, name, durationMs, ink.page, ink.ids.size()});
 }

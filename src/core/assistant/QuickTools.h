@@ -58,6 +58,7 @@ public:
     /// The big Record button next to Tools (experimental): starts and stops audio recording
     void setRecordVisible(bool visible);
     bool recordWanted() const { return wantRecord; }
+    GtkWidget* recordWidget() const { return recordButton; }  ///< (null before placeButton)
     /// The big Full screen button next to Record: toggles the app's full-screen mode
     void setFullscreenVisible(bool visible);
     bool fullscreenWanted() const { return wantFullscreen; }
