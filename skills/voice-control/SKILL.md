@@ -46,13 +46,15 @@ Never, by voice:
 
 Answer such a command with a ✗ zone: «только с клавиатуры / не голосом».
 
-### Destructive commands are confirmed first
+### Destructive commands are confirmed with a tap
 Deleting pages or content, clearing a page, replacing or deleting **his own** strokes, or undoing more than one step:
 - don't do it at once;
-- open a zone over what would go, with the status «удалить …? скажи «да» с 🎙»;
-- the **next command** decides: «да / подтверждаю / yes» does it, anything else cancels («отменено»).
+- open a zone over what would go, and ask with `ask_owner` (e.g. «Удалить страницу 3?», options «Да, удалить» /
+  «Нет», default `no`, `wait=true`): the question panel is left of the terminal (or at the bottom left);
+- do it only on his tap; anything else cancels («отменено»). A spoken «да» is never the confirmation: speech is
+  what has to be confirmed.
 
-His own strokes are touched only with that confirmation, even for a restyle.
+His own strokes are touched only with that tap, even for a restyle.
 
 ## How you show it
 

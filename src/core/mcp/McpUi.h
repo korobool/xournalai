@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <functional>  // for function
 #include <map>
 #include <memory>    // for unique_ptr
 #include <optional>  // for optional
@@ -51,6 +52,7 @@ class SpeechToText;
 class AskController;
 struct AskCapture;
 class AskPopover;
+class QuestionPanel;
 class RecordingChooser;
 }  // namespace xoj::assistant
 namespace xoj::api {
@@ -120,6 +122,17 @@ public:
     void endWorkerZones(const std::string& name, const std::string& why);
     json workers() const;
 #endif
+    /// The question panel (1.17.2): an agent asks, the owner taps an answer. `options`: (label, value); none = a yes/no
+    /// question. `done` gets (value, by: owner | timeout | cancelled). Returns the question's id (0: no panel)
+    int askOwner(const std::string& who, const std::string& text,
+                 const std::vector<std::pair<std::string, std::string>>& options, const std::string& fallback,
+                 int timeoutS, std::function<void(const std::string& value, const std::string& by)> done);
+    bool cancelQuestion(int id);
+    /// An intent for the serving session (delivered when it is idle); nothing without the terminal
+    void wakeServing(const std::string& text);
+    /// The questions waiting, and the answers of the last ones
+    json questions() const;
+    std::optional<json> questionAnswer(int id) const;
     /// Local speech to text for Ask (null if disabled or not built)
     assistant::SpeechToText* speech() const { return speechToText.get(); }
     /// Ask (pen button held: listen; the lasso tells where): its state and the last request, for app_status
@@ -272,6 +285,11 @@ private:
     void submitAsk(const std::string& command, const std::string& text);
     /// `area` of `page` in canvas widget coordinates (null if not shown)
     std::optional<GdkRectangle> canvasRect(size_t page, const xoj::util::Rectangle<double>& area) const;
+    void buildQuestions();
+    void onQuestionAnswered(int id, const std::string& value, const std::string& by);
+    std::unique_ptr<assistant::QuestionPanel> questionPanel;
+    std::map<int, std::function<void(const std::string&, const std::string&)>> questionDone;
+    std::map<int, json> questionAnswers;  ///< the last answers (for agents that look later)
 #ifdef ENABLE_AI_TERMINAL
     void buildTerminal();
     assistant::TerminalSpec terminalSpec(const std::string& kind, bool serving) const;

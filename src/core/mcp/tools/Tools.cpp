@@ -33,6 +33,7 @@ void registerAll(McpServer& server) {
     registerAudioTools(server);
     registerLiveTools(server);
     registerWorkerTools(server);
+    registerQuestionTools(server);
     registerTestTools(server);  // only with XOURNALAI_TEST_HOOKS=1
 }
 

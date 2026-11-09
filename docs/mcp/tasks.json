@@ -3841,6 +3841,43 @@
               "finished": "2026-11-09T21:42:50+00:00"
             }
           ]
+        },
+        {
+          "id": "S15.16",
+          "title": "❓ The question panel",
+          "version": "1.17.2",
+          "stories": [
+            {
+              "id": "US-15.21",
+              "text": "As the owner, I want agents' questions and confirmations as big buttons left of the AI terminal (the terminal in the middle, the keys on the right), or on the canvas when the terminal is closed, so I answer with a tap and never type confirmations.",
+              "acceptance": [
+                "the strip left of the terminal: who asks, the question, the agent's options, Да / Нет always in place",
+                "a queue, a countdown and a safe default",
+                "a card at the bottom left of the canvas when the terminal is closed",
+                "agents ask with ask_owner; a tap is the only answer"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T15.16.1",
+              "story": "US-15.21",
+              "title": "The question panel and ask_owner",
+              "details": "The owner (21:3x, and via the companion from the 21:28 recording): a smart panel of dynamic touch buttons left of the AI terminal for agents' questions and confirmations («да, рисовать», «да, делать», choices), the terminal in the middle, the keys on the right. QuestionPanel: one queue, two views: the strip in the terminal (TerminalDock::setSidePanel: left of the tab pages, ~17% of the dock, 200-340 px; the pages leave a start margin; the whole strip scrolls in a low terminal and never spills over the tabs) and a card at the bottom left of the canvas when the terminal isn't shown (it follows the strip's map/unmap). It shows who asks (Claude, ⚙ T4), the question, the agent's options as big buttons, a countdown to the safe default and, always at the bottom, Да (green; only for yes/no questions) and Нет (red; for a choice it skips it). Option buttons are rebuilt only when the question shown changes (a tap is never lost to a refresh). Tool ask_owner: op=ask (question, options ≤ 6, default, timeout_s 10-600, wait: the call returns the answer; or not: the serving session is woken with it, a worker looks with op=get), get, cancel, list; answers: the label tapped, yes/no, by owner | timeout | cancelled; questions still open when the window goes are answered cancelled. The Record menu's ❓ toggle is available; options.md, drawing.md (his strokes only after a tap), voice-control (destructive commands confirmed with a tap, never a spoken «да»), the serving session's and the workers' CLAUDE.md say to ask with a tap. test_e16_questions 6/6 (left, middle, right; options and a tap; waiting for a tap; the default on silence; a queue and a worker's question; the card on the canvas). Screenshots on the test display: the strip and the card.",
+              "commit": "ai: the question panel: agents ask, the owner taps (ask_owner)",
+              "status": "done",
+              "started": "2026-11-09T22:00:36+00:00",
+              "finished": "2026-11-09T22:00:37+00:00"
+            },
+            {
+              "id": "T15.16.2",
+              "story": "US-15.21",
+              "title": "Release 1.17.2",
+              "details": "",
+              "commit": "",
+              "status": "todo"
+            }
+          ]
         }
       ]
     }

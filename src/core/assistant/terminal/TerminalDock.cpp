@@ -153,7 +153,7 @@ TerminalDock::~TerminalDock() {
         gtk_style_context_remove_provider_for_screen(gdk_screen_get_default(), GTK_STYLE_PROVIDER(pageCss));
         g_object_unref(pageCss);
     }
-    for (GtkWidget** w: {&overlay, &paned, &dock, &notebook}) {
+    for (GtkWidget** w: {&overlay, &paned, &dock, &notebook, &keysPanel, &sidePanel}) {
         if (*w) {
             g_object_remove_weak_pointer(G_OBJECT(*w), reinterpret_cast<gpointer*>(w));
         }
@@ -862,6 +862,7 @@ int TerminalDock::openTab(const TerminalSpec& spec, bool focus) {
     tab->page = page;
     g_object_add_weak_pointer(G_OBJECT(page), reinterpret_cast<gpointer*>(&tab->page));
     gtk_widget_set_margin_end(page, showKeys ? keysWidth : 0);  // (the keys are there)
+    gtk_widget_set_margin_start(page, sidePanel ? sideWidth : 0);  // (and the questions)
 
     // The tab's label, with its close button
     GtkWidget* labelBox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 2);
@@ -1244,12 +1245,13 @@ void TerminalDock::buildKeys(GtkWidget* body) {
         gtk_grid_attach(GTK_GRID(keysPanel), b, k.col, k.row, k.width, k.height);
     }
     gtk_overlay_add_overlay(GTK_OVERLAY(body), keysPanel);
+    this->body = body;
     // In the room the terminal leaves it (the pages' end margin), about 15% of the dock's width: not less than the
     // keys need, not more than 320 px
     g_signal_connect(body, "get-child-position",
                      G_CALLBACK(+[](GtkOverlay* o, GtkWidget* child, GdkRectangle* r, gpointer d) -> gboolean {
                          auto* self = static_cast<TerminalDock*>(d);
-                         if (child != self->keysPanel) {
+                         if (child != self->keysPanel && child != self->sidePanel) {
                              return FALSE;
                          }
                          const int w = gtk_widget_get_allocated_width(GTK_WIDGET(o));
@@ -1257,6 +1259,20 @@ void TerminalDock::buildKeys(GtkWidget* body) {
                          Tab* tab = self->tabAt(self->currentTab());
                          int x = 0;
                          int y = 0;
+                         if (child == self->sidePanel) {  // (left of the page: the room its start margin leaves)
+                             if (tab && tab->page && gtk_widget_get_mapped(tab->page) &&
+                                 gtk_widget_translate_coordinates(tab->page, GTK_WIDGET(o), 0, 0, &x, &y)) {
+                                 r->x = std::max(0, x - self->sideWidth);
+                                 r->y = y;
+                                 r->height = gtk_widget_get_allocated_height(tab->page);
+                             } else {
+                                 r->x = 0;
+                                 r->y = 0;
+                                 r->height = h;
+                             }
+                             r->width = self->sideWidth;
+                             return TRUE;
+                         }
                          if (tab && tab->page && gtk_widget_get_mapped(tab->page) &&
                              gtk_widget_translate_coordinates(tab->page, GTK_WIDGET(o), 0, 0, &x, &y)) {
                              r->x = x + gtk_widget_get_allocated_width(tab->page);
@@ -1278,8 +1294,10 @@ void TerminalDock::buildKeys(GtkWidget* body) {
                          int need = 0;
                          gtk_widget_get_preferred_width(self->keysPanel, &need, nullptr);
                          const int w = std::max(need, std::clamp(a->width * 15 / 100, 110, 320));
-                         if (w != self->keysWidth && !self->keysResize) {
+                         const int side = self->sidePanel ? std::clamp(a->width * 17 / 100, 200, 340) : 0;
+                         if ((w != self->keysWidth || side != self->sideWidth) && !self->keysResize) {
                              self->keysWidth = w;
+                             self->sideWidth = side;
                              self->keysResize = g_idle_add(
                                      +[](gpointer d) -> gboolean {
                                          auto* self = static_cast<TerminalDock*>(d);
@@ -1306,11 +1324,28 @@ void TerminalDock::placeKeys() {
     for (Tab* t: tabs) {
         if (t->page) {
             gtk_widget_set_margin_end(t->page, showKeys ? keysWidth : 0);  // (the room for the keys)
+            gtk_widget_set_margin_start(t->page, sidePanel ? sideWidth : 0);  // (and for the questions)
         }
     }
     if (keysPanel) {
         gtk_widget_queue_resize(keysPanel);
     }
+    if (sidePanel) {
+        gtk_widget_queue_resize(sidePanel);
+    }
+}
+
+void TerminalDock::setSidePanel(GtkWidget* panel) {
+    if (!body || sidePanel == panel) {
+        return;
+    }
+    sidePanel = panel;
+    g_object_add_weak_pointer(G_OBJECT(sidePanel), reinterpret_cast<gpointer*>(&sidePanel));
+    gtk_overlay_add_overlay(GTK_OVERLAY(body), sidePanel);
+    const int w = gtk_widget_get_allocated_width(body);
+    sideWidth = std::clamp(w * 17 / 100, 200, 340);
+    gtk_widget_show(sidePanel);
+    placeKeys();
 }
 
 void TerminalDock::setKeysVisible(bool visible) {

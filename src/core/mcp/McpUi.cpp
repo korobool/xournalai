@@ -41,6 +41,7 @@
 #include "assistant/QuickTools.h"                // for QuickTools
 #include "assistant/RecordingChooser.h"          // for RecordingChooser
 #include "assistant/SpeechToText.h"              // for SpeechToText
+#include "assistant/QuestionPanel.h"            // for QuestionPanel
 #include "assistant/ThinkingOverlay.h"           // for ThinkingOverlay
 #include "control/RecordingObserver.h"           // for setRecordingObserver
 #include "control/AudioController.h"             // for AudioController
@@ -116,6 +117,7 @@ McpUi::McpUi(McpServer& server): server(server) {
     buildStrip();
     buildToolbar();
     buildThinking();
+    buildQuestions();
     if (auto* hub = server.getEvents()) {
         hub->addListener([this](const api::DocEvent& e) {
             noteUserStroke(e);
@@ -276,6 +278,7 @@ McpUi::~McpUi() {
         flashPopover = nullptr;
     }
     removeMenu();
+    questionPanel.reset();  // (first: questions still open are answered "cancelled" while all else is there)
     quickTools.reset();
     aiToolbar.reset();
     server.setWorkerHook(nullptr);
@@ -1720,6 +1723,118 @@ void McpUi::submitAsk(const std::string& command, const std::string& text) {
     update();
 }
 
+void McpUi::buildQuestions() {
+    questionPanel = std::make_unique<assistant::QuestionPanel>(
+            [this](int id, const std::string& value, const std::string& by) { onQuestionAnswered(id, value, by); });
+    // the card for when the terminal is not shown: bottom left of the canvas, where the left thumb is
+    GtkWidget* overlay = server.getControl()->getWindow()->get("mainOverlay");
+    if (overlay && GTK_IS_OVERLAY(overlay)) {
+        GtkWidget* card = questionPanel->floatView();
+        gtk_widget_set_no_show_all(card, TRUE);
+        gtk_overlay_add_overlay(GTK_OVERLAY(overlay), card);
+        gtk_widget_hide(card);
+        // at the bottom left of the canvas itself (never over the status bars)
+        g_signal_connect(overlay, "get-child-position",
+                         G_CALLBACK(+[](GtkOverlay* o, GtkWidget* child, GdkRectangle* r, gpointer d) -> gboolean {
+                             auto* ui = static_cast<McpUi*>(d);
+                             if (!ui->questionPanel || child != ui->questionPanel->floatView()) {
+                                 return FALSE;
+                             }
+                             GtkRequisition nat;
+                             gtk_widget_get_preferred_size(child, nullptr, &nat);
+                             GtkWidget* canvas = ui->server.getControl()->getWindow()->getXournal()->getWidget();
+                             int x = 0;
+                             int y = 0;
+                             int w = gtk_widget_get_allocated_width(GTK_WIDGET(o));
+                             int h = gtk_widget_get_allocated_height(GTK_WIDGET(o));
+                             if (canvas && gtk_widget_get_mapped(canvas) &&
+                                 gtk_widget_translate_coordinates(canvas, GTK_WIDGET(o), 0, 0, &x, &y)) {
+                                 w = gtk_widget_get_allocated_width(canvas);
+                                 h = gtk_widget_get_allocated_height(canvas);
+                             }
+                             r->width = std::min(nat.width, std::max(1, w - 32));
+                             r->height = std::min(nat.height, std::max(1, h - 32));
+                             r->x = x + 16;
+                             r->y = y + h - r->height - 16;
+                             return TRUE;
+                         }),
+                         this);
+    }
+}
+
+int McpUi::askOwner(const std::string& who, const std::string& text,
+                    const std::vector<std::pair<std::string, std::string>>& options, const std::string& fallback,
+                    int timeoutS, std::function<void(const std::string& value, const std::string& by)> done) {
+    if (!questionPanel) {
+        return 0;
+    }
+    assistant::QuestionPanel::Question q;
+    q.who = who;
+    q.text = text;
+    for (const auto& [label, value]: options) {
+        q.options.push_back({label, value});
+    }
+    q.fallback = fallback;
+    q.deadlineUs = timeoutS > 0 ? g_get_monotonic_time() + static_cast<gint64>(timeoutS) * G_USEC_PER_SEC : 0;
+    const int id = questionPanel->ask(q);
+    if (done) {
+        questionDone[id] = std::move(done);
+    }
+    update();
+    return id;
+}
+
+bool McpUi::cancelQuestion(int id) { return questionPanel && questionPanel->cancel(id); }
+
+void McpUi::wakeServing(const std::string& text) {
+#ifdef ENABLE_AI_TERMINAL
+    if (eventPump) {
+        eventPump->addIntent(text);
+    }
+#else
+    (void)text;
+#endif
+}
+
+void McpUi::onQuestionAnswered(int id, const std::string& value, const std::string& by) {
+    questionAnswers[id] = {{"answer", value}, {"by", by}};
+    while (questionAnswers.size() > 50) {
+        questionAnswers.erase(questionAnswers.begin());
+    }
+    if (auto it = questionDone.find(id); it != questionDone.end()) {
+        auto done = std::move(it->second);
+        questionDone.erase(it);
+        done(value, by);
+    }
+    update();
+}
+
+json McpUi::questions() const {
+    json waiting = json::array();
+    if (questionPanel) {
+        for (const auto& q: questionPanel->pending()) {
+            json options = json::array();
+            for (const auto& o: q.options) {
+                options.push_back(o.label);
+            }
+            waiting.push_back({{"id", q.id}, {"who", q.who}, {"question", q.text}, {"options", options},
+                               {"default", q.fallback}});
+        }
+    }
+    json answered = json::array();
+    for (const auto& [id, a]: questionAnswers) {
+        answered.push_back({{"id", id}, {"answer", a["answer"]}, {"by", a["by"]}});
+    }
+    return {{"waiting", waiting}, {"answered", answered}};
+}
+
+std::optional<json> McpUi::questionAnswer(int id) const {
+    if (auto it = questionAnswers.find(id); it != questionAnswers.end()) {
+        return std::optional<json>(std::in_place, it->second);
+    }
+    return std::nullopt;
+}
+
 json McpUi::askStatus() const {
     if (!ask) {
         return {{"state", "off"}};
@@ -1991,6 +2106,9 @@ void McpUi::buildTerminal() {
         return;
     }
     dock = std::make_unique<assistant::TerminalDock>(mainBox, content);
+    if (questionPanel) {
+        dock->setSidePanel(questionPanel->dockView());  // (left of the tabs: under the left thumb)
+    }
     dock->setPageBrightness([ctrl] {
         PageRef page = ctrl->getCurrentPage();
         if (!page) {

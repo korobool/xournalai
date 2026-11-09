@@ -40,7 +40,7 @@ const std::vector<Toggle>& toggles() {
             {"intense", "⚡ Интенсивно", "🌿 Экономно", true},
             {"summary", "🧾 Итог в конце", "", true},
             {"trigger", "🔤 Просьбы по слову", "", true},
-            {"questions", "❓ Панель вопросов", "", false},
+            {"questions", "❓ Панель вопросов", "", true},
             {"browser", "🔎 Браузер-помощник", "", false},
     };
     return list;

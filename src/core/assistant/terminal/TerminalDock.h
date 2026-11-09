@@ -65,6 +65,9 @@ public:
     void setKeysVisible(bool visible);
     bool keysVisible() const { return showKeys; }
 
+    /// A panel left of the tabs, under the left thumb (the agents' questions): the terminal in the middle, the big
+    /// keys on the right
+    void setSidePanel(GtkWidget* panel);
     void show();
     void hide();
     void toggle();
@@ -133,6 +136,9 @@ private:
     GtkWidget* keysButton = nullptr;  ///< shows or hides them
     bool showKeys = true;
     int keysWidth = 0;
+    GtkWidget* body = nullptr;       ///< the overlay over the tabs (the keys and the side panel lie on it)
+    GtkWidget* sidePanel = nullptr;  ///< weak: left of the tabs
+    int sideWidth = 0;
     guint keysResize = 0;  ///< idle: the panel's width follows the dock's (15%)
     guint holdTimer = 0;   ///< repeats the held key
     gint64 holdStart = 0;
