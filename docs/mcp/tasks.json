@@ -3744,6 +3744,59 @@
               "finished": "2026-11-09T20:43:28+00:00"
             }
           ]
+        },
+        {
+          "id": "S15.14",
+          "title": "Modes of live notes: the Record menu",
+          "version": "1.17.0",
+          "stories": [
+            {
+              "id": "US-15.19",
+              "text": "As the owner, I want to hold Record and pick what the recording is for (transcript only, requests on my drawing, a conspect with or without requests, a carefully laid-out conspect, voice control), with big options for the next recording (economy or intense, a summary at the end, requests only after a trigger word), all by finger, while a tap on Record stays the plain recording.",
+              "acceptance": [
+                "the long press shows every mode as a big tile and the options as big toggles, remembered",
+                "every wake-up line names the mode and what to read for it",
+                "📝 Текст wakes no agent while it records",
+                "a tap on Record is the plain recording, unchanged"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T15.14.1",
+              "story": "US-15.19",
+              "title": "The modes of live notes: the design",
+              "details": "docs/mcp/LIVE_MODES.md: the owner's modes (9 Nov evening) as presets over independent settings (annotate, requests, research, intensity, transcript), the Record menu (a grid of tiles, big toggles first, one tap starts), safety (the app should enforce the mode, not only the prose), the skill as a core and modules, ✍ drawing mode, the research browser (its own profile by default; CDP; the owner's Chrome needs the extension since Chrome 136), 🗒 ведение конспекта, 🎙 voice control, the decision panel (bottom left, under the left thumb), what the app does itself and what the agents do, the plan and the decisions (economy/intense as a switch; speaker separation deferred, experimental only).",
+              "commit": "docs: the modes of live notes (the design)",
+              "status": "done",
+              "started": "2026-11-09T21:05:20+00:00",
+              "finished": "2026-11-09T21:05:20+00:00"
+            },
+            {
+              "id": "T15.14.2",
+              "story": "US-15.19",
+              "title": "The Record menu: the modes as tiles, the options as big toggles; the mode in live notes",
+              "details": "LiveModes.h/.cpp: the modes (📝 Текст, 🎙 Голосовое управление (soon, 1.17.1), ✍ Просьбы к рисунку, 🧠 Конспект + просьбы, 🛡 Конспект без команд, 🗒 Ведение конспекта) and the toggles (🌿 Экономно ↔ ⚡ Интенсивно as a switch, 🧾 Итог в конце, 🔤 Просьбы по слову; ❓ and 🔎 shown as soon), remembered in <config>/ai-live-modes.json (the last mode is highlighted). The long press's popover: the toggles first (52 px chips), then the tiles three in a row (158×104: a big sign, the name, a line of what it does, the badges of the options that apply), the plain recording first; one tap starts. A tap on Record is unchanged. Every wake-up line keeps its start and names the mode after the event ('…: new transcribed speech. Mode «…» (id: annotate=…, requests=…; options: …).') with what to read (the skill's module, modes/options.md) and the mode's rule (🛡 nothing said is carried out; ✍ context only, requests on the owner's page). 📝 wakes nobody while it records, and only at the end for «Итог в конце». ✍ says where the owner drew last (EventHub::lastUserAddition: page, area, how long ago). live_notes status reports the mode. assistant.live_notes.trigger_words (default клод, claude). test_live_audio takes a mode. test_e15_live_modes 5/5: the menu and the remembered toggles with badges; a tap on Record is the plain recording (here the plain recorder's own messages: no audio folder, no sound card); the wake-up lines of 🛡 with its options; 📝 silent, then one summary wake; ✍ with the owner's latest ink. test_e15_live_notes_ui follows the new tiles.",
+              "commit": "ai: the Record menu: live-notes modes as tiles, options as big toggles",
+              "status": "todo"
+            },
+            {
+              "id": "T15.14.3",
+              "story": "US-15.19",
+              "title": "The live-annotation skill's modes",
+              "details": "skills/live-annotation/modes/: README (the table), safe.md (requests off, visual annotation), drawing.md (requests on the owner's page, «это» = his latest ink or selection, additions at once, his strokes only after he confirms, speed), konspekt.md (a page plan, the layout library, graphs from real numbers, a clean page every ~10 min and at the end), options.md (intense, summary, trigger; questions and browser not yet). SKILL.md: a paragraph on modes. The voice-control skill waits for 1.17.1.",
+              "commit": "ai: the live-annotation skill's modes",
+              "status": "todo"
+            },
+            {
+              "id": "T15.14.4",
+              "story": "US-15.19",
+              "title": "Release 1.17.0",
+              "details": "",
+              "commit": "",
+              "status": "todo"
+            }
+          ]
         }
       ]
     }
