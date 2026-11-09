@@ -10,6 +10,15 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.16.1 — The app stays inside its own folders
+- **The companion's skills ship with the app.** The `live-annotation` skill is installed with xournalai
+  (`share/xournalpp/companion-skills`). At start, the app copies it into its own companion folder
+  (`~/.local/share/xournalai/companion/.claude/skills`). Nothing goes into your own Claude settings (`~/.claude`):
+  after `git clone` and a build, everything the companion needs is there, and nothing else is touched.
+- **Tests never start a real Claude Code, Codex or OpenCode.** Test apps get stubs first on their PATH. While
+  live notes were being checked with a real Claude in a test app, its installer (started with the test's data
+  folder) re-pointed the owner's `~/.local/bin/claude` into a temporary folder.
+
 ## 1.16.0 — Live notes while recording (experimental)
 - **Record + live notes.** A long press on the big Record button opens two big tiles under it: **Record** (as a
   tap does) and **Record + live notes**. The recording itself is unchanged: the same file, and the same choice
