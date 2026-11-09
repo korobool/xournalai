@@ -18,6 +18,8 @@ const char* CSS = ".xoai-questions { padding: 6px; }"
                   "  color: #ffffff; border: none; background-image: linear-gradient(160deg, #4a90e2, #2d6fe0);"
                   "  box-shadow: 0 2px 6px alpha(#2d6fe0, 0.45), inset 0 1px alpha(#ffffff, 0.3); }"
                   ".xoai-question-option label { color: #ffffff; }"
+                  ".xoai-question-option.xoai-question-decline { background-image: linear-gradient(160deg, #8a8f99,"
+                  "  #5f646e); box-shadow: 0 2px 6px alpha(#000000, 0.3), inset 0 1px alpha(#ffffff, 0.25); }"
                   ".xoai-question-yes, .xoai-question-no { min-height: 54px; border-radius: 16px; font-size: 1.25em;"
                   "  font-weight: bold; color: #ffffff; border: none; }"
                   ".xoai-question-yes { background-image: linear-gradient(160deg, #3fc37a, #1e9a5a);"
@@ -184,35 +186,6 @@ GtkWidget* QuestionPanel::build(View& v, bool isFloating) {
     gtk_box_pack_start(GTK_BOX(box), v.text, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(box), v.options, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(box), v.left, FALSE, FALSE, 0);
-    // Да and Нет: always there, always in the same place, at the bottom (the thumb learns it)
-    GtkWidget* fixed = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
-    gtk_box_set_homogeneous(GTK_BOX(fixed), TRUE);
-    v.yes = gtk_button_new_with_label("Да");
-    v.no = gtk_button_new_with_label("Нет");
-    gtk_buildable_set_name(GTK_BUILDABLE(v.yes), (prefix + "Yes").c_str());
-    gtk_buildable_set_name(GTK_BUILDABLE(v.no), (prefix + "No").c_str());
-    gtk_style_context_add_class(gtk_widget_get_style_context(v.yes), "xoai-question-yes");
-    gtk_style_context_add_class(gtk_widget_get_style_context(v.no), "xoai-question-no");
-    for (GtkWidget* b: {v.yes, v.no}) {
-        gtk_widget_set_can_focus(b, FALSE);  // (the keyboard stays in the terminal)
-        g_object_set_data(G_OBJECT(b), "answer", const_cast<char*>(b == v.yes ? "yes" : "no"));
-        g_signal_connect(b, "clicked", G_CALLBACK(+[](GtkButton* b, gpointer d) {
-                             auto* self = static_cast<QuestionPanel*>(d);
-                             if (self->queue.empty()) {
-                                 return;
-                             }
-                             const auto& q = self->queue.front();
-                             const std::string a = static_cast<const char*>(g_object_get_data(G_OBJECT(b), "answer"));
-                             // a question with options: Нет skips it; Да only answers a yes/no question
-                             if (!q.options.empty() && a == "yes") {
-                                 return;
-                             }
-                             self->answer(q.id, q.options.empty() ? a : "no");
-                         }),
-                         this);
-        gtk_box_pack_start(GTK_BOX(fixed), b, TRUE, TRUE, 0);
-    }
-    gtk_box_pack_end(GTK_BOX(box), fixed, FALSE, FALSE, 0);
     if (isFloating) {
         v.root = box;
         gtk_style_context_add_class(ctx, "xoai-questions-card");
@@ -290,8 +263,6 @@ void QuestionPanel::refresh(View& v) {
         gtk_label_set_text(GTK_LABEL(v.text), "Вопросов нет");
         gtk_style_context_add_class(textCtx, "xoai-question-idle");
         gtk_label_set_text(GTK_LABEL(v.left), "");
-        gtk_widget_set_sensitive(v.yes, FALSE);
-        gtk_widget_set_sensitive(v.no, FALSE);
         return;
     }
     gtk_style_context_remove_class(textCtx, "xoai-question-idle");
@@ -302,16 +273,22 @@ void QuestionPanel::refresh(View& v) {
     }
     gtk_label_set_text(GTK_LABEL(v.who), who.c_str());
     gtk_label_set_text(GTK_LABEL(v.text), q.text.c_str());
-    gtk_widget_set_sensitive(v.yes, q.options.empty());
-    gtk_widget_set_sensitive(v.no, TRUE);
     const std::string prefix = &v == &floating ? "aiQuestionCardOption" : "aiQuestionOption";
-    for (size_t i = 0; i < q.options.size(); i++) {
-        GtkWidget* b = gtk_button_new_with_label(q.options[i].label.c_str());
+    // only the asker's buttons (the owner, 2026-11-09: a panel of dynamic buttons); a yes/no question: Да, Нет
+    std::vector<Option> options = q.options;
+    if (options.empty()) {
+        options = {{"Да", "yes"}, {"Нет", "no"}};
+    }
+    for (size_t i = 0; i < options.size(); i++) {
+        GtkWidget* b = gtk_button_new_with_label(options[i].label.c_str());
         gtk_label_set_line_wrap(GTK_LABEL(gtk_bin_get_child(GTK_BIN(b))), TRUE);
         gtk_buildable_set_name(GTK_BUILDABLE(b), (prefix + std::to_string(i + 1)).c_str());
         gtk_style_context_add_class(gtk_widget_get_style_context(b), "xoai-question-option");
         gtk_widget_set_can_focus(b, FALSE);
-        g_object_set_data_full(G_OBJECT(b), "value", g_strdup(q.options[i].value.c_str()), g_free);
+        g_object_set_data_full(G_OBJECT(b), "value", g_strdup(options[i].value.c_str()), g_free);
+        if (options[i].value == "no" || options[i].label == "Нет" || options[i].label == "Не надо") {
+            gtk_style_context_add_class(gtk_widget_get_style_context(b), "xoai-question-decline");
+        }
         g_object_set_data(G_OBJECT(b), "question", GINT_TO_POINTER(q.id));
         g_signal_connect(b, "clicked", G_CALLBACK(+[](GtkButton* b, gpointer d) {
                              const int id = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(b), "question"));

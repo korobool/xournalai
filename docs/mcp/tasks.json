@@ -3925,7 +3925,9 @@
               "title": "The question panel shows only the asker's buttons; a Tab key",
               "details": "The owner (22:47, by voice): the fixed Да / Нет aren't needed: a panel of dynamic buttons. Only the asker's options show (grey for «Нет» / «Не надо»); a yes/no question gets Да / Нет as its own two buttons; with no question only «Вопросов нет». ask_owner's description: offer «Нет» / «Не надо» yourself when he may decline. The terminal's key panel gets Tab (the owner, 22:5x), between Esc and ⌫; Space spans the four rows. test_e16_questions follows.",
               "commit": "ai: the question panel shows only the asker's buttons; a Tab key",
-              "status": "todo"
+              "status": "done",
+              "started": "2026-11-09T23:05:33+00:00",
+              "finished": "2026-11-09T23:05:34+00:00"
             },
             {
               "id": "T15.17.3",

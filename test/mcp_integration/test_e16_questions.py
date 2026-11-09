@@ -1,7 +1,8 @@
 """E16: the question panel (1.17.2, the owner's wish): agents ask with ask_owner and the owner answers with a tap. It
 is the strip left of the AI terminal (the terminal in the middle, the big keys on the right), or a card at the bottom
-left of the canvas when the terminal is closed: who asks, the question, the agent's options as big buttons, and
-always Да / Нет. Questions queue; silence gives the safe default; a worker's question says so."""
+left of the canvas when the terminal is closed: who asks, the question and only the asker's options as big buttons (a
+yes/no question: Да, Нет; the owner dropped fixed ones, 1.17.3). Questions queue; silence gives the safe default; a
+worker's question says so."""
 
 import threading
 import time
@@ -42,7 +43,7 @@ def test_1_the_panel_is_left_of_the_terminal_and_waits_for_questions(app):
     t = terms[0]
     assert panel[0] + panel[2] <= t[0] + 2 and t[0] + t[2] <= keys[0] + 2, (panel, t, keys)  # (left, middle, right)
     assert ws["aiQuestionText"]["label"] == "Вопросов нет"
-    assert ws["aiQuestionYes"].get("enabled", True) is False and ws["aiQuestionNo"].get("enabled", True) is False
+    assert not [n for n in ws if n.startswith("aiQuestionOption")] and "aiQuestionYes" not in ws  # (no buttons)
     assert "aiQuestionCard" not in on_screen(c)  # (the terminal is shown: no card on the canvas)
 
 
@@ -73,9 +74,9 @@ def test_3_a_yes_no_question_waits_for_the_tap(app):
     th.start()
     assert wait(lambda: widgets(c)["aiQuestionText"]["label"] == "Удалить страницу 3?")
     ws = widgets(c)
-    assert ws["aiQuestionYes"].get("enabled", True) is True and ws["aiQuestionLeft"]["label"].startswith("через "), \
-        ws["aiQuestionLeft"]
-    c.call("ui_interact", op="click", target=ws["aiQuestionYes"]["id"])
+    assert ws["aiQuestionOption1"]["label"] == "Да" and ws["aiQuestionOption2"]["label"] == "Нет", ws
+    assert ws["aiQuestionLeft"]["label"].startswith("через "), ws["aiQuestionLeft"]
+    c.call("ui_interact", op="click", target=ws["aiQuestionOption1"]["id"])
     th.join(15)
     assert result["r"]["answer"] == "yes" and result["r"]["by"] == "owner", result
 
@@ -94,10 +95,10 @@ def test_5_a_queue_and_a_worker_s_question(app):
     b = w.call("ask_owner", op="ask", question="Какой вариант?", options=["Этот", "Тот"], wait=False)
     ws = widgets(c)
     assert ws["aiQuestionWho"]["label"] == "Claude спрашивает · 1/2", ws["aiQuestionWho"]
-    c.call("ui_interact", op="click", target=ws["aiQuestionNo"]["id"])
+    c.call("ui_interact", op="click", target=ws["aiQuestionOption2"]["id"])  # (Нет)
     ws = widgets(c)
     assert ws["aiQuestionWho"]["label"] == "⚙ T4 спрашивает" and ws["aiQuestionText"]["label"] == "Какой вариант?"
-    assert ws["aiQuestionYes"].get("enabled", True) is False  # (a choice: Да would mean nothing)
+    assert not shown(ws, "aiQuestionOption3")  # (only its own two)
     c.call("ui_interact", op="click", target=ws["aiQuestionOption2"]["id"])
     assert c.call("ask_owner", op="get", id=a["id"])["answer"] == "no"
     assert w.call("ask_owner", op="get", id=b["id"])["answer"] == "Тот"

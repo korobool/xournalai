@@ -4,8 +4,8 @@
  * The question panel (1.17.2, the owner's wish): agents ask the owner, he answers with a tap. In the AI terminal it is
  * the strip on the left (the terminal in the middle, the big keys on the right), under the left thumb when he holds
  * the tablet; when the terminal is closed, the same card shows at the bottom left of the canvas. It shows who asks,
- * the question, the agent's options as big buttons ("Да, рисовать", "Этот", "Тот"), and always, in the same place,
- * Да and Нет. Questions wait in a queue; each has a safe default that applies when nobody answers in time. Answers
+ * the question and only the asker's options as big buttons ("Да, рисовать", "Этот", "Тот"; a yes/no question: Да,
+ * Нет). Questions wait in a queue; each has a safe default that applies when nobody answers in time. Answers
  * come only from a tap (speech is the untrusted channel): the trusted way to confirm what an agent may do.
  *
  * @license GNU GPLv2 or later
@@ -64,8 +64,6 @@ private:
         GtkWidget* text = nullptr;
         GtkWidget* options = nullptr;
         GtkWidget* left = nullptr;  ///< the countdown to the default
-        GtkWidget* yes = nullptr;
-        GtkWidget* no = nullptr;
         int shownId = -1;  ///< the question its option buttons are for (rebuilt only when it changes)
     };
     GtkWidget* build(View& v, bool floating);

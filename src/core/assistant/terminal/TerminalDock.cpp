@@ -1140,16 +1140,18 @@ struct Key {
     const char* bytes;  ///< what the terminal gets, as from the keyboard
     bool repeats;       ///< held: repeats like a held key
     const char* tip;
-    int col, row, width, height;  ///< in a grid of 5 columns, 3 rows
+    int col, row, width, height;  ///< in a grid of 5 columns, 4 rows
 };
 /// Space, for dictation, stands apart: the biggest, rightmost, all the height; the others in a column to its left
+/// (Tab: the owner's wish, 2026-11-09: completion, and moving between choices in Claude Code's menus)
 const Key KEYS[] = {
         {"aiTerminalKeyEscape", "Esc", "\x1b", false, "Escape", 0, 0, 2, 1},
-        {"aiTerminalKeyBackspace", "⌫", "\x7f", true, "Backspace (hold to delete more)", 0, 1, 2, 1},
-        {"aiTerminalKeyEnter", "⏎", "\r", false, "Enter: send", 0, 2, 2, 1},
+        {"aiTerminalKeyTab", "Tab ⇥", "\t", false, "Tab", 0, 1, 2, 1},
+        {"aiTerminalKeyBackspace", "⌫", "\x7f", true, "Backspace (hold to delete more)", 0, 2, 2, 1},
+        {"aiTerminalKeyEnter", "⏎", "\r", false, "Enter: send", 0, 3, 2, 1},
         {"aiTerminalKeySpace", "Space", " ", true,
          "Space. Hold it to dictate to Claude Code (its voice mode: /voice), as with the keyboard's space bar", 2, 0, 3,
-         3},
+         4},
 };
 }  // namespace
 
