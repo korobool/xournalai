@@ -25,11 +25,14 @@ void registerThinkingTools(McpServer& server) {
             "changes the status; op=done (a green tick that fades) or op=fail (a red mark) ends it. Zones for "
             "toolbar actions and markers are created and closed by the app itself; use this for work you start on "
             "your own (e.g. Auto-improve), and keep the status short (\"typesetting formula…\"). A worker session's "
-            "zone (one in a tab of the AI terminal) is its own: it is labelled with the worker's name and lasts until "
-            "the worker ends it (done/fail) or the worker is closed, whatever the serving session does meanwhile. "
-            "color (e.g. the topic's \"#8b3a62\"): the zone's outline and veil in that colour.";
+            "zone (one in a tab of the AI terminal) is its own: it is labelled with the worker's name. A zone you open "
+            "lasts until you end it (done/fail), whatever turns end meanwhile (or the owner stops it, or after 10 "
+            "minutes; a worker's when it is closed): always end it. "
+            "color (e.g. the topic's \"#8b3a62\"): the zone's outline and veil in that colour. op=say (text; page and "
+            "region optional): a short answer to the owner as a tip by that region (or at the top of the canvas) for a "
+            "few seconds, e.g. in voice control's dialogue.";
     t.inputSchema = schema::object(
-            {{"op", schema::enumeration("start | update | done | fail", {"start", "update", "done", "fail"})},
+            {{"op", schema::enumeration("start | update | done | fail | say", {"start", "update", "done", "fail", "say"})},
              {"id", schema::integer("Zone id (from start) for update/done/fail")},
              {"page", schema::integer("start: page (1-based); default: current page")},
              {"region", schema::array("start: area [x, y, width, height] in page points (default: the page)",
@@ -47,13 +50,25 @@ void registerThinkingTools(McpServer& server) {
         if (!ov) {
             throw ToolError("This window can't show thinking zones");
         }
-        const std::string op = args.choice("op", {"start", "update", "done", "fail"}, "");
+        const std::string op = args.choice("op", {"start", "update", "done", "fail", "say"}, "");
         const std::string text = args.str("text", "");
         using S = assistant::ThinkingOverlay::State;
         // a worker's zone says whose it is
         auto labelled = [](const std::string& owner, const std::string& t) {
             return owner.empty() || t.empty() || t.rfind("⚙ " + owner + " · ", 0) == 0 ? t : "⚙ " + owner + " · " + t;
         };
+        if (op == "say") {
+            // a short answer to the owner (voice control's dialogue): a tip by the region, or at the top
+            if (text.empty()) {
+                throw ToolError("say: the text to show");
+            }
+            std::optional<std::pair<size_t, xoj::util::Rectangle<double>>> where;
+            if (auto region = parseRegion(args)) {
+                where = std::make_pair(resolvePageIndex(ctrl, args), *region);
+            }
+            ov->flashReply(labelled(callingWorker(), text), where);
+            return ToolResult::structured({{"shown", true}});
+        }
         if (op == "start") {
             const size_t page = resolvePageIndex(ctrl, args);
             auto region = parseRegion(args);
@@ -64,6 +79,7 @@ void registerThinkingTools(McpServer& server) {
             const std::string& owner = callingWorker();
             const int id = ov->add(page, region ? *region : ui->pageArea(page),
                                    labelled(owner, text.empty() ? "working…" : text), S::Thinking, owner, rgb);
+            ov->setKept(id);  // (until the agent ends it: its turn may end long before, e.g. in voice control)
             return ToolResult::structured({{"id", id}});
         }
         const auto id = static_cast<int>(args.integer("id", 0, 1, 1 << 30));

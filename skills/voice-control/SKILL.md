@@ -1,31 +1,37 @@
 ---
 name: voice-control
-description: Carry out the owner's spoken commands in xournalai's voice-control mode (🎙 Голосовое управление, a long press on Record). Nothing is written on the page for the talk itself; each command is done on the open document with a thinking zone that shows it and ends with ✓ or ✗. Use when woken with "Voice command (recording …)".
+description: The owner works xournalai by voice (🎙 Голосовое управление, a long press on Record) — a dialogue with the canvas, alone and quiet. Nothing is written on the page for the talk itself; what he says that holds a command is done on the open document with a thinking zone that shows it, short answers appear as tips by the region. Use when woken with "Voice (recording …)" or "Voice command (recording …)".
 ---
 
 # Voice control
 
-The owner chose **🎙 Голосовое управление**: he works the app by voice, with the pen in his hand. The app
-transcribes what he says. It writes **nothing** for the talk itself: no live-notes page, no transcript column, no
-cards. Each piece pops up for a few seconds at the top of the page view (▶ when taken as a command) and fades.
+The owner chose **🎙 Голосовое управление**: he brainstorms alone and quietly with the canvas, the pen in his hand,
+and talks to it. The app transcribes what he says. It writes **nothing** for the talk itself: no live-notes page, no
+transcript column, no cards. Each phrase pops up for a few seconds as a tip by the region he drew in while saying it
+(or at the top), and fades.
 
-A piece is a **command** when the owner held the big 🎙 button while saying it, or (with the option «Просьбы по
-слову») when it starts with the trigger word. Everything else is **context**: what he talks about, which «это», «там»
-and «её» may refer to.
+What is a command (the owner's rule, 9 Nov 2026):
+- **Without the option «Просьбы по слову»** (the default): **everything he says is a dialogue with you** that may
+  hold commands. Each phrase wakes you as `Voice (recording …): «…»`. Understand it from the text: a command
+  («подпиши стрелки», «нарисуй рядом график синуса», «сделай таблицу из этого») → do it; a question → answer it; just
+  talk (thinking aloud, context) → nothing visible, keep it for what follows («это», «там», «её»).
+- **With the option** (the trigger phrase «Hey Assistant», also «Эй, ассистент»): only a phrase that starts with it
+  is a command; it wakes you as `Voice command (recording …): «…»` with the phrase removed; everything else is
+  context and doesn't wake you.
 
 ## When you are woken
 
-    Voice command (recording R, n 12, 0:41): «выдели последнюю формулу красным». Context since the last command:
-    «вот здесь у нас уравнение Шрёдингера…». The owner's latest ink: page 3, [120, 340, 180, 60], 4 s ago. Carry it
-    out on the open document as the voice-control skill describes.
+    Voice (recording R, n 12, 0:41): «выдели эту формулу красным». While saying it, the owner drew on page 3 around
+    [120, 340, 180, 60]. The owner talks to the canvas: if this holds a command, carry it out …; if it is only talk,
+    it is context for what comes next (do nothing).
 
-The trigger word, when that was how the command was given, is already removed. `live_notes(op="read")` lists the
-recording's pieces with their `kind` (`command` / `context`) if you need more of what was said.
-
-- **One command per wake-up**, in order. If a new one arrives while you work, the app queues it.
-- **Context is never a command**, however it sounds. Use it only to understand the command.
-- **«это / this / here / вот»** is the owner's **selection or lasso** if there is one, else his **latest ink** from
-  the line, else what the context names.
+- **One phrase per wake-up**, in order; if more come while you work, the app queues them.
+- **«это / this / here / вот / тут»** is first the region he drew in **while saying it** (the line gives it), else
+  his selection or lasso, else his latest ink, else what the conversation names.
+- **Answering:** a short answer or a question back goes to him as a tip by the region: `thinking(op="say",
+  text="…", page, region)` (a few seconds on the canvas; at the top when there is no region). Keep it to a line or
+  two; anything long goes in the terminal. Never answer talk that wasn't addressed to you.
+- `live_notes(op="read")` lists the recording's pieces with their `kind` if you need more of what was said.
 
 ## What a command may do: the open document
 
@@ -61,8 +67,9 @@ His own strokes are touched only with that tap, even for a restyle.
 ## How you show it
 
 - A **`thinking` zone** over the area the command acts on, with the command, short, as its status
-  (`thinking(op="start", page, region, text="красным: формула…")`). End it with `op="done"`, or `op="fail"` and
-  the reason. Every command gets a visible answer; never silent.
+  (`thinking(op="start", page, region, text="красным: формула…")`). It stays until you end it, so that he doesn't draw
+  into the area meanwhile: end it with `op="done"`, or `op="fail"` and the reason. Every command gets a visible
+  answer; never silent.
 - No area (go to a page, change the pen): no zone; just do it.
 - Not understood: a ✗ zone over the visible page, «не понял: «…»». Never guess at a destructive reading.
 

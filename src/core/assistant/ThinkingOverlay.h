@@ -44,6 +44,10 @@ public:
     /// and veil in that colour (e.g. its topic's) instead of teal and grey.
     int add(size_t page, const xoj::util::Rectangle<double>& area, const std::string& text, State state,
             const std::string& owner = {}, std::optional<uint32_t> rgb = std::nullopt);
+    /// A zone an agent opened itself (`thinking` op=start): it lasts until the agent ends it (or the owner stops it,
+    /// or its lease), not only for the agent's turn
+    void setKept(int id);
+    bool isKept(int id) const;
     /// The worker a zone belongs to (empty: none, or no such zone)
     std::string ownerOf(int id) const;
     /// The queued or thinking zones of a worker
@@ -95,7 +99,11 @@ public:
     void flashRecording(const std::string& message);
     /// Voice control: what was just heard pops up at the top of the canvas for a few seconds (a command: ▶ and teal;
     /// context: 🎙 and grey), then fades
-    void flashHeard(const std::string& text, bool command);
+    void flashHeard(const std::string& text, bool command,
+                    std::optional<std::pair<size_t, xoj::util::Rectangle<double>>> where = std::nullopt);
+    /// An agent's short answer (voice control's dialogue): a violet tip by the region (or at the top), longer shown
+    void flashReply(const std::string& text,
+                    std::optional<std::pair<size_t, xoj::util::Rectangle<double>>> where = std::nullopt);
     std::string heard() const;  ///< (tests: the pop-up shown now, "" when none)
 
     /// Where an agent works out of the user's view (instead of taking the view there): a small chip at the top right
@@ -126,6 +134,12 @@ private:
     bool heardCommand = false;
     gint64 heardUntilUs = 0;
     double heardWidth = 0;
+    int heardKind = 0;  ///< 0 heard, 1 a command, 2 an agent's reply
+    std::vector<std::string> heardLines;
+    void showTip(const std::string& text, int kind,
+                 std::optional<std::pair<size_t, xoj::util::Rectangle<double>>> where);
+    double heardHeight() const;
+    std::optional<std::pair<size_t, xoj::util::Rectangle<double>>> heardWhere;  ///< the region it is about
     GdkRectangle heardDrawn{0, 0, 0, 0};
     GdkRectangle heardRect() const;
     void invalidateHeard();

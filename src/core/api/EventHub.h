@@ -89,6 +89,25 @@ public:
                    const xoj::util::Rectangle<double>& area, const std::string& description) {
         push({0, 0, type, "user", page, std::move(ids), area, description});
     }
+    /// What the user drew between two moments (g_get_monotonic_time): the area of all of it on the page of the last
+    /// piece (🎙: the region he means while he speaks)
+    std::optional<DocEvent> userInkBetween(gint64 fromUs, gint64 toUs) const {
+        std::optional<DocEvent> out;
+        for (auto it = log.rbegin(); it != log.rend(); ++it) {
+            if (it->origin != "user" || it->type != "element_added" || it->timeUs < fromUs || it->timeUs > toUs) {
+                continue;
+            }
+            if (!out) {
+                out = *it;
+            } else if (it->page == out->page) {
+                const double x0 = std::min(out->area.x, it->area.x), y0 = std::min(out->area.y, it->area.y);
+                const double x1 = std::max(out->area.x + out->area.width, it->area.x + it->area.width);
+                const double y1 = std::max(out->area.y + out->area.height, it->area.y + it->area.height);
+                out->area = xoj::util::Rectangle<double>(x0, y0, x1 - x0, y1 - y0);
+            }
+        }
+        return out;
+    }
     /// The user's most recent addition (the "last piece" toolbar actions apply to without a selection)
     std::optional<DocEvent> lastUserAddition() const {
         for (auto it = log.rbegin(); it != log.rend(); ++it) {

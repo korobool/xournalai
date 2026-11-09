@@ -144,7 +144,9 @@ def test_5_a_worker_s_zone_lasts_through_the_coordinator_s_turns(app):
     time.sleep(0.5)
     zs = zones(c)
     assert zs[zid]["state"] == "thinking" and zs[own]["state"] == "thinking", zs
-    assert zs.get(mine, {"state": "gone"})["state"] in ("done", "gone"), zs
+    # (a zone an agent opens itself lasts until it ends it, the coordinator's too: the owner, 2026-11-09)
+    assert zs[mine]["state"] == "thinking", zs
+    c.call("thinking", op="done", id=mine)
     assert sorted(next(x for x in c.call("workers", op="list")["workers"] if x["name"] == "T5")["zones"]) == \
         sorted([zid, own])
     w.call("thinking", op="done", id=own)

@@ -27,6 +27,9 @@
 #include "assistant/LiveChunker.h"      // for LiveChunker
 #include "assistant/Transcriber.h"  // for Transcriber
 #include "model/PageRef.h"              // for PageRef
+#include "util/Rectangle.h"             // for Rectangle
+
+#include <glib.h>  // for gint64
 
 #include "Json.h"
 #include "Registry.h"    // for ToolResult
@@ -57,7 +60,12 @@ public:
         bool transcriptPage = true;
         bool voice = false;
         std::vector<std::string> triggerWords;  ///< (lower case) empty: no trigger word
-        std::function<void(const std::string& text, bool command)> heard;  ///< a piece pops up
+        /// a piece pops up (next to the region the owner drew in while saying it, if he did: page, area)
+        std::function<void(const std::string& text, bool command,
+                           std::optional<std::pair<size_t, xoj::util::Rectangle<double>>> where)>
+                heard;
+        /// what the owner drew between two moments (monotonic µs): page and area
+        std::function<std::optional<std::pair<size_t, xoj::util::Rectangle<double>>>(gint64 from, gint64 to)> inkDuring;
     };
     using Wake = std::function<void(const std::string& description)>;  ///< an intent for the serving session
     using Changed = std::function<void()>;                              ///< (the status strip)
@@ -139,6 +147,7 @@ private:
     bool ended = false;
     bool wakePending = false;
     bool endWoken = false;
+    gint64 startedUs = 0;  ///< when the recording started (piece times → the owner's strokes meanwhile)
     std::vector<std::pair<int64_t, int64_t>> talks;  ///< 🎙: the talk button's intervals (ms in the recording)
     std::optional<int64_t> talkingSince;
     std::string contextSince;  ///< 🎙: what was said since the last command

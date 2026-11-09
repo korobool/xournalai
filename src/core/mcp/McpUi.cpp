@@ -1089,10 +1089,19 @@ bool McpUi::beginLive(const std::string& name, std::string& error, const std::st
         if (state.options.trigger) {
             opt.triggerWords = cfg.triggerWords;
         }
-        opt.heard = [this](const std::string& text, bool command) {
+        opt.heard = [this](const std::string& text, bool command,
+                           std::optional<std::pair<size_t, xoj::util::Rectangle<double>>> where) {
             if (thinkingOverlay) {
-                thinkingOverlay->flashHeard(text, command);
+                thinkingOverlay->flashHeard(text, command, std::move(where));
             }
+        };
+        opt.inkDuring = [this](gint64 from, gint64 to) -> std::optional<std::pair<size_t, xoj::util::Rectangle<double>>> {
+            api::EventHub* events = server.getEvents();
+            auto ink = events ? events->userInkBetween(from, to) : std::nullopt;
+            if (!ink) {
+                return std::nullopt;
+            }
+            return std::make_pair(ink->page, ink->area);
         };
     }
     if (mode->requests == "drawing" || mode->id == "voice") {
@@ -1148,7 +1157,7 @@ bool McpUi::beginLive(const std::string& name, std::string& error, const std::st
         chunker->feed(frames, count, channels, rate);
     });
     if (quickTools) {
-        quickTools->setLiveActive(true, opt.voice);
+        quickTools->setLiveActive(true);  // (✂ in voice control too: a phrase goes now, without waiting for a pause)
     }
     update();
     return true;
@@ -2897,8 +2906,9 @@ void McpUi::onServingChanged() {
         // their own, and the coordinator goes idle many times while they work, 2026-11-09)
         const auto owned = server.transactions().openZones();
         for (int z: thinkingOverlay->inState(assistant::ThinkingOverlay::State::Thinking)) {
-            if (std::find(owned.begin(), owned.end(), z) != owned.end() || !thinkingOverlay->ownerOf(z).empty()) {
-                continue;
+            if (std::find(owned.begin(), owned.end(), z) != owned.end() || !thinkingOverlay->ownerOf(z).empty() ||
+                thinkingOverlay->isKept(z)) {
+                continue;  // (a zone an agent opened itself lasts until it ends it: voice control, 2026-11-09)
             }
             thinkingOverlay->set(z, st == S::Idle ? assistant::ThinkingOverlay::State::Done :
                                                     assistant::ThinkingOverlay::State::Failed);

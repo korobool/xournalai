@@ -37,6 +37,7 @@ struct ThinkingOverlay::Zone {
     std::string owner;            ///< the worker session it belongs to (empty: none)
     std::optional<uint32_t> rgb;  ///< its colour (0xRRGGBB; none: teal outline, grey veil)
     std::string detail;           ///< a worker's zone: what the app sees it doing (a second line, with the time)
+    bool kept = false;            ///< opened by an agent itself: lasts until it ends it
     gint64 createdUs = 0;
     gint64 stateUs = 0;
     GtkWidget* button = nullptr;  ///< weak: its stop button (click to cancel)
@@ -56,7 +57,7 @@ namespace {
 /// Where a zone is drawn: its outline (4 px out) and its status pill (above it, or below when there is no room;
 /// up to ~330 px wide and kept on the canvas, so it may lie to the left of the zone)
 GdkRectangle zoneArea(const GdkRectangle& r) {
-    constexpr int PILL_W = 344, PILL_H = 4 + 6 + 48 + 4;  // (a worker's pill has two lines)
+    constexpr int PILL_W = 480, PILL_H = 4 + 6 + 66 + 4;  // (up to two lines of status and a worker's line)
     return {r.x - PILL_W, r.y - PILL_H, r.width + 2 * PILL_W, r.height + 2 * PILL_H};
 }
 
@@ -239,6 +240,18 @@ std::vector<ThinkingOverlay::Info> ThinkingOverlay::zones() const {
         out.push_back({z->id, z->state, z->page, z->text, z->owner, z->detail});
     }
     return out;
+}
+
+void ThinkingOverlay::setKept(int id) {
+    for (Zone* z: list) {
+        if (z->id == id) {
+            z->kept = true;
+        }
+    }
+}
+
+bool ThinkingOverlay::isKept(int id) const {
+    return std::any_of(list.begin(), list.end(), [id](const Zone* z) { return z->id == id && z->kept; });
 }
 
 void ThinkingOverlay::setDetail(int id, const std::string& detail) {
@@ -486,35 +499,127 @@ void pillPath(cairo_t* cr, double x, double y, double w, double h) {
 }  // namespace
 
 namespace {
-constexpr gint64 HEARD_US = 4 * G_USEC_PER_SEC;
-constexpr double HEARD_H = 34, HEARD_MAX_W = 560;
+/// `text` in at most two lines of `maxW` (cut at spaces where possible; the rest ends with "…")
+std::vector<std::string> wrapTwo(cairo_t* cr, const std::string& text, double maxW) {
+    auto width = [cr](const std::string& t) {
+        cairo_text_extents_t e;
+        cairo_text_extents(cr, t.c_str(), &e);
+        return e.x_advance;
+    };
+    auto fit = [&](const std::string& t, bool ellipsis) {  // the longest start of t that fits
+        if (width(t) <= maxW) {
+            return t;
+        }
+        std::string body = t;
+        while (!body.empty()) {
+            body.resize(static_cast<size_t>(g_utf8_find_prev_char(body.c_str(), body.c_str() + body.size()) -
+                                            body.c_str()));
+            if (width(ellipsis ? body + "…" : body) <= maxW) {
+                break;
+            }
+        }
+        return ellipsis ? body + "…" : body;
+    };
+    if (width(text) <= maxW) {
+        return {text};
+    }
+    std::string first = fit(text, false);
+    // back to the last space, if there is one in the line
+    if (auto sp = first.rfind(' '); sp != std::string::npos && sp > first.size() / 3) {
+        first.resize(sp);
+    }
+    std::string rest = text.substr(first.size());
+    while (!rest.empty() && rest.front() == ' ') {
+        rest.erase(0, 1);
+    }
+    return rest.empty() ? std::vector<std::string>{first} : std::vector<std::string>{first, fit(rest, true)};
+}
 }  // namespace
 
-void ThinkingOverlay::flashHeard(const std::string& text, bool command) {
-    heardText = validUtf8(std::string(command ? "▶ " : "🎙 ") + text);
-    heardCommand = command;
-    heardUntilUs = g_get_monotonic_time() + HEARD_US;
-    // its width, measured once (the pill fits the text, cut beyond HEARD_MAX_W)
+namespace {
+constexpr double HEARD_LINE = 20, HEARD_PAD = 8, HEARD_TEXT_W = 520;
+constexpr int HEARD_LINES = 4;
+}  // namespace
+
+void ThinkingOverlay::flashHeard(const std::string& text, bool command,
+                                 std::optional<std::pair<size_t, xoj::util::Rectangle<double>>> where) {
+    showTip(std::string(command ? "▶ " : "🎙 ") + text, command ? 1 : 0, std::move(where));
+}
+
+void ThinkingOverlay::flashReply(const std::string& text,
+                                 std::optional<std::pair<size_t, xoj::util::Rectangle<double>>> where) {
+    showTip("💬 " + text, 2, std::move(where));
+}
+
+void ThinkingOverlay::showTip(const std::string& text, int kind,
+                              std::optional<std::pair<size_t, xoj::util::Rectangle<double>>> where) {
+    invalidateHeard();  // (the last one, wherever it was)
+    heardText = validUtf8(text);
+    heardKind = kind;
+    heardCommand = kind == 1;
+    heardWhere = std::move(where);
+    // its lines, measured once (up to four; a reply stays longer, by its length)
     cairo_surface_t* s = cairo_image_surface_create(CAIRO_FORMAT_A8, 1, 1);
     cairo_t* cr = cairo_create(s);
-    cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL, command ? CAIRO_FONT_WEIGHT_BOLD : CAIRO_FONT_WEIGHT_NORMAL);
+    cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL,
+                           kind == 1 ? CAIRO_FONT_WEIGHT_BOLD : CAIRO_FONT_WEIGHT_NORMAL);
     cairo_set_font_size(cr, 15);
-    cairo_text_extents_t ext;
-    cairo_text_extents(cr, heardText.c_str(), &ext);
-    heardWidth = std::min(HEARD_MAX_W, ext.x_advance + 32);
+    heardLines.clear();
+    std::string rest = heardText;
+    while (!rest.empty() && static_cast<int>(heardLines.size()) < HEARD_LINES) {
+        const bool last = static_cast<int>(heardLines.size()) == HEARD_LINES - 1;
+        auto two = wrapTwo(cr, rest, HEARD_TEXT_W);
+        if (two.size() == 1 || last) {
+            heardLines.push_back(two.front() + (two.size() > 1 && last && two.front().back() != '…' ? "…" : ""));
+            break;
+        }
+        heardLines.push_back(two.front());
+        rest = rest.substr(std::min(rest.size(), two.front().size()));
+        while (!rest.empty() && rest.front() == ' ') {
+            rest.erase(0, 1);
+        }
+    }
+    heardWidth = 0;
+    for (const auto& l: heardLines) {
+        cairo_text_extents_t ext;
+        cairo_text_extents(cr, l.c_str(), &ext);
+        heardWidth = std::max(heardWidth, ext.x_advance + 2 * HEARD_PAD + 8);
+    }
     cairo_destroy(cr);
     cairo_surface_destroy(s);
+    const gint64 seconds = kind == 2 ? std::clamp<gint64>(3 + static_cast<gint64>(g_utf8_strlen(text.c_str(), -1)) / 12,
+                                                          5, 14) :
+                                       4;
+    heardUntilUs = g_get_monotonic_time() + seconds * G_USEC_PER_SEC;
     ensureTimer();
     invalidateHeard();
 }
 
 std::string ThinkingOverlay::heard() const { return g_get_monotonic_time() < heardUntilUs ? heardText : ""; }
 
+double ThinkingOverlay::heardHeight() const {
+    return 2 * HEARD_PAD + HEARD_LINE * static_cast<double>(std::max<size_t>(1, heardLines.size())) - 2;
+}
+
 GdkRectangle ThinkingOverlay::heardRect() const {
     const auto area = bounds ? bounds() : std::nullopt;
-    const double x = area ? area->x + (area->width - heardWidth) / 2 : 40, y = area ? area->y + 60 : 60;
-    return {static_cast<int>(x) - 4, static_cast<int>(y) - 4, static_cast<int>(heardWidth) + 8,
-            static_cast<int>(HEARD_H) + 10};
+    const double H = heardHeight();
+    double x = area ? area->x + (area->width - heardWidth) / 2 : 40, y = area ? area->y + 60 : 60;
+    // a tip by the region it is about (above it, or below when there is no room); else at the top
+    if (heardWhere && mapper) {
+        if (auto r = mapper(heardWhere->first, heardWhere->second)) {
+            x = r->x;
+            y = r->y - H - 10;
+            if (area && y < area->y + 4) {
+                y = r->y + r->height + 10;
+            }
+            if (area) {
+                x = std::clamp(x, area->x + 4.0, std::max(area->x + 4.0, area->x + area->width - heardWidth - 4.0));
+                y = std::clamp(y, area->y + 4.0, std::max(area->y + 4.0, area->y + area->height - H - 4.0));
+            }
+        }
+    }
+    return {static_cast<int>(x) - 4, static_cast<int>(y) - 4, static_cast<int>(heardWidth) + 8, static_cast<int>(H) + 10};
 }
 
 void ThinkingOverlay::invalidateHeard() {
@@ -525,27 +630,41 @@ void ThinkingOverlay::invalidateHeard() {
 
 void ThinkingOverlay::drawHeard(cairo_t* cr) {
     const GdkRectangle r = heardRect();
-    const double x = r.x + 4, y = r.y + 4, W = heardWidth, H = HEARD_H;
+    const double x = r.x + 4, y = r.y + 4, W = heardWidth, H = heardHeight();
     const double left = static_cast<double>(heardUntilUs - g_get_monotonic_time()) / 1e6;
     const double alpha = std::clamp(left * 2, 0.0, 1.0);  // (fades in its last half second)
-    cairo_push_group(cr);
-    pillPath(cr, x, y, W, H);
-    if (heardCommand) {
-        cairo_set_source_rgba(cr, 0.04, 0.42, 0.40, 0.94);  // teal: taken as a command
+    const bool fading = alpha < 0.999;
+    if (fading) {
+        cairo_push_group(cr);
+    }
+    // a rounded box: a heard phrase grey, a command teal, the agent's reply violet
+    const double rad = 12;
+    cairo_new_sub_path(cr);
+    cairo_arc(cr, x + W - rad, y + rad, rad, -M_PI / 2, 0);
+    cairo_arc(cr, x + W - rad, y + H - rad, rad, 0, M_PI / 2);
+    cairo_arc(cr, x + rad, y + H - rad, rad, M_PI / 2, M_PI);
+    cairo_arc(cr, x + rad, y + rad, rad, M_PI, 3 * M_PI / 2);
+    cairo_close_path(cr);
+    if (heardKind == 1) {
+        cairo_set_source_rgba(cr, 0.04, 0.42, 0.40, 0.94);
+    } else if (heardKind == 2) {
+        cairo_set_source_rgba(cr, 0.33, 0.20, 0.58, 0.95);
     } else {
         cairo_set_source_rgba(cr, 0.11, 0.12, 0.14, 0.82);
     }
     cairo_fill(cr);
-    cairo_rectangle(cr, x + 12, y, W - 24, H);
-    cairo_clip(cr);
     cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL,
-                           heardCommand ? CAIRO_FONT_WEIGHT_BOLD : CAIRO_FONT_WEIGHT_NORMAL);
+                           heardKind == 1 ? CAIRO_FONT_WEIGHT_BOLD : CAIRO_FONT_WEIGHT_NORMAL);
     cairo_set_font_size(cr, 15);
-    cairo_set_source_rgba(cr, 1, 1, 1, heardCommand ? 1.0 : 0.85);
-    cairo_move_to(cr, x + 16, y + H / 2 + 5);
-    cairo_show_text(cr, heardText.c_str());
-    cairo_pop_group_to_source(cr);
-    cairo_paint_with_alpha(cr, alpha);
+    cairo_set_source_rgba(cr, 1, 1, 1, heardKind == 0 ? 0.85 : 1.0);
+    for (size_t i = 0; i < heardLines.size(); i++) {
+        cairo_move_to(cr, x + HEARD_PAD + 4, y + HEARD_PAD + 15 + HEARD_LINE * static_cast<double>(i));
+        cairo_show_text(cr, heardLines[i].c_str());
+    }
+    if (fading) {
+        cairo_pop_group_to_source(cr);
+        cairo_paint_with_alpha(cr, alpha);
+    }
 }
 
 void ThinkingOverlay::flashRecording(const std::string& message) {
@@ -562,17 +681,17 @@ void ThinkingOverlay::pushLevel(float rms) {
     }
 }
 
+
 void ThinkingOverlay::drawZonePill(cairo_t* cr, const Zone& z, double zx, double zy, double zw, double zh,
                                    double alpha) {
-    // A worker's zone while it works: a second line with what the app sees it doing and for how long
+    // A worker's zone while it works: a line more with what the app sees it doing and for how long
     std::string second;
     if (!z.owner.empty() && z.state == State::Thinking) {
         const gint64 s = std::max<gint64>(0, (g_get_monotonic_time() - z.createdUs) / G_USEC_PER_SEC);
         char clock[32];
         std::snprintf(clock, sizeof clock, "%d:%02d", static_cast<int>(s / 60), static_cast<int>(s % 60));
-        second = z.detail.empty() ? std::string(clock) : z.detail + " · " + clock;
+        second = validUtf8(z.detail.empty() ? std::string(clock) : z.detail + " · " + clock);
     }
-    const double H = second.empty() ? 32 : 48;
     std::string text = z.text.empty() ? (z.state == State::Queued ? "waiting for the AI…" : "working…") : z.text;
     if (z.state == State::Done) {
         text = z.owner.empty() ? "done" : "⚙ " + z.owner + " · done";
@@ -583,38 +702,47 @@ void ThinkingOverlay::drawZonePill(cairo_t* cr, const Zone& z, double zx, double
     // Valid UTF-8 only, and cut by whole characters: an invalid string puts the window's cairo context in an error
     // state, and the whole window stops painting
     text = validUtf8(text);
-    cairo_text_extents_t ext;
-    cairo_text_extents(cr, text.c_str(), &ext);
-    if (ext.x_advance > 280) {  // long statuses are cut
-        std::string body = text;
-        while (ext.x_advance > 280 && g_utf8_strlen(body.c_str(), -1) > 1) {
-            body.resize(static_cast<size_t>(g_utf8_find_prev_char(body.c_str(), body.c_str() + body.size()) -
-                                            body.c_str()));
-            text = body + "…";
-            cairo_text_extents(cr, text.c_str(), &ext);
-        }
+    // The status in up to two lines as wide as the zone (the owner, 2026-11-09: cut at ~30 characters it said
+    // little), at least 180 px, at most 420
+    const double textMax = std::clamp(zw - 12 - 50, 180.0, 420.0);
+    const std::vector<std::string> lines = wrapTwo(cr, text, textMax);
+    double textW = 0;
+    for (const auto& l: lines) {
+        cairo_text_extents_t e;
+        cairo_text_extents(cr, l.c_str(), &e);
+        textW = std::max(textW, e.x_advance);
     }
-    double W = ext.x_advance + 50;
-    cairo_text_extents_t ext2{};
     if (!second.empty()) {
-        second = validUtf8(second);
         cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
         cairo_set_font_size(cr, 11);
-        cairo_text_extents(cr, second.c_str(), &ext2);
-        W = std::max(W, std::min(ext2.x_advance, 280.0) + 50);
+        cairo_text_extents_t e;
+        cairo_text_extents(cr, second.c_str(), &e);
+        textW = std::max(textW, std::min(e.x_advance, textMax));
         cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
         cairo_set_font_size(cr, 13);
     }
-    double x = zx, y = zy - H - 6;
+    const double W = textW + 50;
+    const double H = 32 + 17.0 * static_cast<double>(lines.size() - 1) + (second.empty() ? 0 : 16);
+    // Inside the zone, at its top edge (never over what is around it), when the zone has room; else above it, or
+    // below when there is no room above
+    double x = zx + 6, y = zy + 6;
     const auto area = bounds ? bounds() : std::nullopt;
-    if (area && y < area->y + 4) {
-        y = zy + zh + 6;  // no room above: below the zone
+    if (zh < H + 12 || zw < std::min(W, 200.0) + 12) {
+        x = zx;
+        y = zy - H - 6;
+        if (area && y < area->y + 4) {
+            y = zy + zh + 6;
+        }
     }
     if (area) {
         x = std::clamp(x, area->x + 4.0, std::max(area->x + 4.0, area->x + area->width - W - 4.0));
     }
     z.pill = {static_cast<int>(x) - 3, static_cast<int>(y) - 3, static_cast<int>(W) + 8, static_cast<int>(H) + 9};
-    cairo_push_group(cr);
+    // (a group only to fade it: each group costs the X server a pixmap and its pictures, every frame)
+    const bool fading = alpha < 0.999;
+    if (fading) {
+        cairo_push_group(cr);
+    }
     pillPath(cr, x + 1, y + 3, W, H);
     cairo_set_source_rgba(cr, 0, 0, 0, 0.22);
     cairo_fill(cr);
@@ -624,7 +752,7 @@ void ThinkingOverlay::drawZonePill(cairo_t* cr, const Zone& z, double zx, double
     cairo_set_source_rgba(cr, 1, 1, 1, 0.12);
     cairo_set_line_width(cr, 1);
     cairo_stroke(cr);
-    const double cx = x + 18, cy = y + (second.empty() ? H / 2 : 16);
+    const double cx = x + 18, cy = y + 16;
     switch (z.state) {
         case State::Queued: {
             const double breathe = 0.5 + 0.5 * std::sin(phase / 3.0);  // waiting: a slow breathing dot
@@ -660,22 +788,27 @@ void ThinkingOverlay::drawZonePill(cairo_t* cr, const Zone& z, double zx, double
             cairo_stroke(cr);
             break;
     }
-    cairo_set_source_rgba(cr, 1, 1, 1, 0.95);
-    cairo_move_to(cr, x + 36, cy + 5);
-    cairo_show_text(cr, text.c_str());
-    if (!second.empty()) {  // (cut to the pill: clipped)
+    cairo_set_source_rgba(cr, 1, 1, 1, fading ? 0.95 : 0.95 * alpha);
+    for (size_t i = 0; i < lines.size(); i++) {
+        cairo_move_to(cr, x + 36, cy + 5 + 17.0 * static_cast<double>(i));
+        cairo_show_text(cr, lines[i].c_str());
+    }
+    if (!second.empty()) {
+        const double sy = y + 32 + 17.0 * static_cast<double>(lines.size() - 1);
         cairo_save(cr);
-        cairo_rectangle(cr, x + 36, y + 26, W - 44, 18);
+        cairo_rectangle(cr, x + 36, sy - 6, W - 44, 18);
         cairo_clip(cr);
         cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
         cairo_set_font_size(cr, 11);
         cairo_set_source_rgba(cr, 0.78, 0.82, 0.86, 0.95);
-        cairo_move_to(cr, x + 36, y + 39);
+        cairo_move_to(cr, x + 36, sy + 7);
         cairo_show_text(cr, second.c_str());
         cairo_restore(cr);
     }
-    cairo_pop_group_to_source(cr);
-    cairo_paint_with_alpha(cr, alpha);
+    if (fading) {
+        cairo_pop_group_to_source(cr);
+        cairo_paint_with_alpha(cr, alpha);
+    }
     cairo_restore(cr);
 }
 

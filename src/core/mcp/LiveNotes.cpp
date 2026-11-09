@@ -58,6 +58,7 @@ LiveNotes::LiveNotes(McpServer& server, Options options, std::string recording, 
         changed(std::move(changed)),
         afterPage(afterPage) {
     folder = this->audioFolder / "live" / fs::path(name).stem();
+    startedUs = g_get_monotonic_time();
     GDateTime* now = g_date_time_new_now_local();
     gchar* hm = g_date_time_format(now, "%H:%M");
     startedAt = hm;
@@ -171,7 +172,9 @@ std::optional<std::string> afterTrigger(const std::string& text, const std::vect
 }  // namespace
 
 void LiveNotes::heardPiece(Piece& p) {
-    // A command: said while the talk button was held (most of the piece, or 0.6 s of it), or after a trigger word
+    // 🎙 (the owner, 2026-11-09): without «Просьбы по слову» everything said is a conversation that may hold commands
+    // (the serving session tells them from talk); with it only a phrase starting with the trigger phrase commands.
+    // (A phrase said while a talk button was held is a command too.)
     const int64_t now = pieceCutter->heardMs();
     bool byTalk = false;
     auto overlaps = [&](int64_t a, int64_t b) {
@@ -190,23 +193,44 @@ void LiveNotes::heardPiece(Piece& p) {
         byWord = true;
         text = *rest;
     }
+    const bool dialogue = opt.triggerWords.empty();  // (no trigger phrase: every phrase goes, the session decides)
     p.command = byTalk || byWord;
     p.commandText = text;
-    if (opt.heard) {
-        opt.heard(p.command ? text : p.text, p.command);
+    // where he drew while saying it (from a moment before the phrase to just after it): «это», «тут»
+    std::optional<std::pair<size_t, xoj::util::Rectangle<double>>> ink;
+    if (opt.inkDuring) {
+        ink = opt.inkDuring(startedUs + p.startMs * 1000 - 1500 * 1000, startedUs + p.endMs * 1000 + 500 * 1000);
     }
-    if (!p.command) {
+    if (opt.heard) {
+        opt.heard(p.command ? text : p.text, p.command, ink);
+    }
+    if (!p.command && !dialogue) {
         contextSince = tail(contextSince.empty() ? p.text : contextSince + " " + p.text, 800);
         return;
     }
-    commands++;
-    const std::string context = opt.context ? opt.context() : "";
+    commands += p.command ? 1 : 0;
+    std::string where;
+    if (ink) {
+        char line[200];
+        std::snprintf(line, sizeof line, "While saying it, the owner drew on page %zu around [%.0f, %.0f, %.0f, %.0f].",
+                      ink->first + 1, ink->second.x, ink->second.y, ink->second.width, ink->second.height);
+        where = line;
+    } else if (opt.context) {
+        where = opt.context();  // (where he drew last)
+    }
+    const std::string context =
+            contextSince.empty() ? "" : " Said since the last one: «" + contextSince + "».";
     if (wake) {
-        wake("Voice command (recording " + name + ", n " + std::to_string(p.index) + ", " + clock(p.startMs) +
-             "): «" + text + "». Context since the last command: " +
-             (contextSince.empty() ? std::string("none") : "«" + contextSince + "»") + "." +
-             (context.empty() ? "" : " " + context) +
-             " Carry it out on the open document as the voice-control skill describes.");
+        if (p.command) {
+            wake("Voice command (recording " + name + ", n " + std::to_string(p.index) + ", " + clock(p.startMs) +
+                 "): «" + text + "»." + context + (where.empty() ? "" : " " + where) +
+                 " Carry it out on the open document as the voice-control skill describes.");
+        } else {
+            wake("Voice (recording " + name + ", n " + std::to_string(p.index) + ", " + clock(p.startMs) + "): «" +
+                 text + "»." + (where.empty() ? "" : " " + where) +
+                 " The owner talks to the canvas: if this holds a command, carry it out on the open document as the "
+                 "voice-control skill describes; if it is only talk, it is context for what comes next (do nothing).");
+        }
     }
     contextSince.clear();
 }
