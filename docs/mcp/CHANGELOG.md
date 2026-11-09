@@ -10,6 +10,33 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.16.3 — Worker sessions in tabs; your Undo leaves live notes alone
+- **Your Undo no longer removes the live-notes page.** Undo history is shared. On 9 November an Undo meant for
+  the owner's own drawing removed a live-notes page five seconds after it was made: the log says "Page 2 deleted
+  by Undo (it had been inserted)". Now the app writes live-notes pages and the transcript outside your undo
+  history, so Undo and Redo affect only your own work. The change log marks these changes as made by the app
+  (`origin: "app"`), not by you or an agent.
+- **Worker sessions in tabs of the AI terminal.** For a heavy job (an illustration, a picture or scheme from the
+  web, a mind map), the serving session can start a worker: a Claude Code session in its own tab, named "⚙ T3"
+  and so on, so you can watch it. A worker:
+  - is started with the tool `workers(op="start", name, brief, effort)`;
+  - reads its brief as its first message;
+  - runs in the companion's `workers` folder, with its own instructions;
+  - may use only the xournalai tools, web search and fetch, Read and python3 (anything else is refused without
+    asking).
+
+  Limits: up to `assistant.max_parallel` workers run at once, and only one per name. `op="list"` shows the
+  workers; `op="close"` (a name, or `all`) ends a worker and closes its tab. A worker's hooks are ignored, so the
+  app never mistakes it for the serving session. The serving session sends a worker new material only through
+  the worker's inbox file: a worker runs in a different permission mode, so Claude Code holds messages sent to it
+  from the serving session. Before drawing, a worker reads the live page's current number from `live_notes`, so
+  deleting a page above it doesn't send its drawing to the wrong page.
+- **A denser live-notes page:**
+  - 12 pt margins;
+  - the transcript column is narrower (18% of the page) and written in italic straight away;
+  - the companion's cards are smaller and laid out in three columns.
+- **Tests:** each test app gets a home folder of its own, so a login shell in a test never reads your profile.
+
 ## 1.16.2 — A long recording no longer freezes the app
 - **Recording no longer redraws the window at the screen's frame rate.** The big Record button's animation was
   redrawn on every screen frame, and four times a second the button's label, tooltip and style were set again even
