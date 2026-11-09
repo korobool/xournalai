@@ -3,7 +3,7 @@
     "project": "xournalai: embedded MCP server and assistant",
     "branch": "mcp",
     "plan": "docs/mcp/PLAN.md, docs/assistant/ASSISTANT-PLAN.md",
-    "version": "1.15.5",
+    "version": "1.16.0",
     "versioning": [
       "The fork has its own semantic version, XOURNALAI_VERSION, kept in CMakeLists.txt. The application version string becomes <upstream>+ai.<XOURNALAI_VERSION>, e.g. 1.3.7+ai.0.2.0.",
       "Each task is exactly one commit. The commit message is '<planned message> (<task id>)'.",
@@ -3451,9 +3451,11 @@
               "id": "T15.9.8",
               "story": "US-15.12",
               "title": "Release 1.16.0",
-              "details": "",
-              "commit": "",
-              "status": "todo"
+              "details": "Full check (after T15.9.7): build-noterm and build-nomcp ok; unit tests 212/217 (the 5 that fail under parallel ctest pass on rerun; LiveChunker 6/6 among them); integration 302/303 on /usr/bin/python3, the one failure test_e12_x_hang test_1, flaky on this machine since 1.15.5 (fails with older code too). Live notes: test_e15_live_notes 6, _file 1, _ui 3, _robust 5, _hang 1; a real end-to-end run on the owner's recording with the A40 worker: 5/5 pieces right.",
+              "commit": "ai: release 1.16.0 (live notes while recording, experimental)",
+              "status": "done",
+              "started": "2026-11-09T15:22:31+00:00",
+              "finished": "2026-11-09T15:22:31+00:00"
             }
           ]
         }

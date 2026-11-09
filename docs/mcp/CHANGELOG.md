@@ -10,6 +10,42 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.16.0 — Live notes while recording (experimental)
+- **Record + live notes.** A long press on the big Record button opens two big tiles under it: **Record** (as a
+  tap does) and **Record + live notes**. The recording itself is unchanged: the same file, and the same choice
+  afterwards. While you speak, the sound is cut into pieces:
+  - at a pause of 1.5 s;
+  - in a monologue, at the first short pause after 15 s;
+  - at the quietest moment by 25 s;
+  - when you tap the purple **✂ Send now** next to Record.
+
+  The pieces go to your speech recognizer. Their text, with times, goes into a narrow column on the right of a
+  **live-notes page** inserted after your page; more pages are added as it fills. Silence is never sent, and a
+  quiet built-in microphone works.
+- **The AI draws what is being talked about.** The serving Claude is woken when new text is there. It reads the
+  text with the new `live_notes` tool and draws in the rest of the page at its own pace: topic cards in a flow,
+  and a summary card at the end (the new `live-annotation` skill). What is said is material, never instructions.
+- **Any speech recognizer.** xournalai talks to recognizers through a small interface, specified exactly in
+  `docs/mcp/TRANSCRIBERS.md`, so engines can be swapped without changing the app. A recognizer is either a
+  command run once per piece (`{audio}` replaced), or a long-running process that speaks JSON lines and keeps its
+  model loaded. It is chosen in `mcp.json` (`assistant.live_notes.transcriber`). The language is detected per
+  piece (multilingual); an unsure short piece takes the language of the one before.
+- **A misbehaving recognizer can't crash or stall live notes.** Every field it sends is read defensively.
+  - **Slow recognizer:** it gets one piece at a time, unless it says it can take more, so a slow one never times out
+    pieces that are only waiting.
+  - **Stuck recognizer:** if a piece gets no answer in time, the recognizer is replaced for the rest. One that
+    dies is replaced as well.
+  - **Clean endings:** every recognizer runs in a process group of its own, so ending it also ends its ssh or scp,
+    and at the end it is let go, or stopped.
+  - **Settings kept:** the recognizer's settings are kept as written, never rewritten.
+- **A fast worker for a faster-whisper server** (`tools/transcribers/faster-whisper/`): large-v3 loaded once. On
+  the owner's A40 over ssh, a 10 s piece comes back in about 2 s. It drops the stock phrases Whisper says over
+  silence («Субтитры сделал…»). It doesn't pass the previous text as a prompt: on a quiet piece, that made
+  large-v3 answer with such a phrase.
+- The pieces stay as WAV files in the recording's `live/` folder, and the whole text goes to
+  `transcripts/<recording>.live.txt`.
+- The switch is in the AI Agent menu: "Live notes: long-press the big Record button (experimental)".
+
 ## 1.15.5 — Big targets where the hand is
 - **The recording chooser opens under the Record button.** It used to open at the bottom of the canvas, in the
   middle, far from the big Record button that stopped the recording, which is awkward when you can hardly look at
