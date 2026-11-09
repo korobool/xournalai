@@ -29,68 +29,82 @@ AskPopover::AskPopover(GtkWidget* canvas, Submit submit, Mic mic): onSubmit(std:
                          }
                      }),
                      this);
-    // Sized for a stylus: big targets, big text
+    // Big tiles like the Tools grid's, for a finger or a stylus
     static GtkCssProvider* css = [] {
         GtkCssProvider* p = gtk_css_provider_new();
-        gtk_css_provider_load_from_data(p,
-                                        ".xoai-ask entry { font-size: 16px; min-height: 44px; }"
-                                        ".xoai-ask .xoai-cmd { min-width: 64px; min-height: 56px; padding: 2px 4px; }"
-                                        ".xoai-ask .xoai-cmd label { font-size: 11px; }"
-                                        ".xoai-ask .xoai-big { min-width: 52px; min-height: 48px; }",
-                                        -1, nullptr);
+        gtk_css_provider_load_from_data(
+                p,
+                ".xoai-ask .xoai-ask-title { font-size: 0.8em; font-weight: bold; opacity: 0.6; }"
+                ".xoai-ask entry { font-size: 16px; min-height: 52px; border-radius: 12px; }"
+                ".xoai-ask .xoai-cmd { min-width: 88px; min-height: 78px; padding: 4px; border-radius: 12px; }"
+                ".xoai-ask .xoai-cmd label { font-size: 0.92em; }"
+                ".xoai-ask .xoai-big { min-width: 76px; min-height: 64px; padding: 2px 4px; border-radius: 12px; }"
+                ".xoai-ask .xoai-big label { font-size: 0.85em; }"
+                ".xoai-ask .xoai-ask-close { min-width: 52px; min-height: 52px; border-radius: 14px; }",
+                -1, nullptr);
         return p;
     }();
     gtk_style_context_add_provider_for_screen(gdk_screen_get_default(), GTK_STYLE_PROVIDER(css),
                                               GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
     gtk_style_context_add_class(gtk_widget_get_style_context(popover), "xoai-ask");
 
+    auto tile = [](const char* id, const char* icon, int px, const char* label, const char* tip) {
+        GtkWidget* b = gtk_button_new();
+        GtkWidget* inner = gtk_box_new(GTK_ORIENTATION_VERTICAL, 3);
+        GtkWidget* image = gtk_image_new_from_icon_name(icon, GTK_ICON_SIZE_DND);
+        gtk_image_set_pixel_size(GTK_IMAGE(image), px);
+        gtk_box_pack_start(GTK_BOX(inner), image, true, true, 0);
+        gtk_box_pack_start(GTK_BOX(inner), gtk_label_new(label), false, false, 0);
+        gtk_container_add(GTK_CONTAINER(b), inner);
+        gtk_widget_set_can_focus(b, false);  // (Escape and typing stay with the text)
+        gtk_buildable_set_name(GTK_BUILDABLE(b), id);
+        gtk_widget_set_tooltip_text(b, tip);
+        return b;
+    };
+
     GtkWidget* box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
     gtk_container_set_border_width(GTK_CONTAINER(box), 10);
 
-    GtkWidget* icons = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
+    GtkWidget* head = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+    GtkWidget* titleLabel = gtk_label_new("WHAT SHOULD AI DO HERE?");
+    gtk_widget_set_halign(titleLabel, GTK_ALIGN_START);
+    gtk_style_context_add_class(gtk_widget_get_style_context(titleLabel), "xoai-ask-title");
+    gtk_box_pack_start(GTK_BOX(head), titleLabel, true, true, 0);
+    GtkWidget* closeButton = gtk_button_new_from_icon_name("window-close-symbolic", GTK_ICON_SIZE_LARGE_TOOLBAR);
+    gtk_buildable_set_name(GTK_BUILDABLE(closeButton), "ask-close");
+    gtk_widget_set_tooltip_text(closeButton, "Close (Esc)");
+    gtk_button_set_relief(GTK_BUTTON(closeButton), GTK_RELIEF_NONE);
+    gtk_widget_set_can_focus(closeButton, false);
+    gtk_style_context_add_class(gtk_widget_get_style_context(closeButton), "xoai-ask-close");
+    g_signal_connect_swapped(closeButton, "clicked",
+                             G_CALLBACK(+[](gpointer self) { static_cast<AskPopover*>(self)->close(); }), this);
+    gtk_box_pack_end(GTK_BOX(head), closeButton, false, false, 0);
+    gtk_box_pack_start(GTK_BOX(box), head, false, false, 0);
+
+    // The commands: one tap each, four to a row
+    GtkWidget* grid = gtk_grid_new();
+    gtk_grid_set_row_spacing(GTK_GRID(grid), 6);
+    gtk_grid_set_column_spacing(GTK_GRID(grid), 6);
+    gtk_grid_set_column_homogeneous(GTK_GRID(grid), true);
+    int i = 0;
     for (const auto& c: commands()) {
-        GtkWidget* b = gtk_button_new();
-        GtkWidget* inner = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
-        gtk_box_pack_start(GTK_BOX(inner), gtk_image_new_from_icon_name(c.icon, GTK_ICON_SIZE_LARGE_TOOLBAR), false,
-                           false, 0);
-        gtk_box_pack_start(GTK_BOX(inner), gtk_label_new(c.name), false, false, 0);
-        gtk_container_add(GTK_CONTAINER(b), inner);
+        GtkWidget* b = tile((std::string("ask-") + c.id).c_str(), c.icon, 32, c.name, c.label);
         gtk_style_context_add_class(gtk_widget_get_style_context(b), "xoai-cmd");
-        gtk_buildable_set_name(GTK_BUILDABLE(b), (std::string("ask-") + c.id).c_str());
-        gtk_widget_set_tooltip_text(b, c.label);
-        gtk_button_set_relief(GTK_BUTTON(b), GTK_RELIEF_NONE);
         g_object_set_data(G_OBJECT(b), "ask-command", const_cast<char*>(c.id));
         g_signal_connect(b, "clicked", G_CALLBACK(+[](GtkButton* b, gpointer self) {
                              static_cast<AskPopover*>(self)->submit(
                                      static_cast<const char*>(g_object_get_data(G_OBJECT(b), "ask-command")));
                          }),
                          this);
-        gtk_box_pack_start(GTK_BOX(icons), b, false, false, 0);
+        gtk_grid_attach(GTK_GRID(grid), b, i % 4, i / 4, 1, 1);
+        i++;
     }
-    GtkWidget* closeButton = gtk_button_new_from_icon_name("window-close-symbolic", GTK_ICON_SIZE_LARGE_TOOLBAR);
-    gtk_widget_set_valign(closeButton, GTK_ALIGN_START);
-    gtk_buildable_set_name(GTK_BUILDABLE(closeButton), "ask-close");
-    gtk_widget_set_tooltip_text(closeButton, "Close (Esc)");
-    gtk_button_set_relief(GTK_BUTTON(closeButton), GTK_RELIEF_NONE);
-    g_signal_connect_swapped(closeButton, "clicked",
-                             G_CALLBACK(+[](gpointer self) { static_cast<AskPopover*>(self)->close(); }), this);
-    gtk_box_pack_end(GTK_BOX(icons), closeButton, false, false, 0);
-    gtk_box_pack_start(GTK_BOX(box), icons, false, false, 0);
+    gtk_box_pack_start(GTK_BOX(box), grid, false, false, 0);
 
+    // Or in words: said (hold the mic or the pen button) or typed
     GtkWidget* row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
-    entry = gtk_entry_new();
-    gtk_buildable_set_name(GTK_BUILDABLE(entry), "ask-text");
-    gtk_entry_set_placeholder_text(GTK_ENTRY(entry), "Say (hold the mic or the pen button) or type what you want");
-    gtk_entry_set_width_chars(GTK_ENTRY(entry), 48);
-    g_signal_connect(entry, "activate",
-                     G_CALLBACK(+[](GtkEntry*, gpointer self) { static_cast<AskPopover*>(self)->submit(""); }), this);
-    gtk_box_pack_start(GTK_BOX(row), entry, true, true, 0);
-
-    GtkWidget* micButton =
-            gtk_button_new_from_icon_name("audio-input-microphone-symbolic", GTK_ICON_SIZE_LARGE_TOOLBAR);
+    GtkWidget* micButton = tile("ask-mic", "audio-input-microphone-symbolic", 30, "Hold to say", "Hold to talk");
     gtk_style_context_add_class(gtk_widget_get_style_context(micButton), "xoai-big");
-    gtk_buildable_set_name(GTK_BUILDABLE(micButton), "ask-mic");
-    gtk_widget_set_tooltip_text(micButton, "Hold to talk");
     g_signal_connect(micButton, "button-press-event", G_CALLBACK(+[](GtkWidget*, GdkEvent*, gpointer self) -> gboolean {
                          static_cast<AskPopover*>(self)->onMic(true);
                          return false;
@@ -104,10 +118,17 @@ AskPopover::AskPopover(GtkWidget* canvas, Submit submit, Mic mic): onSubmit(std:
                      this);
     gtk_box_pack_start(GTK_BOX(row), micButton, false, false, 0);
 
-    GtkWidget* send = gtk_button_new_from_icon_name("mail-send-symbolic", GTK_ICON_SIZE_LARGE_TOOLBAR);
+    entry = gtk_entry_new();
+    gtk_buildable_set_name(GTK_BUILDABLE(entry), "ask-text");
+    gtk_entry_set_placeholder_text(GTK_ENTRY(entry), "Or say / type what you want");
+    gtk_entry_set_width_chars(GTK_ENTRY(entry), 24);
+    gtk_widget_set_valign(entry, GTK_ALIGN_CENTER);
+    g_signal_connect(entry, "activate",
+                     G_CALLBACK(+[](GtkEntry*, gpointer self) { static_cast<AskPopover*>(self)->submit(""); }), this);
+    gtk_box_pack_start(GTK_BOX(row), entry, true, true, 0);
+
+    GtkWidget* send = tile("ask-send", "mail-send-symbolic", 30, "Send", "Send (Enter)");
     gtk_style_context_add_class(gtk_widget_get_style_context(send), "xoai-big");
-    gtk_buildable_set_name(GTK_BUILDABLE(send), "ask-send");
-    gtk_widget_set_tooltip_text(send, "Send (Enter)");
     gtk_style_context_add_class(gtk_widget_get_style_context(send), "suggested-action");
     g_signal_connect_swapped(send, "clicked",
                              G_CALLBACK(+[](gpointer self) { static_cast<AskPopover*>(self)->submit(""); }), this);

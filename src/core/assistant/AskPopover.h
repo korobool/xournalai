@@ -1,8 +1,8 @@
 /*
  * xournalai (based on Xournal++)
  *
- * The Ask popover: shown next to the area the user circled (or selected). It holds what was said (editable),
- * one-tap command icons, a hold-to-talk microphone button and Send. It does not grab the pen: drawing elsewhere
+ * The Ask popover: shown next to the area the user circled (or selected). It holds one-tap command tiles (big,
+ * like the Tools grid's), what was said (editable), a hold-to-talk microphone button and Send. It does not grab the pen: drawing elsewhere
  * goes on, and the popover closes on send, Esc or its close button.
  *
  * @license GNU GPLv2 or later

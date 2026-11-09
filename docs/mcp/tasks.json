@@ -3305,7 +3305,9 @@
               "title": "The Ask window (AI lasso, AI highlighter) with big tiles",
               "details": "The same redesign for the Ask window (AI lasso, AI highlighter): the seven commands as big tiles four to a row (32 px icons), a header with a big close button, a big 'Hold to say' mic, the text and Send. Still next to the marked area. test_e10_ask, test_e14_ai_highlighter pass.",
               "commit": "ai: the Ask window with big tiles",
-              "status": "todo"
+              "status": "done",
+              "started": "2026-11-09T13:29:50+00:00",
+              "finished": "2026-11-09T13:29:50+00:00"
             },
             {
               "id": "T15.8.3",
