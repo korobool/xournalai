@@ -101,6 +101,19 @@ McpConfig McpConfig::load() {
                         live.hardS = std::clamp(l.value("hard_s", live.hardS), live.softS, 29);
                         live.language = l.value("language", live.language);
                         live.transcriptSize = std::clamp(l.value("transcript_size", live.transcriptSize), 3.0, 12.0);
+                        if (l.contains("trigger_words") && l["trigger_words"].is_array()) {
+                            std::vector<std::string> words;
+                            for (const auto& w: l["trigger_words"]) {
+                                if (w.is_string() && !w.get<std::string>().empty()) {
+                                    gchar* lower = g_utf8_strdown(w.get<std::string>().c_str(), -1);
+                                    words.emplace_back(lower);
+                                    g_free(lower);
+                                }
+                            }
+                            if (!words.empty()) {
+                                live.triggerWords = words;
+                            }
+                        }
                     } catch (const std::exception&) {
                     }
                 }
@@ -178,7 +191,8 @@ void McpConfig::save() const {
                   {"soft_s", assistant.liveNotes.softS},
                   {"hard_s", assistant.liveNotes.hardS},
                   {"language", assistant.liveNotes.language},
-                  {"transcript_size", assistant.liveNotes.transcriptSize}}}}},
+                  {"transcript_size", assistant.liveNotes.transcriptSize},
+                  {"trigger_words", assistant.liveNotes.triggerWords}}}}},
               {"backup_dir", toUtf8(backupDir)},
               {"_help",
                {{"url", url()},

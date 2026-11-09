@@ -290,11 +290,12 @@ void registerTestTools(McpServer& server) {
     liveAudio.name = "test_live_audio";
     liveAudio.title = "Test hook: live notes from a sound file";
     liveAudio.description =
-            "Test hook (XOURNALAI_TEST_HOOKS=1 only): op=start (name): as if \"Record + live notes\" started recording "
-            "`name`; op=feed (file: WAV PCM 16-bit mono): its sound through the recorder's sample tap. End it with "
+            "Test hook (XOURNALAI_TEST_HOOKS=1 only): op=start (name, mode: a live-notes mode's id, default conspect): "
+            "as if that mode's tile of the Record menu started recording `name`; op=feed (file: WAV PCM 16-bit mono): its sound through the recorder's sample tap. End it with "
             "test_recording (the same name), like the recorder.";
     liveAudio.inputSchema = schema::object({{"op", schema::enumeration("Operation", {"start", "feed"})},
                                             {"name", schema::string("start: the recording's file name")},
+                                            {"mode", schema::string("start: the mode (text, drawing, conspect, …)")},
                                             {"file", schema::string("feed: a WAV file")}},
                                            {"op"});
     liveAudio.tier = Tier::Ui;
@@ -302,7 +303,7 @@ void registerTestTools(McpServer& server) {
         Args args(j);
         if (args.str("op", "") == "start") {
             std::string error;
-            if (!srv->getUi() || !srv->getUi()->beginLive(args.str("name"), error)) {
+            if (!srv->getUi() || !srv->getUi()->beginLive(args.str("name"), error, args.str("mode", ""))) {
                 throw ToolError(error.empty() ? "no UI" : error);
             }
             return ToolResult::structured({{"started", true}});

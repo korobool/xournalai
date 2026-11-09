@@ -43,6 +43,15 @@ public:
         json transcriber;  ///< the speech recognizer, as written in mcp.json (docs/mcp/TRANSCRIBERS.md)
         std::string language = "auto";
         double transcriptSize = 3.8;  ///< the column's font size (points): small, the page is for the drawing
+        // The mode (LiveModes.h; since 1.17.0): named in every wake-up line
+        std::string mode = "conspect";
+        std::string modeLine;          ///< "mode «…» (id: annotate=…, requests=…; options: …)"
+        std::string guide;             ///< what the serving session reads for the mode ("" = the skill as written)
+        bool wakeWhileTalking = true;  ///< woken for new speech (📝 Текст: never while it records)
+        bool summary = false;          ///< 🧾 a summary page at the end (📝 Текст: woken once, at the end, for it)
+        std::string rule;  ///< what spoken requests may do in the mode (empty: the safe list on the live pages)
+        /// More for each wake-up line (✍: where the owner drew last)
+        std::function<std::string()> context;
     };
     using Wake = std::function<void(const std::string& description)>;  ///< an intent for the serving session
     using Changed = std::function<void()>;                              ///< (the status strip)

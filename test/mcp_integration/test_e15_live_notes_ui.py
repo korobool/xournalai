@@ -1,4 +1,4 @@
-"""E15: live notes from the big buttons: a long press on Record offers Record or Record + live notes (when the
+"""E15: live notes from the big buttons: a long press on Record offers Record or the modes of live notes (when the
 experimental switch is on; a long press is not a tap: it starts nothing), ✂ shows next to Record while live notes
 go on and sends the piece being spoken."""
 
@@ -40,13 +40,14 @@ def test_1_a_long_press_on_record_offers_live_notes(app):
     assert shown(ws, "aiRecordButton") and not shown(ws, "aiLiveCutButton"), ws.get("aiLiveCutButton")
     long_press(app, ws["aiRecordButton"])
     ws = widgets(c)
-    assert shown(ws, "aiRecordPlain") and shown(ws, "aiRecordLive"), [n for n in ws if n.startswith("aiRecord")]
+    assert shown(ws, "aiRecordPlain") and shown(ws, "aiRecordMode-conspect"), [n for n in ws
+                                                                             if n.startswith("aiRecord")]
     bx, by, bw, bh = ws["aiRecordButton"]["bbox"]
-    assert ws["aiRecordLive"]["bbox"][1] >= by + bh  # (under the button)
+    assert ws["aiRecordMode-conspect"]["bbox"][1] >= by + bh  # (under the button)
     app.user_key("Escape")
     time.sleep(0.4)
     ws = widgets(c)
-    assert not shown(ws, "aiRecordLive")
+    assert not shown(ws, "aiRecordMode-conspect")
     assert [w["kind"] for w in c.call("ui_windows")["windows"]] == ["main"]  # (the press started no recording)
 
 

@@ -3778,7 +3778,9 @@
               "title": "The Record menu: the modes as tiles, the options as big toggles; the mode in live notes",
               "details": "LiveModes.h/.cpp: the modes (📝 Текст, 🎙 Голосовое управление (soon, 1.17.1), ✍ Просьбы к рисунку, 🧠 Конспект + просьбы, 🛡 Конспект без команд, 🗒 Ведение конспекта) and the toggles (🌿 Экономно ↔ ⚡ Интенсивно as a switch, 🧾 Итог в конце, 🔤 Просьбы по слову; ❓ and 🔎 shown as soon), remembered in <config>/ai-live-modes.json (the last mode is highlighted). The long press's popover: the toggles first (52 px chips), then the tiles three in a row (158×104: a big sign, the name, a line of what it does, the badges of the options that apply), the plain recording first; one tap starts. A tap on Record is unchanged. Every wake-up line keeps its start and names the mode after the event ('…: new transcribed speech. Mode «…» (id: annotate=…, requests=…; options: …).') with what to read (the skill's module, modes/options.md) and the mode's rule (🛡 nothing said is carried out; ✍ context only, requests on the owner's page). 📝 wakes nobody while it records, and only at the end for «Итог в конце». ✍ says where the owner drew last (EventHub::lastUserAddition: page, area, how long ago). live_notes status reports the mode. assistant.live_notes.trigger_words (default клод, claude). test_live_audio takes a mode. test_e15_live_modes 5/5: the menu and the remembered toggles with badges; a tap on Record is the plain recording (here the plain recorder's own messages: no audio folder, no sound card); the wake-up lines of 🛡 with its options; 📝 silent, then one summary wake; ✍ with the owner's latest ink. test_e15_live_notes_ui follows the new tiles.",
               "commit": "ai: the Record menu: live-notes modes as tiles, options as big toggles",
-              "status": "todo"
+              "status": "done",
+              "started": "2026-11-09T21:05:21+00:00",
+              "finished": "2026-11-09T21:05:22+00:00"
             },
             {
               "id": "T15.14.3",

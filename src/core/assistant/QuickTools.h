@@ -59,9 +59,25 @@ public:
     void setRecordVisible(bool visible);
     bool recordWanted() const { return wantRecord; }
     GtkWidget* recordWidget() const { return recordButton; }  ///< (null before placeButton)
-    /// Live notes (experimental): whether a long press on Record offers "Record + live notes"
+    /// Live notes (experimental): whether a long press on Record offers its modes
     std::function<bool()> liveOffered;
-    std::function<void()> onLiveRecord;  ///< "Record + live notes" chosen
+    /// The long press's menu (since 1.17.0): the modes as big tiles, the options of the next recording as big
+    /// toggles above them (remembered). A short tap on Record stays a plain recording.
+    struct RecordChoice {
+        std::string id, emoji, label, hint;
+        std::string badges;  ///< the options that apply to it (their signs)
+        bool last = false;   ///< the mode used last (highlighted)
+        bool available = true;
+    };
+    struct RecordToggle {
+        std::string id, label, off;  ///< `off`: its label when off ("" = the same, unticked)
+        bool on = false;
+        bool available = true;
+    };
+    std::function<std::vector<RecordChoice>()> recordChoices;
+    std::function<std::vector<RecordToggle>()> recordToggles;
+    std::function<void(const std::string& id, bool on)> onRecordToggle;
+    std::function<void(const std::string& mode)> onLiveRecord;  ///< a mode's tile chosen
     std::function<void()> onCut;         ///< ✂ tapped
     /// A live-notes recording goes on: ✂ (send the piece being spoken now) shows next to Record
     void setLiveActive(bool on);
@@ -110,6 +126,8 @@ private:
     GtkGesture* recordLongPress = nullptr;  ///< (owned: a GTK 3 gesture is not kept by its widget)
     bool suppressRecordClick = false;  ///< the long press opened the menu: its release is not a click
     void openRecordMenu();
+    void refreshRecordBadges();       ///< the mode tiles' badges follow the option toggles
+    GtkWidget* recordGrid = nullptr;  ///< weak: the Record menu's tiles while it is open
     void toggleRecording();
     GtkWidget* recordFace = nullptr;   ///< weak
     GtkWidget* recordLabel = nullptr;  ///< (inside recordButton)
