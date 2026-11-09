@@ -3,7 +3,7 @@
     "project": "xournalai: embedded MCP server and assistant",
     "branch": "mcp",
     "plan": "docs/mcp/PLAN.md, docs/assistant/ASSISTANT-PLAN.md",
-    "version": "1.17.1",
+    "version": "1.17.2",
     "versioning": [
       "The fork has its own semantic version, XOURNALAI_VERSION, kept in CMakeLists.txt. The application version string becomes <upstream>+ai.<XOURNALAI_VERSION>, e.g. 1.3.7+ai.0.2.0.",
       "Each task is exactly one commit. The commit message is '<planned message> (<task id>)'.",
@@ -3883,9 +3883,11 @@
               "id": "T15.16.3",
               "story": "US-15.21",
               "title": "Release 1.17.2",
-              "details": "",
-              "commit": "",
-              "status": "todo"
+              "details": "Two full checks. The first (22:00-22:15): build-noterm failed to link (the question code had landed in McpUi.cpp's terminal-only part; moved out, in T15.16.1); integration 329 passed, 1 failed (test_e12_x_hang test_1, flaky). The second (22:29-22:41): all three builds; ctest 214/217 (the ControlLoadHandler race); integration 328 passed, 2 failed: test_e12_x_hang (flaky, passed alone) and test_e6_companion test_companion_folder, which looked for the old rule's words «never acted on» (replaced by the tap rule in T15.16.2; the test follows, in that commit). The owner tested the panel from a staged install before the release.",
+              "commit": "ai: release 1.17.2 (the question panel) (T15.16.3)",
+              "status": "done",
+              "started": "2026-11-09T22:51:50+00:00",
+              "finished": "2026-11-09T22:51:51+00:00"
             }
           ]
         }

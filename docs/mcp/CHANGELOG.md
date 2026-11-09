@@ -10,6 +10,35 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.17.2 — ❓ The question panel: agents ask, you tap
+- **The panel is a strip to the left of the AI terminal,** under your left thumb: the terminal is in the middle and
+  the big keys stay on the right. It shows:
+  - who is asking (Claude, ⚙ T4);
+  - the question;
+  - the agent's answers as big buttons («Да, рисовать», «Только подписать», «Этот», «Тот»);
+  - a countdown to the safe default answer;
+  - **Да** (green, for yes/no questions) and **Нет** (red), always in the same place at the bottom.
+
+  Questions wait in a queue ("1/3"), and the next one shows as soon as you answer. In a low terminal the strip
+  scrolls. When the terminal is closed, the same card appears at the bottom left of the canvas.
+- **Agents ask with the new tool `ask_owner`:** a short question, up to 6 options, a default, a timeout, and either
+  waiting for the answer or not. If the serving session doesn't wait, it is woken with your answer; a worker looks
+  it up with `op=get`. Only your tap counts as an answer, never anything spoken.
+- **Confirmations go through the panel instead of the terminal:**
+  - ✍ Просьбы к рисунку: before changing your own strokes;
+  - 🎙 Голосовое управление: before deleting;
+  - questions from the serving session and its workers.
+
+  The ❓ Панель вопросов option in the Record menu now works.
+- **A tap also allows actions outside the app** (the owner's decision): shell commands, finding files on the
+  system, the browser (a profile, a site and what to do on it, an upload to Google Drive), opening terminals,
+  settings.
+  - The question always says exactly what will be done: the command, the site and the action, the files.
+  - One tap allows that one action, once. Silence or «Не надо» does nothing.
+  - Never, even with a tap: purchases or payments, passwords, keys and tokens, deleting your files in bulk.
+- **The trigger phrase is «Hey Assistant»** (also «Эй, ассистент», «Хей ассистент»; case and punctuation don't
+  matter). It is used only when **🔤 Просьбы по слову** is on, which it isn't by default.
+
 ## 1.17.1 — 🎙 Voice control
 - **🎙 Голосовое управление is in the Record menu:** you work the app by voice, with the pen in your hand.
   - Nothing is written on the page for the talk: no live-notes page, no transcript column. The transcript file is
