@@ -3788,7 +3788,9 @@
               "title": "The live-annotation skill's modes",
               "details": "skills/live-annotation/modes/: README (the table), safe.md (requests off, visual annotation), drawing.md (requests on the owner's page, «это» = his latest ink or selection, additions at once, his strokes only after he confirms, speed), konspekt.md (a page plan, the layout library, graphs from real numbers, a clean page every ~10 min and at the end), options.md (intense, summary, trigger; questions and browser not yet). SKILL.md: a paragraph on modes. The voice-control skill waits for 1.17.1.",
               "commit": "ai: the live-annotation skill's modes",
-              "status": "todo"
+              "status": "done",
+              "started": "2026-11-09T21:05:22+00:00",
+              "finished": "2026-11-09T21:05:23+00:00"
             },
             {
               "id": "T15.14.4",
