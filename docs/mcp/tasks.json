@@ -3401,9 +3401,11 @@
               "id": "T15.9.3",
               "story": "US-15.12",
               "title": "The live-notes page: the transcript column, the live_notes tool, wake-ups for the serving session",
-              "details": "",
-              "commit": "",
-              "status": "todo"
+              "details": "LiveNotes (src/core/mcp): one recording transcribed while it goes on. The sample tap feeds its LiveChunker (on the recorder's thread; pieces handed to the main loop), each piece is written as WAV to <audio folder>/live/<recording>/ and submitted to the LiveTranscriber with the language (assistant.live_notes.language, 'auto'), the last answer's language as the hint and the last text as the prompt. Answers are written in order (an empty one skipped, a failed one as '(not recognized: …)') as small text (Sans 7.5) with [m:ss] into a column of 24% of the width on the right of a live-notes page inserted after the owner's page (title, TRANSCRIPT header); a new page '(continued)' when the column is full. Pages and text through the app's own page_manage / create_text (layers, undo, change log as for agents). The serving session gets one intent ('Live notes …: new transcribed speech. Call live_notes(op=\"read\") …') until it reads, and a last one when everything is in and read; the whole text goes to transcripts/<recording>.live.txt. live_notes tool: read (pieces since the last read, pages with free_area and transcript_column), status, cut. McpConfig assistant.live_notes {enabled, transcriber {kind, command}, pause_ms, soft_s, hard_s, language}. The recording observer is now always set (a live session ends with its recording; the chooser still only when recordings are shared). Without an audio folder (the test hook), pieces go to the app's data folder: a first test run wrote into the owner's ~/Music/live (moved aside). test_e15_live_notes 6/6 (stream recognizer: column, wake-up and read, hint and prompt, ✂, the end and the file, a second page), test_e15_live_notes_file 1/1 (file recognizer, a failed piece).",
+              "commit": "ai: the live-notes page: the transcript column, the live_notes tool, wake-ups for the serving session",
+              "status": "done",
+              "started": "2026-11-09T14:38:23+00:00",
+              "finished": "2026-11-09T14:38:24+00:00"
             },
             {
               "id": "T15.9.4",

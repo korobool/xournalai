@@ -1,5 +1,7 @@
 #include "McpConfig.h"
 
+#include <algorithm>  // for clamp
+
 #include <fstream>  // for ifstream, ofstream
 #include <random>   // for random_device
 
@@ -86,6 +88,19 @@ McpConfig McpConfig::load() {
                 cfg.assistant.speech = a.value("speech", cfg.assistant.speech);
                 cfg.assistant.speechModel = a.value("speech_model", cfg.assistant.speechModel);
                 cfg.assistant.shareRecordings = a.value("share_recordings", cfg.assistant.shareRecordings);
+                if (a.contains("live_notes") && a["live_notes"].is_object()) {
+                    const json& l = a["live_notes"];
+                    auto& live = cfg.assistant.liveNotes;
+                    live.enabled = l.value("enabled", live.enabled);
+                    if (l.contains("transcriber") && l["transcriber"].is_object()) {
+                        live.transcriberKind = l["transcriber"].value("kind", live.transcriberKind);
+                        live.transcriberCommand = l["transcriber"].value("command", live.transcriberCommand);
+                    }
+                    live.pauseMs = std::clamp(l.value("pause_ms", live.pauseMs), 500, 5000);
+                    live.softS = std::clamp(l.value("soft_s", live.softS), 5, 28);
+                    live.hardS = std::clamp(l.value("hard_s", live.hardS), live.softS, 29);
+                    live.language = l.value("language", live.language);
+                }
             }
             if (j.contains("backup_dir") && j["backup_dir"].is_string() &&
                 !j["backup_dir"].get<std::string>().empty()) {
@@ -152,7 +167,15 @@ void McpConfig::save() const {
                 {"speech", assistant.speech},
                 {"speech_model", assistant.speechModel},
                 {"share_recordings", assistant.shareRecordings},
-                {"screen_keyboard", assistant.screenKeyboard}}},
+                {"screen_keyboard", assistant.screenKeyboard},
+                {"live_notes",
+                 {{"enabled", assistant.liveNotes.enabled},
+                  {"transcriber",
+                   {{"kind", assistant.liveNotes.transcriberKind}, {"command", assistant.liveNotes.transcriberCommand}}},
+                  {"pause_ms", assistant.liveNotes.pauseMs},
+                  {"soft_s", assistant.liveNotes.softS},
+                  {"hard_s", assistant.liveNotes.hardS},
+                  {"language", assistant.liveNotes.language}}}}},
               {"backup_dir", toUtf8(backupDir)},
               {"_help",
                {{"url", url()},

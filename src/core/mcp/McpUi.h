@@ -58,6 +58,8 @@ struct DocEvent;
 
 namespace xoj::mcp {
 
+class LiveNotes;
+
 class McpUi final {
 public:
     explicit McpUi(McpServer& server);
@@ -107,6 +109,14 @@ public:
     json askStatus() const;
     /// Recordings waiting for the owner's choice, and the last one chosen
     json recordingStatus() const;
+
+    /// Live notes (experimental): starts transcribing the recording `name` (which has just started) while it goes on;
+    /// false with `error` if it can't
+    bool beginLive(const std::string& name, std::string& error);
+    /// The live-notes session going on, or the last one (null if none)
+    LiveNotes* liveNotes() const { return live.get(); }
+    /// ✂: the piece being spoken goes to the recognizer now
+    void cutLive();
 
 private:
     static gboolean onTick(gpointer self);
@@ -218,6 +228,9 @@ private:
     void onRecordingChosen(const std::string& file, const std::string& name, int64_t durationMs, int choice,
                            const std::string& request);
     std::unique_ptr<assistant::RecordingChooser> recordingChooser;
+    std::unique_ptr<LiveNotes> live;  ///< the session going on, or the last one
+    std::vector<std::unique_ptr<LiveNotes>> pastLive;  ///< ended, still transcribing their last pieces
+    void endLive(const std::string& name);
     json lastRecording;  ///< the last choice (app_status)
     /// Zones of handed-over recordings still being worked on, with "Notes" / "Instructions": the status line shows
     /// their progress

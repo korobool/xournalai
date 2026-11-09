@@ -31,6 +31,7 @@ void registerAll(McpServer& server) {
     registerThinkingTools(server);
     registerTransactionTools(server);
     registerAudioTools(server);
+    registerLiveTools(server);
     registerTestTools(server);  // only with XOURNALAI_TEST_HOOKS=1
 }
 

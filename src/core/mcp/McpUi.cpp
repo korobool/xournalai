@@ -41,6 +41,9 @@
 #include "assistant/SpeechToText.h"              // for SpeechToText
 #include "assistant/ThinkingOverlay.h"           // for ThinkingOverlay
 #include "control/RecordingObserver.h"           // for setRecordingObserver
+#include "control/SampleTap.h"                   // for setSampleTap
+#include "control/settings/Settings.h"           // for Settings (the audio folder)
+#include "mcp/LiveNotes.h"                       // for LiveNotes
 #include "control/tools/EditSelection.h"         // for EditSelection
 #include "api/RenderApi.h"                       // for renderPage (the AI highlighter's detail)
 #include "util/GVariantTemplate.h"               // for getGVariantValue
@@ -205,16 +208,20 @@ McpUi::McpUi(McpServer& server): server(server) {
         }
     }
 #endif
-    if (server.getConfig().assistant.shareRecordings) {
-        xoj::audio::setRecordingObserver([this](const xoj::audio::RecordingFinished& r) {
+    // (always: a live-notes session ends with its recording; the chooser only when recordings are shared)
+    xoj::audio::setRecordingObserver([this, share = server.getConfig().assistant.shareRecordings](
+                                             const xoj::audio::RecordingFinished& r) {
+        endLive(r.name);
+        if (share) {
             onRecordingFinished(r.file.string(), r.name, r.durationMs);
-        });
-    }
+        }
+    });
     timer = g_timeout_add_seconds(2, &McpUi::onTick, this);
     update();
 }
 
 McpUi::~McpUi() {
+    xoj::audio::setSampleTap(nullptr);  // (before the live-notes session goes)
     if (highlightTimer) {
         g_source_remove(highlightTimer);
     }
@@ -1024,6 +1031,68 @@ void McpUi::updateRecordingProgress() {
     }
 }
 
+bool McpUi::beginLive(const std::string& name, std::string& error) {
+    const auto& cfg = server.getConfig().assistant.liveNotes;
+    if (live && live->listening()) {
+        error = "live notes are already on (" + live->recording() + ")";
+        return false;
+    }
+    LiveNotes::Options opt;
+    opt.chunker.pauseMs = cfg.pauseMs;
+    opt.chunker.softMs = cfg.softS * 1000;
+    opt.chunker.hardMs = cfg.hardS * 1000;
+    opt.transcriber = {cfg.transcriberKind, cfg.transcriberCommand};
+    opt.language = cfg.language.empty() ? "auto" : cfg.language;
+    Control* ctrl = server.getControl();
+    // Where the recording goes (a real one always has its folder); else the app's data folder, never a guess in the
+    // owner's home (a test once wrote into ~/Music, 2026-11-09)
+    fs::path folder = ctrl->getSettings()->getAudioFolder();
+    std::error_code ec;
+    if (folder.empty() || !fs::is_directory(folder, ec)) {
+        folder = fs::path(g_get_user_data_dir()) / "xournalai" / "live-notes";
+    }
+    if (live) {
+        if (!live->done()) {
+            pastLive.push_back(std::move(live));  // (its last pieces are still being transcribed)
+        }
+        live.reset();
+    }
+    live = std::make_unique<LiveNotes>(
+            server, opt, name, folder, api::currentPageIndex(ctrl),
+            [this](const std::string& description) {
+#ifdef ENABLE_AI_TERMINAL
+                if (eventPump) {
+                    eventPump->addIntent(description);
+                }
+#else
+                (void)description;
+#endif
+            },
+            [this] { update(); });
+    // The recorder's sound, also to the pieces (until the recording ends)
+    xoj::audio::setSampleTap([chunker = live->chunker()](const float* frames, size_t count, int channels, int rate) {
+        chunker->feed(frames, count, channels, rate);
+    });
+    update();
+    return true;
+}
+
+void McpUi::endLive(const std::string& name) {
+    if (live && live->listening() && (name.empty() || live->recording() == name)) {
+        xoj::audio::setSampleTap(nullptr);  // (no more sound; returns once a block being handed over is in)
+        live->recordingEnded();
+        update();
+    }
+    pastLive.erase(std::remove_if(pastLive.begin(), pastLive.end(), [](const auto& l) { return l->done(); }),
+                   pastLive.end());
+}
+
+void McpUi::cutLive() {
+    if (live) {
+        live->cut();
+    }
+}
+
 json McpUi::recordingStatus() const {
     json j = {{"pending", recordingChooser ? recordingChooser->pending() : 0},
               {"chooser", recordingChooser && recordingChooser->visible()}};
@@ -1620,6 +1689,9 @@ void McpUi::update() {
         }
         if (!askStatusText.empty()) {
             text += "  |  Ask: " + askStatusText;
+        }
+        if (live && (live->listening() || !live->done())) {
+            text += "  |  " + live->statusLine();
         }
         if (eventPump) {
             text += std::string("  |  Auto-improve ") + (eventPump->autoImprove() ? "ON" : "off");

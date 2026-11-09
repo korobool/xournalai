@@ -47,6 +47,16 @@ struct McpConfig {
         /// GNOME's on-screen keyboard (tablet mode): "manual" (only when called: swipe up from the bottom edge) or
         /// "auto" (it opens whenever a text field gets the keyboard)
         std::string screenKeyboard = "manual";
+        /// Live notes (experimental): a recording transcribed while it goes on (docs/mcp/TRANSCRIBERS.md)
+        struct LiveNotes {
+            bool enabled = false;         ///< a long press on the big Record button offers it
+            std::string transcriberKind;  ///< "file" or "stream" (the speech recognizer: see the specification)
+            std::string transcriberCommand;
+            int pauseMs = 1500;  ///< a pause this long ends a piece
+            int softS = 15;      ///< from this length a piece ends at a short pause
+            int hardS = 25;      ///< and at this length anyway
+            std::string language = "auto";
+        } liveNotes;
     } assistant;
     fs::path backupDir;  ///< where those copies go
 

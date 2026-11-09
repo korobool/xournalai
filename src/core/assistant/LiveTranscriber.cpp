@@ -10,6 +10,8 @@
 
 namespace xoj::assistant {
 
+using json = nlohmann::json;
+
 struct LiveTranscriber::State {
     LiveTranscriber* owner = nullptr;  ///< null once the owner is gone: pending callbacks only clean up
     GCancellable* cancel = g_cancellable_new();
@@ -57,7 +59,7 @@ std::string replaceAll(std::string s, const std::string& what, const std::string
     return s;
 }
 
-std::string quoted(const std::string& s) {
+std::string shellQuoted(const std::string& s) {
     gchar* q = g_shell_quote(s.c_str());
     std::string out = q;
     g_free(q);
@@ -211,9 +213,9 @@ void LiveTranscriber::runNextFile() {
     }
     Piece p = std::move(queue.front());
     queue.pop_front();
-    std::string cmd = replaceAll(config.command, "{audio}", quoted(p.audioPath));
-    cmd = replaceAll(cmd, "{language}", quoted(p.language));
-    cmd = replaceAll(cmd, "{prompt}", quoted(p.prompt));
+    std::string cmd = replaceAll(config.command, "{audio}", shellQuoted(p.audioPath));
+    cmd = replaceAll(cmd, "{language}", shellQuoted(p.language));
+    cmd = replaceAll(cmd, "{prompt}", shellQuoted(p.prompt));
     GError* error = nullptr;
     state->fileProc = spawn(cmd, static_cast<GSubprocessFlags>(G_SUBPROCESS_FLAGS_STDOUT_PIPE |
                                                                G_SUBPROCESS_FLAGS_STDERR_PIPE),

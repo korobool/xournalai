@@ -19,6 +19,7 @@ void registerAll(McpServer& server);
 void registerStatusTools(McpServer& server);
 void registerTestTools(McpServer& server);
 void registerAudioTools(McpServer& server);
+void registerLiveTools(McpServer& server);
 void registerReadTools(McpServer& server);
 void registerRenderTools(McpServer& server);
 void registerLayoutTools(McpServer& server);

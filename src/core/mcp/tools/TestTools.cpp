@@ -13,6 +13,7 @@
 #include "control/Control.h"                 // for Control
 #include "control/CrashHandler.h"            // for simulateStuckCrashHandler
 #include "control/RecordingObserver.h"       // for recordingObserver
+#include "control/SampleTap.h"               // for tapSamples
 #include "control/XHangRecovery.h"           // for provokeRenderError
 #include "control/settings/Settings.h"       // for Settings
 #include "control/settings/SettingsEnums.h"  // for InputDeviceTypeOption
@@ -260,6 +261,48 @@ void registerTestTools(McpServer& server) {
         return ToolResult::structured({{"observed", static_cast<bool>(observer)}});
     };
     server.getRegistry().addTool(std::move(rec));
+
+    ToolSpec liveAudio;
+    liveAudio.name = "test_live_audio";
+    liveAudio.title = "Test hook: live notes from a sound file";
+    liveAudio.description =
+            "Test hook (XOURNALAI_TEST_HOOKS=1 only): op=start (name): as if \"Record + live notes\" started recording "
+            "`name`; op=feed (file: WAV PCM 16-bit mono): its sound through the recorder's sample tap. End it with "
+            "test_recording (the same name), like the recorder.";
+    liveAudio.inputSchema = schema::object({{"op", schema::enumeration("Operation", {"start", "feed"})},
+                                            {"name", schema::string("start: the recording's file name")},
+                                            {"file", schema::string("feed: a WAV file")}},
+                                           {"op"});
+    liveAudio.tier = Tier::Ui;
+    liveAudio.handler = [srv](const json& j) {
+        Args args(j);
+        if (args.str("op", "") == "start") {
+            std::string error;
+            if (!srv->getUi() || !srv->getUi()->beginLive(args.str("name"), error)) {
+                throw ToolError(error.empty() ? "no UI" : error);
+            }
+            return ToolResult::structured({{"started", true}});
+        }
+        gchar* data = nullptr;
+        gsize size = 0;
+        if (!g_file_get_contents(args.str("file").c_str(), &data, &size, nullptr) || size < 44) {
+            g_free(data);
+            throw ToolError("cannot read the WAV file");
+        }
+        // (a plain 44-byte header: PCM 16-bit mono at the rate it names)
+        const auto* bytes = reinterpret_cast<const unsigned char*>(data);
+        const int rate = bytes[24] | (bytes[25] << 8) | (bytes[26] << 16) | (bytes[27] << 24);
+        std::vector<float> samples;
+        for (gsize i = 44; i + 1 < size; i += 2) {
+            samples.push_back(static_cast<float>(static_cast<int16_t>(bytes[i] | (bytes[i + 1] << 8))) / 32768.0F);
+        }
+        g_free(data);
+        for (size_t i = 0; i < samples.size(); i += 64) {  // (in blocks, like the recorder)
+            xoj::audio::tapSamples(samples.data() + i, std::min<size_t>(64, samples.size() - i), 1, rate);
+        }
+        return ToolResult::structured({{"fed_s", static_cast<double>(samples.size()) / rate}});
+    };
+    server.getRegistry().addTool(std::move(liveAudio));
 
     ToolSpec recOn;
     recOn.name = "test_recorder";
