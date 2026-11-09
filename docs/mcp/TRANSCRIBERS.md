@@ -17,6 +17,11 @@ Pieces of the recording, cut at pauses (see `src/core/assistant/LiveChunker.h`):
 - with a **language** (`"auto"` unless the owner set one) and a **prompt**: the end of the previous piece's text
   (up to 200 characters), to keep spelling, names and the thread across the cut. A recognizer may ignore it.
 
+Whether to use the prompt is the recognizer's choice. **Beware:** with Whisper large-v3 (faster-whisper), passing it
+as `initial_prompt` made a quiet piece come back as a stock phrase («Продолжение следует…», «Субтитры сделал …»)
+instead of its words (2026-11-09, the owner's recording); without the prompt the piece was right. The faster-whisper
+worker here ignores it unless started with `--use-prompt`, and drops such stock phrases.
+
 Live notes are multilingual: `"auto"` means "detect the language of this piece". Short pieces are hard to detect,
 so the request also carries `language_hint`: the language found in the previous piece. A recognizer should use the
 hint when its own detection is unsure (e.g. probability below 0.5); it may ignore it.
@@ -114,6 +119,12 @@ ignored.
 - A piece without an answer after 120 s is marked failed; later pieces go on.
 - Failed pieces keep their WAV file (in the recording's `live/` folder); they can be transcribed later.
 - The whole recording is still saved as usual and can be transcribed as a whole afterwards.
+
+## Measured (2026-11-09)
+
+The owner's 70 s recording (Russian, a quiet built-in microphone), fed in real time, the faster-whisper worker on an
+A40 over ssh: 5 pieces of ~15 s (a monologue: cut at short pauses), every piece right, the last text in 0.6 s after
+the sound ended; the worker's hello 5–6 s after start (the model loading).
 
 ## Recognizers in this repository
 

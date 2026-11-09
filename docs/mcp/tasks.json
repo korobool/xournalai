@@ -3431,9 +3431,11 @@
               "id": "T15.9.6",
               "story": "US-15.12",
               "title": "The transcriber specification (docs) and a fast worker on the owner's server (the model loaded once)",
-              "details": "",
-              "commit": "",
-              "status": "todo"
+              "details": "docs/mcp/TRANSCRIBERS.md (written with T15.9.2) now also records the prompt trap (large-v3 + initial_prompt → stock phrases on a quiet piece) and the measured run. tools/transcribers/faster-whisper/live_worker.py + live-worker.sh are installed on the owner's server in ~/transcript/bin next to transcribe.py (its venv and models; nothing existing changed); README: install, check by hand, mcp.json, options (--use-prompt off by default, the stock-phrase filter).",
+              "commit": "ai: the transcriber specification and the fast worker on the owner's server",
+              "status": "done",
+              "started": "2026-11-09T14:47:56+00:00",
+              "finished": "2026-11-09T14:47:57+00:00"
             },
             {
               "id": "T15.9.7",

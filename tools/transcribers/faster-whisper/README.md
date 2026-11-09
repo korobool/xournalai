@@ -28,4 +28,8 @@ In `~/.config/xournalpp/mcp.json` (the path may differ), under `assistant`:
 ```
 
 Options (append to the command): `--model`, `--device`, `--compute-type`, `--beam-size`, `--no-vad`,
-`--hint-below 0.5`, `--audio path` (when it runs on the same machine as xournalai).
+`--hint-below 0.5`, `--audio path` (when it runs on the same machine as xournalai), `--use-prompt` (pass the previous
+text as Whisper's initial prompt: off, as it made large-v3 answer a quiet piece with a stock phrase).
+
+Stock phrases Whisper produces over silence («Субтитры сделал …», «Продолжение следует…», "Thanks for watching") are
+dropped (an empty text), after one more try without the prompt.
