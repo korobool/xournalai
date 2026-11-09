@@ -3717,10 +3717,11 @@
               "id": "T15.13.3",
               "story": "US-15.18",
               "title": "workers(op=start) shows the worker's zone at once; the skill uses the app's zones",
-              "details": "",
-              "commit": "",
-              "status": "doing",
-              "started": "2026-11-09T20:03:55+00:00"
+              "details": "A worker starts in seconds but thinks for minutes: its slot should show as busy at once, not when it first calls thinking. workers(op=start) takes the slot (page, region, color, status): the app opens the worker's zone right away ('⚙ Tn · «Title»: thinking (effort high)…', owned by the worker) and appends its id to the brief (keep its status current, end it right after drawing, fail if it can't); the result returns the zone id. page/color/status without a region is an error. The worker's CLAUDE.md: show your zone for the whole job (the brief's id, or open one with the topic colour). The skill: no hand-drawn placeholders any more (the companion's interim rule of T15.13.1): workers get their slot through workers(op=start), subagents get a zone the coordinator opens and passes in the brief. Tests (test_e15_workers 5-6, with T15.13.2's): the zone from start lasts through the coordinator's turn (Stop) while the coordinator's own zone ends, the worker's own zones (its header) too, list shows them, closing fails what is left ('closed before it finished'); the bridge with XOURNALAI_WORKER names its worker.",
+              "commit": "ai: workers(op=start) shows the worker's slot as busy at once; the skill uses the app's zones",
+              "status": "done",
+              "started": "2026-11-09T20:03:55+00:00",
+              "finished": "2026-11-09T20:09:31+00:00"
             },
             {
               "id": "T15.13.4",

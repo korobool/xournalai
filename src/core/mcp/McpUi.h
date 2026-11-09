@@ -106,8 +106,18 @@ public:
     /// Worker sessions: Claude Code in tabs of the AI terminal, each started by the serving session for one job (its
     /// brief), with only the tools of the live-annotation skill's safe list (permission mode dontAsk). Up to
     /// assistant.max_parallel at once. Errors as text in `error`.
-    json startWorker(const std::string& name, const std::string& brief, const std::string& effort, std::string& error);
+    /// The zone a worker is shown busy in from its start (its slot): it is the worker's, and the brief tells it its id
+    struct WorkerZone {
+        size_t page = 0;
+        xoj::util::Rectangle<double> area;
+        std::string status;           ///< e.g. "«Нотации молекул»: thinking (effort high)…"
+        std::optional<uint32_t> rgb;  ///< the topic's colour (0xRRGGBB)
+    };
+    json startWorker(const std::string& name, const std::string& brief, const std::string& effort, std::string& error,
+                     const std::optional<WorkerZone>& zone = std::nullopt);
     bool closeWorker(const std::string& name);
+    /// Ends the zones a worker still shows as busy (failed: `why`)
+    void endWorkerZones(const std::string& name, const std::string& why);
     json workers() const;
 #endif
     /// Local speech to text for Ask (null if disabled or not built)
@@ -116,8 +126,6 @@ public:
     json askStatus() const;
     /// Recordings waiting for the owner's choice, and the last one chosen
     json recordingStatus() const;
-    /// Ends the zones a worker still shows as busy (failed: `why`)
-    void endWorkerZones(const std::string& name, const std::string& why);
 
     /// Live notes (experimental): starts transcribing the recording `name` (which has just started) while it goes on;
     /// false with `error` if it can't

@@ -1,7 +1,8 @@
 """E15: worker sessions in tabs of the AI terminal (the owner's choice, 2026-11-09): the serving session starts a
 Claude Code worker per heavy job with `workers`; it runs in <companion>/workers with only the safe list's tools
 (dontAsk), reads its brief as its first message, is not taken for the serving session (its hooks are ignored), and is
-closed with its tab. A fake `claude` on PATH records how it is called."""
+closed with its tab. A fake `claude` on PATH records how it is called. A worker's thinking zone is its own: it lasts
+through the serving session's turns until the worker ends it or is closed (1.16.4)."""
 
 import json
 import os
@@ -103,3 +104,76 @@ def test_4_closing_ends_the_worker_and_its_tab(app):
     assert sorted(r["closed"]) == ["T2", "T3"] and r["workers"] == [], r
     labels = [x.get("label") for x in c.call("ui_inspect", max_depth=80, all=True)["widgets"]]
     assert not any(l and l.startswith("⚙ ") for l in labels), labels
+
+
+def zones(c):
+    return {z["id"]: z for z in c.call("thinking_list")["zones"]}
+
+
+def hook(app, event):
+    subprocess.run([app.binary, "--ai-hook", event], input='{"session_id": "s"}', text=True, timeout=20, check=True,
+                   env=dict(app.app_env(), XOURNALAI_PORT=str(app.port)))
+
+
+def test_5_a_worker_s_zone_lasts_through_the_coordinator_s_turns(app):
+    """9 Nov, 19:51-19:54: the workers' zones vanished at the coordinator's next idle (it wakes for every transcript
+    piece), while the workers thought on for minutes."""
+    c = app.client()
+    r = c.call("workers", op="start", name="T5", brief="draw topic T5", page=1, region=[20, 30, 200, 100],
+               color="#8b3a62", status="«Notations»: thinking…")
+    zid = r["zone"]
+    z = zones(c)[zid]
+    assert z["worker"] == "T5" and z["state"] == "thinking" and z["text"] == "⚙ T5 · «Notations»: thinking…", z
+    brief = (app.home / "data" / "xournalai" / "companion" / "workers" / "T5.brief.md").read_text()
+    assert brief.startswith("draw topic T5") and f"thinking zone id {zid}, yours" in brief
+    # the worker opens one more of its own (its bridge names it), the coordinator one of its own
+    w = app.client(headers={"X-Xournalai-Worker": "T5"})
+    own = w.call("thinking", op="start", page=1, region=[20, 140, 200, 60], text="searching…", color="teal")["id"]
+    mine = c.call("thinking", op="start", page=1, region=[300, 30, 100, 60], text="coordinator")["id"]
+    assert zones(c)[own]["text"] == "⚙ T5 · searching…"
+    w.call("thinking", op="update", id=own, text="drawing…")
+    assert zones(c)[own]["text"] == "⚙ T5 · drawing…"
+    hook(app, "SessionStart")
+    hook(app, "UserPromptSubmit")
+    hook(app, "Stop")  # the coordinator's turn ends
+    time.sleep(0.5)
+    zs = zones(c)
+    assert zs[zid]["state"] == "thinking" and zs[own]["state"] == "thinking", zs
+    assert zs.get(mine, {"state": "gone"})["state"] in ("done", "gone"), zs
+    assert sorted(next(x for x in c.call("workers", op="list")["workers"] if x["name"] == "T5")["zones"]) == \
+        sorted([zid, own])
+    w.call("thinking", op="done", id=own)
+    c.call("workers", op="close", name="T5")  # before it ended its first zone: that one failed, not done
+    zs = zones(c)
+    assert zs[zid]["state"] == "failed" and zs[zid]["text"] == "⚙ T5 · closed before it finished", zs
+    assert zs.get(own, {"state": "gone"})["state"] in ("done", "gone"), zs
+    assert "give its region too" in c.call_error("workers", op="start", name="T6", brief="x", color="#000000")
+
+
+def test_6_the_bridge_of_a_worker_names_it(app):
+    """A worker's Claude Code reaches the app through `xournalpp --mcp-stdio`, which inherits XOURNALAI_WORKER."""
+    env = dict(app.env, XOURNALAI_WORKER="T7")
+    env.pop("DISPLAY", None)  # (the bridge must never start an app by itself here)
+    env.pop("WAYLAND_DISPLAY", None)
+    p = subprocess.Popen([app.binary, "--mcp-stdio", f"--mcp-port={app.port}"], env=env, text=True,
+                         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    try:
+        def ask(i, method, params):
+            p.stdin.write(json.dumps({"jsonrpc": "2.0", "id": i, "method": method, "params": params}) + "\n")
+            p.stdin.flush()
+            while True:
+                m = json.loads(p.stdout.readline())
+                if m.get("id") == i:
+                    return m
+        ask(1, "initialize", {"protocolVersion": "2025-06-18", "capabilities": {},
+                              "clientInfo": {"name": "claude-code", "version": "1"}})
+        p.stdin.write(json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}) + "\n")
+        p.stdin.flush()
+        r = ask(2, "tools/call", {"name": "thinking", "arguments": {"op": "start", "page": 1,
+                                                                     "region": [10, 10, 50, 50], "text": "hi"}})
+        zid = r["result"]["structuredContent"]["id"]
+        z = zones(app.client())[zid]
+        assert z["worker"] == "T7" and z["text"] == "⚙ T7 · hi", z
+    finally:
+        p.stdin.close()
+        p.wait(timeout=10)

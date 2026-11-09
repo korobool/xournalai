@@ -2022,7 +2022,7 @@ void McpUi::openTerminal(const std::string& kind) {
 }
 
 json McpUi::startWorker(const std::string& name, const std::string& brief, const std::string& effort,
-                        std::string& error) {
+                        std::string& error, const std::optional<WorkerZone>& zone) {
     if (!dock) {
         error = "no AI terminal in this window";
         return nullptr;
@@ -2065,11 +2065,25 @@ json McpUi::startWorker(const std::string& name, const std::string& brief, const
     std::error_code ec;
     fs::create_directories(folder, ec);
     const fs::path briefFile = folder / (name + ".brief.md");
+    // Its zone from the start: the owner sees the slot is taken while the worker starts and thinks (minutes)
+    int zoneId = 0;
+    std::string zoneNote;
+    if (zone && thinkingOverlay) {
+        const std::string status = zone->status.empty() ? "thinking (effort " + e + ")…" : zone->status;
+        zoneId = thinkingOverlay->add(zone->page, zone->area, "⚙ " + name + " · " + status,
+                                      assistant::ThinkingOverlay::State::Thinking, name, zone->rgb);
+        const std::string id = std::to_string(zoneId);
+        zoneNote = "\n\n---\nThe app already shows your slot as busy: thinking zone id " + id +
+                   ", yours. Keep its status current as you go (`thinking(op=\"update\", id=" + id +
+                   ", text=\"searching…\")`) and end it right after you have drawn: `thinking(op=\"done\", id=" + id +
+                   ")` (`op=\"fail\"` if you can't do the job). It stays until you end it.\n";
+    }
     {
         std::ofstream out(briefFile);
-        out << brief;
+        out << brief << zoneNote;
         if (!out) {
             error = "could not write " + briefFile.string();
+            endWorkerZones(name, "could not start");
             return nullptr;
         }
     }
@@ -2090,8 +2104,12 @@ json McpUi::startWorker(const std::string& name, const std::string& brief, const
     const int tab = dock->openTab(spec, false);  // (the owner's view stays where it is)
     workerTabs[name] = tab;
     update();
-    return json{{"name", name}, {"tab", spec.title}, {"effort", e}, {"brief", briefFile.string()},
-                {"running", running + 1}, {"cap", cap}};
+    json r{{"name", name},  {"tab", spec.title},         {"effort", e}, {"brief", briefFile.string()},
+           {"running", running + 1}, {"cap", cap}};
+    if (zoneId) {
+        r["zone"] = zoneId;
+    }
+    return r;
 }
 
 bool McpUi::closeWorker(const std::string& name) {
@@ -2099,10 +2117,19 @@ bool McpUi::closeWorker(const std::string& name) {
     if (!dock || it == workerTabs.end()) {
         return false;
     }
+    endWorkerZones(name, "closed before it finished");  // (first: closing the tab reports its process ended)
     dock->closeTab(it->second);  // (its session ends: SIGHUP, never handed to the background)
     workerTabs.erase(it);
     update();
     return true;
+}
+
+void McpUi::endWorkerZones(const std::string& name, const std::string& why) {
+    if (thinkingOverlay) {
+        for (int z: thinkingOverlay->activeOf(name)) {
+            thinkingOverlay->set(z, assistant::ThinkingOverlay::State::Failed, "⚙ " + name + " · " + why);
+        }
+    }
 }
 
 json McpUi::workers() const {
@@ -2121,21 +2148,12 @@ void McpUi::stopBackgroundServing() {
     // The serving Claude ends with the app (its terminal's hangup ends it). One the owner or Claude sent to Claude
     // Code's background daemon would stay: stopped too (its conversation is kept: resumed at the next start). In a
     // process of its own, so that the app doesn't wait (2026-11-09)
-    endWorkerZones(name, "closed before it finished");  // (first: closing the tab reports its process ended)
     if (!servingClaude) {
         return;
     }
     const std::string folder = assistant::Companion::folder().string();
     const std::string script = "claude agents --json --cwd " + shq(folder) +
                                " 2>/dev/null | tr -d '\\n' | tr '{}' '\\n\\n' | grep '\"kind\": *\"background\"' | "
-void McpUi::endWorkerZones(const std::string& name, const std::string& why) {
-    if (thinkingOverlay) {
-        for (int z: thinkingOverlay->activeOf(name)) {
-            thinkingOverlay->set(z, assistant::ThinkingOverlay::State::Failed, "⚙ " + name + " · " + why);
-        }
-    }
-}
-
                                "grep -o '\"id\": *\"[^\"]*\"' | cut -d '\"' -f 4 | "
                                "while read -r id; do claude stop \"$id\" >/dev/null 2>&1; done";
     // (through the login shell, like the tabs: the app started from the desktop lacks the terminal's PATH)
@@ -2536,6 +2554,17 @@ void McpUi::buildThinking() {
 
 void McpUi::stopWork(int zone) {
     using Z = assistant::ThinkingOverlay::State;
+#ifdef ENABLE_AI_TERMINAL
+    // A worker's zone: Esc to that worker only (the serving session and the other workers go on)
+    if (const std::string owner = thinkingOverlay ? thinkingOverlay->ownerOf(zone) : ""; !owner.empty()) {
+        if (auto it = workerTabs.find(owner); dock && it != workerTabs.end() && dock->isRunning(it->second)) {
+            dock->feed(it->second, "\x1b");
+        }
+        endWorkerZones(owner, "stopped");
+        update();
+        return;
+    }
+#endif
     api::AgentGate::hurry();  // a playback in progress completes at once
     server.transactions().abortAll("stopped by the user");
 #ifdef ENABLE_AI_TERMINAL
@@ -2554,17 +2583,6 @@ void McpUi::stopWork(int zone) {
         for (Z st: {Z::Thinking, Z::Queued}) {
             for (int z: thinkingOverlay->inState(st)) {
                 thinkingOverlay->set(z, Z::Failed, "stopped");
-#ifdef ENABLE_AI_TERMINAL
-    // A worker's zone: Esc to that worker only (the serving session and the other workers go on)
-    if (const std::string owner = thinkingOverlay ? thinkingOverlay->ownerOf(zone) : ""; !owner.empty()) {
-        if (auto it = workerTabs.find(owner); dock && it != workerTabs.end() && dock->isRunning(it->second)) {
-            dock->feed(it->second, "\x1b");
-        }
-        endWorkerZones(owner, "stopped");
-        update();
-        return;
-    }
-#endif
             }
         }
     }

@@ -148,7 +148,9 @@ draws). The mixed scheme:
 - **Heavy topics** (an illustration, a picture from the web, a mind map, an analysis, accurate maths plots, anything
   that grows over a long talk) → a **worker session in its own tab** of the AI terminal, with its own long memory
   of the topic and its own effort (`high`, or `xhigh` for the hardest): `workers(op="start", name="Tn",
-  brief=<the whole brief below>, effort="high")`. The app opens a tab "⚙ Tn" (the owner sees it) running Claude Code
+  brief=<the whole brief below>, effort="high", page=P, region=<its slot>, color=<the topic colour>,
+  status="«Title»: thinking…")`. The app shows the slot as busy at once (see **Show that a slot is busy**) and opens
+  a tab "⚙ Tn" (the owner sees it) running Claude Code
   in `<companion>/workers` (its own CLAUDE.md; its hooks are not this session's) with only the xournalai tools,
   web search and fetch, Read and `python3` (anything else is refused without asking); the brief is its first
   message. Starting takes ~10–30 s, so start it as soon as a heavy topic appears. `workers(op="list")` shows which
@@ -169,8 +171,10 @@ draws). The mixed scheme:
 > your inbox),
 > inside your slot **[x, y, w, h]** only — never outside it, never in the transcript column, never on the user's
 > own ink. Draw directly with `create_text` / `create_shapes` / `create_from_svg`: for live notes this replaces the
-> one-transaction rule of your agent definition (the slot is yours; no `layer` argument). Show a `thinking` zone on
-> your slot while you work (`op="start"`, page, region, short status; `op="done"` at the end).
+> one-transaction rule of your agent definition (the slot is yours; no `layer` argument). Your slot's `thinking`
+> zone shows the owner you are working there: if this brief ends with its id, the app already shows it; otherwise
+> open it at once (`op="start"`, page, region, short status, `color` = the topic colour). Keep its status current
+> and end it (`op="done"`) right after you have drawn.
 > Your material arrives in an inbox: `python3 ~/.local/share/xournalai/companion/.claude/skills/live-annotation/lib/inbox.py take DIR T3`
 > (DIR = `~/.local/share/xournalai/companion/live/<stem>`) returns the new pieces
 > (`n`, `at`, `kind`, `text`). Loop: take → update your card → take again, until it returns `[]`.
@@ -201,12 +205,16 @@ draws). The mixed scheme:
   wide and ~60 pt tall (~110 pt for an illustration or a diagram); a **wide slot** (two or three columns) for big
   diagrams or page-wide content. The worker shrinks its frame to its content; when it reports, the column's next
   free y becomes its card's bottom + 3. Small later cards fill the gaps (`find_free_space`).
-- **Show that a slot is busy** (the user, 9 Nov: otherwise "it looks as if nothing happens and all zones are done";
-  he liked exactly this look): the moment you start a worker, draw in its slot a dashed frame in the topic colour
-  (width 0.5, radius 3, `fill_opacity` 0.05) and a centred italic 5 pt label «⚙ Tn · «Title» — сессия во вкладке
-  думает (effort high, с 19:51)…» (or «сабагент …» for a subagent). Put the two element ids into the worker's inbox
-  as a `note`: it deletes exactly them right before it draws. When it reports, delete any that are left. (If the app
-  shows its own lasting busy-zone indicator, use that instead.)
+- **Show that a slot is busy** for the whole job (the user, 9 Nov: otherwise "it looks as if nothing happens and all
+  zones are done" while a worker thinks for minutes). The app does it with thinking zones, which are not ink (never
+  saved, never in the way): a moving dashed frame and a light veil in the topic colour, with a label. Draw no
+  placeholders by hand.
+  - A worker tab: give `workers(op="start")` its slot (`page`, `region`, `color`, `status`). The zone appears at
+    once, is labelled «⚙ Tn · …», belongs to the worker and lasts until the worker ends it or is closed (your own
+    turns ending don't end it; since 1.16.4). Its id is appended to the brief; `workers(op="list")` shows each
+    worker's busy zones.
+  - A subagent: open the zone yourself as you start it, `thinking(op="start", page, region, text="«Title»:
+    thinking…", color)`, and put its id into the brief; the subagent ends it.
 - **The transcript column** is the app's: 3.8 pt since 9 Nov (written in italic by the app itself since 1.16.3). Don't rewrite the app's column texts unless a request in that recording asks for a different look
   (then recreate each new piece in the asked style at the same place and delete the app's text).
 - **Connectors are yours** (the coordinator's), drawn when the cards' real boxes are known: grey arrows from card

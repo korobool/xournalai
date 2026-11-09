@@ -20,7 +20,9 @@ void registerWorkerTools(McpServer& server) {
             "For the serving session (the coordinator): start a worker, a Claude Code session in its own tab of the AI "
             "terminal, for one heavy job (an illustration, a picture or scheme from the web, a mind map, an analysis). "
             "op=start (name, e.g. \"T3\"; brief: the whole task, self-contained, with the page and area to draw in and "
-            "what to report; effort: low, medium, high (default), xhigh or max). The worker reads the brief as its "
+            "what to report; effort: low, medium, high (default), xhigh or max; page + region (its slot, [x, y, w, h]), "
+            "color (the topic's) and status: the app shows the slot as busy at once, a zone labelled with the worker's "
+            "name that lasts until the worker ends it or is closed; the brief gets its id). The worker reads the brief as its "
             "first message, runs in <companion>/workers with its own CLAUDE.md, and may only use the xournalai tools, "
             "web search and fetch, Read and python3 (anything else is refused without asking). Up to "
             "assistant.max_parallel workers at once (with your subagents). op=list: the workers and whether they "
@@ -31,20 +33,39 @@ void registerWorkerTools(McpServer& server) {
              {"name", schema::string("start/close: the worker's name (1-24 letters, digits, . _ -)")},
              {"brief", schema::string("start: the task, self-contained")},
              {"effort", schema::enumeration("start: effort level", {"low", "medium", "high", "xhigh", "max"})},
-             {"all", schema::boolean("close: every worker")}},
+             {"all", schema::boolean("close: every worker")},
+             {"page", schema::integer("start: the page of its slot (1-based)")},
+             {"region", schema::array("start: its slot [x, y, width, height] in page points: shown busy at once",
+                                      schema::number("coordinate"))},
+             {"color", schema::string("start: the slot's colour (the topic's), e.g. \"#8b3a62\"")},
+             {"status", schema::string("start: what the slot's label says, e.g. \"«Notations»: thinking…\"")}},
             {"op"});
     t.tier = Tier::Ui;
     t.handler = [srv](const json& j) {
         Args args(j);
-        args.rejectUnknown({"op", "name", "brief", "effort", "all"});
+        args.rejectUnknown({"op", "name", "brief", "effort", "all", "page", "region", "color", "status"});
         const std::string op = args.choice("op", {"start", "list", "close"}, "");
         McpUi* ui = srv->getUi();
         if (!ui || !ui->terminal()) {
             throw ToolError("no AI terminal in this window");
         }
         if (op == "start") {
+            std::optional<McpUi::WorkerZone> zone;
+            if (args.has("region")) {
+                requireDocument(srv->getControl());
+                McpUi::WorkerZone z;
+                z.page = resolvePageIndex(srv->getControl(), args);
+                z.area = *parseRegion(args);
+                z.status = args.str("status", "");
+                if (args.has("color")) {
+                    z.rgb = static_cast<uint32_t>(parseColor(args.raw("color"))) & 0xffffffU;
+                }
+                zone = z;
+            } else if (args.has("page") || args.has("color") || args.has("status")) {
+                throw ToolError("page, color and status describe the worker's slot: give its region too");
+            }
             std::string error;
-            json r = ui->startWorker(args.str("name"), args.str("brief"), args.str("effort", "high"), error);
+            json r = ui->startWorker(args.str("name"), args.str("brief"), args.str("effort", "high"), error, zone);
             if (!error.empty()) {
                 throw ToolError(error);
             }
