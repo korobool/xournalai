@@ -3391,9 +3391,11 @@
               "id": "T15.9.2",
               "story": "US-15.12",
               "title": "The live transcriber: any recognizer behind a per-file or JSON-lines command",
-              "details": "",
-              "commit": "",
-              "status": "todo"
+              "details": "docs/mcp/TRANSCRIBERS.md specifies the interface (protocol 1): pieces are WAV PCM 16-bit mono 16 kHz with language ('auto'), language_hint (the previous piece's) and prompt (the end of the previous text); a recognizer is 'file' (a command template with {audio} {language} {prompt}, stdout the text) or 'stream' (a long-running process, JSON lines: hello {protocol, engine, audio: path|inline} → transcribe {id, audio_path, audio_b64?, language, language_hint, prompt} → result {id, text, language, language_probability, segments, elapsed} | error {id, message}; stdin closed at the end); 120 s timeouts; a stream that worked and died is restarted for the queued pieces. LiveTranscriber implements both on the GLib main loop (GSubprocess through the login shell, like the terminal's tabs), knowing no particular recognizer. tools/transcribers/faster-whisper/live_worker.py is a stream recognizer (the model loaded once; an unsure short piece retried in the hinted language); installed on the owner's server next to its transcribe.py (~/transcript/bin, nothing existing changed). Measured over ssh with the owner's recording of 8.11: hello after 5.5 s, a 10 s piece back in 1.6-2.1 s, 2.5 s in 0.8 s, Russian at p=0.96-0.98.",
+              "commit": "ai: the live transcriber: any recognizer behind a per-file or JSON-lines command",
+              "status": "done",
+              "started": "2026-11-09T14:29:02+00:00",
+              "finished": "2026-11-09T14:29:02+00:00"
             },
             {
               "id": "T15.9.3",
