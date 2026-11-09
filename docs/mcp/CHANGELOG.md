@@ -10,6 +10,40 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.17.0 — Live-notes modes: hold Record and choose
+- **A long press on Record now offers every mode as a big tile**, and the options for the next recording as big
+  toggles above them. Everything works by finger, and one tap on a tile starts the recording. The design and the
+  plan are in `docs/mcp/LIVE_MODES.md`.
+
+  | Tile | What it does |
+  |---|---|
+  | ⏺ Запись | the plain recording, as a tap does |
+  | 📝 Текст | the transcript only. No agent is woken while it records |
+  | ✍ Просьбы к рисунку | no cards. Spoken requests act on your own page: «это» is what you drew last. Additions go on at once; your own strokes change only after you confirm |
+  | 🧠 Конспект + просьбы | as live notes have worked until now |
+  | 🛡 Конспект без команд | cards, schemes, mind maps and pictures. Nothing said is ever carried out |
+  | 🗒 Ведение конспекта | a planned page layout, graphs from real numbers, a clean page every ~10 minutes and at the end |
+  | 🎙 Голосовое управление | coming in 1.17.1 |
+
+  The tile you used last is highlighted.
+- **Options**, remembered between recordings:
+  - **🌿 Экономно ↔ ⚡ Интенсивно**, a switch: intense starts a worker for every topic at a higher effort and
+    doesn't save your limits;
+  - **🧾 Итог в конце:** a summary page when the recording ends. With 📝 Текст this is the only thing the agent
+    does;
+  - **🔤 Просьбы по слову:** only a phrase that starts with the trigger word counts as a request. The words are
+    in `assistant.live_notes.trigger_words`; the defaults are «клод» and «claude».
+
+  ❓ Панель вопросов and 🔎 Браузер-помощник are shown as "скоро" (coming).
+
+  Each tile shows the options that apply to it as small badges.
+- **A tap on Record is unchanged:** it is the plain recording.
+- **The serving session's wake-up lines name the mode,** for example: "…: new transcribed speech. Mode «Конспект без
+  команд» (safe: annotate=visual, requests=off; options: economy)." The line also says what to read for that mode
+  (the skill's `modes/…md`) and what spoken requests may do in it. `live_notes(op="status")` reports the mode.
+- **The live-annotation skill has a module for each mode,** in `modes/`: `safe`, `drawing`, `konspekt`, and
+  `options` for the options.
+
 ## 1.16.4 — A worker's zone lasts for its whole job
 - **A worker's "working here" zone no longer disappears while the worker is still thinking.** On 9 November,
   workers T3–T5 marked their regions and then thought for 3–5 minutes. Their zones vanished within a minute, so the
