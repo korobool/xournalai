@@ -3358,6 +3358,92 @@
               "finished": "2026-11-09T14:13:20+00:00"
             }
           ]
+        },
+        {
+          "id": "S15.9",
+          "title": "Live notes while recording (experimental)",
+          "version": "1.16.0",
+          "stories": [
+            {
+              "id": "US-15.12",
+              "text": "As the owner, I want a recording mode that transcribes as I speak: pieces cut at pauses (or when long, or when I tap ✂) go to a speech recognizer, their text lands in a narrow column of a live-notes page, and Claude draws what is being talked about in the rest of the page at its own pace, so that a talk or a meeting is annotated while it goes on.",
+              "acceptance": [
+                "a long press on the big Record button offers Record and Record + live notes (when the experimental switch is on); a short press records as before",
+                "the recording itself is unchanged (the .ogg, the chooser afterwards)",
+                "pieces are cut at a pause of 1.5 s, in a monologue at a short pause after ~15 s, at the quietest moment by 25 s, and on ✂",
+                "the recognizer is any program behind a small interface (a per-file command, or a JSON-lines stream), not tied to one server",
+                "the text of each piece, with its time, goes into a narrow column of a new page; the serving Claude reads new pieces when it is free and draws topic cards in the free area"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T15.9.1",
+              "story": "US-15.12",
+              "title": "A tap on the recorded sound and a chunker that cuts it at pauses",
+              "details": "The recorder's consumer thread (VorbisConsumer) hands every block it writes, after the gain, to a sample tap (control/SampleTap: compiled with or without audio, null by default). LiveChunker (GTK-free) mixes to mono, resamples to 16 kHz, decides voice per 50 ms frame with VoiceActivity (the microphone's own noise floor: the quiet built-in microphone works), drops the silence before the voice (but 300 ms), and ends a piece at a 1.5 s pause (300 ms of it kept), in a monologue at the first 0.3 s pause after 15 s, at the quietest 100 ms of the last 2 s at 25 s, on ✂ (the quietest of the last 0.5 s) and at the end; under 300 ms of voice is dropped. No overlap between pieces. Unit tests LiveChunker 6/6 (pause, silence and clicks, monologue, limit, scissors, 48 kHz stereo).",
+              "commit": "ai: a tap on the recorded sound and a chunker that cuts it at pauses",
+              "status": "done",
+              "started": "2026-11-09T14:20:42+00:00",
+              "finished": "2026-11-09T14:23:28+00:00"
+            },
+            {
+              "id": "T15.9.2",
+              "story": "US-15.12",
+              "title": "The live transcriber: any recognizer behind a per-file or JSON-lines command",
+              "details": "",
+              "commit": "",
+              "status": "todo"
+            },
+            {
+              "id": "T15.9.3",
+              "story": "US-15.12",
+              "title": "The live-notes page: the transcript column, the live_notes tool, wake-ups for the serving session",
+              "details": "",
+              "commit": "",
+              "status": "todo"
+            },
+            {
+              "id": "T15.9.4",
+              "story": "US-15.12",
+              "title": "A long press on Record: Record or Record + live notes; the ✂ button; the experimental switch",
+              "details": "",
+              "commit": "",
+              "status": "todo"
+            },
+            {
+              "id": "T15.9.5",
+              "story": "US-15.12",
+              "title": "The live-annotation skill (base: topic cards in the free area)",
+              "details": "",
+              "commit": "",
+              "status": "todo"
+            },
+            {
+              "id": "T15.9.6",
+              "story": "US-15.12",
+              "title": "The transcriber specification (docs) and a fast worker on the owner's server (the model loaded once)",
+              "details": "",
+              "commit": "",
+              "status": "todo"
+            },
+            {
+              "id": "T15.9.7",
+              "story": "US-15.12",
+              "title": "Review of the iteration: consistent, easy to maintain, recognizers easy to replace",
+              "details": "",
+              "commit": "",
+              "status": "todo"
+            },
+            {
+              "id": "T15.9.8",
+              "story": "US-15.12",
+              "title": "Release 1.16.0",
+              "details": "",
+              "commit": "",
+              "status": "todo"
+            }
+          ]
         }
       ]
     }

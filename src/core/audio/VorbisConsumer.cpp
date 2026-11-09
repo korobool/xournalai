@@ -13,6 +13,7 @@
 #include <sndfile.h>  // for SF_INFO, sf_strerror, sf_writ...
 
 #include "audio/AudioQueue.h"           // for AudioQueue
+#include "control/SampleTap.h"          // for tapSamples
 #include "control/settings/Settings.h"  // for Settings
 #include "util/StringUtils.h"
 
@@ -58,6 +59,9 @@ auto VorbisConsumer::start(fs::path const& file) -> bool {
                 }
                 sf_writef_float(sfFile.get(), buffer.data(),
                                 std::min<sf_count_t>(sf_count_t(buffer.size()) / channels, 64));
+                // xournalai: the same sound to whoever listens (live notes)
+                xoj::audio::tapSamples(buffer.data(), buffer.size() / static_cast<size_t>(channels), channels,
+                                       static_cast<int>(this->settings.getAudioSampleRate()));
             }
         }
     });
