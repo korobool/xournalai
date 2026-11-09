@@ -10,7 +10,7 @@ namespace xoj::gui {
 namespace {
 constexpr int WAVE_WIDTH = 86;
 constexpr int WAVE_HEIGHT = 18;
-constexpr guint FRAME_MS = 50;
+constexpr guint FRAME_MS = 100;  // (10 frames a second: enough for a level meter; 20 redrew the window too often)
 
 void named(GtkWidget* w, const char* name) {
     gtk_widget_set_name(w, name);

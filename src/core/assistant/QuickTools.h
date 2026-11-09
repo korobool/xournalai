@@ -114,8 +114,10 @@ private:
     GtkWidget* recordFace = nullptr;   ///< weak
     GtkWidget* recordLabel = nullptr;  ///< (inside recordButton)
     guint recordPoll = 0;
-    guint faceTick = 0;
-    gint64 labelUs = 0;
+    guint faceTick = 0;  ///< the face's animation timer while recording (FACE_MS)
+    static constexpr guint FACE_MS = 80;
+    int shownRecordState = -1;     ///< (what the button shows: set again only when it changes)
+    std::string shownRecordText;
     bool shownRecording = false;
     GtkWidget* fullscreenButton = nullptr;  ///< weak
     bool wantFullscreen = true;

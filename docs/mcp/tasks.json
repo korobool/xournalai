@@ -3508,6 +3508,14 @@
                 "the app's texts (wake-up, live_notes, the companion's CLAUDE.md) say requests are handled only within the live-annotation skill's safe list",
                 "everything else said is never acted on"
               ]
+            },
+            {
+              "id": "US-15.15",
+              "text": "As the owner, I want a long recording (with live notes) never to freeze xournalai, so that the app doesn't restart under me mid-talk.",
+              "acceptance": [
+                "while recording the window is not redrawn at the screen's frame rate",
+                "the Record button and the indicator set their texts and styles only when they change"
+              ]
             }
           ],
           "tasks": [
@@ -3520,6 +3528,16 @@
               "status": "done",
               "started": "2026-11-09T18:20:24+00:00",
               "finished": "2026-11-09T18:20:24+00:00"
+            },
+            {
+              "id": "T15.11.2",
+              "story": "US-15.15",
+              "title": "Recording no longer redraws the window ~120 times a second",
+              "details": "2026-11-09 18:37: 18 minutes into a live-notes recording the UI thread waited 15 s for the X server (a GetInputFocus after a SYNC:3; the server answered others), and the hang handler rescued the document and restarted the app. The app had sent 70 million X requests since 16:49; the owner's app measured ~30,000 X requests/s with the companion idle. On a test app: at rest 1,198 req/s and 1 frame/s; with the recorder on 27,137 req/s and ~60 frames/s (SYNC:3 119/s): the Record button's face redrew on every frame clock tick (a tick callback), and four times a second refreshRecord set the label's text, the tooltip and the style class again (each re-lays out and redraws), and the recording indicator redrew at 20/s. Now the face animates on an 80 ms timer (only its own area, only when mapped), refreshRecord changes the label, tooltip and class only when they change, the indicator draws at 10/s. Measured: 8,341 req/s and ~23 frames/s with the recorder on (13,728 with live notes on), down from 27,137 / ~60. Still left (to investigate): a single small redraw costs ~600-1,200 X requests (looks like a whole-window repaint), and ~7 frames/s go on after a recording ends. test_e11_recordings, test_e14_ai_highlighter, test_e15_focus, test_e15_live_notes_ui, test_e13: 51/51.",
+              "commit": "ai: recording no longer redraws the window at the screen's frame rate",
+              "status": "done",
+              "started": "2026-11-09T18:48:44+00:00",
+              "finished": "2026-11-09T18:48:44+00:00"
             }
           ]
         }

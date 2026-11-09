@@ -177,8 +177,8 @@ QuickTools::~QuickTools() {
     if (recordPoll) {
         g_source_remove(recordPoll);
     }
-    if (recordFace && faceTick) {
-        gtk_widget_remove_tick_callback(recordFace, faceTick);
+    if (faceTick) {
+        g_source_remove(faceTick);
     }
     if (recordFace) {
         g_object_remove_weak_pointer(G_OBJECT(recordFace), reinterpret_cast<gpointer*>(&recordFace));
@@ -1013,9 +1013,6 @@ void QuickTools::refreshRecord() {
         return;
     }
     const bool on = isRecording();
-    GtkStyleContext* sc = gtk_widget_get_style_context(recordButton);
-    on ? gtk_style_context_add_class(sc, "xoai-recording") : gtk_style_context_remove_class(sc, "xoai-recording");
-    gtk_widget_set_tooltip_text(recordButton, on ? "Stop recording" : "Start recording audio");
     std::string text = "Record";
 #ifdef ENABLE_AUDIO
     if (on) {
@@ -1023,27 +1020,38 @@ void QuickTools::refreshRecord() {
         text = "Stop " + std::to_string(s / 60) + ":" + (s % 60 < 10 ? "0" : "") + std::to_string(s % 60);
     }
 #endif
-    gtk_label_set_text(GTK_LABEL(recordLabel), text.c_str());
+    // Only what changed: a label's text, a tooltip, a style class, set again even to the same value, re-lays out and
+    // redraws the window; four times a second while recording, that and the face below (redrawn every screen frame)
+    // made the whole window redraw ~120 times a second (27,000 X requests a second; on 2026-11-09 the X server stopped
+    // answering the app 18 minutes into a live-notes recording)
+    if (static_cast<int>(on) != shownRecordState) {
+        shownRecordState = on;
+        GtkStyleContext* sc = gtk_widget_get_style_context(recordButton);
+        on ? gtk_style_context_add_class(sc, "xoai-recording") : gtk_style_context_remove_class(sc, "xoai-recording");
+        gtk_widget_set_tooltip_text(recordButton, on ? "Stop recording" : "Start recording audio");
+    }
+    if (text != shownRecordText) {
+        shownRecordText = text;
+        gtk_label_set_text(GTK_LABEL(recordLabel), text.c_str());
+    }
     if (on && !faceTick) {
-        faceTick = gtk_widget_add_tick_callback(
-                recordFace,
-                [](GtkWidget* w, GdkFrameClock*, gpointer d) -> gboolean {
-                    auto* self = static_cast<QuickTools*>(d);
-                    if (!self->isRecording()) {
-                        self->faceTick = 0;
-                        self->refreshRecord();
-                        gtk_widget_queue_draw(w);
-                        return G_SOURCE_REMOVE;
-                    }
-                    gtk_widget_queue_draw(w);
-                    const gint64 now = g_get_monotonic_time();
-                    if (now - self->labelUs > 250000) {
-                        self->labelUs = now;
-                        self->refreshRecord();
-                    }
-                    return G_SOURCE_CONTINUE;
-                },
-                this, nullptr);
+        // The face listens: ~12 frames a second, only its own area (not every screen frame)
+        faceTick = g_timeout_add(FACE_MS, [](gpointer d) -> gboolean {
+            auto* self = static_cast<QuickTools*>(d);
+            if (!self->recordFace || !self->isRecording()) {
+                self->faceTick = 0;
+                self->refreshRecord();
+                if (self->recordFace) {
+                    gtk_widget_queue_draw(self->recordFace);
+                }
+                return G_SOURCE_REMOVE;
+            }
+            if (gtk_widget_get_mapped(self->recordFace)) {
+                gtk_widget_queue_draw(self->recordFace);
+            }
+            self->refreshRecord();  // (the time: its text changes once a second)
+            return G_SOURCE_CONTINUE;
+        }, this);
     }
     gtk_widget_queue_draw(recordFace);
 }
