@@ -9,16 +9,23 @@
 
 #include <glib.h>  // for g_idle_add
 
-#include "control/Control.h"  // for Control
+#include "api/DrawApi.h"                              // for DrawApi
+#include "api/EventHub.h"                             // for EventHub (origin "app")
+#include "control/Control.h"                          // for Control
+#include "control/PageBackgroundChangeController.h"  // for newPageLike
+#include "undo/UndoAction.h"                          // for UndoAction
 #include "model/Document.h"   // for Document
 #include "model/XojPage.h"    // for XojPage
 
 #include "McpServer.h"
+#include "XJson.h"  // for elementFromXJson
 
 namespace xoj::mcp {
 
 namespace {
-constexpr double MARGIN = 24;
+// Dense pages (the owner, 2026-11-09: "most of a talk on one page"): small margins, a narrow column, a small gap
+constexpr double MARGIN = 12;
+constexpr double GAP = 6;  ///< between the free area and the transcript column
 
 std::string clock(int64_t ms) {
     const int64_t s = std::max<int64_t>(0, ms / 1000);
@@ -208,27 +215,56 @@ void LiveNotes::onResult(const assistant::TranscriberResult& r) {
     }
 }
 
-void LiveNotes::call(const std::string& tool, json args, std::function<void(const ToolResult&)> then) {
-    // The app's own tools: the same pages, layers, undo and change log as an agent's work
-    const ToolSpec* t = server.getRegistry().findTool(tool);
-    std::weak_ptr<bool> token = alive;
-    Responder done = [token, then](ToolResult r) {
-        if (token.lock()) {
-            then(r);
-        }
-    };
-    if (!t) {
-        done(ToolResult::error("no tool " + tool));
-        return;
-    }
+void LiveNotes::writeTexts(const PageRef& page, const json& texts, std::function<void(double bottom)> then) {
+    // The app's own writing: not in the user's undo history (an Undo meant for the user's stroke must not take the
+    // transcript or the page away, 2026-11-09), marked "app" in the change log, never animated
+    Control* ctrl = server.getControl();
+    std::vector<ElementPtr> elements;
+    std::vector<std::string> warnings;
     try {
-        if (t->handler) {
-            done(t->handler(args));
-        } else {
-            t->asyncHandler(args, done);
+        for (size_t i = 0; i < texts.size(); i++) {
+            json e = texts[i];
+            e["type"] = "text";
+            elements.push_back(xjson::elementFromXJson(e, "live notes", warnings));
         }
     } catch (const std::exception& e) {
-        done(ToolResult::error(e.what()));
+        g_warning("live notes: %s", e.what());
+        then(-1);
+        return;
+    }
+    api::DrawTarget target;
+    {
+        Document* doc = ctrl->getDocument();
+        std::shared_lock lock(*doc);
+        target.page = doc->indexOf(page);
+    }
+    if (target.page == npos) {
+        then(-1);
+        return;
+    }
+    target.layer = server.getConfig().defaultLayer;
+    target.undoSink = [](std::unique_ptr<UndoAction>) {};  // (not undoable by the user)
+    api::EventHub* events = server.getEvents();
+    if (events) {
+        events->flush();  // (earlier changes keep their origin)
+        events->beginAppWork();
+    }
+    std::weak_ptr<bool> token = alive;
+    api::DrawApi(ctrl).insert(target, std::move(elements), api::AnimationOptions{},
+                              [token, then](const api::DrawResult& r) {
+                                  if (!token.lock()) {
+                                      return;
+                                  }
+                                  double bottom = -1;
+                                  for (const Element* e: r.elements) {
+                                      const auto& bb = e->getBoundingBox();
+                                      bottom = std::max(bottom, bb.y + bb.height);
+                                  }
+                                  then(bottom);
+                              });
+    if (events) {
+        events->flush();
+        events->endAppWork();
     }
 }
 
@@ -253,46 +289,56 @@ void LiveNotes::newPage(std::function<void()> then) {
         }
     }
     writing = true;
-    call("page_manage", {{"op", "insert"}, {"page", after}}, [this, then](const ToolResult& r) {
-        const auto& sc = r.structuredContent();
-        if (r.isError() || !sc || !sc->contains("page")) {
-            writing = false;
-            pageProblem = "could not add the live-notes page";
-            pump();  // (the rest goes on without a column)
-            return;
+    Control* ctrl = server.getControl();
+    PageRef page;
+    {
+        Document* doc = ctrl->getDocument();
+        std::shared_lock lock(*doc);
+        if (after > doc->getPageCount()) {
+            after = doc->getPageCount();
         }
-        const size_t number = (*sc)["page"].get<size_t>();
-        {
-            Document* doc = server.getControl()->getDocument();
-            std::shared_lock lock(*doc);
-            if (number == 0 || number > doc->getPageCount()) {
-                writing = false;
-                return;
-            }
-            PageRef page = doc->getPage(number - 1);
-            pages.push_back(page);
-            pageW = page->getWidth();
-            pageH = page->getHeight();
+        PageRef like = doc->getPage(after == 0 ? 0 : after - 1);
+        if (like) {
+            page = ctrl->getPageBackgroundChangeController()->newPageLike(like);
         }
-        colW = std::max(110.0, pageW * 0.24);
-        colX = pageW - MARGIN - colW;
-        const bool first = pages.size() == 1;
-        const std::string title = first ? "Live notes · " + startedAt + " · " + name
-                                        : "Live notes · " + name + " (continued)";
-        json texts = json::array(
-                {{{"text", title}, {"x", MARGIN}, {"y", 14}, {"font", {{"name", "Sans Bold"}, {"size", 10}}},
-                  {"color", "#666666"}},
-                 {{"text", "TRANSCRIPT"}, {"x", colX}, {"y", 34}, {"font", {{"name", "Sans Bold"}, {"size", 6.5}}},
-                  {"color", "#999999"}}});
-        call("create_text", {{"page", number}, {"texts", texts}}, [this, then](const ToolResult&) {
-            y = columnTop = 46;
-            top = 34;
-            writing = false;
-            if (changed) {
-                changed();
-            }
-            then();
-        });
+    }
+    if (!page) {
+        writing = false;
+        pageProblem = "could not add the live-notes page";
+        pump();  // (the rest goes on without a column)
+        return;
+    }
+    api::EventHub* events = server.getEvents();
+    if (events) {
+        events->flush();
+        events->beginAppWork();
+    }
+    ctrl->insertPage(page, after, false, false);  // (after = the 0-based index of the new page; not undoable)
+    if (events) {
+        events->flush();
+        events->endAppWork();
+    }
+    pages.push_back(page);
+    pageW = page->getWidth();
+    pageH = page->getHeight();
+    colW = std::max(90.0, pageW * 0.18);
+    colX = pageW - MARGIN - colW;
+    const bool first = pages.size() == 1;
+    const std::string title =
+            first ? "Live notes · " + startedAt + " · " + name : "Live notes · " + name + " (continued)";
+    json texts = json::array(
+            {{{"text", title}, {"x", MARGIN}, {"y", 6}, {"font", {{"name", "Sans Bold"}, {"size", 7}}},
+              {"color", "#666666"}},
+             {{"text", "TRANSCRIPT"}, {"x", colX}, {"y", 17}, {"font", {{"name", "Sans Bold"}, {"size", 4.5}}},
+              {"color", "#999999"}}});
+    writeTexts(page, texts, [this, then](double) {
+        y = columnTop = 24;
+        top = 17;
+        writing = false;
+        if (changed) {
+            changed();
+        }
+        then();
     });
 }
 
@@ -338,17 +384,11 @@ void LiveNotes::pump() {
                      {"x", colX},
                      {"y", y},
                      {"wrap", colW},
-                     {"font", {{"name", "Sans"}, {"size", opt.transcriptSize}}},
+                     {"font", {{"name", "Sans Italic"}, {"size", opt.transcriptSize}}},  // (italic from the start)
                      {"color", p.ok ? "#3c3c3c" : "#b04a4a"}};
-        call("create_text", {{"page", *number}, {"texts", json::array({text})}}, [this, index](const ToolResult& r) {
+        writeTexts(pages.back(), json::array({text}), [this, index](double written) {
             writing = false;
-            double bottom = y + opt.transcriptSize * 1.3;
-            if (const auto& sc = r.structuredContent(); sc && sc->contains("created") && !(*sc)["created"].empty()) {
-                const json& bb = (*sc)["created"][0]["bbox"];
-                if (bb.is_array() && bb.size() == 4) {
-                    bottom = bb[1].get<double>() + bb[3].get<double>();
-                }
-            }
+            const double bottom = written > 0 ? written : y + opt.transcriptSize * 1.3;
             y = bottom + std::max(1.5, opt.transcriptSize * 0.4);  // (a little air between pieces)
             pieces[index].written = true;
             appendTranscript(pieces[index]);
@@ -357,7 +397,7 @@ void LiveNotes::pump() {
             if (changed) {
                 changed();
             }
-            pump();
+            pumpLater();  // (through the main loop: the insert answered at once, no deeper and deeper calls)
         });
         return;
     }
@@ -365,6 +405,20 @@ void LiveNotes::pump() {
     if (changed) {
         changed();
     }
+}
+
+void LiveNotes::pumpLater() {
+    g_idle_add_full(
+            G_PRIORITY_DEFAULT_IDLE,
+            +[](gpointer d) -> gboolean {
+                auto* l = static_cast<std::pair<std::weak_ptr<bool>, LiveNotes*>*>(d);
+                if (l->first.lock()) {
+                    l->second->pump();
+                }
+                return G_SOURCE_REMOVE;
+            },
+            new std::pair<std::weak_ptr<bool>, LiveNotes*>(alive, this),
+            +[](gpointer d) { delete static_cast<std::pair<std::weak_ptr<bool>, LiveNotes*>*>(d); });
 }
 
 void LiveNotes::maybeWake() {
@@ -439,7 +493,7 @@ json LiveNotes::pagesJson() const {
             const bool last = i + 1 == pages.size();
             list.push_back({{"page", *n},
                             {"transcript_column", {colX, top, colW, pageH - MARGIN - top}},
-                            {"free_area", {MARGIN, top, colX - 2 * MARGIN, pageH - MARGIN - top}},
+                            {"free_area", {MARGIN, top, colX - GAP - MARGIN, pageH - MARGIN - top}},
                             {"column_filled_to", last ? y : pageH - MARGIN}});
         }
     }

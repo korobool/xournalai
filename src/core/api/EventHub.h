@@ -62,6 +62,13 @@ public:
     /// Monotonic time of the latest change made by the user (0 if none)
     gint64 lastUserChangeUs() const { return lastUserUs; }
 
+    /// The app's own changes (live notes' pages and transcript) bracket their work with these: origin "app"
+    void beginAppWork() { appDepth++; }
+    void endAppWork() {
+        if (appDepth > 0) {
+            appDepth--;
+        }
+    }
     /// Agent tool calls bracket their work with these (nesting allowed)
     void beginAgentWork() { agentDepth++; }
     void endAgentWork() {
@@ -121,6 +128,9 @@ private:
     std::deque<DocEvent> log;
     uint64_t seq = 0;
     int agentDepth = 0;
+    int appDepth = 0;
+    /// (the app's own writing is "app" even inside an agent's call, e.g. live notes started by a tool)
+    std::string currentOrigin() const { return appDepth > 0 ? "app" : agentDepth > 0 ? "agent" : "user"; }
     gint64 lastUserUs = 0;
     std::function<void(const DocEvent&)> listener;
     std::vector<std::function<void(const DocEvent&)>> extraListeners;

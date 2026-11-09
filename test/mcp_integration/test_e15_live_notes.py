@@ -95,6 +95,10 @@ def test_1_speech_becomes_text_in_the_column_of_a_new_page(app):
     fonts = {e["font"]["size"] for e in c.call("page_elements", page=2, detail="full")["elements"]
              if e.get("type") == "text" and e.get("text", "").startswith("[")}
     assert fonts == {3.8}, fonts  # (half the first 7.5: more of the talk on a page, the owner's wish 2026-11-09)
+    styles = {e["font"]["name"] for e in c.call("page_elements", page=2, detail="full")["elements"]
+              if e.get("type") == "text" and e.get("text", "").startswith("[")}
+    assert styles == {"Sans Italic"}, styles  # (italic as written, not redrawn afterwards)
+    assert fx <= 12.5 and fy <= 18 and x - (fx + fw) <= 8 and w <= 0.2 * (x + w + 12), live  # (a dense page)
     assert st["folder"].startswith(str(app.home)), st["folder"]  # (no audio folder set: the app's data folder)
 
 
@@ -150,3 +154,27 @@ def test_6_a_long_talk_goes_on_a_next_page(app):
     assert st["pages"][1]["page"] == st["pages"][0]["page"] + 1
     assert any("(continued)" in s for s in texts(c, st["pages"][1]["page"]))
     c.call("test_recording", file=str(DIR / "long.ogg"), name="long.ogg", duration_ms=190000)
+
+
+def test_7_the_live_notes_are_not_in_the_user_s_undo_history(app):
+    """2026-11-09: an Undo meant for the owner's stroke removed the live-notes page ("Page 2 deleted by Undo (it had
+    been inserted)"): the app's own pages and transcript are no longer in the user's undo history, and the change log
+    says "app", not "user"."""
+    c = app.client()
+    before = len(c.call("doc_info")["pages"])
+    cursor = c.call("changes_get")["cursor"]
+    c.call("test_live_audio", op="start", name="undo.ogg")
+    c.call("test_live_audio", op="feed", file=wav(DIR / "u.wav", [("noise", 1), ("voice", 2), ("noise", 2)]))
+    assert wait(lambda: c.call("live_notes", op="status")["written"] >= 1)
+    assert len(c.call("doc_info")["pages"]) == before + 1
+    hist = c.call("history")["undo"]
+    assert not any("Page inserted" in h for h in hist[-3:]), hist
+    try:
+        c.call("undo")  # (whatever the user did before; never the live page)
+    except Exception:
+        pass  # (nothing to undo: fine)
+    assert len(c.call("doc_info")["pages"]) == before + 1, hist  # (the Undo didn't take the live page)
+    events = c.call("changes_get", since=cursor)["events"]
+    mine = [e for e in events if e["type"] in ("page_inserted", "element_added")]
+    assert mine and all(e["origin"] == "app" for e in mine), mine
+    c.call("test_recording", file=str(DIR / "undo.ogg"), name="undo.ogg", duration_ms=5000)

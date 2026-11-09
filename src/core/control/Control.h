@@ -249,7 +249,9 @@ public:
     void duplicatePage();
     void insertNewPage(size_t position, bool automatedInsertion = false);
     void appendNewPdfPages();
-    void insertPage(const PageRef& page, size_t position, bool shouldScrollToPage = true);
+    /// `undoable` false: not in the user's undo history (the app's own pages, e.g. live notes': an Undo meant for the
+    /// user's stroke removed the live-notes page, 2026-11-09)
+    void insertPage(const PageRef& page, size_t position, bool shouldScrollToPage = true, bool undoable = true);
     void deletePage();
     void movePageTowardsBeginning();
     void movePageTowardsEnd();

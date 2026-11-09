@@ -89,7 +89,7 @@ void EventHub::push(DocEvent e) {
     e.seq = ++seq;
     e.timeUs = g_get_monotonic_time();
     if (e.origin.empty()) {
-        e.origin = agentDepth > 0 ? "agent" : "user";
+        e.origin = currentOrigin();
     }
     if (e.origin == "user") {
         lastUserUs = e.timeUs;
@@ -107,11 +107,11 @@ void EventHub::push(DocEvent e) {
 }
 
 void EventHub::scheduleDiff(const PageRef& page) {
-    const std::string origin = agentDepth > 0 ? "agent" : "user";
+    const std::string origin = currentOrigin();
     for (auto& [p, o]: pending) {
         if (p == page) {
-            if (origin == "agent") {
-                o = origin;
+            if (origin == "app" || (origin == "agent" && o == "user")) {
+                o = origin;  // (app > agent > user)
             }
             return;
         }

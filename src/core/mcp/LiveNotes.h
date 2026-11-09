@@ -88,8 +88,10 @@ private:
     void onPiece(assistant::LiveChunk&& c);
     void onResult(const assistant::TranscriberResult& r);
     void pump();  ///< writes answered pieces into the column, in order, one at a time
+    void pumpLater();
     void newPage(std::function<void()> then);
-    void call(const std::string& tool, json args, std::function<void(const ToolResult&)> then);
+    /// Writes text boxes (create_text's JSON) on `page`: not undoable by the user, origin "app"; `then(bottom)`
+    void writeTexts(const PageRef& page, const json& texts, std::function<void(double bottom)> then);
     std::optional<size_t> pageNumber(size_t i) const;  ///< 1-based number of the i-th live page (if it still exists)
     json pagesJson() const;
     void maybeWake();
