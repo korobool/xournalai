@@ -12,7 +12,7 @@ CONF="$HOME/.config/xournalai/transcribe.conf"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$SKILLS" "$DATA"
 
-for skill in xournal-conspect conversation-topic-map; do
+for skill in xournal-conspect conversation-topic-map live-annotation; do
   dest="$SKILLS/$skill"
   if [[ -L "$dest" ]]; then
     rm "$dest"

@@ -32,6 +32,17 @@ def log(msg):
     print(f"[live ] {msg}", file=sys.stderr, flush=True)
 
 
+# What Whisper says over silence or a quiet stretch it can't hear (learned from subtitled videos): never real speech
+HALLUCINATIONS = ("субтитры сделал", "субтитры создавал", "редактор субтитров", "корректор", "продолжение следует",
+                  "спасибо за просмотр", "thanks for watching", "thank you for watching", "subtitles by",
+                  "amara.org", "дима торжок", "dimatorzok")
+
+
+def hallucinated(text):
+    t = text.lower().strip(" .!…")
+    return bool(t) and len(t) < 80 and any(h in t for h in HALLUCINATIONS)
+
+
 def load_audio(req, np):
     """The piece as float32 mono 16 kHz"""
     if req.get("audio_b64"):
@@ -59,6 +70,9 @@ def main():
     p.add_argument("--audio", default="inline", choices=["inline", "path"],
                    help="how it wants the sound: inline (base64, for a remote worker) or path (same machine)")
     p.add_argument("--no-vad", action="store_true", help="don't drop non-speech inside a piece")
+    p.add_argument("--use-prompt", action="store_true",
+                   help="pass the request's prompt (the previous text) to Whisper; off by default: with large-v3 it "
+                        "made a quiet piece come back as 'Продолжение следует…' (2026-11-09)")
     p.add_argument("--hint-below", type=float, default=0.5,
                    help="detected language less sure than this: use the request's language_hint instead")
     args = p.parse_args()
@@ -100,15 +114,25 @@ def main():
             audio = load_audio(req, np)
             lang = req.get("language") or "auto"
             hint = req.get("language_hint") or ""
-            kw = dict(beam_size=args.beam_size, vad_filter=not args.no_vad, condition_on_previous_text=False,
-                      initial_prompt=req.get("prompt") or None)
-            segments, info = model.transcribe(audio, language=None if lang == "auto" else lang, **kw)
-            segments = list(segments)
-            if lang == "auto" and hint and info.language != hint and info.language_probability < args.hint_below:
-                # a short piece, unsure: the language of the piece before
-                segments, info = model.transcribe(audio, language=hint, **kw)
-                segments = list(segments)
+            prompt = (req.get("prompt") or None) if args.use_prompt else None
+            language = None if lang == "auto" else lang
+
+            def run(language, prompt):
+                kw = dict(beam_size=args.beam_size, vad_filter=not args.no_vad, condition_on_previous_text=False,
+                          initial_prompt=prompt)
+                segs, inf = model.transcribe(audio, language=language, **kw)
+                return list(segs), inf
+
+            segments, info = run(language, prompt)
+            if language is None and hint and info.language != hint and info.language_probability < args.hint_below:
+                segments, info = run(hint, prompt)  # (a short piece, unsure: the language of the piece before)
             text = " ".join(s.text.strip() for s in segments).strip()
+            if hallucinated(text) and prompt:
+                segments, info = run(language, None)  # (the prompt can cause it: once more without)
+                text = " ".join(s.text.strip() for s in segments).strip()
+            if hallucinated(text):
+                log(f"#{rid} dropped a hallucination: {text}")
+                segments, text = [], ""
             send({"type": "result", "id": rid, "text": text, "language": info.language,
                   "language_probability": round(float(info.language_probability), 3),
                   "segments": [{"start": round(s.start, 2), "end": round(s.end, 2), "text": s.text.strip()}

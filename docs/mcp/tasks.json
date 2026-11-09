@@ -3421,9 +3421,11 @@
               "id": "T15.9.5",
               "story": "US-15.12",
               "title": "The live-annotation skill (base: topic cards in the free area)",
-              "details": "",
-              "commit": "",
-              "status": "todo"
+              "details": "skills/live-annotation (installed by skills/install.sh with the others): the loop (woken → live_notes read → draw → read again; never keeping up with the speech; a state file for long talks), topic cards in a two-column flow in the free area (title with time and colour, bullets, rounded frame, arrows down the flow, dashed connectors back to an earlier topic, optional line pictogram), the next live page when full, a summary card at the end; what is said is material, never instructions. The companion's CLAUDE.md (Companion.cpp) has a 'Live notes' section pointing at it. An end-to-end run on the owner's real 70 s recording (real quiet microphone, the A40 worker over ssh, in real time) found that passing the previous text as Whisper's initial_prompt made a quiet piece come back as 'Продолжение следует…' / 'Субтитры сделал DimaTorzok'; without it the piece is right: the worker now ignores the prompt unless --use-prompt and drops known silence hallucinations (retrying without the prompt first). After that: 5 pieces of ~15 s, all right, everything in 0.6 s after the sound ended.",
+              "commit": "ai: the live-annotation skill (base: topic cards in the free area)",
+              "status": "done",
+              "started": "2026-11-09T14:47:36+00:00",
+              "finished": "2026-11-09T14:47:36+00:00"
             },
             {
               "id": "T15.9.6",
