@@ -75,7 +75,11 @@ TerminalDock::TerminalDock(GtkWidget* mainBox, GtkWidget* contentArea) {
     notebook = gtk_notebook_new();
     gtk_notebook_set_scrollable(GTK_NOTEBOOK(notebook), TRUE);
     buildHeader();
-    gtk_box_pack_start(GTK_BOX(dock), notebook, TRUE, TRUE, 0);
+    // The tabs, and to their right the big keys (about 15% of the width)
+    GtkWidget* body = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    gtk_box_pack_start(GTK_BOX(body), notebook, TRUE, TRUE, 0);
+    buildKeys(body);
+    gtk_box_pack_start(GTK_BOX(dock), body, TRUE, TRUE, 0);
     gtk_paned_pack2(GTK_PANED(paned), dock, FALSE, FALSE);
 
     // The floating dock lies over the split (over the page), at the bottom
@@ -128,6 +132,10 @@ TerminalDock::TerminalDock(GtkWidget* mainBox, GtkWidget* contentArea) {
 TerminalDock::~TerminalDock() {
     if (themeTimer) {
         g_source_remove(themeTimer);
+    }
+    endHold();
+    if (keysResize) {
+        g_source_remove(keysResize);
     }
     for (Tab* t: tabs) {
         if (t->running && t->pid > 0) {
@@ -262,6 +270,24 @@ void TerminalDock::buildHeader() {
                      }),
                      this);
     gtk_box_pack_end(GTK_BOX(header), pinButton, FALSE, FALSE, 0);
+
+    // The big keys to the right of the tabs
+    keysButton = gtk_toggle_button_new();
+    gtk_button_set_image(GTK_BUTTON(keysButton), gtk_image_new_from_icon_name("input-keyboard-symbolic", GTK_ICON_SIZE_MENU));
+    gtk_button_set_relief(GTK_BUTTON(keysButton), GTK_RELIEF_NONE);
+    gtk_widget_set_can_focus(keysButton, FALSE);
+    gtk_buildable_set_name(GTK_BUILDABLE(keysButton), "aiTerminalKeysToggle");
+    gtk_widget_set_tooltip_text(keysButton, "Big keys to the right of the terminal (pressed): Space (hold it to "
+                                            "dictate to Claude Code), Enter, Backspace, Escape");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(keysButton), TRUE);
+    g_signal_connect(keysButton, "toggled", G_CALLBACK(+[](GtkToggleButton* b, gpointer d) {
+                         auto* self = static_cast<TerminalDock*>(d);
+                         if (!self->syncing) {
+                             self->setKeysVisible(gtk_toggle_button_get_active(b));
+                         }
+                     }),
+                     this);
+    gtk_box_pack_end(GTK_BOX(header), keysButton, FALSE, FALSE, 0);
 
     // Automatic colours: dark text on a light background over a light page
     autoButton = gtk_toggle_button_new();
@@ -513,6 +539,11 @@ void TerminalDock::loadView() {
             lastHeight = h;
         }
         g_clear_error(&err);
+        const gboolean k = g_key_file_get_boolean(kf, "terminal", "keys", &err);
+        if (!err) {
+            showKeys = k;
+        }
+        g_clear_error(&err);
     }
     g_key_file_free(kf);
     syncing = true;
@@ -521,6 +552,13 @@ void TerminalDock::loadView() {
     }
     if (autoButton) {
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(autoButton), autoColors);
+    }
+    if (keysButton) {
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(keysButton), showKeys);
+    }
+    if (keysPanel) {
+        gtk_widget_set_no_show_all(keysPanel, !showKeys);  // (the dock is shown with show_all)
+        gtk_widget_set_visible(keysPanel, showKeys);
     }
     syncing = false;
     if (opacityLabel) {
@@ -538,6 +576,7 @@ void TerminalDock::saveView() const {
     g_key_file_set_integer(kf, "terminal", "opacity", static_cast<int>(opacity * 100 + 0.5));
     g_key_file_set_integer(kf, "terminal", "height", lastHeight);
     g_key_file_set_boolean(kf, "terminal", "auto_colors", autoColors);
+    g_key_file_set_boolean(kf, "terminal", "keys", showKeys);
     g_key_file_save_to_file(kf, Util::getConfigFile("ai-terminal-view.ini").string().c_str(), nullptr);
     g_key_file_free(kf);
 }
@@ -1060,5 +1099,204 @@ void TerminalDock::hide() {
 void TerminalDock::toggle() { isVisible() ? hide() : show(); }
 
 bool TerminalDock::isVisible() const { return dock && gtk_widget_get_visible(dock); }
+
+namespace {
+/// The keyboard's repeat delay and interval (ms), as GNOME has them (a held key in the terminal repeats like this)
+std::pair<guint, guint> keyRepeat() {
+    guint delay = 500, interval = 30;
+    GSettingsSchemaSource* src = g_settings_schema_source_get_default();
+    if (GSettingsSchema* schema =
+                src ? g_settings_schema_source_lookup(src, "org.gnome.desktop.peripherals.keyboard", TRUE) : nullptr) {
+        if (g_settings_schema_has_key(schema, "delay") && g_settings_schema_has_key(schema, "repeat-interval")) {
+            GSettings* gs = g_settings_new("org.gnome.desktop.peripherals.keyboard");
+            delay = std::clamp(g_settings_get_uint(gs, "delay"), 100u, 2000u);
+            interval = std::clamp(g_settings_get_uint(gs, "repeat-interval"), 10u, 200u);
+            g_object_unref(gs);
+        }
+        g_settings_schema_unref(schema);
+    }
+    return {delay, interval};
+}
+
+struct Key {
+    const char* id;
+    const char* label;
+    const char* bytes;  ///< what the terminal gets, as from the keyboard
+    bool repeats;       ///< held: repeats like a held key
+    const char* tip;
+    int col, row, width;
+};
+const Key KEYS[] = {
+        {"aiTerminalKeyEscape", "Esc", "\x1b", false, "Escape", 0, 0, 1},
+        {"aiTerminalKeyBackspace", "⌫", "\x7f", true, "Backspace (hold to delete more)", 1, 0, 1},
+        {"aiTerminalKeySpace", "Space", " ", true,
+         "Space. Hold it to dictate to Claude Code (its voice mode: /voice), as with the keyboard's space bar", 0, 1,
+         2},
+        {"aiTerminalKeyEnter", "Enter ⏎", "\r", false, "Enter: send", 0, 2, 2},
+};
+}  // namespace
+
+void TerminalDock::buildKeys(GtkWidget* body) {
+    static GtkCssProvider* css = [] {
+        GtkCssProvider* p = gtk_css_provider_new();
+        gtk_css_provider_load_from_data(
+                p,
+                ".xoai-term-keys { padding: 6px; }"
+                ".xoai-term-key { min-height: 44px; border-radius: 12px; font-size: 1.15em; font-weight: bold; }"
+                ".xoai-term-key-space { font-size: 1.3em; }"
+                ".xoai-term-key-enter { color: #ffffff; border: none;"
+                "  background-image: linear-gradient(160deg, #b57bff, #7b3fe0);"
+                "  box-shadow: 0 2px 8px alpha(#7b3fe0, 0.5), inset 0 1px alpha(#ffffff, 0.3); }"
+                ".xoai-term-key-enter label { color: #ffffff; }"
+                ".xoai-term-key-held { background-image: none; background-color: #f6d36b; color: #000000;"
+                "  box-shadow: inset 0 -3px #d99a00; }"
+                ".xoai-term-key-held label { color: #000000; }",
+                -1, nullptr);
+        return p;
+    }();
+    gtk_style_context_add_provider_for_screen(gdk_screen_get_default(), GTK_STYLE_PROVIDER(css),
+                                              GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+    keysPanel = gtk_grid_new();
+    gtk_buildable_set_name(GTK_BUILDABLE(keysPanel), "aiTerminalKeys");
+    gtk_style_context_add_class(gtk_widget_get_style_context(keysPanel), "xoai-term-keys");
+    gtk_style_context_add_class(gtk_widget_get_style_context(keysPanel), "xoai-term-page");  // (see-through, too)
+    gtk_grid_set_row_spacing(GTK_GRID(keysPanel), 6);
+    gtk_grid_set_column_spacing(GTK_GRID(keysPanel), 6);
+    gtk_grid_set_column_homogeneous(GTK_GRID(keysPanel), TRUE);
+    for (const Key& k: KEYS) {
+        GtkWidget* b = gtk_button_new_with_label(k.label);
+        gtk_buildable_set_name(GTK_BUILDABLE(b), k.id);
+        gtk_widget_set_tooltip_text(b, k.tip);
+        gtk_widget_set_can_focus(b, FALSE);  // (the keyboard stays where it was)
+        gtk_widget_set_hexpand(b, TRUE);
+        gtk_widget_set_vexpand(b, k.row == 1);  // (Space gets the height left)
+        auto* ctx = gtk_widget_get_style_context(b);
+        gtk_style_context_add_class(ctx, "xoai-term-key");
+        if (k.row == 1) {
+            gtk_style_context_add_class(ctx, "xoai-term-key-space");
+        } else if (k.row == 2) {
+            gtk_style_context_add_class(ctx, "xoai-term-key-enter");
+        }
+        g_object_set_data(G_OBJECT(b), "term-key", const_cast<Key*>(&k));
+        // Sent on press (a held key starts repeating), not on click: like a keyboard
+        g_signal_connect(b, "button-press-event", G_CALLBACK(+[](GtkWidget* w, GdkEventButton* e, gpointer d) -> gboolean {
+                             if (e->button != 1 || e->type != GDK_BUTTON_PRESS) {
+                                 return FALSE;
+                             }
+                             auto* self = static_cast<TerminalDock*>(d);
+                             const auto* k = static_cast<const Key*>(g_object_get_data(G_OBJECT(w), "term-key"));
+                             self->sendKey(k->bytes, k->repeats);
+                             g_object_set_data(G_OBJECT(w), "term-key-down", GINT_TO_POINTER(1));
+                             if (k->repeats) {
+                                 gtk_style_context_add_class(gtk_widget_get_style_context(w), "xoai-term-key-held");
+                             }
+                             return FALSE;
+                         }),
+                         this);
+        auto release = +[](GtkWidget* w, GdkEvent*, gpointer d) -> gboolean {
+            static_cast<TerminalDock*>(d)->endHold();
+            gtk_style_context_remove_class(gtk_widget_get_style_context(w), "xoai-term-key-held");
+            // (the click this release makes, if any, comes first; released elsewhere, there is none)
+            g_idle_add(
+                    +[](gpointer w) -> gboolean {
+                        g_object_set_data(G_OBJECT(w), "term-key-down", nullptr);
+                        g_object_unref(w);
+                        return G_SOURCE_REMOVE;
+                    },
+                    g_object_ref(w));
+            return FALSE;
+        };
+        g_signal_connect(b, "button-release-event", G_CALLBACK(release), this);
+        // A click without a press before it (an agent's ui_interact, the keyboard's activation): the key once
+        g_signal_connect(b, "clicked", G_CALLBACK(+[](GtkButton* b, gpointer d) {
+                             if (g_object_get_data(G_OBJECT(b), "term-key-down")) {
+                                 return;  // (sent on the press)
+                             }
+                             const auto* k = static_cast<const Key*>(g_object_get_data(G_OBJECT(b), "term-key"));
+                             static_cast<TerminalDock*>(d)->sendKey(k->bytes, false);
+                         }),
+                         this);
+        g_signal_connect(b, "grab-broken-event", G_CALLBACK(release), this);
+        g_signal_connect(b, "unmap", G_CALLBACK(+[](GtkWidget* w, gpointer d) {
+                             static_cast<TerminalDock*>(d)->endHold();
+                             gtk_style_context_remove_class(gtk_widget_get_style_context(w), "xoai-term-key-held");
+                         }),
+                         this);
+        gtk_grid_attach(GTK_GRID(keysPanel), b, k.col, k.row, k.width, 1);
+    }
+    gtk_box_pack_end(GTK_BOX(body), keysPanel, FALSE, FALSE, 0);
+    // About 15% of the dock's width (not less than the keys need, not more than 320 px)
+    g_signal_connect(body, "size-allocate", G_CALLBACK(+[](GtkWidget*, GdkRectangle* a, gpointer d) {
+                         auto* self = static_cast<TerminalDock*>(d);
+                         const int w = std::clamp(a->width * 15 / 100, 110, 320);
+                         if (w != self->keysWidth && !self->keysResize) {
+                             self->keysWidth = w;
+                             self->keysResize = g_idle_add(
+                                     +[](gpointer d) -> gboolean {
+                                         auto* self = static_cast<TerminalDock*>(d);
+                                         self->keysResize = 0;
+                                         if (self->keysPanel) {
+                                             gtk_widget_set_size_request(self->keysPanel, self->keysWidth, -1);
+                                         }
+                                         return G_SOURCE_REMOVE;
+                                     },
+                                     self);
+                         }
+                     }),
+                     this);
+    g_object_add_weak_pointer(G_OBJECT(keysPanel), reinterpret_cast<gpointer*>(&keysPanel));
+}
+
+void TerminalDock::setKeysVisible(bool visible) {
+    showKeys = visible;
+    if (keysPanel) {
+        gtk_widget_set_no_show_all(keysPanel, !visible);
+        gtk_widget_set_visible(keysPanel, visible);
+    }
+    if (keysButton && gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(keysButton)) != visible) {
+        syncing = true;
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(keysButton), visible);
+        syncing = false;
+    }
+    saveView();
+}
+
+void TerminalDock::sendKey(const std::string& bytes, bool held) {
+    endHold();
+    if (!feed(currentTab(), bytes)) {
+        return;
+    }
+    lastInput = g_get_monotonic_time();
+    if (!held) {
+        return;
+    }
+    const auto [delay, interval] = keyRepeat();
+    holdBytes = bytes;
+    holdInterval = interval;
+    holdStart = g_get_monotonic_time();
+    // After the delay, at the rate (a first timer for the delay, then one for the rate)
+    holdTimer = g_timeout_add(delay, +[](gpointer d) -> gboolean {
+        auto* self = static_cast<TerminalDock*>(d);
+        self->holdTimer = g_timeout_add(self->holdInterval, +[](gpointer d) -> gboolean {
+            auto* self = static_cast<TerminalDock*>(d);
+            // (a release can be lost: a held key stops by itself after 10 minutes)
+            if (g_get_monotonic_time() - self->holdStart > 600 * G_USEC_PER_SEC ||
+                !self->feed(self->currentTab(), self->holdBytes)) {
+                self->holdTimer = 0;
+                return G_SOURCE_REMOVE;
+            }
+            self->lastInput = g_get_monotonic_time();
+            return G_SOURCE_CONTINUE;
+        }, self);
+        return G_SOURCE_REMOVE;
+    }, this);
+}
+
+void TerminalDock::endHold() {
+    if (holdTimer) {
+        g_source_remove(holdTimer);
+        holdTimer = 0;
+    }
+}
 
 }  // namespace xoj::assistant

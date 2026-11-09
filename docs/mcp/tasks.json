@@ -3313,9 +3313,11 @@
               "id": "T15.8.3",
               "story": "US-15.10",
               "title": "A key panel next to the AI terminal: Space (held), Enter, Backspace, Escape",
-              "details": "",
-              "commit": "",
-              "status": "todo"
+              "details": "2026-11-09, the owner: on the tablet, without the GNOME on-screen keyboard, they want to dictate to Claude Code (hold Space) and send. To the right of the terminal tabs a panel (15% of the dock's width, 110-320 px; see-through like the terminal when floating): Esc and Backspace, a big Space, Enter. The keys go to the tab shown (as typed: ' ', DEL, ESC, CR), sent on the press; Space and Backspace held repeat after the keyboard's delay at its rate (GNOME's org.gnome.desktop.peripherals.keyboard, else 500/30 ms): what a terminal sees of a held key, which Claude Code takes as hold-to-talk; a lost release stops after 10 minutes. A click without a press (an agent's ui_interact) sends the key once. A keyboard toggle in the dock's header hides it (remembered in ai-terminal-view.ini). test_e15_terminal_keys 5/5 (real X presses on Xvfb; a raw byte logger in the serving tab).",
+              "commit": "ai: big keys next to the AI terminal: Space (held), Enter, Backspace, Escape",
+              "status": "done",
+              "started": "2026-11-09T13:33:45+00:00",
+              "finished": "2026-11-09T13:33:45+00:00"
             },
             {
               "id": "T15.8.4",

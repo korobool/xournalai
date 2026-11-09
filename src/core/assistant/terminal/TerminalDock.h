@@ -3,7 +3,9 @@
  *
  * A collapsible terminal dock at the bottom of the main window: floating over the page with a see-through
  * background (the default), or docked under it in a split. Runs the serving Claude Code session (and, on
- * demand, Codex, OpenCode or a shell) in VTE terminals. Hiding the dock keeps the processes running.
+ * demand, Codex, OpenCode or a shell) in VTE terminals. Hiding the dock keeps the processes running. To the right of
+ * the tabs, a panel of big keys for the tablet (experimental): Space (held: Claude Code's dictation), Enter, Backspace
+ * and Escape go to the tab shown, without the on-screen keyboard.
  *
  * @license GNU GPLv2 or later
  */
@@ -59,6 +61,10 @@ public:
     /// The visible text of a tab's terminal (for tests and diagnostics)
     std::string text(int index) const;
 
+    /// The panel of big keys to the right of the tabs (shown at first); remembered
+    void setKeysVisible(bool visible);
+    bool keysVisible() const { return showKeys; }
+
     void show();
     void hide();
     void toggle();
@@ -103,6 +109,11 @@ private:
     void endDrag();
     void loadView();
     void saveView() const;
+    void buildKeys(GtkWidget* body);
+    /// Sends `bytes` to the tab shown, as typed; held: again after the keyboard's repeat delay, at its rate, until
+    /// endHold (a held key, as a terminal sees one: Claude Code takes a held Space as hold-to-talk)
+    void sendKey(const std::string& bytes, bool held);
+    void endHold();
 
     GtkWidget* overlay = nullptr;  ///< over the split: the floating dock lies on it
     GtkWidget* paned = nullptr;
@@ -117,6 +128,15 @@ private:
     GtkWidget* opacityLabel = nullptr;
     GtkWidget* pinButton = nullptr;
     GtkWidget* autoButton = nullptr;
+    GtkWidget* keysPanel = nullptr;   ///< the big keys, right of the tabs
+    GtkWidget* keysButton = nullptr;  ///< shows or hides them
+    bool showKeys = true;
+    int keysWidth = 0;
+    guint keysResize = 0;  ///< idle: the panel's width follows the dock's (15%)
+    guint holdTimer = 0;   ///< repeats the held key
+    gint64 holdStart = 0;
+    guint holdInterval = 30;
+    std::string holdBytes;
     std::function<double()> pageBrightness;
     guint themeTimer = 0;
     bool autoColors = true;
