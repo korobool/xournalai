@@ -14,7 +14,7 @@ size_t frames(int ms) { return static_cast<size_t>(std::max(1, ms / MS_PER_FRAME
 
 LiveChunker::LiveChunker(Options options, OnChunk onChunk): opt(options), onChunk(std::move(onChunk)) {}
 
-int64_t LiveChunker::heardMs() const { return totalSamples * 1000 / RATE; }
+int64_t LiveChunker::heardMs() const { return totalSamples.load() * 1000 / RATE; }
 
 void LiveChunker::feed(const float* in, size_t count, int channels, int sampleRate) {
     if (channels <= 0 || sampleRate <= 0) {

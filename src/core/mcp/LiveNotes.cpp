@@ -101,7 +101,9 @@ LiveNotes::LiveNotes(McpServer& server, Options options, std::string recording, 
         p.prompt = tail(lastText, 200);
     };
     transcriber = assistant::Transcriber::make(opt.transcriber, std::move(hooks), problem);
-    newPage([this] { pump(); });  // (the page is there from the start: the owner sees where it goes)
+    if (opt.transcriptPage) {
+        newPage([this] { pump(); });  // (the page is there from the start: the owner sees where it goes)
+    }
 }
 
 LiveNotes::~LiveNotes() = default;
@@ -110,6 +112,90 @@ void LiveNotes::cut() {
     if (!ended) {
         pieceCutter->cut();
     }
+}
+
+void LiveNotes::talk(bool down) {
+    if (ended) {
+        return;
+    }
+    const int64_t now = pieceCutter->heardMs();
+    if (down && !talkingSince) {
+        talkingSince = now;
+        pieceCutter->cut();  // (what was said before is context: a piece of its own)
+    } else if (!down && talkingSince) {
+        talks.emplace_back(*talkingSince, now);
+        talkingSince.reset();
+        pieceCutter->cut();  // (the command goes now, not after a pause)
+    }
+    if (changed) {
+        changed();
+    }
+}
+
+namespace {
+/// The rest of `text` after a trigger word at its start («Клод, добавь…» → «добавь…»), compared without case
+std::optional<std::string> afterTrigger(const std::string& text, const std::vector<std::string>& words) {
+    const char* s = text.c_str();
+    while (*s && !g_unichar_isalnum(g_utf8_get_char(s))) {
+        s = g_utf8_next_char(s);
+    }
+    for (const auto& w: words) {
+        const char* a = s;
+        const char* b = w.c_str();
+        while (*a && *b && g_unichar_tolower(g_utf8_get_char(a)) == g_unichar_tolower(g_utf8_get_char(b))) {
+            a = g_utf8_next_char(a);
+            b = g_utf8_next_char(b);
+        }
+        if (*b == 0 && (*a == 0 || !g_unichar_isalnum(g_utf8_get_char(a)))) {
+            while (*a && !g_unichar_isalnum(g_utf8_get_char(a))) {
+                a = g_utf8_next_char(a);
+            }
+            return std::string(a);
+        }
+    }
+    return std::nullopt;
+}
+}  // namespace
+
+void LiveNotes::heardPiece(Piece& p) {
+    // A command: said while the talk button was held (most of the piece, or 0.6 s of it), or after a trigger word
+    const int64_t now = pieceCutter->heardMs();
+    bool byTalk = false;
+    auto overlaps = [&](int64_t a, int64_t b) {
+        const int64_t o = std::min(p.endMs, b) - std::max(p.startMs, a);
+        return o >= 600 || (o > 0 && 2 * o >= p.endMs - p.startMs);
+    };
+    for (const auto& [a, b]: talks) {
+        byTalk = byTalk || overlaps(a, b);
+    }
+    if (talkingSince) {
+        byTalk = byTalk || overlaps(*talkingSince, now);
+    }
+    std::string text = p.text;
+    bool byWord = false;
+    if (auto rest = afterTrigger(text, opt.triggerWords); rest && !rest->empty()) {
+        byWord = true;
+        text = *rest;
+    }
+    p.command = byTalk || byWord;
+    p.commandText = text;
+    if (opt.heard) {
+        opt.heard(p.command ? text : p.text, p.command);
+    }
+    if (!p.command) {
+        contextSince = tail(contextSince.empty() ? p.text : contextSince + " " + p.text, 800);
+        return;
+    }
+    commands++;
+    const std::string context = opt.context ? opt.context() : "";
+    if (wake) {
+        wake("Voice command (recording " + name + ", n " + std::to_string(p.index) + ", " + clock(p.startMs) +
+             "): «" + text + "». Context since the last command: " +
+             (contextSince.empty() ? std::string("none") : "«" + contextSince + "»") + "." +
+             (context.empty() ? "" : " " + context) +
+             " Carry it out on the open document as the voice-control skill describes.");
+    }
+    contextSince.clear();
 }
 
 void LiveNotes::recordingEnded() {
@@ -347,7 +433,7 @@ void LiveNotes::pump() {
         return;
     }
     // (a page could not be added: the text still goes to the file, and to the serving session)
-    const bool noPage = !pageProblem.empty();
+    const bool noPage = !opt.transcriptPage || !pageProblem.empty();
     if (pages.empty() && !noPage) {
         return;  // (the first page is on its way)
     }
@@ -360,6 +446,9 @@ void LiveNotes::pump() {
         if ((p.ok && p.text.empty()) || noPage) {  // (nothing intelligible, or nowhere to write it)
             if (!(p.ok && p.text.empty())) {
                 appendTranscript(p);
+                if (opt.voice && p.ok) {
+                    heardPiece(p);  // (🎙: a command, or context for the next one)
+                }
             }
             p.written = true;
             nextToWrite++;
@@ -422,8 +511,8 @@ void LiveNotes::pumpLater() {
 }
 
 void LiveNotes::maybeWake() {
-    if (!wake) {
-        return;
+    if (!wake || opt.voice) {
+        return;  // (🎙: woken with each command, not for speech)
     }
     int unread = 0;
     for (const auto& [i, p]: pieces) {
@@ -478,6 +567,9 @@ json LiveNotes::read(std::optional<int> since) {
             e["text"] = p.text;
             if (!p.language.empty()) {
                 e["language"] = p.language;
+            }
+            if (opt.voice) {
+                e["kind"] = p.command ? "command" : "context";
             }
         } else {
             e["error"] = p.error;
@@ -539,6 +631,10 @@ json LiveNotes::status() const {
               {"pages", pagesJson()},
               {"folder", folder.string()}};
     j["mode"] = opt.mode;
+    if (opt.voice) {
+        j["commands"] = commands;
+        j["talking"] = talkingSince.has_value();
+    }
     if (!engine.empty()) {
         j["engine"] = engine;
     }

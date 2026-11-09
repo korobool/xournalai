@@ -52,6 +52,12 @@ public:
         std::string rule;  ///< what spoken requests may do in the mode (empty: the safe list on the live pages)
         /// More for each wake-up line (✍: where the owner drew last)
         std::function<std::string()> context;
+        // 🎙 voice control (1.17.1): no page, nothing written on the document; each piece is a command (said while
+        // the owner held the talk button, or starting with a trigger word) or context
+        bool transcriptPage = true;
+        bool voice = false;
+        std::vector<std::string> triggerWords;  ///< (lower case) empty: no trigger word
+        std::function<void(const std::string& text, bool command)> heard;  ///< a piece pops up
     };
     using Wake = std::function<void(const std::string& description)>;  ///< an intent for the serving session
     using Changed = std::function<void()>;                              ///< (the status strip)
@@ -66,6 +72,10 @@ public:
     std::shared_ptr<assistant::LiveChunker> chunker() const { return pieceCutter; }
     /// ✂: the piece being spoken goes now
     void cut();
+    /// 🎙: the talk button held (what is said meanwhile is a command; the piece before ends now) or let go (the
+    /// command is sent now)
+    void talk(bool down);
+    bool talking() const { return talkingSince.has_value(); }
     /// The recorder stopped (the tap is already off)
     void recordingEnded();
 
@@ -93,7 +103,10 @@ private:
         std::string language;
         std::string error;
         double elapsed = -1;
+        bool command = false;     ///< 🎙: taken as a command
+        std::string commandText;  ///< (without the trigger word)
     };
+    void heardPiece(Piece& p);  ///< 🎙: a command (woken with it) or context (kept for the next command)
     void onPiece(assistant::LiveChunk&& c);
     void onResult(const assistant::TranscriberResult& r);
     void pump();  ///< writes answered pieces into the column, in order, one at a time
@@ -126,6 +139,10 @@ private:
     bool ended = false;
     bool wakePending = false;
     bool endWoken = false;
+    std::vector<std::pair<int64_t, int64_t>> talks;  ///< 🎙: the talk button's intervals (ms in the recording)
+    std::optional<int64_t> talkingSince;
+    std::string contextSince;  ///< 🎙: what was said since the last command
+    int commands = 0;
     bool transcriptStarted = false;
     std::string pageProblem;
     std::string engine;

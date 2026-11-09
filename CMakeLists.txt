@@ -442,7 +442,7 @@ install(DIRECTORY palettes
         )
 # xournalai: skills for the AI companion. They ship with the app; at start the app copies them into its own companion
 # folder (<data>/xournalai/companion/.claude/skills), never into the user's own Claude settings
-install(DIRECTORY skills/live-annotation
+install(DIRECTORY skills/live-annotation skills/voice-control
         DESTINATION "share/xournalpp/companion-skills"
         COMPONENT xournalpp
         )

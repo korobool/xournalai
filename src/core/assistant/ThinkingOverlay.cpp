@@ -448,7 +448,9 @@ gboolean ThinkingOverlay::onTick(gpointer data) {
         self->invalidate(z->pill);
     }
     self->invalidateRecording();
-    if (self->list.empty() && self->rec == Recording::Off && g_get_monotonic_time() >= self->recMessageUntilUs) {
+    self->invalidateHeard();
+    if (self->list.empty() && self->rec == Recording::Off && g_get_monotonic_time() >= self->recMessageUntilUs &&
+        g_get_monotonic_time() >= self->heardUntilUs) {
         self->timer = 0;
         return G_SOURCE_REMOVE;
     }
@@ -473,6 +475,79 @@ void ThinkingOverlay::setRecording(Recording r, std::optional<std::pair<size_t, 
     invalidateRecording();
 }
 
+namespace {
+void pillPath(cairo_t* cr, double x, double y, double w, double h) {
+    const double r = h / 2;
+    cairo_new_sub_path(cr);
+    cairo_arc(cr, x + r, y + r, r, M_PI / 2, 3 * M_PI / 2);
+    cairo_arc(cr, x + w - r, y + r, r, -M_PI / 2, M_PI / 2);
+    cairo_close_path(cr);
+}
+}  // namespace
+
+namespace {
+constexpr gint64 HEARD_US = 4 * G_USEC_PER_SEC;
+constexpr double HEARD_H = 34, HEARD_MAX_W = 560;
+}  // namespace
+
+void ThinkingOverlay::flashHeard(const std::string& text, bool command) {
+    heardText = validUtf8(std::string(command ? "▶ " : "🎙 ") + text);
+    heardCommand = command;
+    heardUntilUs = g_get_monotonic_time() + HEARD_US;
+    // its width, measured once (the pill fits the text, cut beyond HEARD_MAX_W)
+    cairo_surface_t* s = cairo_image_surface_create(CAIRO_FORMAT_A8, 1, 1);
+    cairo_t* cr = cairo_create(s);
+    cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL, command ? CAIRO_FONT_WEIGHT_BOLD : CAIRO_FONT_WEIGHT_NORMAL);
+    cairo_set_font_size(cr, 15);
+    cairo_text_extents_t ext;
+    cairo_text_extents(cr, heardText.c_str(), &ext);
+    heardWidth = std::min(HEARD_MAX_W, ext.x_advance + 32);
+    cairo_destroy(cr);
+    cairo_surface_destroy(s);
+    ensureTimer();
+    invalidateHeard();
+}
+
+std::string ThinkingOverlay::heard() const { return g_get_monotonic_time() < heardUntilUs ? heardText : ""; }
+
+GdkRectangle ThinkingOverlay::heardRect() const {
+    const auto area = bounds ? bounds() : std::nullopt;
+    const double x = area ? area->x + (area->width - heardWidth) / 2 : 40, y = area ? area->y + 60 : 60;
+    return {static_cast<int>(x) - 4, static_cast<int>(y) - 4, static_cast<int>(heardWidth) + 8,
+            static_cast<int>(HEARD_H) + 10};
+}
+
+void ThinkingOverlay::invalidateHeard() {
+    const GdkRectangle now = g_get_monotonic_time() < heardUntilUs ? heardRect() : GdkRectangle{0, 0, 0, 0};
+    invalidate(unite(heardDrawn, now));
+    heardDrawn = now;
+}
+
+void ThinkingOverlay::drawHeard(cairo_t* cr) {
+    const GdkRectangle r = heardRect();
+    const double x = r.x + 4, y = r.y + 4, W = heardWidth, H = HEARD_H;
+    const double left = static_cast<double>(heardUntilUs - g_get_monotonic_time()) / 1e6;
+    const double alpha = std::clamp(left * 2, 0.0, 1.0);  // (fades in its last half second)
+    cairo_push_group(cr);
+    pillPath(cr, x, y, W, H);
+    if (heardCommand) {
+        cairo_set_source_rgba(cr, 0.04, 0.42, 0.40, 0.94);  // teal: taken as a command
+    } else {
+        cairo_set_source_rgba(cr, 0.11, 0.12, 0.14, 0.82);
+    }
+    cairo_fill(cr);
+    cairo_rectangle(cr, x + 12, y, W - 24, H);
+    cairo_clip(cr);
+    cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL,
+                           heardCommand ? CAIRO_FONT_WEIGHT_BOLD : CAIRO_FONT_WEIGHT_NORMAL);
+    cairo_set_font_size(cr, 15);
+    cairo_set_source_rgba(cr, 1, 1, 1, heardCommand ? 1.0 : 0.85);
+    cairo_move_to(cr, x + 16, y + H / 2 + 5);
+    cairo_show_text(cr, heardText.c_str());
+    cairo_pop_group_to_source(cr);
+    cairo_paint_with_alpha(cr, alpha);
+}
+
 void ThinkingOverlay::flashRecording(const std::string& message) {
     recMessage = message;
     recMessageUntilUs = g_get_monotonic_time() + 2200 * 1000;
@@ -486,16 +561,6 @@ void ThinkingOverlay::pushLevel(float rms) {
         levels.erase(levels.begin());
     }
 }
-
-namespace {
-void pillPath(cairo_t* cr, double x, double y, double w, double h) {
-    const double r = h / 2;
-    cairo_new_sub_path(cr);
-    cairo_arc(cr, x + r, y + r, r, M_PI / 2, 3 * M_PI / 2);
-    cairo_arc(cr, x + w - r, y + r, r, -M_PI / 2, M_PI / 2);
-    cairo_close_path(cr);
-}
-}  // namespace
 
 void ThinkingOverlay::drawZonePill(cairo_t* cr, const Zone& z, double zx, double zy, double zw, double zh,
                                    double alpha) {
@@ -846,6 +911,11 @@ gboolean ThinkingOverlay::onDraw(GtkWidget*, cairo_t* cr, gpointer data) {
     if (self->rec != Recording::Off || now < self->recMessageUntilUs) {  // on top of everything
         cairo_save(cr);
         self->drawRecording(cr);
+        cairo_restore(cr);
+    }
+    if (now < self->heardUntilUs) {
+        cairo_save(cr);
+        self->drawHeard(cr);
         cairo_restore(cr);
     }
     return FALSE;

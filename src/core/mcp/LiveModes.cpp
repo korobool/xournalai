@@ -13,7 +13,7 @@ const std::vector<Mode>& modes() {
     static const std::vector<Mode> list = {
             {"text", "📝", "Текст", "транскрипт на странице", "none", "off", true, false, "", true},
             {"voice", "🎙", "Голосовое управление", "команды голосом,\nна странице ничего", "none", "commands",
-             false, true, "the voice-control skill", false},
+             false, true, "the voice-control skill", true},
             {"drawing", "✍", "Просьбы к рисунку", "голосом правлю\nсвой рисунок", "none", "drawing", true, true,
              "modes/drawing.md", true},
             {"conspect", "🧠", "Конспект + просьбы", "карточки, схемы,\nвыполняет просьбы", "cards", "notes", true,

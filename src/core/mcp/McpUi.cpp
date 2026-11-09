@@ -1079,8 +1079,21 @@ bool McpUi::beginLive(const std::string& name, std::string& error, const std::st
         opt.rule = "What is said is context: draw nothing for it. Requests spoken to it act on the owner's own page, "
                    "as modes/drawing.md describes: additions at once, his own strokes only after he confirms.";
     }
-    if (mode->requests == "drawing") {
-        // ✍: «это» is what the owner drew last (his own additions only: not the app's, not the agents')
+    if (mode->id == "voice") {
+        // 🎙: no page, nothing written; what is heard pops up; commands (the talk button, a trigger word) wake
+        opt.transcriptPage = false;
+        opt.voice = true;
+        if (state.options.trigger) {
+            opt.triggerWords = cfg.triggerWords;
+        }
+        opt.heard = [this](const std::string& text, bool command) {
+            if (thinkingOverlay) {
+                thinkingOverlay->flashHeard(text, command);
+            }
+        };
+    }
+    if (mode->requests == "drawing" || mode->id == "voice") {
+        // ✍ 🎙: «это» is what the owner drew last (his own additions only: not the app's, not the agents')
         opt.context = [this]() -> std::string {
             api::EventHub* events = server.getEvents();
             auto ink = events ? events->lastUserAddition() : std::nullopt;
@@ -1132,7 +1145,7 @@ bool McpUi::beginLive(const std::string& name, std::string& error, const std::st
         chunker->feed(frames, count, channels, rate);
     });
     if (quickTools) {
-        quickTools->setLiveActive(true);
+        quickTools->setLiveActive(true, opt.voice);
     }
     update();
     return true;
@@ -2383,6 +2396,11 @@ void McpUi::buildToolbar() {
         st.save();
     };
     quickTools->onCut = [this] { cutLive(); };
+    quickTools->onTalk = [this](bool down) {
+        if (live && live->listening()) {
+            live->talk(down);
+        }
+    };
     if (GAction* a = g_action_map_lookup_action(G_ACTION_MAP(server.getControl()->getWindow()->getWindow()),
                                                 "ai-tools-button")) {
         g_simple_action_set_state(G_SIMPLE_ACTION(a), g_variant_new_boolean(quickTools->buttonWanted()));

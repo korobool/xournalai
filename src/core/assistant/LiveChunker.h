@@ -85,7 +85,7 @@ private:
     std::vector<float> frameRms;
     std::vector<bool> frameVoice;
     int64_t startSample = 0;  ///< of `pcm[0]`, in the recording
-    int64_t totalSamples = 0;  ///< RATE samples heard
+    std::atomic<int64_t> totalSamples{0};  ///< RATE samples heard (read on the UI thread: heardMs)
     size_t voiceFrames = 0;
     size_t silentRun = 0;  ///< frames without voice at the end
     int nextIndex = 1;

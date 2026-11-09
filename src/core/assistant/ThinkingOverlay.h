@@ -93,6 +93,10 @@ public:
     void pushLevel(float rms);
     /// A short message in the recording pill for a moment (e.g. "Didn't catch that")
     void flashRecording(const std::string& message);
+    /// Voice control: what was just heard pops up at the top of the canvas for a few seconds (a command: ▶ and teal;
+    /// context: 🎙 and grey), then fades
+    void flashHeard(const std::string& text, bool command);
+    std::string heard() const;  ///< (tests: the pop-up shown now, "" when none)
 
     /// Where an agent works out of the user's view (instead of taking the view there): a small chip at the top right
     /// of the canvas, e.g. "AI ↓ p. 7"; a tap calls `onTap`. Empty text hides it.
@@ -118,6 +122,14 @@ private:
     std::vector<float> levels;  ///< recent levels, oldest first
     std::string recMessage;
     gint64 recMessageUntilUs = 0;
+    std::string heardText;
+    bool heardCommand = false;
+    gint64 heardUntilUs = 0;
+    double heardWidth = 0;
+    GdkRectangle heardDrawn{0, 0, 0, 0};
+    GdkRectangle heardRect() const;
+    void invalidateHeard();
+    void drawHeard(cairo_t* cr);
     void drawRecording(cairo_t* cr);
     /// Where the recording pill is (next to the pen, else at the top of the canvas)
     GdkRectangle recordingRect() const;

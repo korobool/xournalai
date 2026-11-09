@@ -3803,6 +3803,42 @@
               "finished": "2026-11-09T21:21:28+00:00"
             }
           ]
+        },
+        {
+          "id": "S15.15",
+          "title": "🎙 Voice control",
+          "version": "1.17.1",
+          "stories": [
+            {
+              "id": "US-15.20",
+              "text": "As the owner, I want to work the app by voice with the pen in my hand: nothing written for the talk, what I say pops up for a moment, and what I say while holding a big button (or after a trigger word) is done as a command.",
+              "acceptance": [
+                "no live-notes page; pieces pop up and fade",
+                "held talk button or trigger word: a command, woken with the context said before it",
+                "read gives each piece's kind; the end wakes nobody"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T15.15.1",
+              "story": "US-15.20",
+              "title": "🎙 Голосовое управление: the talk button, commands and context, pop-ups",
+              "details": "The mode's tile is available. LiveNotes in voice mode inserts no page and writes nothing on the document (the transcript file is kept); each transcribed piece is a command when it was said while the talk button was held (its interval overlaps the piece by 0.6 s or half of it; the chunker's sample count is now atomic, read on the UI thread) or, with «Просьбы по слову», when it starts with a trigger word (whole word, any case: «Клод, …» yes, «клодовый» no; the word is dropped), else context. A command wakes the serving session: 'Voice command (recording R, n N, m:ss): «…». Context since the last command: «…». The owner's latest ink: …. Carry it out on the open document as the voice-control skill describes.' (no other wake-ups, none at the end). Every piece pops up for 4 s at the top of the canvas (ThinkingOverlay::flashHeard: ▶ on teal for a command, 🎙 on grey for context). QuickTools: during voice control the big «🎙 Держи и говори» button replaces ✂ (a multi-press gesture: begin = pressed, end = let go; red while held); pressing ends the context piece, letting go sends the command. live_notes: read gives kind (command/context), status commands, talking and the pop-up shown. The voice-control skill ships with the app (scope: the open document; destructive commands only after a spoken «да»; a thinking zone per command; speed). test_e15_voice 4/4.",
+              "commit": "ai: voice control: the talk button, commands and context, pop-ups",
+              "status": "done",
+              "started": "2026-11-09T21:27:26+00:00",
+              "finished": "2026-11-09T21:27:26+00:00"
+            },
+            {
+              "id": "T15.15.2",
+              "story": "US-15.20",
+              "title": "Release 1.17.1",
+              "details": "",
+              "commit": "",
+              "status": "todo"
+            }
+          ]
         }
       ]
     }

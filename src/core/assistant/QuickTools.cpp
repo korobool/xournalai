@@ -190,6 +190,12 @@ QuickTools::~QuickTools() {
     if (cutButton) {
         g_object_remove_weak_pointer(G_OBJECT(cutButton), reinterpret_cast<gpointer*>(&cutButton));
     }
+    if (talkPress) {
+        g_object_unref(talkPress);
+    }
+    if (talkButton) {
+        g_object_remove_weak_pointer(G_OBJECT(talkButton), reinterpret_cast<gpointer*>(&talkButton));
+    }
     if (recordButton) {
         g_object_remove_weak_pointer(G_OBJECT(recordButton), reinterpret_cast<gpointer*>(&recordButton));
     }
@@ -473,7 +479,13 @@ constexpr const char* CSS =
         ".xoai-mode-sign { font-size: 26px; }"
         ".xoai-mode-name { font-weight: bold; font-size: 1.0em; }"
         ".xoai-mode-hint { font-size: 0.8em; opacity: 0.75; }"
-        ".xoai-mode-badges { font-size: 0.95em; }";
+        ".xoai-mode-badges { font-size: 0.95em; }"
+        ".xoai-talk-button { color: #ffffff; border: none; border-radius: 16px; padding: 6px 10px;"
+        "  background-image: linear-gradient(160deg, #2bb3a0, #13806f);"
+        "  box-shadow: 0 2px 8px alpha(#13806f, 0.5), inset 0 1px alpha(#ffffff, 0.3); }"
+        ".xoai-talk-button label { color: #ffffff; font-weight: bold; font-size: 1.05em; }"
+        ".xoai-talk-button.xoai-talking { background-image: linear-gradient(160deg, #ff5a5a, #d81b3c);"
+        "  box-shadow: 0 0 14px alpha(#ff3040, 0.85), inset 0 2px 4px alpha(#000000, 0.3); }";
 
 void addCss() {
     static bool added = false;
@@ -827,6 +839,44 @@ void QuickTools::placeButton(GtkWidget* mainBox, const std::vector<GtkWidget*>& 
     gtk_widget_set_no_show_all(cutButton, TRUE);
     gtk_box_pack_end(GTK_BOX(outer), cutButton, FALSE, FALSE, 0);
 
+    // 🎙 voice control: hold it while saying a command (what is said without it is context); big, for a thumb
+    talkButton = gtk_button_new();
+    GtkWidget* talkLabel = gtk_label_new("🎙 Держи\nи говори");
+    gtk_label_set_justify(GTK_LABEL(talkLabel), GTK_JUSTIFY_CENTER);
+    gtk_container_add(GTK_CONTAINER(talkButton), talkLabel);
+    gtk_style_context_add_class(gtk_widget_get_style_context(talkButton), "xoai-talk-button");
+    gtk_widget_set_size_request(talkButton, 120, -1);
+    g_object_set(talkButton, "margin", 4, "margin-end", 0, nullptr);
+    gtk_widget_set_can_focus(talkButton, FALSE);
+    gtk_widget_set_tooltip_text(talkButton, "Voice control: hold while you say a command");
+    gtk_buildable_set_name(GTK_BUILDABLE(talkButton), "aiVoiceTalkButton");
+    talkPress = gtk_gesture_multi_press_new(talkButton);
+    gtk_event_controller_set_propagation_phase(GTK_EVENT_CONTROLLER(talkPress), GTK_PHASE_CAPTURE);
+    g_signal_connect(talkPress, "begin", G_CALLBACK(+[](GtkGesture*, GdkEventSequence*, gpointer d) {
+                         auto* self = static_cast<QuickTools*>(d);
+                         if (self->talkButton) {
+                             gtk_style_context_add_class(gtk_widget_get_style_context(self->talkButton),
+                                                         "xoai-talking");
+                         }
+                         if (self->onTalk) {
+                             self->onTalk(true);
+                         }
+                     }),
+                     this);
+    g_signal_connect(talkPress, "end", G_CALLBACK(+[](GtkGesture*, GdkEventSequence*, gpointer d) {
+                         auto* self = static_cast<QuickTools*>(d);
+                         if (self->talkButton) {
+                             gtk_style_context_remove_class(gtk_widget_get_style_context(self->talkButton),
+                                                            "xoai-talking");
+                         }
+                         if (self->onTalk) {
+                             self->onTalk(false);
+                         }
+                     }),
+                     this);
+    gtk_widget_set_no_show_all(talkButton, TRUE);
+    gtk_box_pack_end(GTK_BOX(outer), talkButton, FALSE, FALSE, 0);
+
     // Full screen: the app's own full-screen toggle, big enough for a finger
     fullscreenButton = gtk_button_new();
     gtk_style_context_add_class(gtk_widget_get_style_context(fullscreenButton), "xoai-fullscreen-button");
@@ -885,6 +935,11 @@ void QuickTools::placeButton(GtkWidget* mainBox, const std::vector<GtkWidget*>& 
     gtk_widget_set_no_show_all(cutButton, TRUE);
     gtk_widget_hide(cutButton);
     g_object_add_weak_pointer(G_OBJECT(cutButton), reinterpret_cast<gpointer*>(&cutButton));
+    gtk_widget_set_no_show_all(talkButton, FALSE);
+    gtk_widget_show_all(talkButton);  // (its content; the button itself only during voice control)
+    gtk_widget_set_no_show_all(talkButton, TRUE);
+    gtk_widget_hide(talkButton);
+    g_object_add_weak_pointer(G_OBJECT(talkButton), reinterpret_cast<gpointer*>(&talkButton));
     refreshRecord();
     refreshFullscreen();
     gtk_widget_set_no_show_all(fullscreenButton, TRUE);
@@ -944,9 +999,12 @@ void QuickTools::toggleRecording() {
     g_action_change_state(a, g_variant_new_boolean(!on));
 }
 
-void QuickTools::setLiveActive(bool on) {
+void QuickTools::setLiveActive(bool on, bool voice) {
     if (cutButton) {
-        gtk_widget_set_visible(cutButton, on);
+        gtk_widget_set_visible(cutButton, on && !voice);
+    }
+    if (talkButton) {
+        gtk_widget_set_visible(talkButton, on && voice);
     }
 }
 

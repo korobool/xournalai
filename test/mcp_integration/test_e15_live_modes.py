@@ -58,7 +58,7 @@ def test_1_the_long_press_offers_every_mode_and_the_options(app):
     assert sorted(tiles) == sorted(f"aiRecordMode-{m}" for m in
                                    ["text", "voice", "drawing", "conspect", "safe", "konspekt"]), tiles
     assert "aiRecordPlain" in ws  # (the plain recording too, first)
-    assert ws["aiRecordMode-voice"].get("enabled", True) is False  # (soon: 1.17.1)
+    assert ws["aiRecordMode-voice"].get("enabled", True) is True  # (since 1.17.1)
     chips = {n: ws[n] for n in ws if n.startswith("aiRecordOpt-")}
     assert sorted(chips) == sorted(f"aiRecordOpt-{t}" for t in ["intense", "summary", "trigger", "questions",
                                                                 "browser"]), chips
