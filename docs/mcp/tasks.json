@@ -3651,7 +3651,9 @@
               "title": "The companion's live-annotation updates: a dense card style; workers through the tool",
               "details": "The companion's edits at the owner's request (19:12): card style title 5.5 / body 4.2 / labels 4 / min 3.8 pt, three columns with 4 pt gaps, slots ~60 pt, connectors head 2 / width 0.4, fill the page densely. Updated here to match 1.16.3: heavy topics start a worker tab with workers(op=start) and close with workers(op=close, all=true) (instead of lib/child_session.sh, not shipped), the transcript italic by the app.",
               "commit": "ai: the companion's live-annotation updates (dense cards; workers through the tool)",
-              "status": "todo"
+              "status": "done",
+              "started": "2026-11-09T19:34:30+00:00",
+              "finished": "2026-11-09T19:34:30+00:00"
             },
             {
               "id": "T15.12.6",

@@ -1,6 +1,6 @@
 ---
 name: live-annotation
-description: Annotate a talk while it is recorded — xournalai's live notes. The app transcribes the recording in pieces and writes the timed transcript into a narrow column of a live-notes page; you draw what is being talked about in the rest of that page as compact topic cards joined into a flow, notice requests spoken to you during the talk ("неплохо бы нарисовать…", "find a picture of…") and carry them out within a safe list, and spread the topics over up to 8 parallel workers — light topics as background subagents, heavy ones as child sessions in their own consoles with their own thinking effort. Use when woken with "Live notes (recording …): new transcribed speech" or "Live notes … ended", or when the user asks to annotate a live recording.
+description: Annotate a talk while it is recorded — xournalai's live notes. The app transcribes the recording in pieces and writes the timed transcript into a narrow column of a live-notes page; you draw what is being talked about in the rest of that page as compact topic cards joined into a flow, notice requests spoken to you during the talk ("неплохо бы нарисовать…", "find a picture of…") and carry them out within a safe list, and spread the topics over up to 8 parallel workers — light topics as background subagents, heavy ones as worker sessions in their own tabs of the AI terminal with their own thinking effort. Use when woken with "Live notes (recording …): new transcribed speech" or "Live notes … ended", or when the user asks to annotate a live recording.
 ---
 
 # Live annotation
@@ -87,7 +87,7 @@ added background gets a grey "фон:" label or a source line. Never present an 
    - it has finished → continue it with its context: `SendMessage` to the agent id its `Agent` call returned
      ("new pieces in your inbox");
    - there is none → start a worker for it, as **Who works on a topic** (below) decides: a background subagent
-     (`Agent` with an `effort`) or a child session in its own console (`lib/child_session.sh`). Keep its id / pid in
+     (`Agent` with an `effort`) or a worker session in its own tab (`workers(op="start")`). Keep its id / name in
      the state.
    - At the cap (8 workers in all; subagents at most the wake-up line's "up to N in parallel"): leave it queued in
      the inbox; when a worker finishes, continue the one whose topic has the most waiting. A one-line addition you
@@ -102,7 +102,7 @@ added background gets a grey "фон:" label or a source line. Never present an 
    pieces that came in after its last take are still waiting — continue it at once.
 9. **`Live notes … ended`**: read the rest and route it; then `lib/inbox.py end DIR` (child sessions see it and
    finish); wait until `lib/inbox.py pending DIR` is `{}`, every subagent has reported and every child has written
-   `"done": true` in its `topics/Tn.json`; close the children's consoles (`kill $(cat DIR/children/Tn.pid)`); then
+   `"done": true` in its `topics/Tn.json`; close their tabs (`workers(op="close", all=true)`); then
    draw the summary card yourself (below).
 
 Keep `DIR/state.json` up to date so a long talk survives a context compaction: topics (id, title, colour, page,
@@ -144,12 +144,13 @@ draws). The mixed scheme:
   effort="low"|"medium", run_in_background=true)`, the brief below. Starts in seconds; cheap. At most the wake-up
   line's "up to N in parallel" of them at once.
 - **Heavy topics** (an illustration, a picture from the web, a mind map, an analysis, accurate maths plots, anything
-  that grows over a long talk) → a **child session in its own console**, with its own long memory of the topic and
-  its own effort (`high`, or `xhigh` for the hardest): write the brief to `DIR/children/Tn.brief.md` and run
-  `lib/child_session.sh DIR Tn high DIR/children/Tn.brief.md`. It opens a terminal titled "live notes Tn · <stem>",
-  runs `claude` in `DIR/children/Tn` (not in the companion folder, so the app's session hooks stay this session's)
-  with only the xournalai tools, its inbox helper (`python3`) and web search allowed, and prints its pid. Starting
-  takes ~10–30 s, so start it as soon as a heavy topic appears. If no console can be opened (no display), use
+  that grows over a long talk) → a **worker session in its own tab** of the AI terminal, with its own long memory
+  of the topic and its own effort (`high`, or `xhigh` for the hardest): `workers(op="start", name="Tn",
+  brief=<the whole brief below>, effort="high")`. The app opens a tab "⚙ Tn" (the owner sees it) running Claude Code
+  in `<companion>/workers` (its own CLAUDE.md; its hooks are not this session's) with only the xournalai tools,
+  web search and fetch, Read and `python3` (anything else is refused without asking); the brief is its first
+  message. Starting takes ~10–30 s, so start it as soon as a heavy topic appears. `workers(op="list")` shows which
+  run; up to `max_parallel` (8) at once. If no AI terminal is there, use
   `Agent(subagent_type="canvas-artist", effort="high")` instead.
 - A child session keeps working on its topic for the whole recording: when its inbox is empty it waits
   (`inbox.py wait DIR Tn 100` → `NEW` / `TIMEOUT` / `ENDED`) instead of finishing; on `ENDED` with nothing left it
@@ -168,11 +169,12 @@ draws). The mixed scheme:
 > Your material arrives in an inbox: `python3 ~/.local/share/xournalai/companion/.claude/skills/live-annotation/lib/inbox.py take DIR T3`
 > (DIR = `~/.local/share/xournalai/companion/live/<stem>`) returns the new pieces
 > (`n`, `at`, `kind`, `text`). Loop: take → update your card → take again, until it returns `[]`.
-> Card style (dense — the user wants most of a talk on one page): title Sans Bold 8.5 pt in the topic colour, start
-> time grey 6 pt at the right (never touching the title), a 13 pt line icon left of the title when the topic has a
-> clear object; bullets Sans 6.5 pt `#333333`, labels 6 pt, nothing below 5.5 pt, 2 pt between lines, wrap = slot
-> width − 10 (`create_text` returns each bbox: the next line goes under it); marks `✓`
-> decision, `?` open question, `→ who: what` action; a light rounded frame in the colour (radius 5, width 0.7),
+> Card style (very dense, conspect-like — the user, 9 Nov: cards a touch larger than the transcript, compactness
+> first): title Sans Bold 5.5 pt in the topic colour, start time grey 4 pt at the right (never touching the title),
+> a 7 pt line icon left of the title when the topic has a clear object; bullets Sans 4.2 pt `#333333`, labels 4 pt,
+> nothing below 3.8 pt (the transcript's size), 1 pt between lines, inner padding 3 pt, wrap = slot width − 6
+> (`create_text` returns each bbox: the next line goes under it); marks `✓`
+> decision, `?` open question, `→ who: what` action; a light rounded frame in the colour (radius 3, width 0.5),
 > redrawn when the card grows. Your own words, not a transcript; keep names, numbers, dates exact. Add a mini
 > diagram, table, timeline or plot when the topic has that shape; background you add gets a grey "фон:" label or a
 > source. Web search is allowed for facts and pictures.
@@ -184,26 +186,28 @@ draws). The mixed scheme:
 
 ## Layout (compact, parallel)
 
-- **Two columns** in the free area: `col_w = (w − 8) / 2`, left at `x`, right at `x + col_w + 8`. Cards follow
-  the talk left → right, row by row; a new topic gets the column with the smaller next free y.
+- **Fill the page densely** (the user, 9 Nov: "сплошность заполнения страницы должна быть очень хорошей — такая
+  конспектная, плотная"): small margins and gaps, no empty bands; most of a talk fits on one page.
+- **Columns**: with the dense style use **three columns** in the free area: `col_w = (w − 2·4) / 3`, gaps 4 pt
+  (two columns only for wide content). Cards follow the talk left → right, row by row; a new topic gets the column
+  with the smallest next free y. Start at the free area's top-left (or ~12 pt from the page edge if the app still
+  leaves a wider margin).
 - **Slots** are reserved before the worker starts, so parallel workers never overlap: a card slot is one column
-  wide and ~110 pt tall (~200 pt for an illustration or a diagram); a **wide slot** (both columns) for big diagrams
-  or page-wide content. The worker shrinks its frame to its content; when it reports, the column's next free y
-  becomes its card's bottom + 6. Small later cards should fill the gaps (`find_free_space`): the goal is that most
-  of a talk fits on one page.
-- **The transcript column** is the app's. The user asked (9 Nov) for it at half the font size; that is an app
-  setting (pending in the app). Don't rewrite the app's column texts unless a request in that recording asks for a
-  different look (then recreate each new piece in the asked style at the same place and delete the app's text).
+  wide and ~60 pt tall (~110 pt for an illustration or a diagram); a **wide slot** (two or three columns) for big
+  diagrams or page-wide content. The worker shrinks its frame to its content; when it reports, the column's next
+  free y becomes its card's bottom + 3. Small later cards fill the gaps (`find_free_space`).
+- **The transcript column** is the app's: 3.8 pt since 9 Nov (written in italic by the app itself since 1.16.3). Don't rewrite the app's column texts unless a request in that recording asks for a different look
+  (then recreate each new piece in the asked style at the same place and delete the app's text).
 - **Connectors are yours** (the coordinator's), drawn when the cards' real boxes are known: grey arrows from card
-  to card in the order of the talk (head 3–3.5, width 0.6–0.7); back to an earlier topic: a dashed connector in that
+  to card in the order of the talk (head 2, width 0.4); back to an earlier topic: a dashed connector in that
   topic's colour, or a small tag "↩ «Title»" when it is far.
 - **Full page**: continue on the next live page in `pages` (the app adds one when its column fills); if there is
   none, insert one after the last live page and use its whole width except a 24% column on the right. Start it with
-  a grey "↪ продолжение со стр. P" line.
+  a grey 4 pt "↪ продолжение со стр. P" line.
 
 ## The end: the summary card
 
-One wide card at the end of the flow, titled "Итог" / "Summary" (the talk's main language) with the time span:
+One wide card at the end of the flow (same dense style: title 5.5, text 4.2 pt), titled "Итог" / "Summary" (the talk's main language) with the time span:
 3–5 takeaways (from the agents' `summary` points), then the decisions (`✓`), requests and their outcome (`⚡ … ✓/✗`),
 open questions (`?`) and action items (`→`). Short when there was little; never invented.
 
