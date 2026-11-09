@@ -10,6 +10,25 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.17.4 — An idle app costs nothing
+- **A changed text no longer repaints the whole window.** When a GTK label gets new text, GTK re-lays out the
+  window and repaints all of it: icons, blurred shadows, the canvas. That is thousands of X requests each time.
+  Several texts changed constantly:
+  - the same «Pause AI» label was set again every 2 seconds;
+  - the question panel's countdown, every second;
+  - while recording, the indicator's time and the Record button's «Stop m:ss», every second;
+  - the AI status line («working: …»), twice for every tool call an agent made.
+
+  These texts now draw themselves (`gui/DrawnText`), so a change repaints only their own pixels. The pause button is
+  updated only when something actually changes. The Record button's shadows are no longer blurred; the blur was
+  re-rendered under its face at every frame. The recording animations run at 8 frames a second.
+- **Measured on a test display, X requests a second:**
+  - idle: 1,900–5,100 before, **2** now;
+  - a question waiting: 2,400 before, **2** now;
+  - recording: 7,400 before, **1,750** now, with no whole-window repaints.
+- **The tracer that found this** is in `tools/perf/redraw-trace.c`. It is an LD_PRELOAD library for test apps that
+  logs what makes GTK redraw or re-lay out, and where the call comes from.
+
 ## 1.17.3 — Zones stay, voice control is a dialogue
 Fixes from the owner's first tests of voice control and the question panel:
 - **A zone an agent opens stays until the agent ends it.** You can also stop it, and it expires after 10 minutes.
