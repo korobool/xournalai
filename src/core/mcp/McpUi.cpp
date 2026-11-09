@@ -4,6 +4,8 @@
 #include <map>
 #include <memory>  // for make_shared
 #include <shared_mutex>
+#include <set>  // for set
+#include <regex>  // for regex
 
 #include <unistd.h>  // for setsid
 
@@ -2012,6 +2014,98 @@ void McpUi::openTerminal(const std::string& kind) {
     if (dock) {
         dock->openTab(terminalSpec(kind, false), true);
     }
+}
+
+json McpUi::startWorker(const std::string& name, const std::string& brief, const std::string& effort,
+                        std::string& error) {
+    if (!dock) {
+        error = "no AI terminal in this window";
+        return nullptr;
+    }
+    static const std::regex nameOk("[A-Za-z0-9_.-]{1,24}");
+    if (!std::regex_match(name, nameOk)) {
+        error = "a worker's name is 1-24 letters, digits, '.', '_' or '-' (e.g. \"T3\")";
+        return nullptr;
+    }
+    static const std::set<std::string> efforts{"low", "medium", "high", "xhigh", "max"};
+    const std::string e = effort.empty() ? "high" : effort;
+    if (!efforts.count(e)) {
+        error = "effort: low, medium, high, xhigh or max";
+        return nullptr;
+    }
+    if (brief.empty() || brief.size() > 200000) {
+        error = "the brief (the worker's task) must be given, at most 200,000 characters";
+        return nullptr;
+    }
+    if (auto it = workerTabs.find(name); it != workerTabs.end()) {
+        if (dock->isRunning(it->second)) {
+            error = "worker " + name + " is still running (close it first, or give the new one another name)";
+            return nullptr;
+        }
+        dock->closeTab(it->second);  // (its old, ended tab)
+        workerTabs.erase(it);
+    }
+    int running = 0;
+    for (const auto& [n, tab]: workerTabs) {
+        running += dock->isRunning(tab) ? 1 : 0;
+    }
+    const int cap = std::clamp(server.getConfig().assistant.maxParallel, 1, 8);
+    if (running >= cap) {
+        error = std::to_string(running) + " workers are running (the cap, assistant.max_parallel): close one first";
+        return nullptr;
+    }
+    // The brief goes in a file (any length, any characters, and the owner can read it), the worker reads it as its
+    // first message
+    const fs::path folder = assistant::Companion::workersFolder();
+    std::error_code ec;
+    fs::create_directories(folder, ec);
+    const fs::path briefFile = folder / (name + ".brief.md");
+    {
+        std::ofstream out(briefFile);
+        out << brief;
+        if (!out) {
+            error = "could not write " + briefFile.string();
+            return nullptr;
+        }
+    }
+    const std::string mcpConfig = (assistant::Companion::folder() / ".mcp.json").string();
+    // Only the tools of the live-annotation skill's safe list; anything else is refused without asking (dontAsk), so
+    // a worker never waits on a question nobody watches. (--strict-mcp-config: only this app's MCP server.)
+    // (the tab runs it through the login shell and execs it: no "exec" here)
+    const std::string command = "claude --name " + shq("live " + name) + " --effort " + e +
+                                " --permission-mode dontAsk --allowedTools " +
+                                shq("mcp__xournalai,WebSearch,WebFetch,Read,Bash(python3 *)") + " --mcp-config " +
+                                shq(mcpConfig) + " --strict-mcp-config \"$(cat " + shq(briefFile.string()) + ")\"";
+    assistant::TerminalSpec spec;
+    spec.title = "⚙ " + name;
+    spec.command = command;
+    spec.workingDirectory = folder.string();
+    spec.env = {"XOURNALAI_PORT=" + std::to_string(server.getConfig().port), "XOURNALAI_WORKER=" + name,
+                "CLAUDE_CODE_DISABLE_BG_EXIT_HANDOFF=1"};
+    const int tab = dock->openTab(spec, false);  // (the owner's view stays where it is)
+    workerTabs[name] = tab;
+    update();
+    return json{{"name", name}, {"tab", spec.title}, {"effort", e}, {"brief", briefFile.string()},
+                {"running", running + 1}, {"cap", cap}};
+}
+
+bool McpUi::closeWorker(const std::string& name) {
+    auto it = workerTabs.find(name);
+    if (!dock || it == workerTabs.end()) {
+        return false;
+    }
+    dock->closeTab(it->second);  // (its session ends: SIGHUP, never handed to the background)
+    workerTabs.erase(it);
+    update();
+    return true;
+}
+
+json McpUi::workers() const {
+    json list = json::array();
+    for (const auto& [name, tab]: workerTabs) {
+        list.push_back({{"name", name}, {"running", dock && dock->isRunning(tab)}});
+    }
+    return list;
 }
 
 void McpUi::stopBackgroundServing() {

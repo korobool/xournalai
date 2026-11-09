@@ -32,6 +32,10 @@ public:
 
     /// The two subagents of the serving session (.claude/agents/*.md)
     static std::string quickAgent();
+    /// Where worker sessions run (worker tabs, started by the serving session): <companion>/workers
+    static fs::path workersFolder();
+    /// The CLAUDE.md of worker sessions
+    static std::string workerInstructions();
     static std::string artistAgent();
     /// The instructions for the serving session (the part the app owns)
     static std::string instructions(const CompanionSetup& setup);

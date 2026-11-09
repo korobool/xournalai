@@ -3621,7 +3621,9 @@
               "title": "Worker sessions in tabs of the AI terminal (tool workers)",
               "details": "The owner chose tabs over the companion's gnome-terminal script. workers(op=start, name, brief, effort) writes the brief to <companion>/workers/<name>.brief.md and opens a tab '⚙ <name>' (not focused) running claude --name 'live <name>' --effort E --permission-mode dontAsk --allowedTools 'mcp__xournalai,WebSearch,WebFetch,Read,Bash(python3 *)' --mcp-config <companion>/.mcp.json --strict-mcp-config \"$(cat brief)\" in <companion>/workers (its own CLAUDE.md, written by Companion::ensure; trusted through the companion folder: Claude Code walks up the parents for trust), env XOURNALAI_WORKER, CLAUDE_CODE_DISABLE_BG_EXIT_HANDOFF=1. Up to max_parallel running; one name at a time; op=list; op=close (name or all) ends the session with its tab. `xournalpp --ai-hook` ignores events of a worker (XOURNALAI_WORKER), so it is never taken for the serving session. test_e15_workers 4/4 with a fake claude (the command line, cwd, env, brief passed literally, cap, names, hooks, closing ends the process).",
               "commit": "ai: worker sessions in tabs of the AI terminal",
-              "status": "todo"
+              "status": "done",
+              "started": "2026-11-09T19:31:56+00:00",
+              "finished": "2026-11-09T19:31:57+00:00"
             },
             {
               "id": "T15.12.3",

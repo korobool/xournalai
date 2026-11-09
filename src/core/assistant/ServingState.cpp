@@ -96,6 +96,10 @@ mcp::json ServingState::toJson() const {
 }
 
 int runHook(const char* event) {
+    // A worker session (a worker tab: XOURNALAI_WORKER) is not the serving session: its events are not reported
+    if (const char* w = g_getenv("XOURNALAI_WORKER"); w && *w) {
+        return 0;
+    }
     // The hook input (JSON) arrives on stdin; never wait on an interactive terminal
     std::string input;
     if (!isatty(0)) {

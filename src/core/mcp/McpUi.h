@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <map>
 #include <memory>    // for unique_ptr
 #include <optional>  // for optional
 #include <string>
@@ -102,6 +103,12 @@ public:
     void startServing();
     /// Delivers canvas events to the serving session (null without the terminal)
     assistant::EventPump* pump() const { return eventPump.get(); }
+    /// Worker sessions: Claude Code in tabs of the AI terminal, each started by the serving session for one job (its
+    /// brief), with only the tools of the live-annotation skill's safe list (permission mode dontAsk). Up to
+    /// assistant.max_parallel at once. Errors as text in `error`.
+    json startWorker(const std::string& name, const std::string& brief, const std::string& effort, std::string& error);
+    bool closeWorker(const std::string& name);
+    json workers() const;
 #endif
     /// Local speech to text for Ask (null if disabled or not built)
     assistant::SpeechToText* speech() const { return speechToText.get(); }
@@ -259,6 +266,7 @@ private:
     assistant::TerminalSpec terminalSpec(const std::string& kind, bool serving) const;
     std::unique_ptr<assistant::TerminalDock> dock;
     int servingTab = -1;
+    std::map<std::string, int> workerTabs;  ///< worker name → its tab
     bool servingClaude = false;  ///< the serving tab runs Claude Code (not Codex, not a test's command)
     /// At exit: stops a serving Claude Code session left in its background daemon
     void stopBackgroundServing();
