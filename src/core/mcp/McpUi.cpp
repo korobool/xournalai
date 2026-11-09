@@ -1058,6 +1058,7 @@ bool McpUi::beginLive(const std::string& name, std::string& error) {
     opt.chunker.hardMs = cfg.hardS * 1000;
     opt.transcriber = cfg.transcriber;
     opt.language = cfg.language.empty() ? "auto" : cfg.language;
+    opt.transcriptSize = cfg.transcriptSize;
     Control* ctrl = server.getControl();
     // Where the recording goes (a real one always has its folder); else the app's data folder, never a guess in the
     // owner's home (a test once wrote into ~/Music, 2026-11-09)
@@ -1994,7 +1995,7 @@ void McpUi::buildTerminal() {
     const auto& a = server.getConfig().assistant;
     eventPump = std::make_unique<assistant::EventPump>(
             env, assistant::EventPump::Settings{a.autoImprove, a.wakeIdleMs, a.watchdogS, a.rules,
-                                                std::clamp(a.maxParallel, 1, 5)});
+                                                std::clamp(a.maxParallel, 1, 8)});
     if (auto* hub = server.getEvents()) {
         hub->addListener([this](const api::DocEvent& e) {
             if (eventPump) {
@@ -2568,8 +2569,8 @@ void McpUi::showSettings() {
     gtk_combo_box_text_append(GTK_COMBO_BOX_TEXT(agent), "codex", "Codex");
     gtk_combo_box_set_active_id(GTK_COMBO_BOX(agent), cfg.assistant.agent == "codex" ? "codex" : "claude");
     labelled("Serving a_gent", agent);
-    GtkWidget* par = named(gtk_spin_button_new_with_range(1, 5, 1), "mcpParallel");
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(par), std::clamp(cfg.assistant.maxParallel, 1, 5));
+    GtkWidget* par = named(gtk_spin_button_new_with_range(1, 8, 1), "mcpParallel");
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(par), std::clamp(cfg.assistant.maxParallel, 1, 8));
     gtk_widget_set_tooltip_text(par, "How many subagents (and edit transactions) may work at the same time");
     labelled("Parallel s_ubagents", par);
 

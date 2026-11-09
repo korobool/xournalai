@@ -42,6 +42,7 @@ public:
         assistant::LiveChunker::Options chunker;
         json transcriber;  ///< the speech recognizer, as written in mcp.json (docs/mcp/TRANSCRIBERS.md)
         std::string language = "auto";
+        double transcriptSize = 3.8;  ///< the column's font size (points): small, the page is for the drawing
     };
     using Wake = std::function<void(const std::string& description)>;  ///< an intent for the serving session
     using Changed = std::function<void()>;                              ///< (the status strip)

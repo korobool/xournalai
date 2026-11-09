@@ -100,6 +100,7 @@ McpConfig McpConfig::load() {
                         live.softS = std::clamp(l.value("soft_s", live.softS), 5, 28);
                         live.hardS = std::clamp(l.value("hard_s", live.hardS), live.softS, 29);
                         live.language = l.value("language", live.language);
+                        live.transcriptSize = std::clamp(l.value("transcript_size", live.transcriptSize), 3.0, 12.0);
                     } catch (const std::exception&) {
                     }
                 }
@@ -176,7 +177,8 @@ void McpConfig::save() const {
                   {"pause_ms", assistant.liveNotes.pauseMs},
                   {"soft_s", assistant.liveNotes.softS},
                   {"hard_s", assistant.liveNotes.hardS},
-                  {"language", assistant.liveNotes.language}}}}},
+                  {"language", assistant.liveNotes.language},
+                  {"transcript_size", assistant.liveNotes.transcriptSize}}}}},
               {"backup_dir", toUtf8(backupDir)},
               {"_help",
                {{"url", url()},

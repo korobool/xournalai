@@ -56,7 +56,7 @@ const Transaction& Transactions::begin(size_t page, std::optional<xoj::util::Rec
                                        std::vector<std::string> base, std::string label, int zone) {
     expire();
     Control* ctrl = server.getControl();
-    const int max = std::clamp(server.getConfig().assistant.maxParallel, 1, 5);
+    const int max = std::clamp(server.getConfig().assistant.maxParallel, 1, 8);
     if (static_cast<int>(txns.size()) >= max) {
         std::string ids;
         for (const auto& [id, t]: txns) {

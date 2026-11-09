@@ -18,7 +18,7 @@ void registerTransactionTools(McpServer& server) {
     begin.name = "transaction_begin";
     begin.title = "Begin an edit transaction";
     begin.description =
-            "Starts preparing one change of the canvas while others work in parallel (up to 5 at once). Claims an area "
+            "Starts preparing one change of the canvas while others work in parallel (up to 8 at once, as set). Claims an area "
             "of a page (no two transactions may overlap) and returns a private draft layer: draw the new content "
             "there with the normal tools (layer=<draft_layer>). Nothing is visible until transaction_commit, which "
             "plays everything in order as ONE undo step. List in base_ids the user's strokes your change depends "
@@ -130,7 +130,7 @@ void registerTransactionTools(McpServer& server) {
             out.push_back(o);
         }
         return ToolResult::structured(
-                {{"transactions", out}, {"max", std::clamp(srv->getConfig().assistant.maxParallel, 1, 5)}});
+                {{"transactions", out}, {"max", std::clamp(srv->getConfig().assistant.maxParallel, 1, 8)}});
     };
     server.getRegistry().addTool(std::move(list));
 }

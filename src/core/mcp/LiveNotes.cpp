@@ -19,8 +19,6 @@ namespace xoj::mcp {
 
 namespace {
 constexpr double MARGIN = 24;
-constexpr double TEXT_SIZE = 7.5;  ///< the transcript: small (the page is for the drawing)
-constexpr double LINE = TEXT_SIZE * 1.3;
 
 std::string clock(int64_t ms) {
     const int64_t s = std::max<int64_t>(0, ms / 1000);
@@ -325,8 +323,10 @@ void LiveNotes::pump() {
                 "[" + clock(p.startMs) + "] " + (p.ok ? p.text : "(not recognized: " + p.error + ")");
         // a rough height (Sans: ~0.5 em a character): a new page when it would not fit — but on a fresh column it is
         // written anyway (a line longer than a page would otherwise ask for pages without end)
-        const double perLine = std::max(1.0, std::floor(colW / (TEXT_SIZE * 0.5)));
-        const double estimate = std::ceil(static_cast<double>(g_utf8_strlen(line.c_str(), -1)) / perLine) * LINE;
+        const double size = opt.transcriptSize;
+        const double perLine = std::max(1.0, std::floor(colW / (size * 0.5)));
+        const double estimate =
+                std::ceil(static_cast<double>(g_utf8_strlen(line.c_str(), -1)) / perLine) * size * 1.3;
         auto number = pageNumber(pages.size() - 1);
         if (!number || (y > columnTop + 0.5 && y + estimate > pageH - MARGIN)) {
             newPage([this] { pump(); });
@@ -338,18 +338,18 @@ void LiveNotes::pump() {
                      {"x", colX},
                      {"y", y},
                      {"wrap", colW},
-                     {"font", {{"name", "Sans"}, {"size", TEXT_SIZE}}},
+                     {"font", {{"name", "Sans"}, {"size", opt.transcriptSize}}},
                      {"color", p.ok ? "#3c3c3c" : "#b04a4a"}};
         call("create_text", {{"page", *number}, {"texts", json::array({text})}}, [this, index](const ToolResult& r) {
             writing = false;
-            double bottom = y + LINE;
+            double bottom = y + opt.transcriptSize * 1.3;
             if (const auto& sc = r.structuredContent(); sc && sc->contains("created") && !(*sc)["created"].empty()) {
                 const json& bb = (*sc)["created"][0]["bbox"];
                 if (bb.is_array() && bb.size() == 4) {
                     bottom = bb[1].get<double>() + bb[3].get<double>();
                 }
             }
-            y = bottom + 3;
+            y = bottom + std::max(1.5, opt.transcriptSize * 0.4);  // (a little air between pieces)
             pieces[index].written = true;
             appendTranscript(pieces[index]);
             nextToWrite = index + 1;

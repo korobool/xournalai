@@ -92,6 +92,9 @@ def test_1_speech_becomes_text_in_the_column_of_a_new_page(app):
     lines = [s for s in t if s.startswith("[")]
     # (a piece starts 0.3 s before the voice and keeps 0.3 s of the pause after it)
     assert lines == ["[0:00] piece 1 lasts 2.6 s", "[0:04] piece 2 lasts 3.7 s"], lines
+    fonts = {e["font"]["size"] for e in c.call("page_elements", page=2, detail="full")["elements"]
+             if e.get("type") == "text" and e.get("text", "").startswith("[")}
+    assert fonts == {3.8}, fonts  # (half the first 7.5: more of the talk on a page, the owner's wish 2026-11-09)
     assert st["folder"].startswith(str(app.home)), st["folder"]  # (no audio folder set: the app's data folder)
 
 
@@ -139,10 +142,10 @@ def test_6_a_long_talk_goes_on_a_next_page(app):
     c = app.client()
     c.call("test_live_audio", op="start", name="long.ogg")
     parts = [("noise", 0.5)]
-    for _ in range(70):
+    for _ in range(150):  # (one short line each: at 3.8 pt a page holds over a hundred)
         parts += [("voice", 1), ("noise", 1.6)]
     c.call("test_live_audio", op="feed", file=wav(DIR / "e.wav", parts))
-    st = wait(lambda: (lambda s: s if s["written"] >= 70 else None)(c.call("live_notes", op="status")), 40)
+    st = wait(lambda: (lambda s: s if s["written"] >= 150 else None)(c.call("live_notes", op="status")), 60)
     assert st and len(st["pages"]) >= 2, st
     assert st["pages"][1]["page"] == st["pages"][0]["page"] + 1
     assert any("(continued)" in s for s in texts(c, st["pages"][1]["page"]))

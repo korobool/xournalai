@@ -123,7 +123,7 @@ std::string EventPump::message() const {
         }
         msg += " (rules: " + (rules.empty() ? std::string("none") : rules) + ")";
     }
-    msg += ". Up to " + std::to_string(settings.maxParallel) + " subagents in parallel.";
+    msg += ". Up to " + std::to_string(settings.maxParallel) + " workers (subagents and worker tabs) in parallel.";
     return msg;
 }
 

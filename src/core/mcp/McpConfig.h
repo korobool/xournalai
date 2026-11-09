@@ -42,7 +42,7 @@ struct McpConfig {
         std::vector<std::string> rules{"formulas", "text", "diagrams", "colours"};
         int wakeIdleMs = 2500;                ///< wake the session this long after the user stopped drawing
         int watchdogS = 20;                   ///< resend a wake-up the session didn't react to after this long
-        int maxParallel = 5;                  ///< subagents / open edit transactions at once (1-5)
+        int maxParallel = 8;                  ///< workers (subagents, worker tabs) / open edit transactions at once (1-8)
         bool speech = true;                   ///< Ask: listen while the pen's button is held (local speech to text)
         std::string speechModel = "base.en";  ///< whisper.cpp model (ggml-<name>.bin in the models folder)
         bool shareRecordings = true;          ///< tell the serving session when an audio recording ends
@@ -59,6 +59,8 @@ struct McpConfig {
             int softS = 15;      ///< from this length a piece ends at a short pause
             int hardS = 25;      ///< and at this length anyway
             std::string language = "auto";
+            /// The transcript column's font size, points (3.8: half the first 7.5, the owner's wish 2026-11-09)
+            double transcriptSize = 3.8;
         } liveNotes;
     } assistant;
     fs::path backupDir;  ///< where those copies go
