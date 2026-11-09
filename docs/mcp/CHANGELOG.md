@@ -10,6 +10,27 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.17.3 — Zones stay, voice control is a dialogue
+Fixes from the owner's first tests of voice control and the question panel:
+- **A zone an agent opens stays until the agent ends it.** You can also stop it, and it expires after 10 minutes.
+  Before, every zone of the serving session ended with its turn; in voice control a turn ends after every phrase,
+  so the zones vanished within a minute.
+- **Zone labels are no longer cut at about 30 characters.** They wrap to two lines as wide as the zone and sit
+  inside its top edge, so they don't cover the strokes around it.
+- **What was heard pops up next to the region you drew in while saying it.** The serving session gets that region
+  as what «это» means: "While saying it, the owner drew on page P around [...]".
+- **The agent's short answers** show as a violet tip next to the region (new: `thinking(op="say")`).
+- **🎙 Голосовое управление follows your rule:**
+  - without 🔤 Просьбы по слову, every phrase goes to the serving session as a dialogue: it acts on commands,
+    answers questions and treats the rest as context;
+  - with it, only a phrase that starts with «Hey Assistant» is a command.
+
+  The talk button is gone from this mode; ✂ sends a phrase without waiting for a pause. «Держи и говори» will
+  return as a button of its own.
+- **The question panel shows only the asking agent's buttons.** A yes/no question gets Да and Нет as its own two
+  buttons. With no question, the panel says «Вопросов нет».
+- **A Tab key** in the terminal's key panel, between Esc and ⌫.
+
 ## 1.17.2 — ❓ The question panel: agents ask, you tap
 - **The panel is a strip to the left of the AI terminal,** under your left thumb: the terminal is in the middle and
   the big keys stay on the right. It shows:
