@@ -5,6 +5,8 @@
 #include <memory>  // for make_shared
 #include <shared_mutex>
 
+#include <unistd.h>  // for setsid
+
 #include "api/AgentGate.h"                  // for AgentGate
 #include "control/Control.h"                // for Control
 #include "control/ScrollHandler.h"          // for ScrollHandler
@@ -268,6 +270,7 @@ McpUi::~McpUi() {
 #ifdef ENABLE_AI_TERMINAL
     eventPump.reset();
     dock.reset();
+    stopBackgroundServing();
 #endif
     unwatch(label);
     unwatch(pauseButton);
@@ -1772,15 +1775,27 @@ assistant::TerminalSpec McpUi::terminalSpec(const std::string& kind, bool servin
         // Runs in the companion folder: its CLAUDE.md, .mcp.json (this app) and settings; resumes its last session
         std::string command = std::string("claude") + (bypass ? " --dangerously-skip-permissions" : "");
         if (serving && hasClaudeHistory(folder)) {
-            // Resumes the serving session's last conversation. Claude Code (2.1) keeps a conversation that was working
-            // when its terminal closed running in the background, and then refuses --continue ("Your most recent
-            // conversation is running in the background"): the terminal attaches to it instead (2026-10-24)
-            command = "id=$(claude agents --json --cwd " + shq(folder) +
+            // Resumes the serving session's last conversation. Claude Code (2.1) can keep a conversation running in
+            // the background without its terminal (one that was working when the terminal closed, or sent there with
+            // a command), and then refuses --continue ("Your most recent conversation is running in the background",
+            // 2026-10-24). It lives and ends with the app (2026-11-09: one left from 31.10 was still running a week
+            // later, reachable through Remote Control): such a session is stopped and its conversation resumed here
+            // (attached to only if it can't be stopped)
+            command = "bg=$(claude agents --json --cwd " + shq(folder) +
                       " 2>/dev/null | tr -d '\\n' | tr '{}' '\\n\\n' | grep '\"kind\": *\"background\"' | "
-                      "grep -o '\"id\": *\"[^\"]*\"' | head -n 1 | cut -d '\"' -f 4); "
-                      "if [ -n \"$id\" ]; then exec claude attach \"$id\"; else exec " +
-                      command + " --continue; fi";
+                      "head -n 1); "
+                      "id=$(printf '%s' \"$bg\" | grep -o '\"id\": *\"[^\"]*\"' | cut -d '\"' -f 4); "
+                      "sid=$(printf '%s' \"$bg\" | grep -o '\"sessionId\": *\"[^\"]*\"' | cut -d '\"' -f 4); "
+                      "if [ -n \"$id\" ]; then "
+                      "if [ -n \"$sid\" ] && claude stop \"$id\" >/dev/null 2>&1; then "
+                      "echo \"xournalai: the serving conversation was running in the background: brought back here\"; "
+                      "exec " + command + " --resume \"$sid\"; fi; "
+                      "exec claude attach \"$id\"; fi; "
+                      "exec " + command + " --continue";
         }
+        // A Claude Code in this terminal ends with it, like any program in a terminal: not handed to Claude Code's
+        // background daemon when the terminal closes while it works (2.1: CLAUDE_CODE_DISABLE_BG_EXIT_HANDOFF)
+        spec.env.emplace_back("CLAUDE_CODE_DISABLE_BG_EXIT_HANDOFF=1");
         spec = {serving ? "Claude · serving" : "Claude", command, folder, spec.env};
     } else if (kind == "codex") {
         const std::string mcp =
@@ -1886,6 +1901,31 @@ void McpUi::openTerminal(const std::string& kind) {
     }
 }
 
+void McpUi::stopBackgroundServing() {
+    // The serving Claude ends with the app (its terminal's hangup ends it). One the owner or Claude sent to Claude
+    // Code's background daemon would stay: stopped too (its conversation is kept: resumed at the next start). In a
+    // process of its own, so that the app doesn't wait (2026-11-09)
+    if (!servingClaude) {
+        return;
+    }
+    const std::string folder = assistant::Companion::folder().string();
+    const std::string script = "claude agents --json --cwd " + shq(folder) +
+                               " 2>/dev/null | tr -d '\\n' | tr '{}' '\\n\\n' | grep '\"kind\": *\"background\"' | "
+                               "grep -o '\"id\": *\"[^\"]*\"' | cut -d '\"' -f 4 | "
+                               "while read -r id; do claude stop \"$id\" >/dev/null 2>&1; done";
+    // (through the login shell, like the tabs: the app started from the desktop lacks the terminal's PATH)
+    const std::string shell = g_getenv("SHELL") && *g_getenv("SHELL") ? g_getenv("SHELL") : "/bin/bash";
+    gchar* argv[] = {const_cast<gchar*>(shell.c_str()), const_cast<gchar*>("-l"), const_cast<gchar*>("-c"),
+                     const_cast<gchar*>(script.c_str()), nullptr};
+    GError* err = nullptr;
+    if (!g_spawn_async(folder.c_str(), argv, nullptr,
+                       static_cast<GSpawnFlags>(G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL),
+                       +[](gpointer) { setsid(); }, nullptr, nullptr, &err)) {
+        g_warning("xournalai: could not stop the background serving session: %s", err ? err->message : "?");
+        g_clear_error(&err);
+    }
+}
+
 void McpUi::startServing() {
     if (!dock) {
         return;
@@ -1900,6 +1940,7 @@ void McpUi::startServing() {
         return;
     }
     servingTab = dock->openTab(spec, true);  // shown: its first start may ask you something (e.g. folder trust)
+    servingClaude = agent == "claude" && server.getConfig().assistant.command.empty();
     server.serving().processStarted();
 }
 #endif

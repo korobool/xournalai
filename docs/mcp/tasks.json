@@ -3343,7 +3343,9 @@
               "title": "The serving Claude lives and ends with the app",
               "details": "2026-11-09: after the owner closed xournalai, the serving session (7e49375d, sent to Claude Code's background daemon with a command on 31.10, resumed from 1bc62f83) still ran, busy, with bypassPermissions, the desktop's DISPLAY and a Remote Control bridge; 1.15.4 had only attached to such a session. Claude Code 2.1.319: CLAUDE_CODE_DISABLE_BG_EXIT_HANDOFF (read from its code: the hand-off to the background on exit is on unless it is set) is now set for the app's Claude tabs, so they end with their terminal; at quit, a detached login shell stops any background session in the companion folder (claude stop <id>: the conversation is kept); at start, one found there is stopped and its conversation resumed in the serving tab (claude --resume <sessionId>; attached to only if it can't be stopped), else --continue. test_e15_serving_attach 3/3 with a fake claude (stop and resume, --continue, the stop at Ctrl+Q).",
               "commit": "ai: the serving Claude lives and ends with the app",
-              "status": "todo"
+              "status": "done",
+              "started": "2026-11-09T13:57:09+00:00",
+              "finished": "2026-11-09T13:57:10+00:00"
             },
             {
               "id": "T15.8.6",

@@ -244,6 +244,9 @@ private:
     assistant::TerminalSpec terminalSpec(const std::string& kind, bool serving) const;
     std::unique_ptr<assistant::TerminalDock> dock;
     int servingTab = -1;
+    bool servingClaude = false;  ///< the serving tab runs Claude Code (not Codex, not a test's command)
+    /// At exit: stops a serving Claude Code session left in its background daemon
+    void stopBackgroundServing();
     std::unique_ptr<assistant::EventPump> eventPump;
 #endif
 };
