@@ -22,7 +22,7 @@ for line in sys.stdin:
     print(json.dumps({{"type": "result", "id": req["id"], "text": text, "language": "ru"}}), flush=True)
 """)
 TEXTS.write_text(json.dumps(["Вот здесь у нас формула Шрёдингера", "выдели её красным",
-                             "Клод, добавь страницу с сеткой", "клодовый суп был вкусный"], ensure_ascii=False))
+                             "Эй, ассистент, добавь страницу с сеткой", "Hey assistants are everywhere now"], ensure_ascii=False))
 APP_ENV = {"XOURNALAI_TEST_HOOKS": "1"}
 APP_CONFIG = {"assistant": {"autostart": True, "command": f"env FAKE_AGENT_LOG={LOG} python3 -u {AGENT}",
                             "wake_idle_ms": 300,

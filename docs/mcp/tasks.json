@@ -3872,6 +3872,16 @@
             {
               "id": "T15.16.2",
               "story": "US-15.21",
+              "title": "A tap allows actions outside the app; the trigger phrase «Hey Assistant»",
+              "details": "The owner's decisions (22:1x): a tap on the question panel is his explicit consent, also outside the app (shell commands, finding files, the browser through the extension: a profile, a site and an action, an upload to Google Drive; opening terminals; settings): he won't type confirmations in the terminal during a brainstorm. The live-annotation skill (safe list), its subagent brief, the voice-control skill and the serving session's instructions: ask with ask_owner saying exactly what will be done, options «Разрешить» / «Не надо», do exactly that once on the tap, never on speech alone; still never, even with a tap: purchases or payments, passwords, keys and tokens, bulk deletion of his files (my floor, told to him). No separate coordinator session: the companion stays the coordinator (it can carry out what he allows). The trigger phrase is «Hey Assistant» (also «эй ассистент», «хей ассистент», «hey assistent»), off by default; LiveNotes compares phrases word by word, without case, punctuation between the words ignored, a word that only starts like it doesn't count. docs/mcp/LIVE_MODES.md: the decisions (the browser on another monitor, else the second workspace; the clean page typeset). test_e15_voice follows the phrase.",
+              "commit": "ai: a tap allows actions outside the app; the trigger phrase «Hey Assistant»",
+              "status": "done",
+              "started": "2026-11-09T22:29:12+00:00",
+              "finished": "2026-11-09T22:29:12+00:00"
+            },
+            {
+              "id": "T15.16.3",
+              "story": "US-15.21",
               "title": "Release 1.17.2",
               "details": "",
               "commit": "",

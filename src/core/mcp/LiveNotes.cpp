@@ -133,23 +133,36 @@ void LiveNotes::talk(bool down) {
 }
 
 namespace {
-/// The rest of `text` after a trigger word at its start («Клод, добавь…» → «добавь…»), compared without case
-std::optional<std::string> afterTrigger(const std::string& text, const std::vector<std::string>& words) {
-    const char* s = text.c_str();
-    while (*s && !g_unichar_isalnum(g_utf8_get_char(s))) {
-        s = g_utf8_next_char(s);
-    }
-    for (const auto& w: words) {
-        const char* a = s;
-        const char* b = w.c_str();
-        while (*a && *b && g_unichar_tolower(g_utf8_get_char(a)) == g_unichar_tolower(g_utf8_get_char(b))) {
-            a = g_utf8_next_char(a);
-            b = g_utf8_next_char(b);
+/// The rest of `text` after a trigger phrase at its start («Hey, Assistant, добавь…» → «добавь…»), compared word
+/// by word without case, punctuation between the words ignored («Эй, ассистент» = «эй ассистент»)
+std::optional<std::string> afterTrigger(const std::string& text, const std::vector<std::string>& phrases) {
+    auto skipGap = [](const char* p) {
+        while (*p && !g_unichar_isalnum(g_utf8_get_char(p))) {
+            p = g_utf8_next_char(p);
         }
-        if (*b == 0 && (*a == 0 || !g_unichar_isalnum(g_utf8_get_char(a)))) {
-            while (*a && !g_unichar_isalnum(g_utf8_get_char(a))) {
+        return p;
+    };
+    for (const auto& phrase: phrases) {
+        const char* a = skipGap(text.c_str());
+        const char* b = skipGap(phrase.c_str());
+        bool ok = *b != 0;
+        while (ok && *b) {
+            // one word of the phrase against one word of the text
+            while (*b && g_unichar_isalnum(g_utf8_get_char(b))) {
+                if (!*a || g_unichar_tolower(g_utf8_get_char(a)) != g_unichar_tolower(g_utf8_get_char(b))) {
+                    ok = false;
+                    break;
+                }
                 a = g_utf8_next_char(a);
+                b = g_utf8_next_char(b);
             }
+            if (ok && *a && g_unichar_isalnum(g_utf8_get_char(a))) {
+                ok = false;  // (the text's word goes on: «клодовый» is not «клод»)
+            }
+            a = skipGap(a);
+            b = skipGap(b);
+        }
+        if (ok) {
             return std::string(a);
         }
     }

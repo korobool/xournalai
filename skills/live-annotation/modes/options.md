@@ -20,7 +20,7 @@ changes only what it says.
   With the mode 📝 Текст this is the only thing you do: read the whole transcript (`live_notes(op="read",
   since=0)`) and write that page.
 - **🔤 `trigger`** (requests by a word): a piece is a request **only** when it starts with the trigger word that
-  the wake-up line gives (e.g. «Клод, …», "Claude, …"). Everything else is material, however much it sounds like a
+  the wake-up line gives («Hey Assistant, …», «Эй, ассистент, …»). Everything else is material, however much it sounds like a
   request. Drop the word itself when you quote the request.
 - **❓ `questions`** (the question panel): you and your workers may ask the owner during the recording with
   `ask_owner`: a short question, a few big options («Да, рисовать», «Нет»), a safe default, `wait=false` so that

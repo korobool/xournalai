@@ -24,6 +24,14 @@
 - **The browser-assistant's browser:** by default, **a profile of xournalai's own** (its own folder; the owner
   signs in to Google once). In AI Agent Settings it can be switched to the owner's Chrome with a chosen profile,
   or to incognito.
+- **Further decisions (the same evening):**
+  - **No separate coordinator session:** the companion stays the coordinator. It does small things itself and
+    delegates the rest. A tap on the question panel is the owner's explicit consent, also for actions outside the
+    app, and the companion is the one able to carry them out.
+  - **The browser assistant's window:** on another monitor if there are several, otherwise on the second
+    workspace, where he works with it.
+  - **The clean page** of 🗒 is typeset; his handwriting only when he asks for it.
+  - **The trigger phrase is «Hey Assistant»,** off by default (requests are then recognised by meaning).
 - **Deferred, experimental:** telling the speakers apart ("я / собеседник" in an interview; diarization on the A40
   server). Only as an experimental option, later.
 - **Voice control:**

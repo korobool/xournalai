@@ -20,7 +20,8 @@ def test_companion_folder(app):
     assert skill.startswith("---\nname: live-annotation\n") and "live_notes(op=\"read\")" in skill
     assert "live-annotation" in claude
     assert (d / ".claude" / "skills" / "live-annotation" / "lib" / "inbox.py").exists()  # (its helpers too)
-    assert "safe list" in claude and "never acted on" in claude  # (spoken requests: only the skill's safe list)
+    # (spoken requests: the skill's safe list; anything beyond it only after the owner's tap, never on speech alone)
+    assert "safe list" in claude and "only after his tap" in claude and "never on speech alone" in claude
     local = json.loads((d / ".claude" / "settings.local.json").read_text())
     assert local["enableAllProjectMcpServers"] is True and "xournalai" in local["enabledMcpjsonServers"]
     # the user's own notes below the managed block survive a refresh (the server re-provisions on restart)

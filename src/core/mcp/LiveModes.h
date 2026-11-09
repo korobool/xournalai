@@ -73,7 +73,7 @@ struct State {
 bool applies(const std::string& toggle, const Mode& mode);
 
 /// "mode «Конспект без команд» (safe: annotate=visual, requests=off; options: economy, summary; trigger words:
-/// «клод», «claude»)": named in every wake-up line
+/// «hey assistant», …)": named in every wake-up line
 std::string describe(const Mode& mode, const Options& options, const std::vector<std::string>& triggerWords);
 
 }  // namespace xoj::mcp::live

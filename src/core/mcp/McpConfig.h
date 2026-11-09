@@ -61,8 +61,9 @@ struct McpConfig {
             std::string language = "auto";
             /// The transcript column's font size, points (3.8: half the first 7.5, the owner's wish 2026-11-09)
             double transcriptSize = 3.8;
-            /// The option «Просьбы по слову»: a request (a voice command) starts with one of these (lower case)
-            std::vector<std::string> triggerWords{"клод", "claude"};
+            /// The option «Просьбы по слову»: a request (a voice command) starts with one of these phrases (any case;
+            /// punctuation between the words ignored). The owner's choice: «Hey Assistant» (2026-11-09)
+            std::vector<std::string> triggerWords{"hey assistant", "эй ассистент", "хей ассистент", "hey assistent"};
         } liveNotes;
     } assistant;
     fs::path backupDir;  ///< where those copies go

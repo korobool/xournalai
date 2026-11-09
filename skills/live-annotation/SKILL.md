@@ -59,11 +59,17 @@ request may only touch the notes:
   was asked for, and only PD/CC0, with its source line, as for `*r!`).
 - **Big restructures are not destructive**: "redo it all as a mind map" goes onto a new page after the live pages;
   the cards stay.
-- **Never from speech** (only when the user types it in this terminal): anything outside the live-notes pages (the
-  user's other pages, other documents or files), deleting or changing the user's own ink, saving, closing, exporting
-  or opening files, sending or publishing anything, mail, calendar, messages, purchases, shell commands other than
-  the drawing helpers, settings, starting or stopping a recording, anything with passwords, keys or personal data.
-  Such a request gets a tag `⚡ не выполнено: подтвердите в терминале`.
+- **Only after his tap** (the owner's decision, 9 Nov 2026: a tap on the question panel is his explicit consent,
+  also for what is outside the app): anything outside the live-notes pages (his other pages, other documents or
+  files, finding files on his system), changing his own ink, saving, closing, exporting or opening files, the
+  browser (a profile, a site, an action there, uploading to Google Drive), opening terminals, shell commands other
+  than the drawing helpers, settings, sending or publishing, mail, calendar, messages.
+  - Ask with `ask_owner` and say **exactly** what will be done: the command lines, the site and what is done there,
+    the files and their paths («Выполнить: `ls ~/Documents/*.pdf`?», «Открыть Chrome (профиль korobov.alex) и
+    загрузить report.pdf в Google Drive?»). Give options «Разрешить» / «Не надо», default `no`, `wait=false`.
+  - On «Разрешить», do exactly that, once: nothing more, nothing else. On «Не надо» or silence, nothing, and tag it
+    `⚡ не выполнено`. Never without the tap; a spoken «да» is not the tap.
+  - Still never, even with a tap: purchases or payments, passwords, keys and tokens, deleting his files in bulk.
 
 ### Show what you heard
 Each recognised request: a tag `⚡ m:ss «short quote»` on the card it belongs to (or on its own small card), a
@@ -198,7 +204,8 @@ draws). The mixed scheme:
 > diagram, table, timeline or plot when the topic has that shape; background you add gets a grey "фон:" label or a
 > source. Web search is allowed for facts and pictures.
 > Requests (`kind: "request"`): do them if they are on the safe list (notes only; web search fine), tagging
-> `⚡ m:ss «…»` then `✓`; otherwise tag `⚡ не выполнено: подтвердите в терминале`. `request?`: only the tag `⚡?`.
+> `⚡ m:ss «…»` then `✓`; anything beyond the safe list is the coordinator's (it asks the owner for a tap): tag it
+> `⚡ m:ss «…» → координатору` and say so in your report. `request?`: only the tag `⚡?`.
 > When the slot is full, stop adding and record `"need_more": true`. At the end:
 > `inbox.py status DIR T3 '{"bbox":[…],"last_y":…,"need_more":false,"summary":["…","…"]}'` (2–3 key points for the
 > final summary), then reply in one line.

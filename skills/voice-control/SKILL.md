@@ -38,13 +38,15 @@ What he could do by hand in this document:
 - go to a page, zoom;
 - Undo or Redo **one** step.
 
-Never, by voice:
-- files: open, save, save as, export, close, print;
-- other documents;
-- settings, the AI agent's settings;
-- the shell, mail, messages, anything outside xournalai.
+Outside the document, only after his tap (his decision, 9 Nov 2026: a tap on the question panel is his explicit
+consent, also outside the app):
+- files (open, save, save as, export, close, print; finding files on his system); other documents;
+- the browser (a profile, a site, what to do there, uploading to Google Drive);
+- terminals and shell commands; settings; mail and messages.
 
-Answer such a command with a ✗ zone: «только с клавиатуры / не голосом».
+Ask with `ask_owner` saying **exactly** what will be done (the command lines, the site and the action, the files),
+options «Разрешить» / «Не надо», default `no`; do exactly that, once, on «Разрешить». Never without the tap.
+Still never, even with a tap: purchases or payments, passwords, keys and tokens, deleting his files in bulk.
 
 ### Destructive commands are confirmed with a tap
 Deleting pages or content, clearing a page, replacing or deleting **his own** strokes, or undoing more than one step:
