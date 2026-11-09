@@ -10,6 +10,24 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.17.1 — 🎙 Voice control
+- **🎙 Голосовое управление is in the Record menu:** you work the app by voice, with the pen in your hand.
+  - Nothing is written on the page for the talk: no live-notes page, no transcript column. The transcript file is
+    still kept.
+  - Everything heard pops up for 4 seconds at the top of the canvas: «🎙 …» on grey means context, «▶ …» on teal
+    means it was taken as a command.
+- **A command** is what you say while holding the big **«🎙 Держи и говори»** button, which appears next to Record
+  in place of ✂ and turns red while you hold it. Letting go sends the command at once. With **🔤 Просьбы по
+  слову**, a phrase that starts with the trigger word («Клод, …», "Claude, …") is a command too; «клодовый» is not.
+  Everything else is **context**: the serving session uses it to understand «это», «там» and «её».
+- **Each command wakes the serving session** with the context said since the last command and where you drew last.
+  It follows the new **voice-control** skill, which ships with the app:
+  - it may do whatever you could do by hand in the open document, but nothing with files or settings;
+  - destructive commands are carried out only after a spoken «да»;
+  - each command gets a zone with a ✓ or a ✗.
+- `live_notes(op="read")` gives each piece's `kind` (command or context). `op="status"` gives the number of
+  commands, whether the button is held, and the pop-up shown now.
+
 ## 1.17.0 — Live-notes modes: hold Record and choose
 - **A long press on Record now offers every mode as a big tile**, and the options for the next recording as big
   toggles above them. Everything works by finger, and one tap on a tile starts the recording. The design and the
