@@ -201,6 +201,12 @@ draws). The mixed scheme:
   wide and ~60 pt tall (~110 pt for an illustration or a diagram); a **wide slot** (two or three columns) for big
   diagrams or page-wide content. The worker shrinks its frame to its content; when it reports, the column's next
   free y becomes its card's bottom + 3. Small later cards fill the gaps (`find_free_space`).
+- **Show that a slot is busy** (the user, 9 Nov: otherwise "it looks as if nothing happens and all zones are done";
+  he liked exactly this look): the moment you start a worker, draw in its slot a dashed frame in the topic colour
+  (width 0.5, radius 3, `fill_opacity` 0.05) and a centred italic 5 pt label «⚙ Tn · «Title» — сессия во вкладке
+  думает (effort high, с 19:51)…» (or «сабагент …» for a subagent). Put the two element ids into the worker's inbox
+  as a `note`: it deletes exactly them right before it draws. When it reports, delete any that are left. (If the app
+  shows its own lasting busy-zone indicator, use that instead.)
 - **The transcript column** is the app's: 3.8 pt since 9 Nov (written in italic by the app itself since 1.16.3). Don't rewrite the app's column texts unless a request in that recording asks for a different look
   (then recreate each new piece in the asked style at the same place and delete the app's text).
 - **Connectors are yours** (the coordinator's), drawn when the cards' real boxes are known: grey arrows from card
