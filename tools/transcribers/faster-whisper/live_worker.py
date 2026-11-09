@@ -128,7 +128,7 @@ def main():
                 segments, info = run(hint, prompt)  # (a short piece, unsure: the language of the piece before)
             text = " ".join(s.text.strip() for s in segments).strip()
             if hallucinated(text) and prompt:
-                segments, info = run(language, None)  # (the prompt can cause it: once more without)
+                segments, info = run(info.language if language is None else language, None)  # (once more, no prompt)
                 text = " ".join(s.text.strip() for s in segments).strip()
             if hallucinated(text):
                 log(f"#{rid} dropped a hallucination: {text}")

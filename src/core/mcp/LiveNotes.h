@@ -3,7 +3,7 @@
  *
  * Live notes (experimental): one recording transcribed while it goes on. The recorded sound (through the sample
  * tap) is cut into pieces at pauses (LiveChunker), each piece goes to the owner's speech recognizer
- * (LiveTranscriber: any program behind docs/mcp/TRANSCRIBERS.md), and its text, with its time in the recording,
+ * (assistant::Transcriber: any program behind docs/mcp/TRANSCRIBERS.md), and its text, with its time in the recording,
  * goes into a narrow column on the right of a live-notes page inserted after the page the owner was on (more pages
  * as it fills). The rest of the page is the serving Claude's: it is woken when new text is there, reads it with
  * live_notes(op="read") and draws what is being talked about at its own pace (the live-annotation skill); one
@@ -25,7 +25,7 @@
 #include <vector>      // for vector
 
 #include "assistant/LiveChunker.h"      // for LiveChunker
-#include "assistant/LiveTranscriber.h"  // for LiveTranscriber
+#include "assistant/Transcriber.h"  // for Transcriber
 #include "model/PageRef.h"              // for PageRef
 
 #include "Json.h"
@@ -40,7 +40,7 @@ class LiveNotes final {
 public:
     struct Options {
         assistant::LiveChunker::Options chunker;
-        assistant::TranscriberConfig transcriber;
+        json transcriber;  ///< the speech recognizer, as written in mcp.json (docs/mcp/TRANSCRIBERS.md)
         std::string language = "auto";
     };
     using Wake = std::function<void(const std::string& description)>;  ///< an intent for the serving session
@@ -85,14 +85,15 @@ private:
         double elapsed = -1;
     };
     void onPiece(assistant::LiveChunk&& c);
-    void onResult(const assistant::LiveTranscriber::Result& r);
+    void onResult(const assistant::TranscriberResult& r);
     void pump();  ///< writes answered pieces into the column, in order, one at a time
     void newPage(std::function<void()> then);
     void call(const std::string& tool, json args, std::function<void(const ToolResult&)> then);
     std::optional<size_t> pageNumber(size_t i) const;  ///< 1-based number of the i-th live page (if it still exists)
     json pagesJson() const;
     void maybeWake();
-    void writeTranscriptFile();
+    void appendTranscript(const Piece& p);  ///< the transcript file grows with each piece (kept if the app exits)
+    fs::path transcriptPath() const;
     int lastWritten() const { return nextToWrite - 1; }
 
     McpServer& server;
@@ -103,7 +104,7 @@ private:
     Wake wake;
     Changed changed;
     std::shared_ptr<assistant::LiveChunker> pieceCutter;
-    std::unique_ptr<assistant::LiveTranscriber> transcriber;
+    std::unique_ptr<assistant::Transcriber> transcriber;  ///< (null: none usable; `problem` says why)
     std::shared_ptr<bool> alive = std::make_shared<bool>(true);
 
     std::map<int, Piece> pieces;
@@ -113,7 +114,7 @@ private:
     bool ended = false;
     bool wakePending = false;
     bool endWoken = false;
-    bool fileWritten = false;
+    bool transcriptStarted = false;
     std::string pageProblem;
     std::string engine;
     std::string problem;
@@ -129,6 +130,7 @@ private:
     double colX = 0;
     double colW = 0;
     double y = 0;  ///< the next line in the column
+    double columnTop = 0;  ///< where a column's first line goes
     double top = 0;  ///< where the free area starts (below the title)
 };
 

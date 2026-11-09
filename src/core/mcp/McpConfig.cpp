@@ -91,15 +91,17 @@ McpConfig McpConfig::load() {
                 if (a.contains("live_notes") && a["live_notes"].is_object()) {
                     const json& l = a["live_notes"];
                     auto& live = cfg.assistant.liveNotes;
-                    live.enabled = l.value("enabled", live.enabled);
-                    if (l.contains("transcriber") && l["transcriber"].is_object()) {
-                        live.transcriberKind = l["transcriber"].value("kind", live.transcriberKind);
-                        live.transcriberCommand = l["transcriber"].value("command", live.transcriberCommand);
+                    try {  // (a wrong type in a hand-edited file keeps the default)
+                        live.enabled = l.value("enabled", live.enabled);
+                        if (l.contains("transcriber") && l["transcriber"].is_object()) {
+                            live.transcriber = l["transcriber"];
+                        }
+                        live.pauseMs = std::clamp(l.value("pause_ms", live.pauseMs), 500, 5000);
+                        live.softS = std::clamp(l.value("soft_s", live.softS), 5, 28);
+                        live.hardS = std::clamp(l.value("hard_s", live.hardS), live.softS, 29);
+                        live.language = l.value("language", live.language);
+                    } catch (const std::exception&) {
                     }
-                    live.pauseMs = std::clamp(l.value("pause_ms", live.pauseMs), 500, 5000);
-                    live.softS = std::clamp(l.value("soft_s", live.softS), 5, 28);
-                    live.hardS = std::clamp(l.value("hard_s", live.hardS), live.softS, 29);
-                    live.language = l.value("language", live.language);
                 }
             }
             if (j.contains("backup_dir") && j["backup_dir"].is_string() &&
@@ -170,8 +172,7 @@ void McpConfig::save() const {
                 {"screen_keyboard", assistant.screenKeyboard},
                 {"live_notes",
                  {{"enabled", assistant.liveNotes.enabled},
-                  {"transcriber",
-                   {{"kind", assistant.liveNotes.transcriberKind}, {"command", assistant.liveNotes.transcriberCommand}}},
+                  {"transcriber", assistant.liveNotes.transcriber},
                   {"pause_ms", assistant.liveNotes.pauseMs},
                   {"soft_s", assistant.liveNotes.softS},
                   {"hard_s", assistant.liveNotes.hardS},

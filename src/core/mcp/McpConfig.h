@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <nlohmann/json.hpp>  // for json (the speech recognizer, as written)
+
 #include <cstdint>   // for uint16_t
 #include <optional>  // for optional
 #include <set>       // for set
@@ -50,8 +52,9 @@ struct McpConfig {
         /// Live notes (experimental): a recording transcribed while it goes on (docs/mcp/TRANSCRIBERS.md)
         struct LiveNotes {
             bool enabled = false;         ///< a long press on the big Record button offers it
-            std::string transcriberKind;  ///< "file" or "stream" (the speech recognizer: see the specification)
-            std::string transcriberCommand;
+            /// The speech recognizer, as docs/mcp/TRANSCRIBERS.md describes it ({"kind": "file" | "stream",
+            /// "command": …, more per kind}); kept as written (a save never drops what this app doesn't know)
+            nlohmann::json transcriber = nlohmann::json::object();
             int pauseMs = 1500;  ///< a pause this long ends a piece
             int softS = 15;      ///< from this length a piece ends at a short pause
             int hardS = 25;      ///< and at this length anyway

@@ -1056,7 +1056,7 @@ bool McpUi::beginLive(const std::string& name, std::string& error) {
     opt.chunker.pauseMs = cfg.pauseMs;
     opt.chunker.softMs = cfg.softS * 1000;
     opt.chunker.hardMs = cfg.hardS * 1000;
-    opt.transcriber = {cfg.transcriberKind, cfg.transcriberCommand};
+    opt.transcriber = cfg.transcriber;
     opt.language = cfg.language.empty() ? "auto" : cfg.language;
     Control* ctrl = server.getControl();
     // Where the recording goes (a real one always has its folder); else the app's data folder, never a guess in the

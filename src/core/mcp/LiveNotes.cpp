@@ -34,15 +34,12 @@ std::string clock(int64_t ms) {
     return b;
 }
 
-std::string tail(const std::string& s, size_t n) {
-    if (s.size() <= n) {
+std::string tail(const std::string& s, glong chars) {
+    const glong n = g_utf8_strlen(s.c_str(), -1);
+    if (n <= chars) {
         return s;
     }
-    size_t from = s.size() - n;
-    while (from < s.size() && (static_cast<unsigned char>(s[from]) & 0xC0) == 0x80) {
-        from++;  // (not in the middle of a UTF-8 character)
-    }
-    return s.substr(from);
+    return g_utf8_offset_to_pointer(s.c_str(), n - chars);  // (the last `chars` characters)
 }
 }  // namespace
 
@@ -80,22 +77,25 @@ LiveNotes::LiveNotes(McpServer& server, Options options, std::string recording, 
                 },
                 new Post{token, this, std::move(c)});
     });
-    transcriber = std::make_unique<assistant::LiveTranscriber>(
-            opt.transcriber, [this](const assistant::LiveTranscriber::Result& r) { onResult(r); },
-            [this](const std::string& s) {
-                if (s.rfind("ready: ", 0) == 0) {
-                    engine = s.substr(7);
-                    problem.clear();
-                } else if (s.rfind("problem: ", 0) == 0) {
-                    problem = s.substr(9);
-                }
-                if (this->changed) {
-                    this->changed();
-                }
-            });
-    if (!opt.transcriber.valid()) {
-        problem = "no speech recognizer set (assistant.live_notes.transcriber in mcp.json)";
-    }
+    assistant::TranscriberHooks hooks;
+    hooks.onResult = [this](const assistant::TranscriberResult& r) { onResult(r); };
+    hooks.onStatus = [this](const std::string& st) {
+        if (st.rfind("ready: ", 0) == 0) {
+            engine = st.substr(7);
+            problem.clear();
+        } else if (st.rfind("problem: ", 0) == 0) {
+            problem = st.substr(9);
+        }
+        if (this->changed) {
+            this->changed();
+        }
+    };
+    // (when a piece is sent: the language and the text of the answers so far)
+    hooks.prepare = [this](assistant::TranscriberPiece& p) {
+        p.languageHint = languageHint;
+        p.prompt = tail(lastText, 200);
+    };
+    transcriber = assistant::Transcriber::make(opt.transcriber, std::move(hooks), problem);
     newPage([this] { pump(); });  // (the page is there from the start: the owner sees where it goes)
 }
 
@@ -123,7 +123,9 @@ void LiveNotes::recordingEnded() {
             +[](gpointer d) -> gboolean {
                 auto* l = static_cast<Later*>(d);
                 if (l->token.lock()) {
-                    l->self->transcriber->finish();
+                    if (l->self->transcriber) {
+                        l->self->transcriber->finish();
+                    }
                     l->self->pump();
                     if (l->self->changed) {
                         l->self->changed();
@@ -138,7 +140,8 @@ void LiveNotes::recordingEnded() {
 }
 
 bool LiveNotes::done() const {
-    return ended && transcriber->done() && nextToWrite > (pieces.empty() ? 0 : pieces.rbegin()->first);
+    return ended && (!transcriber || transcriber->done()) &&
+           nextToWrite > (pieces.empty() ? 0 : pieces.rbegin()->first);
 }
 
 void LiveNotes::onPiece(assistant::LiveChunk&& c) {
@@ -160,19 +163,24 @@ void LiveNotes::onPiece(assistant::LiveChunk&& c) {
         return;
     }
     pieces[p.index] = p;
-    assistant::LiveTranscriber::Piece req;
+    if (!transcriber) {
+        assistant::TranscriberResult r;
+        r.id = std::to_string(p.index);
+        r.error = problem;
+        onResult(r);
+        return;
+    }
+    assistant::TranscriberPiece req;
     req.id = std::to_string(p.index);
     req.audioPath = p.wav;
     req.language = opt.language;
-    req.languageHint = languageHint;
-    req.prompt = tail(lastText, 200);
     transcriber->submit(std::move(req));
     if (changed) {
         changed();
     }
 }
 
-void LiveNotes::onResult(const assistant::LiveTranscriber::Result& r) {
+void LiveNotes::onResult(const assistant::TranscriberResult& r) {
     int index = 0;
     try {
         index = std::stoi(r.id);
@@ -252,9 +260,7 @@ void LiveNotes::newPage(std::function<void()> then) {
         if (r.isError() || !sc || !sc->contains("page")) {
             writing = false;
             pageProblem = "could not add the live-notes page";
-            if (changed) {
-                changed();
-            }
+            pump();  // (the rest goes on without a column)
             return;
         }
         const size_t number = (*sc)["page"].get<size_t>();
@@ -281,7 +287,7 @@ void LiveNotes::newPage(std::function<void()> then) {
                  {{"text", "TRANSCRIPT"}, {"x", colX}, {"y", 34}, {"font", {{"name", "Sans Bold"}, {"size", 6.5}}},
                   {"color", "#999999"}}});
         call("create_text", {{"page", number}, {"texts", texts}}, [this, then](const ToolResult&) {
-            y = 46;
+            y = columnTop = 46;
             top = 34;
             writing = false;
             if (changed) {
@@ -296,8 +302,10 @@ void LiveNotes::pump() {
     if (writing) {
         return;
     }
-    if (pages.empty()) {
-        return;  // (the first page is on its way, or could not be made)
+    // (a page could not be added: the text still goes to the file, and to the serving session)
+    const bool noPage = !pageProblem.empty();
+    if (pages.empty() && !noPage) {
+        return;  // (the first page is on its way)
     }
     while (true) {
         auto it = pieces.find(nextToWrite);
@@ -305,18 +313,22 @@ void LiveNotes::pump() {
             break;
         }
         Piece& p = it->second;
-        if (p.ok && p.text.empty()) {  // (nothing intelligible: nothing to write)
+        if ((p.ok && p.text.empty()) || noPage) {  // (nothing intelligible, or nowhere to write it)
+            if (!(p.ok && p.text.empty())) {
+                appendTranscript(p);
+            }
             p.written = true;
             nextToWrite++;
             continue;
         }
         const std::string line =
                 "[" + clock(p.startMs) + "] " + (p.ok ? p.text : "(not recognized: " + p.error + ")");
-        // a rough height (Sans: ~0.5 em a character): a new page when it would not fit
+        // a rough height (Sans: ~0.5 em a character): a new page when it would not fit — but on a fresh column it is
+        // written anyway (a line longer than a page would otherwise ask for pages without end)
         const double perLine = std::max(1.0, std::floor(colW / (TEXT_SIZE * 0.5)));
         const double estimate = std::ceil(static_cast<double>(g_utf8_strlen(line.c_str(), -1)) / perLine) * LINE;
         auto number = pageNumber(pages.size() - 1);
-        if (!number || y + estimate > pageH - MARGIN) {
+        if (!number || (y > columnTop + 0.5 && y + estimate > pageH - MARGIN)) {
             newPage([this] { pump(); });
             return;
         }
@@ -339,6 +351,7 @@ void LiveNotes::pump() {
             }
             y = bottom + 3;
             pieces[index].written = true;
+            appendTranscript(pieces[index]);
             nextToWrite = index + 1;
             maybeWake();
             if (changed) {
@@ -348,13 +361,9 @@ void LiveNotes::pump() {
         });
         return;
     }
-    if (done() && !fileWritten) {
-        fileWritten = true;
-        writeTranscriptFile();
-        maybeWake();
-        if (changed) {
-            changed();
-        }
+    maybeWake();
+    if (changed) {
+        changed();
     }
 }
 
@@ -391,8 +400,8 @@ json LiveNotes::read(std::optional<int> since) {
         if (i <= from || i > lastWritten() || (p.ok && p.text.empty())) {
             continue;
         }
-        json e = {{"n", i},           {"at", clock(p.startMs)},  {"start_s", p.startMs / 1000.0},
-                  {"end_s", p.endMs / 1000.0}, {"ok", p.ok}};
+        json e = {{"n", i},           {"at", clock(p.startMs)},  {"start_s", static_cast<double>(p.startMs) / 1000.0},
+                  {"end_s", static_cast<double>(p.endMs) / 1000.0}, {"ok", p.ok}};
         if (p.ok) {
             e["text"] = p.text;
             if (!p.language.empty()) {
@@ -466,8 +475,8 @@ json LiveNotes::status() const {
     if (!pageProblem.empty()) {
         j["page_problem"] = pageProblem;
     }
-    if (fileWritten) {
-        j["transcript"] = (audioFolder / "transcripts" / (fs::path(name).stem().string() + ".live.txt")).string();
+    if (transcriptStarted) {
+        j["transcript"] = transcriptPath().string();
     }
     return j;
 }
@@ -489,22 +498,23 @@ std::string LiveNotes::statusLine() const {
     return s;
 }
 
-void LiveNotes::writeTranscriptFile() {
+fs::path LiveNotes::transcriptPath() const {
+    return audioFolder / "transcripts" / (fs::path(name).stem().string() + ".live.txt");
+}
+
+void LiveNotes::appendTranscript(const Piece& p) {
     std::error_code ec;
-    const fs::path dir = audioFolder / "transcripts";
-    fs::create_directories(dir, ec);
-    std::ofstream out(dir / (fs::path(name).stem().string() + ".live.txt"));
-    out << "# Live notes: " << name << " (" << startedAt << ")";
-    if (!engine.empty()) {
-        out << ", " << engine;
-    }
-    out << "\n";
-    for (const auto& [i, p]: pieces) {
-        if (p.ok && p.text.empty()) {
-            continue;
+    fs::create_directories(transcriptPath().parent_path(), ec);
+    std::ofstream out(transcriptPath(), transcriptStarted ? std::ios::app : std::ios::trunc);
+    if (!transcriptStarted) {
+        out << "# Live notes: " << name << " (" << startedAt << ")";
+        if (!engine.empty()) {
+            out << ", " << engine;
         }
-        out << "[" << clock(p.startMs) << "] " << (p.ok ? p.text : "(not recognized: " + p.error + ")") << "\n";
+        out << "\n";
+        transcriptStarted = true;
     }
+    out << "[" << clock(p.startMs) << "] " << (p.ok ? p.text : "(not recognized: " + p.error + ")") << "\n";
 }
 
 }  // namespace xoj::mcp

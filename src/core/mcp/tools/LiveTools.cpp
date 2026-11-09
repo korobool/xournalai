@@ -41,6 +41,7 @@ void registerLiveTools(McpServer& server) {
                                           "button (Record + live notes)");
         }
         if (op == "cut") {
+            srv->requireTier(Tier::Ui, "sending the piece being spoken");  // (it changes the recording's pieces)
             ui->cutLive();
             return ToolResult::structured({{"active", true}, {"listening", live->listening()}});
         }
