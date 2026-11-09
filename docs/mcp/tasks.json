@@ -3,7 +3,7 @@
     "project": "xournalai: embedded MCP server and assistant",
     "branch": "mcp",
     "plan": "docs/mcp/PLAN.md, docs/assistant/ASSISTANT-PLAN.md",
-    "version": "1.15.4",
+    "version": "1.15.5",
     "versioning": [
       "The fork has its own semantic version, XOURNALAI_VERSION, kept in CMakeLists.txt. The application version string becomes <upstream>+ai.<XOURNALAI_VERSION>, e.g. 1.3.7+ai.0.2.0.",
       "Each task is exactly one commit. The commit message is '<planned message> (<task id>)'.",
@@ -3351,9 +3351,11 @@
               "id": "T15.8.6",
               "story": "US-15.11",
               "title": "Release 1.15.5",
-              "details": "",
-              "commit": "",
-              "status": "todo"
+              "details": "Full check (2nd run, after T15.8.4/5): build-noterm and build-nomcp ok; unit tests 207/211 (the 4 that fail under parallel ctest pass on rerun); integration 286/287 on /usr/bin/python3 (pyenv's 3.12 lacks PIL, which test_e14_terminal_view test_6 needs). The one failure, test_e12_x_hang test_1 (the app rescued and exited, but not through 'closing the display connection'), is flaky on this machine now: 3 of 4 runs fail with the T15.8.3 terminal code too. The 1st run (T15.8.3) had test_e14_terminal_view test_4 fail (the panel squeezed the tab row: fixed in T15.8.4).",
+              "commit": "ai: release 1.15.5 (big targets where the hand is; the serving Claude ends with the app)",
+              "status": "done",
+              "started": "2026-11-09T14:13:19+00:00",
+              "finished": "2026-11-09T14:13:20+00:00"
             }
           ]
         }

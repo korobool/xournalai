@@ -10,6 +10,28 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.15.5 — Big targets where the hand is
+- **The recording chooser opens under the Record button.** It used to open at the bottom of the canvas, in the
+  middle, far from the big Record button that stopped the recording, which is awkward when you can hardly look at
+  the screen (driving). It now opens right under the button, the way the Tools grid opens under Tools. With the
+  button turned off it opens where it did before.
+- **Big tiles, like the Tools grid's.** In the recording chooser, the three choices come first as big tiles
+  (Instructions in the AI purple). Below them are the optional request with a big "Hold to say" microphone and
+  Send, and bigger chips. The Ask window (AI lasso, AI highlighter) shows its seven commands as big tiles, four to
+  a row, with a big close button and a big microphone.
+- **Big keys next to the AI terminal (experimental):** a panel to the right of the terminal, about 15% of the dock's
+  width. Space stands apart from the other keys as the biggest one, on the far right and the full height of the
+  panel. Esc, Backspace and Enter are in a column to its left. The keys type into the tab shown and give it the
+  keyboard focus, so the on-screen keyboard is not needed on the tablet. Space and Backspace repeat while held, as
+  on a keyboard: holding Space is Claude Code's hold-to-talk dictation (`/voice`). The keyboard button in the
+  terminal's header hides or shows the panel. The tab row keeps its full width.
+- **The serving Claude lives and ends with the app.** Claude Code 2.1 can keep a conversation running in its
+  background daemon after the terminal closes. One sent there on 31.10 was still running a week later, after the
+  app had been closed, with all its permissions and reachable through Remote Control. Now the app's Claude tabs
+  end with their terminal. When the app quits, a serving session left in the background is stopped (`claude stop`;
+  its conversation is kept). At the next start, such a session is stopped and its conversation resumed in the
+  serving tab.
+
 ## 1.15.4 — The serving terminal finds a conversation running in the background
 - **The AI terminal brings the serving Claude back after a restart.** When a terminal closes while Claude Code is
   working, Claude Code (2.1) keeps that conversation running in the background, and then refuses `--continue`
