@@ -42,6 +42,7 @@ struct Bridge {
     bool offline = false;
     guint pollSource = 0;
     json clientInit;              ///< the client's initialize params, replayed to the application when it appears
+    std::string worker;           ///< XOURNALAI_WORKER: the worker session this bridge serves (its zones are its own)
     bool everOnline = false;      ///< the application answered during this bridge's life (the user may close it later)
     json lists = json::object();  ///< last tools/prompts/resources lists of the application (also cached on disk)
 };
@@ -254,6 +255,9 @@ gboolean poll(gpointer data) {
     auto* h = soup_message_get_request_headers(msg);
     soup_message_headers_replace(h, "Authorization", ("Bearer " + b->cfg.token).c_str());
     soup_message_headers_replace(h, "Accept", "application/json, text/event-stream");
+    if (!b->worker.empty()) {
+        soup_message_headers_replace(h, WORKER_HEADER, b->worker.c_str());
+    }
     const std::string text = init.dump();
     GBytes* bytes = g_bytes_new(text.data(), text.size());
     soup_message_set_request_body_from_bytes(msg, "application/json", bytes);
@@ -453,6 +457,9 @@ void send(Pending* p) {
     if (!b->sessionId.empty()) {
         soup_message_headers_replace(h, "Mcp-Session-Id", b->sessionId.c_str());
     }
+    if (!b->worker.empty()) {
+        soup_message_headers_replace(h, WORKER_HEADER, b->worker.c_str());
+    }
     GBytes* bytes = g_bytes_new(p->body.data(), p->body.size());
     soup_message_set_request_body_from_bytes(p->msg, "application/json", bytes);
     g_bytes_unref(bytes);
@@ -499,6 +506,9 @@ int runStdioBridge(const char* executable) {
     b.cfg = McpConfig::load();
     loadLists(&b);
     b.url = b.cfg.url();
+    if (const char* w = g_getenv("XOURNALAI_WORKER"); w && validWorkerName(w)) {
+        b.worker = w;
+    }
     if (executable && *executable) {
         b.executable = executable;
     } else {

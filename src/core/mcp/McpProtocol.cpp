@@ -4,6 +4,7 @@
 #include <chrono>     // for steady_clock
 #include <memory>     // for make_shared
 #include <stdexcept>  // for invalid_argument
+#include <utility>    // for exchange
 
 #include <glib.h>  // for g_main_depth
 
@@ -24,6 +25,19 @@ json notification(const std::string& method, json params) {
     return {{"jsonrpc", "2.0"}, {"method", method}, {"params", std::move(params)}};
 }
 }  // namespace rpc
+
+namespace {
+std::string currentWorker;  ///< (tools run on the UI thread, one call at a time)
+}  // namespace
+
+const std::string& callingWorker() { return currentWorker; }
+
+bool validWorkerName(const std::string& name) {
+    return !name.empty() && name.size() <= 24 && std::all_of(name.begin(), name.end(), [](char c) {
+        return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '.' || c == '_' ||
+               c == '-';
+    });
+}
 
 const std::vector<std::string>& McpProtocol::supportedProtocolVersions() {
     static const std::vector<std::string> versions = {"2025-06-18", "2025-03-26", "2024-11-05"};
@@ -72,7 +86,9 @@ bool McpProtocol::handle(const json& message, Session& session, Reply reply) {
             }
             reply(rpc::resultResponse(id, {{"tools", std::move(tools)}}));
         } else if (method == "tools/call") {
+            const std::string outer = std::exchange(currentWorker, session.worker);  // (a nested main loop)
             callTool(id, params, reply);
+            currentWorker = outer;
         } else if (method == "prompts/list") {
             json prompts = json::array();
             for (const auto& p: registry.prompts()) {

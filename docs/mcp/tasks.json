@@ -3707,9 +3707,11 @@
               "id": "T15.13.2",
               "story": "US-15.18",
               "title": "A worker's thinking zone is its own: it lasts until the worker ends it",
-              "details": "Why the zones vanished (the workers' transcripts): T3-T5 opened zones 6-9 at 19:51:50-19:53:32 and closed them at 19:54:27-19:57:14, but at 19:54:27 the app had no zones left at all. McpUi::onServingChanged ends every thinking zone when the serving session finishes a turn without subagents of its own; worker tabs are separate sessions (their hooks are ignored), so the coordinator's next idle (it wakes for every transcript piece) ended all the workers' zones, which faded in 1.5 s.",
-              "commit": "",
-              "status": "todo"
+              "details": "Why the zones vanished (the workers' transcripts): T3-T5 opened zones 6-9 at 19:51:50-19:53:32 and closed them at 19:54:27-19:57:14, but at 19:54:27 the app had no zones left at all. McpUi::onServingChanged ends every thinking zone when the serving session finishes a turn without subagents of its own; worker tabs are separate sessions (their hooks are ignored), so the coordinator's next idle (it wakes for every transcript piece) ended all the workers' zones, which faded in 1.5 s. Now a zone has an owner: the worker session whose call opened it. A worker's bridge (xournalpp --mcp-stdio, which inherits XOURNALAI_WORKER) names it in a header X-Xournalai-Worker on every request (a label for its zones only: it grants nothing); the session keeps it and the thinking tool records it. A worker's zone is labelled '⚙ Tn · …', is skipped when the serving session's turn ends, and ends when the worker ends it (done/fail), is closed ('closed before it finished') or its tab's process ends; its lease is an hour instead of 10 min. Its stop button sends Esc to that worker only. thinking takes a color (the topic's: the outline and a light veil in it), thinking_list says whose a zone is, workers(op=list) each worker's busy zones. (Its tests are in the next task's commit: they start the worker with its zone.)",
+              "commit": "ai: a worker's thinking zone is its own: it lasts until the worker ends it",
+              "status": "done",
+              "started": "2026-11-09T20:00:57+00:00",
+              "finished": "2026-11-09T20:03:55+00:00"
             },
             {
               "id": "T15.13.3",
@@ -3717,7 +3719,8 @@
               "title": "workers(op=start) shows the worker's zone at once; the skill uses the app's zones",
               "details": "",
               "commit": "",
-              "status": "todo"
+              "status": "doing",
+              "started": "2026-11-09T20:03:55+00:00"
             },
             {
               "id": "T15.13.4",

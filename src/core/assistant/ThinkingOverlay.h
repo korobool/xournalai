@@ -11,6 +11,7 @@
 #pragma once
 
 #include <functional>  // for function
+#include <cstdint>     // for uint32_t
 #include <optional>    // for optional
 #include <string>      // for string
 #include <vector>      // for vector
@@ -38,8 +39,15 @@ public:
     ThinkingOverlay(const ThinkingOverlay&) = delete;
     ThinkingOverlay& operator=(const ThinkingOverlay&) = delete;
 
-    /// A new zone; returns its id
-    int add(size_t page, const xoj::util::Rectangle<double>& area, const std::string& text, State state);
+    /// A new zone; returns its id. `owner`: the worker session it belongs to (empty: the serving session or the app):
+    /// a worker's zone lasts until it is ended, or the worker is (an hour at most). `rgb` (0xRRGGBB): its outline
+    /// and veil in that colour (e.g. its topic's) instead of teal and grey.
+    int add(size_t page, const xoj::util::Rectangle<double>& area, const std::string& text, State state,
+            const std::string& owner = {}, std::optional<uint32_t> rgb = std::nullopt);
+    /// The worker a zone belongs to (empty: none, or no such zone)
+    std::string ownerOf(int id) const;
+    /// The queued or thinking zones of a worker
+    std::vector<int> activeOf(const std::string& owner) const;
     /// Changes a zone's state and (if not empty) its text; unknown ids are ignored
     void set(int id, State state, const std::string& text = {});
     /// Zones in a state
@@ -52,6 +60,7 @@ public:
         State state;
         size_t page;
         std::string text;
+        std::string owner;
     };
     std::vector<Info> zones() const;
     /// The Ask lasso being drawn (page coordinates): a dashed teal path; empty points clear it

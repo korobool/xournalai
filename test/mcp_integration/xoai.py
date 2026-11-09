@@ -244,8 +244,9 @@ class McpError(Exception):
 
 
 class Mcp:
-    def __init__(self, url, token, name="xoai-tests", initialize=True):
+    def __init__(self, url, token, name="xoai-tests", initialize=True, headers=None):
         self.url, self.token, self.session, self.next_id = url, token, None, 1
+        self.headers = headers or {}  # e.g. a worker session's X-Xournalai-Worker
         if initialize:
             self.init = self.request("initialize", {"protocolVersion": "2025-06-18", "capabilities": {},
                                                     "clientInfo": {"name": name, "version": "1"}})
@@ -256,6 +257,8 @@ class Mcp:
         req.add_header("Content-Type", "application/json")
         req.add_header("Accept", "application/json, text/event-stream")
         req.add_header("Authorization", f"Bearer {self.token}")
+        for k, v in self.headers.items():
+            req.add_header(k, v)
         if self.session:
             req.add_header("Mcp-Session-Id", self.session)
         try:

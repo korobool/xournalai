@@ -1950,6 +1950,11 @@ void McpUi::buildTerminal() {
         if (index == servingTab) {
             server.serving().processExited();
         }
+        for (const auto& [name, tab]: workerTabs) {  // a worker that ended leaves no zone busy
+            if (tab == index) {
+                endWorkerZones(name, "ended");
+            }
+        }
     });
     // The app watches, the serving session works: canvas events wake it
     assistant::EventPump::Env env;
@@ -2103,7 +2108,11 @@ bool McpUi::closeWorker(const std::string& name) {
 json McpUi::workers() const {
     json list = json::array();
     for (const auto& [name, tab]: workerTabs) {
-        list.push_back({{"name", name}, {"running", dock && dock->isRunning(tab)}});
+        json w = {{"name", name}, {"running", dock && dock->isRunning(tab)}};
+        if (thinkingOverlay) {
+            w["zones"] = thinkingOverlay->activeOf(name);  // (its zones still shown as busy)
+        }
+        list.push_back(std::move(w));
     }
     return list;
 }
@@ -2112,12 +2121,21 @@ void McpUi::stopBackgroundServing() {
     // The serving Claude ends with the app (its terminal's hangup ends it). One the owner or Claude sent to Claude
     // Code's background daemon would stay: stopped too (its conversation is kept: resumed at the next start). In a
     // process of its own, so that the app doesn't wait (2026-11-09)
+    endWorkerZones(name, "closed before it finished");  // (first: closing the tab reports its process ended)
     if (!servingClaude) {
         return;
     }
     const std::string folder = assistant::Companion::folder().string();
     const std::string script = "claude agents --json --cwd " + shq(folder) +
                                " 2>/dev/null | tr -d '\\n' | tr '{}' '\\n\\n' | grep '\"kind\": *\"background\"' | "
+void McpUi::endWorkerZones(const std::string& name, const std::string& why) {
+    if (thinkingOverlay) {
+        for (int z: thinkingOverlay->activeOf(name)) {
+            thinkingOverlay->set(z, assistant::ThinkingOverlay::State::Failed, "⚙ " + name + " · " + why);
+        }
+    }
+}
+
                                "grep -o '\"id\": *\"[^\"]*\"' | cut -d '\"' -f 4 | "
                                "while read -r id; do claude stop \"$id\" >/dev/null 2>&1; done";
     // (through the login shell, like the tabs: the app started from the desktop lacks the terminal's PATH)
@@ -2536,6 +2554,17 @@ void McpUi::stopWork(int zone) {
         for (Z st: {Z::Thinking, Z::Queued}) {
             for (int z: thinkingOverlay->inState(st)) {
                 thinkingOverlay->set(z, Z::Failed, "stopped");
+#ifdef ENABLE_AI_TERMINAL
+    // A worker's zone: Esc to that worker only (the serving session and the other workers go on)
+    if (const std::string owner = thinkingOverlay ? thinkingOverlay->ownerOf(zone) : ""; !owner.empty()) {
+        if (auto it = workerTabs.find(owner); dock && it != workerTabs.end() && dock->isRunning(it->second)) {
+            dock->feed(it->second, "\x1b");
+        }
+        endWorkerZones(owner, "stopped");
+        update();
+        return;
+    }
+#endif
             }
         }
     }
@@ -2550,9 +2579,11 @@ void McpUi::onServingChanged() {
     // done/fail, or Stop — a background subagent works on long after the coordinator's turn)
     if (thinkingOverlay && (st == S::Idle || st == S::NotRunning) && lastServingState == static_cast<int>(S::Busy) &&
         (st == S::NotRunning || (server.serving().subagents() == 0 && !server.serving().delegated()))) {
-        const auto owned = server.transactions().openZones();  // they end with their transaction
+        // (a transaction's zone ends with its transaction; a worker's zone with the worker: workers are sessions of
+        // their own, and the coordinator goes idle many times while they work, 2026-11-09)
+        const auto owned = server.transactions().openZones();
         for (int z: thinkingOverlay->inState(assistant::ThinkingOverlay::State::Thinking)) {
-            if (std::find(owned.begin(), owned.end(), z) != owned.end()) {
+            if (std::find(owned.begin(), owned.end(), z) != owned.end() || !thinkingOverlay->ownerOf(z).empty()) {
                 continue;
             }
             thinkingOverlay->set(z, st == S::Idle ? assistant::ThinkingOverlay::State::Done :

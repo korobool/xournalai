@@ -2,6 +2,7 @@
 
 #include "assistant/ThinkingOverlay.h"  // for ThinkingOverlay
 #include "control/Control.h"            // for Control
+#include "mcp/McpProtocol.h"  // for callingWorker
 #include "mcp/McpServer.h"
 #include "mcp/McpUi.h"
 #include "mcp/Schema.h"
@@ -23,20 +24,24 @@ void registerThinkingTools(McpServer& server) {
             "with a grey veil, an animated outline, a spinner and your one-line status (returns an id); op=update "
             "changes the status; op=done (a green tick that fades) or op=fail (a red mark) ends it. Zones for "
             "toolbar actions and markers are created and closed by the app itself; use this for work you start on "
-            "your own (e.g. Auto-improve), and keep the status short (\"typesetting formula…\").";
+            "your own (e.g. Auto-improve), and keep the status short (\"typesetting formula…\"). A worker session's "
+            "zone (one in a tab of the AI terminal) is its own: it is labelled with the worker's name and lasts until "
+            "the worker ends it (done/fail) or the worker is closed, whatever the serving session does meanwhile. "
+            "color (e.g. the topic's \"#8b3a62\"): the zone's outline and veil in that colour.";
     t.inputSchema = schema::object(
             {{"op", schema::enumeration("start | update | done | fail", {"start", "update", "done", "fail"})},
              {"id", schema::integer("Zone id (from start) for update/done/fail")},
              {"page", schema::integer("start: page (1-based); default: current page")},
              {"region", schema::array("start: area [x, y, width, height] in page points (default: the page)",
                                       schema::number("coordinate"))},
-             {"text", schema::string("A short status, e.g. \"typesetting formula…\"")}},
+             {"text", schema::string("A short status, e.g. \"typesetting formula…\"")},
+             {"color", schema::string("start: the zone's colour, e.g. \"#8b3a62\" (default: teal)")}},
             {"op"});
     t.readOnly = true;  // shows state only; never changes the document
     t.handler = [ctrl, srv](const json& j) {
         requireDocument(ctrl);
         Args args(j);
-        args.rejectUnknown({"op", "id", "page", "region", "text"});
+        args.rejectUnknown({"op", "id", "page", "region", "text", "color"});
         McpUi* ui = srv->getUi();
         assistant::ThinkingOverlay* ov = ui ? ui->thinking() : nullptr;
         if (!ov) {
@@ -45,15 +50,24 @@ void registerThinkingTools(McpServer& server) {
         const std::string op = args.choice("op", {"start", "update", "done", "fail"}, "");
         const std::string text = args.str("text", "");
         using S = assistant::ThinkingOverlay::State;
+        // a worker's zone says whose it is
+        auto labelled = [](const std::string& owner, const std::string& t) {
+            return owner.empty() || t.empty() || t.rfind("⚙ " + owner + " · ", 0) == 0 ? t : "⚙ " + owner + " · " + t;
+        };
         if (op == "start") {
             const size_t page = resolvePageIndex(ctrl, args);
             auto region = parseRegion(args);
-            const int id =
-                    ov->add(page, region ? *region : ui->pageArea(page), text.empty() ? "working…" : text, S::Thinking);
+            std::optional<uint32_t> rgb;
+            if (args.has("color")) {
+                rgb = static_cast<uint32_t>(parseColor(args.raw("color"))) & 0xffffffU;
+            }
+            const std::string& owner = callingWorker();
+            const int id = ov->add(page, region ? *region : ui->pageArea(page),
+                                   labelled(owner, text.empty() ? "working…" : text), S::Thinking, owner, rgb);
             return ToolResult::structured({{"id", id}});
         }
         const auto id = static_cast<int>(args.integer("id", 0, 1, 1 << 30));
-        ov->set(id, op == "update" ? S::Thinking : (op == "done" ? S::Done : S::Failed), text);
+        ov->set(id, op == "update" ? S::Thinking : (op == "done" ? S::Done : S::Failed), labelled(ov->ownerOf(id), text));
         json zones = json::array();
         for (const auto& z: ov->zones()) {
             zones.push_back({{"id", z.id}, {"state", assistant::ThinkingOverlay::name(z.state)}, {"text", z.text}});
@@ -74,10 +88,14 @@ void registerThinkingTools(McpServer& server) {
         json zones = json::array();
         if (ui && ui->thinking()) {
             for (const auto& z: ui->thinking()->zones()) {
-                zones.push_back({{"id", z.id},
-                                 {"state", assistant::ThinkingOverlay::name(z.state)},
-                                 {"page", z.page + 1},
-                                 {"text", z.text}});
+                json zone = {{"id", z.id},
+                             {"state", assistant::ThinkingOverlay::name(z.state)},
+                             {"page", z.page + 1},
+                             {"text", z.text}};
+                if (!z.owner.empty()) {
+                    zone["worker"] = z.owner;
+                }
+                zones.push_back(std::move(zone));
             }
         }
         return ToolResult::structured({{"zones", zones}});

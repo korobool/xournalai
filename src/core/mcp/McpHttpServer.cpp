@@ -276,6 +276,9 @@ void McpHttpServer::handlePost(SoupServerMessage* msg) {
             return;
         }
     }
+    // A worker session's bridge says so (only a label for its thinking zones: it grants nothing)
+    const char* worker = soup_message_headers_get_one(soup_server_message_get_request_headers(msg), WORKER_HEADER);
+    state->session.worker = worker && validWorkerName(worker) ? worker : "";
 
     auto pending = std::make_shared<PendingReply>(server);
     pending->msg = msg;

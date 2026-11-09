@@ -42,7 +42,17 @@ struct Session {
     json clientCapabilities = json::object();
     bool initialized = false;
     std::set<std::string> subscriptions;  ///< subscribed resource URIs
+    std::string worker;  ///< the worker session it belongs to (header X-Xournalai-Worker), empty for any other client
 };
+
+/// The HTTP header with which a worker session's stdio bridge names its worker (from XOURNALAI_WORKER)
+constexpr const char* WORKER_HEADER = "X-Xournalai-Worker";
+
+/// The worker session whose tool call runs right now (empty: the serving session or any other client)
+const std::string& callingWorker();
+
+/// Whether a worker's name is well formed (1-24 letters, digits, '.', '_' or '-')
+bool validWorkerName(const std::string& name);
 
 struct ServerInfo {
     std::string name = "xournalai";

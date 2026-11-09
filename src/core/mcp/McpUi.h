@@ -116,6 +116,8 @@ public:
     json askStatus() const;
     /// Recordings waiting for the owner's choice, and the last one chosen
     json recordingStatus() const;
+    /// Ends the zones a worker still shows as busy (failed: `why`)
+    void endWorkerZones(const std::string& name, const std::string& why);
 
     /// Live notes (experimental): starts transcribing the recording `name` (which has just started) while it goes on;
     /// false with `error` if it can't

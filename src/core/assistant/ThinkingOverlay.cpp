@@ -23,6 +23,8 @@ constexpr guint FRAME_MS = 50;
 constexpr gint64 DONE_FADE_US = 1500 * 1000;
 constexpr gint64 FAILED_KEEP_US = 5 * G_USEC_PER_SEC;
 constexpr gint64 MAX_AGE_US = 10 * 60 * G_USEC_PER_SEC;  ///< a zone nobody finished disappears after this (the lease)
+/// A worker's zone: it ends with the worker (closed, or its tab's process ended), so its lease is only a last resort
+constexpr gint64 OWNED_MAX_AGE_US = gint64{60} * 60 * G_USEC_PER_SEC;
 }  // namespace
 
 struct ThinkingOverlay::Zone {
@@ -31,6 +33,8 @@ struct ThinkingOverlay::Zone {
     xoj::util::Rectangle<double> area;
     std::string text;
     State state = State::Queued;
+    std::string owner;            ///< the worker session it belongs to (empty: none)
+    std::optional<uint32_t> rgb;  ///< its colour (0xRRGGBB; none: teal outline, grey veil)
     gint64 createdUs = 0;
     gint64 stateUs = 0;
     GtkWidget* button = nullptr;  ///< weak: its stop button (click to cancel)
@@ -152,13 +156,16 @@ ThinkingOverlay::~ThinkingOverlay() {
     }
 }
 
-int ThinkingOverlay::add(size_t page, const xoj::util::Rectangle<double>& area, const std::string& text, State state) {
+int ThinkingOverlay::add(size_t page, const xoj::util::Rectangle<double>& area, const std::string& text, State state,
+                         const std::string& owner, std::optional<uint32_t> rgb) {
     auto* z = new Zone;
     z->id = nextId++;
     z->page = page;
     z->area = area;
     z->text = text;
     z->state = state;
+    z->owner = owner;
+    z->rgb = rgb;
     z->createdUs = z->stateUs = g_get_monotonic_time();
     if (overlay) {
         // The spinner is a real button (click = cancel); the rest is drawn and lets input through
@@ -227,7 +234,26 @@ size_t ThinkingOverlay::active() const {
 std::vector<ThinkingOverlay::Info> ThinkingOverlay::zones() const {
     std::vector<Info> out;
     for (const Zone* z: list) {
-        out.push_back({z->id, z->state, z->page, z->text});
+        out.push_back({z->id, z->state, z->page, z->text, z->owner});
+    }
+    return out;
+}
+
+std::string ThinkingOverlay::ownerOf(int id) const {
+    for (const Zone* z: list) {
+        if (z->id == id) {
+            return z->owner;
+        }
+    }
+    return {};
+}
+
+std::vector<int> ThinkingOverlay::activeOf(const std::string& owner) const {
+    std::vector<int> out;
+    for (const Zone* z: list) {
+        if (!owner.empty() && z->owner == owner && (z->state == State::Queued || z->state == State::Thinking)) {
+            out.push_back(z->id);
+        }
     }
     return out;
 }
@@ -392,7 +418,7 @@ gboolean ThinkingOverlay::onTick(gpointer data) {
         const Zone* z = self->list[i];
         const bool expired = (z->state == State::Done && now - z->stateUs > DONE_FADE_US) ||
                              (z->state == State::Failed && now - z->stateUs > FAILED_KEEP_US) ||
-                             now - z->createdUs > MAX_AGE_US;
+                             now - z->createdUs > (z->owner.empty() ? MAX_AGE_US : OWNED_MAX_AGE_US);
         if (expired) {
             self->removeZone(i);
         }
@@ -739,8 +765,15 @@ gboolean ThinkingOverlay::onDraw(GtkWidget*, cairo_t* cr, gpointer data) {
             alpha = std::max(0.0, 1.0 - static_cast<double>(now - z->stateUs) / DONE_FADE_US);
         }
         // the veil: "working here" (your ink stays visible underneath)
+        const double cr0 = z->rgb ? ((*z->rgb >> 16) & 0xff) / 255.0 : 0.05;  // (its colour, or teal)
+        const double cg0 = z->rgb ? ((*z->rgb >> 8) & 0xff) / 255.0 : 0.58;
+        const double cb0 = z->rgb ? (*z->rgb & 0xff) / 255.0 : 0.53;
         if (z->state == State::Thinking) {
-            cairo_set_source_rgba(cr, 0.45, 0.47, 0.5, 0.16);
+            if (z->rgb) {
+                cairo_set_source_rgba(cr, cr0, cg0, cb0, 0.10);
+            } else {
+                cairo_set_source_rgba(cr, 0.45, 0.47, 0.5, 0.16);
+            }
             cairo_rectangle(cr, x, y, w, h);
             cairo_fill(cr);
         }
@@ -753,7 +786,7 @@ gboolean ThinkingOverlay::onDraw(GtkWidget*, cairo_t* cr, gpointer data) {
                 cairo_set_dash(cr, dashes, 2, 0);
                 break;
             case State::Thinking:
-                cairo_set_source_rgba(cr, 0.05, 0.58, 0.53, 0.95);  // teal
+                cairo_set_source_rgba(cr, cr0, cg0, cb0, 0.95);
                 cairo_set_dash(cr, dashes, 2, -self->phase * 4);
                 break;
             case State::Done:
