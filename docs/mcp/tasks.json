@@ -3629,9 +3629,11 @@
               "id": "T15.12.3",
               "story": "US-15.17",
               "title": "A dense live page: 12 pt margins, a narrower column, italic transcript",
-              "details": "The owner during the 19:12 recording: much smaller margins and paddings, the page filled densely; the transcript written in italic at once, not redrawn. Margins 24 → 12 pt, the column 24% → 18% of the width (min 90 pt), 6 pt gap before it, title 7 pt at y 6, column header 4.5 pt at y 17, first line at y 24; transcript 'Sans Italic' 3.8 pt. test_e15_live_notes test_1 checks italic and the dense layout.",
-              "commit": "ai: a dense live page: small margins, a narrower column, italic transcript",
-              "status": "todo"
+              "details": "The owner during the 19:12 recording: much smaller margins and paddings, the page filled densely; the transcript written in italic at once, not redrawn. Margins 24 → 12 pt, the column 24% → 18% of the width (min 90 pt), 6 pt gap before it, title 7 pt at y 6, column header 4.5 pt at y 17, first line at y 24; transcript 'Sans Italic' 3.8 pt. test_e15_live_notes test_1 checks italic and the dense layout. (Its code went into the commit of T15.12.1: the same rewrite of how LiveNotes writes its texts and pages.)",
+              "commit": "ai: live notes outside the user's undo history; origin app",
+              "status": "done",
+              "started": "2026-11-09T19:34:28+00:00",
+              "finished": "2026-11-09T19:34:29+00:00"
             },
             {
               "id": "T15.12.4",
@@ -3639,7 +3641,9 @@
               "title": "Test apps get a HOME of their own (no real agent through a login shell)",
               "details": "The first worker test ran its tab through the login shell, which reads the owner's ~/.profile: it puts ~/.local/bin (the real claude) in front of the harness's stubs. (The tab didn't start: a doubled exec; fixed.) The harness now also gives every test app its own HOME (unless the test sets one or allow_real_agents), so no login shell in a test reads the owner's profile. The owner's ~/.local/bin/claude, ~/.claude.json and history checked untouched.",
               "commit": "tests: test apps get a HOME of their own",
-              "status": "todo"
+              "status": "done",
+              "started": "2026-11-09T19:34:29+00:00",
+              "finished": "2026-11-09T19:34:29+00:00"
             },
             {
               "id": "T15.12.5",

@@ -69,6 +69,11 @@ class App:
                     stub.write_text(f"#!/bin/sh\necho 'xoai: no real {name} in tests (allow_real_agents=True)' >&2\nexit 127\n")
                     stub.chmod(0o755)
             env["PATH"] = f"{stubs}:{env.get('PATH', '')}"
+            # ...and a HOME of their own: the AI terminal's tabs run through the login shell, and the owner's
+            # ~/.profile puts ~/.local/bin (the real claude) back in front of the stubs (2026-11-09)
+            fake_home = self.home / "home"
+            fake_home.mkdir(exist_ok=True)
+            env["HOME"] = str(fake_home)
         env.update(self.extra_env)
         return env
 
