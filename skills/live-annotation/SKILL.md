@@ -1,6 +1,6 @@
 ---
 name: live-annotation
-description: Annotate a talk while it is recorded — xournalai's live notes. The app transcribes the recording in pieces and writes the timed transcript into a narrow column of a live-notes page; you draw what is being talked about in the rest of that page as compact topic cards joined into a flow, notice requests spoken to you during the talk ("неплохо бы нарисовать…", "find a picture of…") and carry them out within a safe list, and spread the topics over up to 4–5 parallel topic agents. Use when woken with "Live notes (recording …): new transcribed speech" or "Live notes … ended", or when the user asks to annotate a live recording.
+description: Annotate a talk while it is recorded — xournalai's live notes. The app transcribes the recording in pieces and writes the timed transcript into a narrow column of a live-notes page; you draw what is being talked about in the rest of that page as compact topic cards joined into a flow, notice requests spoken to you during the talk ("неплохо бы нарисовать…", "find a picture of…") and carry them out within a safe list, and spread the topics over up to 8 parallel workers — light topics as background subagents, heavy ones as child sessions in their own consoles with their own thinking effort. Use when woken with "Live notes (recording …): new transcribed speech" or "Live notes … ended", or when the user asks to annotate a live recording.
 ---
 
 # Live annotation
@@ -86,11 +86,12 @@ added background gets a grey "фон:" label or a source line. Never present an 
    - the topic's agent is running → nothing more (it takes its inbox before it finishes);
    - it has finished → continue it with its context: `SendMessage` to the agent id its `Agent` call returned
      ("new pieces in your inbox");
-   - there is none → start one (`Agent`, runs in the background, the brief below; keep the returned id in the
-     state): **canvas-quick** for cards, **canvas-artist** for an illustration, a web picture, a mind map or a big
-     diagram.
-   - At the cap (the wake-up line's "up to N in parallel", 4–5): leave it queued in the inbox; when an agent
-     finishes, continue the one whose topic has the most waiting. A one-line addition you may draw yourself.
+   - there is none → start a worker for it, as **Who works on a topic** (below) decides: a background subagent
+     (`Agent` with an `effort`) or a child session in its own console (`lib/child_session.sh`). Keep its id / pid in
+     the state.
+   - At the cap (8 workers in all; subagents at most the wake-up line's "up to N in parallel"): leave it queued in
+     the inbox; when a worker finishes, continue the one whose topic has the most waiting. A one-line addition you
+     may draw yourself.
 6. **Page-wide requests** (a mind map of everything, a summary now, "denser"): one canvas-artist agent with all
    topic statuses (`topics/*.json`) and a new page after the live pages (`page_manage(op="insert")`). Trivial ones
    (recolour a title) do yourself.
@@ -99,11 +100,63 @@ added background gets a grey "фон:" label or a source line. Never present an 
 8. **An agent reports**: read `topics/Tn.json` (its card's real `bbox`), free the rest of its slot, draw the
    connectors (below), glance at the area (`page_render` with the region, ~80 dpi). Then `lib/inbox.py pending DIR`:
    pieces that came in after its last take are still waiting — continue it at once.
-9. **`Live notes … ended`**: read the rest and route it; wait until `lib/inbox.py pending DIR` is `{}` and every
-   agent has reported; then draw the summary card yourself (below).
+9. **`Live notes … ended`**: read the rest and route it; then `lib/inbox.py end DIR` (child sessions see it and
+   finish); wait until `lib/inbox.py pending DIR` is `{}`, every subagent has reported and every child has written
+   `"done": true` in its `topics/Tn.json`; close the children's consoles (`kill $(cat DIR/children/Tn.pid)`); then
+   draw the summary card yourself (below).
 
 Keep `DIR/state.json` up to date so a long talk survives a context compaction: topics (id, title, colour, page,
-slot, agent name, running/finished), columns' next free y, the last piece read, requests and their outcome.
+slot, worker kind + id/pid, effort, running/finished), columns' next free y, the last piece read, requests and their
+outcome. Child sessions don't notify you: on every wake-up, also read `topics/*.json` and check their pids are alive.
+
+## Do it yourself or delegate (speed first; the user's rule, 9 Nov 2026)
+
+A simple thing is never delegated; as soon as it gets complex, it is. Starting a worker costs time: a subagent needs
+~15–25 s before its first stroke (T1 today: 24 s for a title and one bullet that took the coordinator 3 calls), a
+child session ~10–30 s more; continuing a worker that already knows its topic is fast (~10 s). Measured on 9 Nov:
+small cards 10–50 s, a mind map / an analysis / maths plots / a trig circle 4.5–6 min each — in parallel, so four of
+them cost six minutes, not twenty.
+
+| The work | Who | Why |
+|---|---|---|
+| ≤ 3 tool calls: a tag, a bullet on an existing card, recolour, a connector, restyling transcript pieces, a page insert, a status line | **you, now** | spawning would be slower than doing it |
+| a new small card (title + 2–4 bullets), growing a card by a few lines | **subagent**, `canvas-quick`, `effort="low"` — or **continue** the topic's worker if it exists | parallel, cheap; continuing keeps its context |
+| a card with a mini diagram / table / icon, web facts, a short summary | **subagent**, `canvas-quick`, `effort="medium"` | |
+| an illustration, a web picture, a mind map, an analysis, accurate plots, maths, anything that will grow through the talk | **child session** (own console, `effort="high"`, `xhigh` for the hardest) — or `canvas-artist` subagent with `effort="high"` when no console can be opened | long memory of the topic, own effort |
+
+Speed rules:
+- **Start heavy workers at once**, in the same turn the topic appears (don't wait for more material): their start-up
+  overlaps the talk. Start several in **one message** (parallel tool calls).
+- **Continue, don't respawn**: new material for a topic goes to its existing worker (`SendMessage`, or the child
+  session's inbox) — never a second worker for the same topic.
+- **Batch**: route all pieces of one read at once; wake a worker once per batch, not per piece; wait for a cut
+  sentence's end before routing a request.
+- **Short briefs**: the slot, the colour, the style line, the inbox command and what's new; no history the worker
+  doesn't need. One render check per worker, at 90–110 dpi on its region; no whole-page renders.
+- **Never block** on a worker: end your turn while they run; their reports and the app wake you.
+
+## Who works on a topic (the user's decision, 9 Nov 2026)
+
+Unrelated or loosely related topics are thought through **in parallel by separate workers**, each with the thinking
+effort its topic needs, **up to 8 workers in all** (the speed gain flattens after ~5: one coordinator routes, one app
+draws). The mixed scheme:
+- **Light topics** (cards, bullets, small diagrams) → a **background subagent**: `Agent(subagent_type="canvas-quick",
+  effort="low"|"medium", run_in_background=true)`, the brief below. Starts in seconds; cheap. At most the wake-up
+  line's "up to N in parallel" of them at once.
+- **Heavy topics** (an illustration, a picture from the web, a mind map, an analysis, accurate maths plots, anything
+  that grows over a long talk) → a **child session in its own console**, with its own long memory of the topic and
+  its own effort (`high`, or `xhigh` for the hardest): write the brief to `DIR/children/Tn.brief.md` and run
+  `lib/child_session.sh DIR Tn high DIR/children/Tn.brief.md`. It opens a terminal titled "live notes Tn · <stem>",
+  runs `claude` in `DIR/children/Tn` (not in the companion folder, so the app's session hooks stay this session's)
+  with only the xournalai tools, its inbox helper (`python3`) and web search allowed, and prints its pid. Starting
+  takes ~10–30 s, so start it as soon as a heavy topic appears. If no console can be opened (no display), use
+  `Agent(subagent_type="canvas-artist", effort="high")` instead.
+- A child session keeps working on its topic for the whole recording: when its inbox is empty it waits
+  (`inbox.py wait DIR Tn 100` → `NEW` / `TIMEOUT` / `ENDED`) instead of finishing; on `ENDED` with nothing left it
+  writes its final status with `"done": true` and stops. Add this paragraph to its brief:
+  > You are a child session: you keep this topic for the whole recording. When `take` returns `[]`, run
+  > `python3 …/inbox.py wait DIR Tn 100` (Bash): `NEW` → take again; `TIMEOUT` → wait again; `ENDED` → take once
+  > more, then write your status with `"done": true` and stop. Never touch other topics' slots.
 
 ## The topic agent brief (what you give each agent)
 
@@ -115,9 +168,10 @@ slot, agent name, running/finished), columns' next free y, the last piece read, 
 > Your material arrives in an inbox: `python3 ~/.local/share/xournalai/companion/.claude/skills/live-annotation/lib/inbox.py take DIR T3`
 > (DIR = `~/.local/share/xournalai/companion/live/<stem>`) returns the new pieces
 > (`n`, `at`, `kind`, `text`). Loop: take → update your card → take again, until it returns `[]`.
-> Card style (compact, the user asked for density): title Sans Bold 9–9.5 pt in the topic colour, start time grey
-> 6.5 pt at the right, a 15 pt line icon left of the title when the topic has a clear object; bullets Sans 7.5 pt
-> `#333333`, wrap = slot width − 12 (`create_text` returns each bbox: the next line goes under it); marks `✓`
+> Card style (dense — the user wants most of a talk on one page): title Sans Bold 8.5 pt in the topic colour, start
+> time grey 6 pt at the right (never touching the title), a 13 pt line icon left of the title when the topic has a
+> clear object; bullets Sans 6.5 pt `#333333`, labels 6 pt, nothing below 5.5 pt, 2 pt between lines, wrap = slot
+> width − 10 (`create_text` returns each bbox: the next line goes under it); marks `✓`
 > decision, `?` open question, `→ who: what` action; a light rounded frame in the colour (radius 5, width 0.7),
 > redrawn when the card grows. Your own words, not a transcript; keep names, numbers, dates exact. Add a mini
 > diagram, table, timeline or plot when the topic has that shape; background you add gets a grey "фон:" label or a
@@ -132,10 +186,14 @@ slot, agent name, running/finished), columns' next free y, the last piece read, 
 
 - **Two columns** in the free area: `col_w = (w − 8) / 2`, left at `x`, right at `x + col_w + 8`. Cards follow
   the talk left → right, row by row; a new topic gets the column with the smaller next free y.
-- **Slots** are reserved before the agent starts, so parallel agents never overlap: a card slot is one column wide
-  and ~150 pt tall (~230 pt for an illustration or a diagram); a **wide slot** (both columns) for big diagrams or
-  page-wide content. The agent shrinks its frame to its content; when it reports, the column's next free y becomes
-  its card's bottom + 8. Small later cards may use the gaps (`find_free_space`).
+- **Slots** are reserved before the worker starts, so parallel workers never overlap: a card slot is one column
+  wide and ~110 pt tall (~200 pt for an illustration or a diagram); a **wide slot** (both columns) for big diagrams
+  or page-wide content. The worker shrinks its frame to its content; when it reports, the column's next free y
+  becomes its card's bottom + 6. Small later cards should fill the gaps (`find_free_space`): the goal is that most
+  of a talk fits on one page.
+- **The transcript column** is the app's. The user asked (9 Nov) for it at half the font size; that is an app
+  setting (pending in the app). Don't rewrite the app's column texts unless a request in that recording asks for a
+  different look (then recreate each new piece in the asked style at the same place and delete the app's text).
 - **Connectors are yours** (the coordinator's), drawn when the cards' real boxes are known: grey arrows from card
   to card in the order of the talk (head 3–3.5, width 0.6–0.7); back to an earlier topic: a dashed connector in that
   topic's colour, or a small tag "↩ «Title»" when it is far.

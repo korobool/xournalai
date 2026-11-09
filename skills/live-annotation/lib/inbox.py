@@ -12,11 +12,15 @@ usage:
   inbox.py peek DIR T3          -> the new items, without taking them
   inbox.py pending DIR          -> {"T3": 2, ...}: items not taken yet, per topic
   inbox.py status DIR T3 '{"bbox":[24,36,186,120],"last_y":150}'   (merge into topics/T3.json)
+  inbox.py wait DIR T3 [SECONDS]  -> blocks until T3 has new items (prints "NEW"), the recording ended and
+                                     nothing is waiting ("ENDED"), or the time is up ("TIMEOUT"); default 100 s
+  inbox.py end DIR                -> marks the recording as ended (the coordinator, after the last piece)
 """
 import fcntl
 import json
 import pathlib
 import sys
+import time
 
 
 def _lines(path):
@@ -36,6 +40,25 @@ def main(argv):
     op, d = argv[1], pathlib.Path(argv[2]).expanduser()
     for sub in ("inbox", "cursor", "topics"):
         (d / sub).mkdir(parents=True, exist_ok=True)
+    if op == "end":
+        (d / "ended").write_text(time.strftime("%Y-%m-%d %H:%M:%S"))
+        print("ENDED")
+        return
+    if op == "wait":
+        t = argv[3]
+        limit = float(argv[4]) if len(argv) > 4 else 100.0
+        box, start = d / "inbox" / f"{t}.jsonl", time.time()
+        while True:
+            if len(_lines(box)) > _cursor(d, t):
+                print("NEW")
+                return
+            if (d / "ended").exists():
+                print("ENDED")
+                return
+            if time.time() - start > limit:
+                print("TIMEOUT")
+                return
+            time.sleep(2)
     lock = open(d / ".lock", "w")
     fcntl.flock(lock, fcntl.LOCK_EX)
     try:
