@@ -23,6 +23,9 @@
 #include "gui/XournalView.h"                 // for XournalView
 #include "mcp/McpServer.h"
 #include "mcp/McpUi.h"  // for McpUi
+#ifdef ENABLE_AI_TERMINAL
+#include "assistant/terminal/TerminalDock.h"  // for TerminalDock
+#endif
 #include "mcp/Schema.h"
 #include "model/Document.h"  // for Document
 #include "util/StallWatch.h"  // for stall::Activity
@@ -261,6 +264,27 @@ void registerTestTools(McpServer& server) {
         return ToolResult::structured({{"observed", static_cast<bool>(observer)}});
     };
     server.getRegistry().addTool(std::move(rec));
+
+#ifdef ENABLE_AI_TERMINAL
+    ToolSpec termText;
+    termText.name = "test_terminal_text";
+    termText.title = "Test hook: the text of a terminal tab";
+    termText.description = "Test hook (XOURNALAI_TEST_HOOKS=1 only): the visible text of the AI terminal's tab with "
+                           "this title (default: the serving tab), e.g. to see what a program asks at its start.";
+    termText.inputSchema = schema::object({{"title", schema::string("the tab's title")}}, {});
+    termText.tier = Tier::Read;
+    termText.handler = [srv](const json& j) {
+        Args args(j);
+        auto* dock = srv->getUi() ? srv->getUi()->terminal() : nullptr;
+        if (!dock) {
+            throw ToolError("no terminal");
+        }
+        int tab = dock->findTab(args.str("title", "Claude · serving"));
+        return ToolResult::structured(
+                {{"tab", tab}, {"running", tab >= 0 && dock->isRunning(tab)}, {"text", tab >= 0 ? dock->text(tab) : ""}});
+    };
+    server.getRegistry().addTool(std::move(termText));
+#endif
 
     ToolSpec liveAudio;
     liveAudio.name = "test_live_audio";

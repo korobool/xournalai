@@ -15,6 +15,10 @@ def test_companion_folder(app):
         text = (d / ".claude" / "agents" / f"{agent}.md").read_text()
         assert text.startswith(f"---\nname: {agent}\n") and "transaction_commit" in text
     assert "## You coordinate" in claude and "## Transactions" in claude
+    # the skills the app ships, as the folder's own project skills (never in the user's ~/.claude: 2026-11-09)
+    skill = (d / ".claude" / "skills" / "live-annotation" / "SKILL.md").read_text()
+    assert skill.startswith("---\nname: live-annotation\n") and "live_notes(op=\"read\")" in skill
+    assert "live-annotation" in claude
     local = json.loads((d / ".claude" / "settings.local.json").read_text())
     assert local["enableAllProjectMcpServers"] is True and "xournalai" in local["enabledMcpjsonServers"]
     # the user's own notes below the managed block survive a refresh (the server re-provisions on restart)
@@ -31,3 +35,12 @@ def test_companion_folder(app):
     assert "keep this line" in refreshed and refreshed.count("xournalai's serving session") == 1
     servers = json.loads((d / ".mcp.json").read_text())["mcpServers"]
     assert "other" in servers and servers["xournalai"]["command"].endswith("xournalpp")
+
+
+def test_a_test_app_never_starts_a_real_agent(app):
+    """2026-11-09: a real Claude Code started with a test app's XDG_DATA_HOME re-pointed the owner's ~/.local/bin/claude
+    into the test folder. The harness puts stubs first on the app's PATH."""
+    import subprocess
+    out = subprocess.run(["sh", "-c", "command -v claude"], env=app.app_env() if hasattr(app, "app_env") else app.env,
+                         capture_output=True, text=True).stdout.strip()
+    assert out.startswith(str(app.home)), out

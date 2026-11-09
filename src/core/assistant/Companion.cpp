@@ -7,6 +7,7 @@
 
 #include "mcp/Json.h"
 #include "mcp/PathText.h"
+#include "util/PathUtil.h"  // for getDataPath
 
 namespace xoj::assistant {
 
@@ -239,6 +240,18 @@ fs::path Companion::ensure(const CompanionSetup& setup) {
         // The two subagents the serving session delegates to (app-managed files)
         writeIfChanged(dir / ".claude" / "agents" / "canvas-quick.md", quickAgent());
         writeIfChanged(dir / ".claude" / "agents" / "canvas-artist.md", artistAgent());
+        // The skills the app ships for its companion (share/xournalpp/companion-skills: live-annotation, …), as the
+        // folder's own project skills: everything the app needs stays in its own folders, the user's Claude
+        // settings (~/.claude) are never touched (2026-11-09)
+        std::error_code ec;
+        const fs::path shipped = Util::getDataPath() / "companion-skills";
+        if (fs::is_directory(shipped, ec)) {
+            for (const auto& f: fs::recursive_directory_iterator(shipped, ec)) {
+                if (f.is_regular_file(ec)) {
+                    writeIfChanged(dir / ".claude" / "skills" / fs::relative(f.path(), shipped, ec), readFile(f.path()));
+                }
+            }
+        }
         // The xournalai MCP server of this app (stdio bridge; it finds the app on its port and reads the token)
         mergeJson(dir / ".mcp.json", {{"mcpServers",
                                        {{"xournalai",

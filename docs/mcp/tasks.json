@@ -3458,6 +3458,41 @@
               "finished": "2026-11-09T15:22:31+00:00"
             }
           ]
+        },
+        {
+          "id": "S15.10",
+          "title": "The app stays inside its own folders",
+          "version": "1.16.1",
+          "stories": [
+            {
+              "id": "US-15.13",
+              "text": "As the owner, I want xournalai (deployed by git clone and a build) and its tests to change nothing outside the app's code and its own folders, so that my other tools, above all Claude Code, are never affected.",
+              "acceptance": [
+                "the companion's skills ship with the app and go into its companion folder only",
+                "no test or demo can start a real Claude Code / Codex by accident"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T15.10.1",
+              "story": "US-15.13",
+              "title": "Companion skills ship with the app; tests never start a real agent",
+              "details": "2026-11-09: while checking live notes with a real Claude in a test app, its native installer (started with the test's XDG_DATA_HOME) re-pointed the owner's ~/.local/bin/claude into the test folder, deleted afterwards: claude was broken everywhere (restored to ~/.local/share/claude/versions/2.1.319; the test sessions' traces in ~/.claude.json, ~/.claude/projects, session-env and history.jsonl removed, copies kept aside). And the live-annotation skill had been linked into ~/.claude/skills by hand (removed). The owner: the app is deployed by git clone and a build and must not touch anything outside its code and its own folders. Now the skill is installed with the app (share/xournalpp/companion-skills) and Companion::ensure copies it into <data>/xournalai/companion/.claude/skills (project skills of the companion folder, like its subagents); skills/install.sh no longer lists it. The test harness puts stubs for claude/codex/opencode first on a test app's PATH (allow_real_agents=True to opt out; a test's own PATH replaces them). test_e6_companion: the skill in the companion folder, the stub on PATH.",
+              "commit": "ai: companion skills ship with the app; tests never start a real agent",
+              "status": "done",
+              "started": "2026-11-09T16:26:32+00:00",
+              "finished": "2026-11-09T16:26:33+00:00"
+            },
+            {
+              "id": "T15.10.2",
+              "story": "US-15.13",
+              "title": "Release 1.16.1",
+              "details": "",
+              "commit": "",
+              "status": "todo"
+            }
+          ]
         }
       ]
     }

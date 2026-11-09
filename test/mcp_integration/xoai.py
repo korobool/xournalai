@@ -36,12 +36,14 @@ def free_port():
 class App:
     """Runs xournalpp under Xvfb with its own XDG directories. Use as a context manager."""
 
-    def __init__(self, *args, binary=BINARY, permissions=None, config=None, env=None, terminal_floating=False):
+    def __init__(self, *args, binary=BINARY, permissions=None, config=None, env=None, terminal_floating=False,
+                 allow_real_agents=False):
         self.args = [str(a) for a in args]
         self.permissions = permissions
         self.config = config or {}
         self.extra_env = env or {}
         self.terminal_floating = terminal_floating
+        self.allow_real_agents = allow_real_agents
         self.binary = str(binary)
         self.port = free_port()
         self.tmp = tempfile.TemporaryDirectory(prefix="xoai-")
@@ -55,6 +57,18 @@ class App:
             d = self.home / key.lower()
             d.mkdir(exist_ok=True)
             env[f"XDG_{key}_HOME"] = str(d)
+        # A real Claude Code / Codex never starts from a test app: with the test's XDG_DATA_HOME, Claude Code's native
+        # installer re-pointed the owner's ~/.local/bin/claude into the test folder (2026-11-09). Stubs come first on
+        # PATH; a test's own PATH (APP_ENV) or allow_real_agents=True replaces them
+        if not self.allow_real_agents:
+            stubs = self.home / "agent-stubs"
+            stubs.mkdir(exist_ok=True)
+            for name in ("claude", "codex", "opencode"):
+                stub = stubs / name
+                if not stub.exists():
+                    stub.write_text(f"#!/bin/sh\necho 'xoai: no real {name} in tests (allow_real_agents=True)' >&2\nexit 127\n")
+                    stub.chmod(0o755)
+            env["PATH"] = f"{stubs}:{env.get('PATH', '')}"
         env.update(self.extra_env)
         return env
 

@@ -440,6 +440,12 @@ install(DIRECTORY palettes
         DESTINATION "share/xournalpp"
         COMPONENT xournalpp
         )
+# xournalai: skills for the AI companion. They ship with the app; at start the app copies them into its own companion
+# folder (<data>/xournalai/companion/.claude/skills), never into the user's own Claude settings
+install(DIRECTORY skills/live-annotation
+        DESTINATION "share/xournalpp/companion-skills"
+        COMPONENT xournalpp
+        )
 
 # Install desktop shortcuts for Linux
 if (${INSTALL_DESKTOP_FILES})
