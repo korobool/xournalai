@@ -153,7 +153,15 @@ void McpServer::start() {
     }
     waiting.clear();
     g_message("MCP server listening on http://127.0.0.1:%u/mcp", options.port);
-    http->setHookHandler([this](const json& report) { servingState.apply(report); });
+    http->setHookHandler([this](const json& report) {
+        if (report.contains("worker")) {  // a worker session's: the UI follows its workers
+            if (workerHook) {
+                workerHook(report);
+            }
+            return;
+        }
+        servingState.apply(report);
+    });
     // The serving session's folder follows this app (port, binary)
     {
         assistant::CompanionSetup setup;

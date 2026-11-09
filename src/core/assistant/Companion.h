@@ -36,6 +36,8 @@ public:
     static fs::path workersFolder();
     /// The CLAUDE.md of worker sessions
     static std::string workerInstructions();
+    /// The workers' settings (their hooks), given to each worker with --settings
+    static fs::path workerSettingsFile();
     static std::string artistAgent();
     /// The instructions for the serving session (the part the app owns)
     static std::string instructions(const CompanionSetup& setup);

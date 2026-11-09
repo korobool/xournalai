@@ -48,6 +48,9 @@ public:
     std::string ownerOf(int id) const;
     /// The queued or thinking zones of a worker
     std::vector<int> activeOf(const std::string& owner) const;
+    /// A worker's zone: what the app sees it doing ("searching the web"), shown under its status with the time it
+    /// has been working
+    void setDetail(int id, const std::string& detail);
     /// Changes a zone's state and (if not empty) its text; unknown ids are ignored
     void set(int id, State state, const std::string& text = {});
     /// Zones in a state
@@ -61,6 +64,7 @@ public:
         size_t page;
         std::string text;
         std::string owner;
+        std::string detail;
     };
     std::vector<Info> zones() const;
     /// The Ask lasso being drawn (page coordinates): a dashed teal path; empty points clear it

@@ -2,6 +2,7 @@
 
 #include <algorithm>  // for count_if
 #include <cmath>      // for M_PI
+#include <cstdio>     // for snprintf
 
 namespace xoj::assistant {
 
@@ -35,6 +36,7 @@ struct ThinkingOverlay::Zone {
     State state = State::Queued;
     std::string owner;            ///< the worker session it belongs to (empty: none)
     std::optional<uint32_t> rgb;  ///< its colour (0xRRGGBB; none: teal outline, grey veil)
+    std::string detail;           ///< a worker's zone: what the app sees it doing (a second line, with the time)
     gint64 createdUs = 0;
     gint64 stateUs = 0;
     GtkWidget* button = nullptr;  ///< weak: its stop button (click to cancel)
@@ -54,7 +56,7 @@ namespace {
 /// Where a zone is drawn: its outline (4 px out) and its status pill (above it, or below when there is no room;
 /// up to ~330 px wide and kept on the canvas, so it may lie to the left of the zone)
 GdkRectangle zoneArea(const GdkRectangle& r) {
-    constexpr int PILL_W = 344, PILL_H = 4 + 6 + 32 + 4;
+    constexpr int PILL_W = 344, PILL_H = 4 + 6 + 48 + 4;  // (a worker's pill has two lines)
     return {r.x - PILL_W, r.y - PILL_H, r.width + 2 * PILL_W, r.height + 2 * PILL_H};
 }
 
@@ -234,9 +236,17 @@ size_t ThinkingOverlay::active() const {
 std::vector<ThinkingOverlay::Info> ThinkingOverlay::zones() const {
     std::vector<Info> out;
     for (const Zone* z: list) {
-        out.push_back({z->id, z->state, z->page, z->text, z->owner});
+        out.push_back({z->id, z->state, z->page, z->text, z->owner, z->detail});
     }
     return out;
+}
+
+void ThinkingOverlay::setDetail(int id, const std::string& detail) {
+    for (Zone* z: list) {
+        if (z->id == id) {
+            z->detail = detail;  // (drawn with the next frame: its status pill is redrawn every frame)
+        }
+    }
 }
 
 std::string ThinkingOverlay::ownerOf(int id) const {
@@ -489,10 +499,18 @@ void pillPath(cairo_t* cr, double x, double y, double w, double h) {
 
 void ThinkingOverlay::drawZonePill(cairo_t* cr, const Zone& z, double zx, double zy, double zw, double zh,
                                    double alpha) {
-    constexpr double H = 32;
+    // A worker's zone while it works: a second line with what the app sees it doing and for how long
+    std::string second;
+    if (!z.owner.empty() && z.state == State::Thinking) {
+        const gint64 s = std::max<gint64>(0, (g_get_monotonic_time() - z.createdUs) / G_USEC_PER_SEC);
+        char clock[32];
+        std::snprintf(clock, sizeof clock, "%d:%02d", static_cast<int>(s / 60), static_cast<int>(s % 60));
+        second = z.detail.empty() ? std::string(clock) : z.detail + " · " + clock;
+    }
+    const double H = second.empty() ? 32 : 48;
     std::string text = z.text.empty() ? (z.state == State::Queued ? "waiting for the AI…" : "working…") : z.text;
     if (z.state == State::Done) {
-        text = "done";
+        text = z.owner.empty() ? "done" : "⚙ " + z.owner + " · done";
     }
     cairo_save(cr);
     cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
@@ -511,7 +529,17 @@ void ThinkingOverlay::drawZonePill(cairo_t* cr, const Zone& z, double zx, double
             cairo_text_extents(cr, text.c_str(), &ext);
         }
     }
-    const double W = ext.x_advance + 50;
+    double W = ext.x_advance + 50;
+    cairo_text_extents_t ext2{};
+    if (!second.empty()) {
+        second = validUtf8(second);
+        cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+        cairo_set_font_size(cr, 11);
+        cairo_text_extents(cr, second.c_str(), &ext2);
+        W = std::max(W, std::min(ext2.x_advance, 280.0) + 50);
+        cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
+        cairo_set_font_size(cr, 13);
+    }
     double x = zx, y = zy - H - 6;
     const auto area = bounds ? bounds() : std::nullopt;
     if (area && y < area->y + 4) {
@@ -531,7 +559,7 @@ void ThinkingOverlay::drawZonePill(cairo_t* cr, const Zone& z, double zx, double
     cairo_set_source_rgba(cr, 1, 1, 1, 0.12);
     cairo_set_line_width(cr, 1);
     cairo_stroke(cr);
-    const double cx = x + 18, cy = y + H / 2;
+    const double cx = x + 18, cy = y + (second.empty() ? H / 2 : 16);
     switch (z.state) {
         case State::Queued: {
             const double breathe = 0.5 + 0.5 * std::sin(phase / 3.0);  // waiting: a slow breathing dot
@@ -570,6 +598,17 @@ void ThinkingOverlay::drawZonePill(cairo_t* cr, const Zone& z, double zx, double
     cairo_set_source_rgba(cr, 1, 1, 1, 0.95);
     cairo_move_to(cr, x + 36, cy + 5);
     cairo_show_text(cr, text.c_str());
+    if (!second.empty()) {  // (cut to the pill: clipped)
+        cairo_save(cr);
+        cairo_rectangle(cr, x + 36, y + 26, W - 44, 18);
+        cairo_clip(cr);
+        cairo_select_font_face(cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+        cairo_set_font_size(cr, 11);
+        cairo_set_source_rgba(cr, 0.78, 0.82, 0.86, 0.95);
+        cairo_move_to(cr, x + 36, y + 39);
+        cairo_show_text(cr, second.c_str());
+        cairo_restore(cr);
+    }
     cairo_pop_group_to_source(cr);
     cairo_paint_with_alpha(cr, alpha);
     cairo_restore(cr);

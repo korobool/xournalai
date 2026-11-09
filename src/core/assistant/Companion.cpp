@@ -100,6 +100,8 @@ fs::path Companion::folder() { return fs::path(g_get_user_data_dir()) / "xournal
 
 fs::path Companion::workersFolder() { return folder() / "workers"; }
 
+fs::path Companion::workerSettingsFile() { return workersFolder() / "hooks.json"; }
+
 std::string Companion::workerInstructions() {
     return R"(# A worker of xournalai's serving session
 
@@ -295,6 +297,14 @@ fs::path Companion::ensure(const CompanionSetup& setup) {
         }
         mergeJson(dir / ".claude" / "settings.local.json",
                   {{"enableAllProjectMcpServers", true}, {"enabledMcpjsonServers", {"xournalai"}}, {"hooks", hooks}});
+        // A worker's own hooks (given with --settings): the app follows each worker itself (busy, what it does, when
+        // it has finished), its reports marked with XOURNALAI_WORKER, never taken for the serving session's
+        mcp::json workerHooks = mcp::json::object();
+        for (const char* ev: {"UserPromptSubmit", "PreToolUse", "PostToolUse", "Stop", "SessionEnd"}) {
+            const std::string cmd = "\"" + setup.executable + "\" --ai-hook " + ev;
+            workerHooks[ev] = {{{"hooks", {{{"type", "command"}, {"command", cmd}, {"timeout", 5}}}}}};
+        }
+        writeIfChanged(workerSettingsFile(), mcp::json({{"hooks", workerHooks}}).dump(2) + "\n");
     } catch (const std::exception& e) {
         g_warning("xournalai: could not prepare the companion folder %s: %s", mcp::toUtf8(dir).c_str(), e.what());
     }

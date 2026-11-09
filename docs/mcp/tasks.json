@@ -3726,6 +3726,16 @@
             {
               "id": "T15.13.4",
               "story": "US-15.18",
+              "title": "The app follows its workers itself: what each does, for how long, when it has finished",
+              "details": "The owner (20:2x): should the companion keep the zones up, or should the application itself know what it delegated, for stability, quality and speed? The app owns the lifecycle, the agents supply the meaning (docs/mcp/LIVE_MODES.md, section 13). Each worker now gets hooks of its own (workers/hooks.json, given with --settings: UserPromptSubmit, PreToolUse, PostToolUse, Stop, SessionEnd); `xournalpp --ai-hook` under XOURNALAI_WORKER reports them as that worker's (only the tool name and a Bash command's first 300 characters), never as the serving session's (it used to drop them). The app keeps each worker's state (starting, busy, finished, ended) and activity (reading its task, searching the web, reading a web page, computing, waiting for more talk, taking new material, drawing, looking at the page, thinking); a worker's zone shows it on a second line with the time it has worked (⚙ T4 · … / searching the web · 2:41). A worker's Stop ends its job: the app closes the zones it left open and wakes the coordinator ('Worker Tn has finished its job … close it'). workers(op=list) shows state, activity, working_s; thinking_list a zone's detail. A hook costs ~25 ms (measured). Found on the way (test_e15_workers test_2 under parallel load): a tab counted as running only once its process had been spawned (asynchronously), so workers started in one message (as the skill says to) did not see each other: the cap and 'one name at a time' could be passed. TerminalDock: a tab being started counts as running; a tab closed while its process is being started ends that process as soon as it appears (it would have run on without a tab). test_e15_workers 7/7 (test_7: the worker's hooks → state, activity, the zone's second line, Stop closes its zones, the serving state untouched; hooks of a worker this window doesn't have are ignored), 39 tests of the neighbouring modules under load.",
+              "commit": "ai: the app follows its workers itself: what each does, for how long, when it has finished",
+              "status": "done",
+              "started": "2026-11-09T20:21:55+00:00",
+              "finished": "2026-11-09T20:28:41+00:00"
+            },
+            {
+              "id": "T15.13.5",
+              "story": "US-15.18",
               "title": "Release 1.16.4",
               "details": "",
               "commit": "",

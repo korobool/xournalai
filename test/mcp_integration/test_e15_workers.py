@@ -63,6 +63,11 @@ def test_1_a_worker_runs_its_brief_in_its_own_tab_with_only_the_safe_tools(app):
     assert a[a.index("--mcp-config") + 1] == str(companion / ".mcp.json") and "--strict-mcp-config" in a, a
     assert a[a.index("--effort") + 1] == "xhigh" and a[a.index("--name") + 1] == "live T1", a
     assert a[-1] == brief, a[-1]  # (the brief exactly: nothing in it is run by the shell)
+    hooks_file = companion / "workers" / "hooks.json"
+    assert a[a.index("--settings") + 1] == str(hooks_file), a  # (its own hooks: the app follows it)
+    hooks = json.loads(hooks_file.read_text())["hooks"]
+    assert sorted(hooks) == ["PostToolUse", "PreToolUse", "SessionEnd", "Stop", "UserPromptSubmit"], hooks
+    assert hooks["Stop"][0]["hooks"][0]["command"].endswith("--ai-hook Stop")
     assert "A worker of xournalai's serving session" in (companion / "workers" / "CLAUDE.md").read_text()
     assert (companion / "workers" / "T1.brief.md").read_text() == brief
     tabs = [x.get("label") for x in c.call("ui_inspect", max_depth=80, all=True)["widgets"]]
@@ -80,8 +85,8 @@ def test_2_the_cap_and_one_name_at_a_time(app):
 
 
 def test_3_a_worker_s_hooks_are_not_the_serving_session_s(app):
-    """The worker runs Claude Code too: if a hook of it reached the app, the app would take it for the serving
-    session (busy, idle). XOURNALAI_WORKER makes `xournalpp --ai-hook` report nothing."""
+    """The worker runs Claude Code too, with hooks of its own: XOURNALAI_WORKER makes `xournalpp --ai-hook` report
+    them as the worker's, never as the serving session's (busy, idle)."""
     c = app.client()
     before = c.call("app_status")["mcp"]["serving"]
     env = dict(app.app_env(), XOURNALAI_WORKER="T1", XOURNALAI_PORT=str(app.port))
@@ -177,3 +182,40 @@ def test_6_the_bridge_of_a_worker_names_it(app):
     finally:
         p.stdin.close()
         p.wait(timeout=10)
+
+
+def worker_hook(app, name, event, payload=None):
+    subprocess.run([app.binary, "--ai-hook", event], input=json.dumps(payload or {}), text=True, timeout=20,
+                   check=True, env=dict(app.app_env(), XOURNALAI_WORKER=name, XOURNALAI_PORT=str(app.port)))
+
+
+def test_7_the_app_follows_a_worker_by_its_own_hooks(app):
+    """The app knows what it delegated: from the worker's own hooks it shows what the worker does under its zone,
+    and when the worker's turn ends (its one job is over) it closes its zones itself."""
+    c = app.client()
+    serving = c.call("app_status")["mcp"]["serving"]
+    zid = c.call("workers", op="start", name="T8", brief="draw T8", page=1, region=[20, 300, 200, 100],
+                 color="#4b6584", status="«Analytics»: thinking…")["zone"]
+
+    def status():
+        return next(w for w in c.call("workers", op="list")["workers"] if w["name"] == "T8")
+
+    assert zones(c)[zid]["detail"] == "starting" and status()["state"] == "starting"
+    for event, payload, activity in [
+            ("UserPromptSubmit", {}, "reading its task"),
+            ("PreToolUse", {"tool_name": "WebSearch", "tool_input": {"query": "smiles notation"}}, "searching the web"),
+            ("PostToolUse", {"tool_name": "WebSearch"}, "thinking"),
+            ("PreToolUse", {"tool_name": "Bash", "tool_input": {"command": "python3 lib/inbox.py wait /x T8 100"}},
+             "waiting for more talk"),
+            ("PreToolUse", {"tool_name": "mcp__xournalai__create_text", "tool_input": {"texts": []}}, "drawing"),
+            ("PreToolUse", {"tool_name": "mcp__xournalai__page_render"}, "looking at the page")]:
+        worker_hook(app, "T8", event, payload)
+        s = status()
+        assert s["state"] == "busy" and s["activity"] == activity, (event, s)
+        assert zones(c)[zid]["detail"] == activity, zones(c)[zid]
+    worker_hook(app, "T5", "PreToolUse", {"tool_name": "WebSearch"})  # (a worker this window no longer has)
+    worker_hook(app, "T8", "Stop")  # its turn ended: its job is over
+    assert status()["state"] == "finished", status()
+    assert zones(c).get(zid, {"state": "gone"})["state"] in ("done", "gone"), zones(c)
+    assert c.call("app_status")["mcp"]["serving"] == serving  # (none of it was the serving session's)
+    c.call("workers", op="close", name="T8")

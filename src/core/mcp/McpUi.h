@@ -277,6 +277,15 @@ private:
     std::unique_ptr<assistant::TerminalDock> dock;
     int servingTab = -1;
     std::map<std::string, int> workerTabs;  ///< worker name → its tab
+    /// What the app knows of a worker from its own hooks (the app follows its workers; the agents need not report)
+    struct WorkerStatus {
+        std::string state = "starting";  ///< starting, busy, finished (its turn ended: its one job is over), ended
+        std::string activity = "starting";  ///< what it does now, e.g. "searching the web"
+        gint64 startedUs = 0;
+    };
+    std::map<std::string, WorkerStatus> workerStatus;
+    void onWorkerHook(const json& report);
+    std::string workerActivity(const std::string& event, const json& payload) const;
     bool servingClaude = false;  ///< the serving tab runs Claude Code (not Codex, not a test's command)
     /// At exit: stops a serving Claude Code session left in its background daemon
     void stopBackgroundServing();

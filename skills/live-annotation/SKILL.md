@@ -153,8 +153,12 @@ draws). The mixed scheme:
   a tab "⚙ Tn" (the owner sees it) running Claude Code
   in `<companion>/workers` (its own CLAUDE.md; its hooks are not this session's) with only the xournalai tools,
   web search and fetch, Read and `python3` (anything else is refused without asking); the brief is its first
-  message. Starting takes ~10–30 s, so start it as soon as a heavy topic appears. `workers(op="list")` shows which
-  run; up to `max_parallel` (8) at once. If no AI terminal is there, use
+  message. Starting takes ~10–30 s, so start it as soon as a heavy topic appears. The app follows each worker
+  itself (its own hooks): `workers(op="list")` shows its `state` (starting, busy, finished), what it does now
+  (`activity`: searching the web, drawing, waiting for more talk…) and for how long; its zone shows the same to
+  the owner. When a worker's turn ends, its job is over: the app closes its zones and wakes you with "Worker Tn has
+  finished its job" — take its result (its inbox status, its card) and close it. Up to `max_parallel` (8) at
+  once. If no AI terminal is there, use
   `Agent(subagent_type="canvas-artist", effort="high")` instead.
 - A child session keeps working on its topic for the whole recording: when its inbox is empty it waits
   (`inbox.py wait DIR Tn 100` → `NEW` / `TIMEOUT` / `ENDED`) instead of finishing; on `ENDED` with nothing left it
@@ -210,9 +214,9 @@ draws). The mixed scheme:
   saved, never in the way): a moving dashed frame and a light veil in the topic colour, with a label. Draw no
   placeholders by hand.
   - A worker tab: give `workers(op="start")` its slot (`page`, `region`, `color`, `status`). The zone appears at
-    once, is labelled «⚙ Tn · …», belongs to the worker and lasts until the worker ends it or is closed (your own
-    turns ending don't end it; since 1.16.4). Its id is appended to the brief; `workers(op="list")` shows each
-    worker's busy zones.
+    once, is labelled «⚙ Tn · …», belongs to the worker and lasts until the worker ends it, finishes or is closed
+    (your own turns ending don't end it; since 1.16.4). Under its label the app shows what the worker does and for
+    how long. Its id is appended to the brief; `workers(op="list")` shows each worker's busy zones.
   - A subagent: open the zone yourself as you start it, `thinking(op="start", page, region, text="«Title»:
     thinking…", color)`, and put its id into the brief; the subagent ends it.
 - **The transcript column** is the app's: 3.8 pt since 9 Nov (written in italic by the app itself since 1.16.3). Don't rewrite the app's column texts unless a request in that recording asks for a different look

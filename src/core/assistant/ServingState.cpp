@@ -8,6 +8,7 @@
 #include <unistd.h>  // for isatty
 
 #include "mcp/McpConfig.h"
+#include "mcp/McpProtocol.h"  // for validWorkerName
 
 namespace xoj::assistant {
 
@@ -96,9 +97,14 @@ mcp::json ServingState::toJson() const {
 }
 
 int runHook(const char* event) {
-    // A worker session (a worker tab: XOURNALAI_WORKER) is not the serving session: its events are not reported
+    // A worker session (a worker tab: XOURNALAI_WORKER) is not the serving session: its events are reported as the
+    // worker's (the app follows it: busy, what it does, finished), never as the serving session's
+    std::string worker;
     if (const char* w = g_getenv("XOURNALAI_WORKER"); w && *w) {
-        return 0;
+        worker = w;
+        if (!mcp::validWorkerName(worker)) {
+            return 0;
+        }
     }
     // The hook input (JSON) arrives on stdin; never wait on an interactive terminal
     std::string input;
@@ -115,7 +121,24 @@ int runHook(const char* event) {
         port = static_cast<uint16_t>(g_ascii_strtoull(p, nullptr, 10));
     }
     const std::string url = "http://127.0.0.1:" + std::to_string(port) + "/ai-hook";
-    const std::string body = mcp::json({{"event", event ? event : ""}, {"payload", payload}}).dump();
+    mcp::json report = {{"event", event ? event : ""}, {"payload", payload}};
+    if (!worker.empty()) {
+        // only what tells what it does (a tool's input can be a whole SVG)
+        mcp::json brief = {{"tool_name", payload.value("tool_name", "")}};
+        if (payload.contains("tool_input") && payload["tool_input"].is_object() &&
+            payload["tool_input"].contains("command") && payload["tool_input"]["command"].is_string()) {
+            std::string command = payload["tool_input"]["command"].get<std::string>().substr(0, 300);
+            while (!command.empty() && (static_cast<unsigned char>(command.back()) & 0xC0U) == 0x80U) {
+                command.pop_back();  // (whole characters only)
+            }
+            if (!command.empty() && static_cast<unsigned char>(command.back()) >= 0xC0U) {
+                command.pop_back();
+            }
+            brief["command"] = command;
+        }
+        report = {{"event", event ? event : ""}, {"payload", brief}, {"worker", worker}};
+    }
+    const std::string body = report.dump();
 
     SoupSession* http = soup_session_new_with_options("timeout", 2u, nullptr);
     SoupMessage* msg = soup_message_new("POST", url.c_str());

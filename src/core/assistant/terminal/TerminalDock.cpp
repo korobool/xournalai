@@ -19,6 +19,8 @@ struct TerminalDock::Tab {
     GtkWidget* label = nullptr;
     GPid pid = -1;
     bool running = false;
+    bool starting = false;  ///< its process is being started (spawned asynchronously: not running yet, not ended)
+    bool closed = false;    ///< its tab was closed (a process that starts after that is ended at once)
 };
 
 namespace {
@@ -953,11 +955,19 @@ void TerminalDock::spawn(Tab* tab) {
         }
     }
     const std::string cwd = tab->spec.workingDirectory.empty() ? g_get_home_dir() : tab->spec.workingDirectory;
+    tab->starting = true;
     vte_terminal_spawn_async(
             tab->term, VTE_PTY_DEFAULT, cwd.c_str(), argv.data(), env, G_SPAWN_DEFAULT, nullptr, nullptr, nullptr, -1,
             nullptr,
             +[](VteTerminal* t, GPid pid, GError* error, gpointer d) {
                 auto* tb = static_cast<Tab*>(d);
+                tb->starting = false;
+                if (tb->closed) {  // closed while it was being started: it must not run on without its tab
+                    if (!error && pid > 0) {
+                        kill(pid, SIGHUP);
+                    }
+                    return;
+                }
                 if (error) {
                     const std::string msg = std::string("\r\n[could not start: ") + error->message + "]\r\n";
                     vte_terminal_feed(t, msg.c_str(), static_cast<gssize>(msg.size()));
@@ -995,6 +1005,7 @@ void TerminalDock::closeTab(int index) {
         return;
     }
     const bool wasRunning = tab->running;
+    tab->closed = true;
     g_signal_handlers_disconnect_by_data(tab->term, tab);  // no "exited" message into a terminal on its way out
     if (tab->running && tab->pid > 0) {
         kill(tab->pid, SIGHUP);  // like closing a terminal window
@@ -1043,7 +1054,8 @@ int TerminalDock::findTab(const std::string& title) const {
 
 bool TerminalDock::isRunning(int index) const {
     Tab* tab = tabAt(index);
-    return tab && tab->running;
+    // (a tab whose process is being started counts: e.g. several workers started at once, each within the cap)
+    return tab && (tab->running || tab->starting);
 }
 
 bool TerminalDock::feed(int index, const std::string& text) {

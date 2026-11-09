@@ -69,6 +69,8 @@ public:
     McpUi* getUi() const { return ui.get(); }
     /// What the serving session (in the AI terminal) is doing, from its hooks
     assistant::ServingState& serving() { return servingState; }
+    /// Receives the hooks of worker sessions (reports with "worker"), never the serving state's
+    void setWorkerHook(std::function<void(const json&)> hook) { workerHook = std::move(hook); }
     /// Edit transactions (parallel agents, serialized edits)
     Transactions& transactions() { return *txns; }
     /// Notes memory of the open document (created when the server starts)
@@ -99,6 +101,7 @@ private:
     std::unique_ptr<McpUi> ui;
     std::unique_ptr<NotesStore> notes;
     assistant::ServingState servingState;
+    std::function<void(const json&)> workerHook;
     std::unique_ptr<Transactions> txns;
     std::string waiting;
     guint retrySource = 0;

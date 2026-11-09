@@ -95,6 +95,9 @@ void registerThinkingTools(McpServer& server) {
                 if (!z.owner.empty()) {
                     zone["worker"] = z.owner;
                 }
+                if (!z.detail.empty()) {
+                    zone["detail"] = z.detail;  // (what the app sees the worker doing)
+                }
                 zones.push_back(std::move(zone));
             }
         }

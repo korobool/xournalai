@@ -68,6 +68,7 @@
 #include "McpServer.h"
 #include "NotesStore.h"
 #include "PathText.h"
+#include "Registry.h"  // for ToolSpec
 #include "Transactions.h"
 
 namespace xoj::mcp {
@@ -276,6 +277,7 @@ McpUi::~McpUi() {
     removeMenu();
     quickTools.reset();
     aiToolbar.reset();
+    server.setWorkerHook(nullptr);
     thinkingOverlay.reset();
 #ifdef ENABLE_AI_TERMINAL
     eventPump.reset();
@@ -1953,9 +1955,11 @@ void McpUi::buildTerminal() {
         for (const auto& [name, tab]: workerTabs) {  // a worker that ended leaves no zone busy
             if (tab == index) {
                 endWorkerZones(name, "ended");
+                workerStatus[name].state = "ended";
             }
         }
     });
+    server.setWorkerHook([this](const json& report) { onWorkerHook(report); });
     // The app watches, the serving session works: canvas events wake it
     assistant::EventPump::Env env;
     env.paused = [] { return api::AgentGate::paused(); };
@@ -2094,7 +2098,9 @@ json McpUi::startWorker(const std::string& name, const std::string& brief, const
     const std::string command = "claude --name " + shq("live " + name) + " --effort " + e +
                                 " --permission-mode dontAsk --allowedTools " +
                                 shq("mcp__xournalai,WebSearch,WebFetch,Read,Bash(python3 *)") + " --mcp-config " +
-                                shq(mcpConfig) + " --strict-mcp-config \"$(cat " + shq(briefFile.string()) + ")\"";
+                                shq(mcpConfig) + " --strict-mcp-config --settings " +
+                                shq(assistant::Companion::workerSettingsFile().string()) + " \"$(cat " +
+                                shq(briefFile.string()) + ")\"";
     assistant::TerminalSpec spec;
     spec.title = "⚙ " + name;
     spec.command = command;
@@ -2103,6 +2109,10 @@ json McpUi::startWorker(const std::string& name, const std::string& brief, const
                 "CLAUDE_CODE_DISABLE_BG_EXIT_HANDOFF=1"};
     const int tab = dock->openTab(spec, false);  // (the owner's view stays where it is)
     workerTabs[name] = tab;
+    workerStatus[name] = WorkerStatus{"starting", "starting", g_get_monotonic_time()};
+    if (zoneId) {
+        thinkingOverlay->setDetail(zoneId, "starting");
+    }
     update();
     json r{{"name", name},  {"tab", spec.title},         {"effort", e}, {"brief", briefFile.string()},
            {"running", running + 1}, {"cap", cap}};
@@ -2120,6 +2130,7 @@ bool McpUi::closeWorker(const std::string& name) {
     endWorkerZones(name, "closed before it finished");  // (first: closing the tab reports its process ended)
     dock->closeTab(it->second);  // (its session ends: SIGHUP, never handed to the background)
     workerTabs.erase(it);
+    workerStatus.erase(name);
     update();
     return true;
 }
@@ -2136,12 +2147,95 @@ json McpUi::workers() const {
     json list = json::array();
     for (const auto& [name, tab]: workerTabs) {
         json w = {{"name", name}, {"running", dock && dock->isRunning(tab)}};
+        if (auto s = workerStatus.find(name); s != workerStatus.end()) {
+            w["state"] = s->second.state;  // (from its own hooks)
+            w["activity"] = s->second.activity;
+            w["working_s"] = (g_get_monotonic_time() - s->second.startedUs) / G_USEC_PER_SEC;
+        }
         if (thinkingOverlay) {
             w["zones"] = thinkingOverlay->activeOf(name);  // (its zones still shown as busy)
         }
         list.push_back(std::move(w));
     }
     return list;
+}
+
+std::string McpUi::workerActivity(const std::string& event, const json& payload) const {
+    if (event == "UserPromptSubmit") {
+        return "reading its task";
+    }
+    if (event == "PostToolUse") {
+        return "thinking";
+    }
+    const std::string tool = payload.value("tool_name", "");
+    if (tool == "WebSearch") {
+        return "searching the web";
+    }
+    if (tool == "WebFetch") {
+        return "reading a web page";
+    }
+    if (tool == "Read") {
+        return "reading a file";
+    }
+    if (tool == "Bash") {
+        const std::string command = payload.value("command", "");
+        if (command.find("inbox.py") != std::string::npos) {
+            return command.find(" wait ") != std::string::npos ? "waiting for more talk" : "taking new material";
+        }
+        return "computing";
+    }
+    if (tool == "ToolSearch") {
+        return "getting ready";
+    }
+    if (tool.rfind("mcp__xournalai__", 0) == 0) {
+        const std::string t = tool.substr(16);
+        if (t == "thinking" || t == "thinking_list") {
+            return "";  // (about its zone: what it does stays)
+        }
+        if (t == "live_notes") {
+            return "reading the notes";
+        }
+        const ToolSpec* spec = server.getRegistry().findTool(t);
+        return spec && !spec->readOnly ? "drawing" : "looking at the page";
+    }
+    return "working";
+}
+
+void McpUi::onWorkerHook(const json& report) {
+    const std::string name = report.value("worker", "");
+    if (!workerTabs.count(name)) {
+        return;  // (not a worker of this window, or already closed)
+    }
+    WorkerStatus& w = workerStatus[name];
+    const std::string event = report.value("event", "");
+    const json payload = report.contains("payload") && report["payload"].is_object() ? report["payload"] : json::object();
+    if (event == "Stop") {
+        // Its turn ended: a worker has one job (its brief), so it is over; what it left busy is not worked on any more
+        w.state = w.activity = "finished";
+        if (thinkingOverlay) {
+            for (int z: thinkingOverlay->activeOf(name)) {
+                thinkingOverlay->set(z, assistant::ThinkingOverlay::State::Done);
+            }
+        }
+        if (eventPump) {  // the coordinator learns it from the app, not by asking
+            eventPump->addIntent("Worker " + name + " has finished its job (its turn ended; its zones are closed). "
+                                 "Take its result, then close it: workers(op=\"close\", name=\"" + name + "\").");
+        }
+    } else if (event == "SessionEnd") {
+        w.state = w.activity = "ended";
+        endWorkerZones(name, "ended");
+    } else {
+        w.state = "busy";
+        if (std::string a = workerActivity(event, payload); !a.empty()) {
+            w.activity = a;
+        }
+        if (thinkingOverlay) {
+            for (int z: thinkingOverlay->activeOf(name)) {
+                thinkingOverlay->setDetail(z, w.activity);
+            }
+        }
+    }
+    update();
 }
 
 void McpUi::stopBackgroundServing() {
