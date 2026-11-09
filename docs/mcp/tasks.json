@@ -3658,6 +3658,16 @@
             {
               "id": "T15.12.6",
               "story": "US-15.17",
+              "title": "The skill: worker tabs hear from the coordinator only through their inbox; live pages by their current number",
+              "details": "The companion's finding from the first real run of worker tabs (19:42; three tabs T2-T4 and two subagents drew in parallel, one page in about 5 min): its SendMessage to the tabs was held and expired undelivered. Claude Code holds cross-session messages between sessions in different permission modes (the companion runs in bypass, the workers in dontAsk with the safe list, on purpose). The workers got the news through their inbox file. The companion's edits: SendMessage only for subagents, everything for a worker tab (new pieces, corrections, 'the page changed') through its inbox (kind note for corrections); the brief names the '1st live page' and the worker re-reads its current number from live_notes(op=status) → pages right before drawing (at 19:48 the owner deleted an empty page 1 and the live page became page 1).",
+              "commit": "ai: the companion's skill: workers hear only through their inbox; live pages by their current number",
+              "status": "done",
+              "started": "2026-11-09T19:51:31+00:00",
+              "finished": "2026-11-09T19:51:31+00:00"
+            },
+            {
+              "id": "T15.12.7",
+              "story": "US-15.17",
               "title": "Release 1.16.3",
               "details": "",
               "commit": "",

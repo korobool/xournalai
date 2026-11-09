@@ -85,7 +85,9 @@ added background gets a grey "фон:" label or a source line. Never present an 
    make sure an agent takes it:
    - the topic's agent is running → nothing more (it takes its inbox before it finishes);
    - it has finished → continue it with its context: `SendMessage` to the agent id its `Agent` call returned
-     ("new pieces in your inbox");
+     ("new pieces in your inbox"). This is for **subagents only**: a worker session in a tab runs in another
+     permission mode and holds cross-session messages, so a worker gets everything — new pieces, corrections, "the
+     page changed" — **only through its inbox** (`lib/inbox.py add`, kind `note` for corrections);
    - there is none → start a worker for it, as **Who works on a topic** (below) decides: a background subagent
      (`Agent` with an `effort`) or a worker session in its own tab (`workers(op="start")`). Keep its id / name in
      the state.
@@ -127,8 +129,8 @@ them cost six minutes, not twenty.
 Speed rules:
 - **Start heavy workers at once**, in the same turn the topic appears (don't wait for more material): their start-up
   overlaps the talk. Start several in **one message** (parallel tool calls).
-- **Continue, don't respawn**: new material for a topic goes to its existing worker (`SendMessage`, or the child
-  session's inbox) — never a second worker for the same topic.
+- **Continue, don't respawn**: new material for a topic goes to its existing worker (`SendMessage` for a subagent,
+  the inbox for a worker tab — never `SendMessage` to a tab) — never a second worker for the same topic.
 - **Batch**: route all pieces of one read at once; wake a worker once per batch, not per piece; wait for a cut
   sentence's end before routing a request.
 - **Short briefs**: the slot, the colour, the style line, the inbox command and what's new; no history the worker
@@ -161,7 +163,10 @@ draws). The mixed scheme:
 
 ## The topic agent brief (what you give each agent)
 
-> You draw topic **T3 «Title»** (colour `#8b3a62`) of the live notes of recording `<stem>` in xournalai, page **P**,
+> You draw topic **T3 «Title»** (colour `#8b3a62`) of the live notes of recording `<stem>` in xournalai, on the
+> **1st live page** of that recording (page **P** now — page numbers change when the owner deletes a page: right
+> before drawing, re-read the current number from `live_notes(op="status")` → `pages`, and act on `note` items in
+> your inbox),
 > inside your slot **[x, y, w, h]** only — never outside it, never in the transcript column, never on the user's
 > own ink. Draw directly with `create_text` / `create_shapes` / `create_from_svg`: for live notes this replaces the
 > one-transaction rule of your agent definition (the slot is yours; no `layer` argument). Show a `thinking` zone on
