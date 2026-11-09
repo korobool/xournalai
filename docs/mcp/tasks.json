@@ -3516,6 +3516,14 @@
                 "while recording the window is not redrawn at the screen's frame rate",
                 "the Record button and the indicator set their texts and styles only when they change"
               ]
+            },
+            {
+              "id": "US-15.16",
+              "text": "As the owner, I want a page with my drawing never to vanish by a stray tap, and every page deletion to be traceable.",
+              "acceptance": [
+                "deleting a page with content asks first (empty pages go at once)",
+                "every page deletion is logged with what did it (the Delete page action, MCP, Undo, Redo)"
+              ]
             }
           ],
           "tasks": [
@@ -3538,6 +3546,36 @@
               "status": "done",
               "started": "2026-11-09T18:48:44+00:00",
               "finished": "2026-11-09T18:48:44+00:00"
+            },
+            {
+              "id": "T15.11.3",
+              "story": "US-15.16",
+              "title": "Deleting a page with content asks first; every page deletion is logged",
+              "details": "2026-11-09: the owner's first page (a drawing) vanished twice during live notes; the app's change log said only 'user' (page events 46, 240), no agent had deleted pages that day (their transcripts read), and the Delete page action has no shortcut: likely the toolbar's button (it deletes the current page at once). Control::deletePage now asks 'Delete page N? It holds M element(s)' (Cancel / Delete page; Undo brings it back) when the page holds anything, then deletes that page wherever it is now; an empty page goes at once. Every deletion is logged (journal): by the Delete page action (confirmed / empty), through MCP (deletePageAt gets a reason), by Undo of an insertion, by Redo of a deletion. test_e15_page_delete 3/3.",
+              "commit": "ai: deleting a page with content asks first; every page deletion is logged",
+              "status": "done",
+              "started": "2026-11-09T19:00:54+00:00",
+              "finished": "2026-11-09T19:00:54+00:00"
+            },
+            {
+              "id": "T15.11.4",
+              "story": "US-15.14",
+              "title": "The transcript column at half size; up to 8 workers",
+              "details": "The owner during the 18:19 recording: 'транскрипт шрифтом вдвое мельче… будет больше помещаться'. assistant.live_notes.transcript_size (default 3.8 pt, 3-12; was a fixed 7.5); the gap between pieces scales with it. And up to 8 workers: assistant.max_parallel 1-8 (default 8; was 1-5, default 5), the settings dialog, transactions, the wake-up line now says 'workers (subagents and worker tabs)'. test_e15_live_notes: the font size; the next-page test feeds 150 pieces (a page holds over a hundred now).",
+              "commit": "ai: the transcript column at half size; up to 8 workers",
+              "status": "done",
+              "started": "2026-11-09T19:00:55+00:00",
+              "finished": "2026-11-09T19:00:55+00:00"
+            },
+            {
+              "id": "T15.11.5",
+              "story": "US-15.14",
+              "title": "The companion's live-annotation updates: do it yourself or delegate; inbox wait/end",
+              "details": "Written by the companion session at the owner's request, reviewed here: SKILL.md 'Do it yourself or delegate (speed first)' (a decision table, measured timings, speed rules) and 'Who works on a topic'; lib/inbox.py ops wait (NEW / ENDED / TIMEOUT, polling 2 s) and end (DIR/ended), only in the companion's live folder. Its draft lib/child_session.sh (gnome-terminal windows) is not taken: worker sessions become tabs of the app's AI terminal (the owner's choice), next.",
+              "commit": "ai: the companion's live-annotation updates (do it yourself or delegate; inbox wait/end)",
+              "status": "done",
+              "started": "2026-11-09T19:00:55+00:00",
+              "finished": "2026-11-09T19:00:55+00:00"
             }
           ]
         }

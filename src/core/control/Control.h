@@ -254,7 +254,8 @@ public:
     void movePageTowardsBeginning();
     void movePageTowardsEnd();
     /// For agents: deletes page `pageNr` (not the last one left) without scrolling; false if it cannot
-    bool deletePageAt(size_t pageNr);
+    /// `why` goes into the log (every page deletion is logged with what did it, 2026-11-09)
+    bool deletePageAt(size_t pageNr, const char* why = "through MCP");
     /// For agents: moves page `from` to position `to`, one undo step per position like the menu, without scrolling
     void movePage(size_t from, size_t to);
 

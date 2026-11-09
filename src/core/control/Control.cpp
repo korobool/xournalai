@@ -782,7 +782,35 @@ void Control::deletePage() {
 
     this->doc->lock_shared();
     PageRef page = doc->getPage(pNr);
+    size_t elements = 0;
+    for (const Layer* l: page->getLayersView()) {
+        elements += l->getElementsView().size();
+    }
     this->doc->unlock_shared();
+
+    // xournalai: a page with something on it is deleted only when confirmed (a stray tap on the toolbar's button
+    // took the owner's drawn page twice during live notes, 2026-11-09). An empty page goes at once.
+    if (elements > 0) {
+        enum { CANCEL = 1, DELETE = 2 };
+        XojMsgBox::askQuestion(
+                getGtkWindow(),
+                FC(_F("Delete page {1}? It holds {2} element(s).") % static_cast<int64_t>(pNr + 1) %
+                   static_cast<int64_t>(elements)),
+                _("You can bring it back with Undo (Ctrl+Z)."), {{_("Cancel"), CANCEL}, {_("Delete page"), DELETE}},
+                [ctrl = this, page](int response) {
+                    if (response != DELETE) {
+                        return;
+                    }
+                    ctrl->doc->lock_shared();
+                    const size_t at = ctrl->doc->indexOf(page);  // (where it is now)
+                    ctrl->doc->unlock_shared();
+                    if (at != npos && ctrl->deletePageAt(at, "by the Delete page action (confirmed)")) {
+                        ctrl->scrollHandler->scrollToPage(std::min(at, ctrl->doc->getPageCount() - 1));
+                    }
+                });
+        return;
+    }
+    g_message("Page %zu deleted (empty) by the Delete page action", pNr + 1);
 
     // first send event, then delete page...
     firePageDeleted(pNr);
@@ -801,14 +829,21 @@ void Control::deletePage() {
     this->win->getXournal()->forceUpdatePagenumbers();
 }
 
-auto Control::deletePageAt(size_t pNr) -> bool {
+auto Control::deletePageAt(size_t pNr, const char* why) -> bool {
     this->doc->lock_shared();
     const size_t count = this->doc->getPageCount();
     PageRef page = pNr < count ? this->doc->getPage(pNr) : nullptr;
+    size_t elements = 0;
+    if (page) {
+        for (const Layer* l: page->getLayersView()) {
+            elements += l->getElementsView().size();
+        }
+    }
     this->doc->unlock_shared();
     if (!page || count < 2) {
         return false;
     }
+    g_message("Page %zu deleted (%zu element(s)) %s", pNr + 1, elements, why);
     clearSelectionEndTextOn(page);
     if (geometryToolController) {
         doc->lock_shared();

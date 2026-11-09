@@ -20,6 +20,7 @@ InsertDeletePageUndoAction::~InsertDeletePageUndoAction() { this->page = nullptr
 
 auto InsertDeletePageUndoAction::undo(Control* control) -> bool {
     if (this->inserted) {
+        g_message("Page %zu deleted by Undo (it had been inserted)", static_cast<size_t>(this->pagePos) + 1);
         return deletePage(control);
     }
 
@@ -31,6 +32,7 @@ auto InsertDeletePageUndoAction::redo(Control* control) -> bool {
     if (this->inserted) {
         return insertPage(control);
     }
+    g_message("Page %zu deleted by Redo (of a deletion)", static_cast<size_t>(this->pagePos) + 1);
 
 
     return deletePage(control);
