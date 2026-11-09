@@ -10,6 +10,25 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.16.2 — A long recording no longer freezes the app
+- **Recording no longer redraws the window at the screen's frame rate.** The big Record button's animation was
+  redrawn on every screen frame, and four times a second the button's label, tooltip and style were set again even
+  when nothing had changed. The recording indicator was redrawn 20 times a second. Together that made about 60
+  frames and 27,000 X requests a second. On 9 November the X server stopped answering the app 18 minutes into a
+  live-notes recording, and the app had to rescue the document and restart. Now the animation runs at 12 frames a
+  second and only where the button is, the button changes only what really changed, and the indicator draws 10
+  times a second: about 23 frames and 8,000 requests a second while recording.
+- **Deleting a page that holds something asks first** ("Delete page N? It holds M element(s)"). An empty page is
+  deleted at once. Every page deletion is written to the log with what did it: the Delete page action, MCP, Undo or
+  Redo.
+- **Live notes:**
+  - the transcript column is half the size (3.8 pt; `assistant.live_notes.transcript_size`), so more of a talk fits
+    on a page;
+  - up to 8 workers (`assistant.max_parallel`, 1–8);
+  - requests spoken to the notes are handled within the live-annotation skill's safe list (draw, cards, a picture
+    or scheme from the web, a mind map, on the live-notes pages only); anything else said is never acted on;
+  - the companion's skill updates: when to do a job itself and when to delegate it, and inboxes that can wait.
+
 ## 1.16.1 — The app stays inside its own folders
 - **The companion's skills ship with the app.** The `live-annotation` skill is installed with xournalai
   (`share/xournalpp/companion-skills`). At start, the app copies it into its own companion folder

@@ -6,6 +6,9 @@ import time
 import xoai
 
 
+APP_CONFIG = {"assistant": {"max_parallel": 5}}  # (the limit checked below; the default is 8)
+
+
 def ids_on_page(c):
     return {e["id"] for e in c.call("page_elements", detail="bbox", limit=5000)["elements"]}
 
