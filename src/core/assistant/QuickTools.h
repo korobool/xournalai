@@ -137,7 +137,7 @@ private:
     GtkWidget* recordLabel = nullptr;  ///< (inside recordButton)
     guint recordPoll = 0;
     guint faceTick = 0;  ///< the face's animation timer while recording (FACE_MS)
-    static constexpr guint FACE_MS = 80;
+    static constexpr guint FACE_MS = 125;  ///< (8 frames a second: lively enough, half the cost of 12)
     int shownRecordState = -1;     ///< (what the button shows: set again only when it changes)
     std::string shownRecordText;
     bool shownRecording = false;

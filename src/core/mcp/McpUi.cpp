@@ -16,6 +16,7 @@
 #include "control/zoom/ZoomControl.h"       // for ZoomControl
 #include "gui/Layout.h"                     // for Layout
 #include "gui/ScreenKeyboard.h"             // for screen_keyboard
+#include "gui/DrawnText.h"  // for drawnTextNew
 #include "gui/MainWindow.h"                 // for MainWindow
 #include "gui/PageView.h"                   // for XojPageView
 #include "gui/XournalView.h"                // for XournalView
@@ -62,6 +63,7 @@
 #include "model/Text.h"                          // for Text
 #include "util/PathUtil.h"                       // for getConfigFile, getCacheSubfolder
 
+#include <cstring>  // for strcmp
 #include <fstream>  // for ofstream
 
 #include "ConnectSnippets.h"
@@ -725,10 +727,10 @@ void McpUi::buildStrip() {
     strip = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
     gtk_buildable_set_name(GTK_BUILDABLE(strip), "mcpStatusStrip");
     g_object_set(strip, "margin-start", 8, "margin-end", 8, "margin-top", 1, "margin-bottom", 1, nullptr);
-    label = gtk_label_new("");
+    // (a text that draws itself: it changes with every tool call — "working: …" — and a label's new text repainted
+    // the whole window, twice per call, 2026-11-09)
+    label = xoj::gui::drawnTextNew("", 0.0, true);
     gtk_buildable_set_name(GTK_BUILDABLE(label), "mcpStatus");
-    gtk_label_set_xalign(GTK_LABEL(label), 0);
-    gtk_label_set_ellipsize(GTK_LABEL(label), PANGO_ELLIPSIZE_END);
     pauseButton = gtk_toggle_button_new_with_label("Pause AI");
     // Not focusable (a stray Space must not toggle it); on the left, away from the zoom controls
     gtk_widget_set_can_focus(pauseButton, FALSE);
@@ -745,7 +747,8 @@ void McpUi::buildStrip() {
     GtkCssProvider* css = gtk_css_provider_new();
     gtk_css_provider_load_from_data(css,
                                     "#mcpStatusStrip.paused { background-color: #b45309; }"
-                                    "#mcpStatusStrip.paused > label { color: #ffffff; font-weight: bold; }"
+                                    "#mcpStatusStrip.paused > label, #mcpStatusStrip.paused > .xoai-drawn-text {"
+                                    "  color: #ffffff; font-weight: bold; }"
                                     "#mcpStatusStrip.paused > button label { font-weight: bold; }",
                                     -1, nullptr);
     gtk_widget_set_name(strip, "mcpStatusStrip");
@@ -1921,19 +1924,24 @@ void McpUi::update() {
         }
 #endif
     }
+    // Only what changed: the same label set again rebuilt the button and redrew the whole window (every 2 s, the
+    // tick: thousands of X requests each time, 2026-11-09)
+    const bool paused = api::AgentGate::paused();
     if (strip) {
         GtkStyleContext* ctx = gtk_widget_get_style_context(strip);
-        if (api::AgentGate::paused()) {
-            gtk_style_context_add_class(ctx, "paused");
-        } else {
-            gtk_style_context_remove_class(ctx, "paused");
+        if (paused != static_cast<bool>(gtk_style_context_has_class(ctx, "paused"))) {
+            paused ? gtk_style_context_add_class(ctx, "paused") : gtk_style_context_remove_class(ctx, "paused");
         }
     }
     if (pauseButton) {
-        gtk_button_set_label(GTK_BUTTON(pauseButton), api::AgentGate::paused() ? "Resume AI" : "Pause AI");
+        const char* want = paused ? "Resume AI" : "Pause AI";
+        const char* has = gtk_button_get_label(GTK_BUTTON(pauseButton));
+        if (!has || std::strcmp(has, want) != 0) {
+            gtk_button_set_label(GTK_BUTTON(pauseButton), want);
+        }
     }
     if (text != lastText) {
-        gtk_label_set_text(GTK_LABEL(label), text.c_str());
+        xoj::gui::drawnTextSet(label, text);
         lastText = text;
     }
 }

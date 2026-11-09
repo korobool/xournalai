@@ -250,6 +250,9 @@ GtkWidget* lookup(const std::string& id) {
 }
 
 std::string widgetText(GtkWidget* w) {
+    if (const auto* drawn = static_cast<const char*>(g_object_get_data(G_OBJECT(w), "xoai-text"))) {
+        return drawn;  // (gui/DrawnText: a text that draws itself)
+    }
     if (GTK_IS_LABEL(w)) {
         return gtk_label_get_text(GTK_LABEL(w));
     }

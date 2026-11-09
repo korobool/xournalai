@@ -11,6 +11,7 @@
 #include "control/ToolHandler.h"             // for ToolHandler
 #include "control/settings/Settings.h"       // for Settings (touch drawing)
 #include "control/actions/ActionDatabase.h"  // for ActionDatabase
+#include "gui/DrawnText.h"  // for drawnTextNew
 #include "gui/MainWindow.h"
 #include "gui/RecordingIndicator.h"  // for RecordingIndicator                  // for MainWindow
 #include "gui/XournalView.h"         // for XournalView
@@ -413,13 +414,15 @@ constexpr const char* CSS =
         ".xoai-tools-button:active { background-image: linear-gradient(160deg, #e0602d, #c92159 55%, #7232c9);"
         "  box-shadow: inset 0 2px 4px alpha(#000000, 0.35); }"
         ".xoai-tools-button label { color: #ffffff; font-weight: bold; }"
+        // (its shadows without blur: while recording, its face is redrawn ~8 times a second, and each frame re-rendered
+        // a blurred shadow under it: a new X pixmap and pictures each time, 2026-11-09)
         ".xoai-record-button { color: #ffffff; border: none; border-radius: 16px; padding: 6px 10px;"
         "  background-image: linear-gradient(160deg, #5a5f6b, #3a3e47);"
-        "  box-shadow: 0 2px 6px alpha(#000000, 0.35), inset 0 1px alpha(#ffffff, 0.2); transition: all 120ms "
+        "  box-shadow: 0 2px 0 alpha(#000000, 0.25), inset 0 1px alpha(#ffffff, 0.2); transition: all 120ms "
         "ease-out; }"
         ".xoai-record-button:hover { background-image: linear-gradient(160deg, #6a707d, #474c57); }"
         ".xoai-record-button:active { box-shadow: inset 0 2px 4px alpha(#000000, 0.45); }"
-        ".xoai-record-button label { color: #ffffff; font-weight: bold; }"
+        ".xoai-record-button label, .xoai-record-button .xoai-drawn-text { color: #ffffff; font-weight: bold; }"
         ".xoai-record-button image { color: #ff4a4a; }"
         ".xoai-cut-button { color: #ffffff; border: none; border-radius: 16px; padding: 6px 10px;"
         "  background-image: linear-gradient(160deg, #b57bff, #7b3fe0);"
@@ -429,7 +432,7 @@ constexpr const char* CSS =
         ".xoai-quick-tile.xoai-live-tile { background-image: linear-gradient(160deg, alpha(#b57bff, 0.25),"
         "  alpha(#7b3fe0, 0.18)); }"
         ".xoai-record-button.xoai-recording { background-image: linear-gradient(160deg, #ff5a5a, #d81b3c);"
-        "  box-shadow: 0 0 10px alpha(#ff3040, 0.75), inset 0 1px alpha(#ffffff, 0.35); }"
+        "  box-shadow: 0 0 0 3px alpha(#ff3040, 0.45), inset 0 1px alpha(#ffffff, 0.35); }"
         ".xoai-record-button.xoai-recording image { color: #ffffff; }"
         ".xoai-fullscreen-button { color: #ffffff; border: none; border-radius: 16px; padding: 6px 10px;"
         "  background-image: linear-gradient(160deg, #2bb3c0, #2d6fe0);"
@@ -788,7 +791,7 @@ void QuickTools::placeButton(GtkWidget* mainBox, const std::vector<GtkWidget*>& 
                          }),
                          this);
         gtk_box_pack_start(GTK_BOX(inner), recordFace, TRUE, TRUE, 0);
-        recordLabel = gtk_label_new("Record");
+        recordLabel = xoj::gui::drawnTextNew("Record", 0.5);  // ("Stop 1:23": its time without re-layouts)
         gtk_box_pack_start(GTK_BOX(inner), recordLabel, FALSE, FALSE, 0);
         gtk_container_add(GTK_CONTAINER(recordButton), inner);
     }
@@ -1218,7 +1221,7 @@ void QuickTools::refreshRecord() {
     }
     if (text != shownRecordText) {
         shownRecordText = text;
-        gtk_label_set_text(GTK_LABEL(recordLabel), text.c_str());
+        xoj::gui::drawnTextSet(recordLabel, text);
     }
     if (on && !faceTick) {
         // The face listens: ~12 frames a second, only its own area (not every screen frame)

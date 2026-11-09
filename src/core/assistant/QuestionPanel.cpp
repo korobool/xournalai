@@ -2,6 +2,8 @@
 
 #include <algorithm>  // for find_if
 
+#include "gui/DrawnText.h"  // for drawnTextSet
+
 namespace xoj::assistant {
 
 namespace {
@@ -9,7 +11,7 @@ const char* CSS = ".xoai-questions { padding: 6px; }"
                   ".xoai-questions-strip, .xoai-questions-strip viewport { background-color: @theme_bg_color; }"
                   ".xoai-questions-card { padding: 10px; border-radius: 16px; background-color: alpha(#1c1e23, 0.94);"
                   "  box-shadow: 0 4px 16px alpha(#000000, 0.45); }"
-                  ".xoai-questions-card label { color: #ffffff; }"
+                  ".xoai-questions-card label, .xoai-questions-card .xoai-drawn-text { color: #ffffff; }"
                   ".xoai-question-who { font-size: 0.85em; font-weight: bold; opacity: 0.75; }"
                   ".xoai-question-text { font-size: 1.15em; font-weight: bold; }"
                   ".xoai-question-idle { opacity: 0.55; }"
@@ -142,8 +144,7 @@ void QuestionPanel::tick() {
             const auto& q = queue.front();
             const gint64 s = q.deadlineUs ? std::max<gint64>(0, (q.deadlineUs - now) / G_USEC_PER_SEC) : -1;
             std::string fallback = q.fallback == "no" ? "Нет" : q.fallback == "yes" ? "Да" : q.fallback;
-            gtk_label_set_text(GTK_LABEL(v->left),
-                               s >= 0 ? ("через " + std::to_string(s) + " с: " + fallback).c_str() : "");
+            xoj::gui::drawnTextSet(v->left, s >= 0 ? "через " + std::to_string(s) + " с: " + fallback : "");
         }
     }
 }
@@ -180,7 +181,8 @@ GtkWidget* QuestionPanel::build(View& v, bool isFloating) {
     v.text = label("xoai-question-text", true);
     gtk_buildable_set_name(GTK_BUILDABLE(v.text), (prefix + "Text").c_str());
     v.options = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
-    v.left = label("xoai-question-left", false);
+    v.left = xoj::gui::drawnTextNew("");  // (a countdown: no re-layout each second)
+    gtk_style_context_add_class(gtk_widget_get_style_context(v.left), "xoai-question-left");
     gtk_buildable_set_name(GTK_BUILDABLE(v.left), (prefix + "Left").c_str());
     gtk_box_pack_start(GTK_BOX(box), v.who, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(box), v.text, FALSE, FALSE, 0);
@@ -240,11 +242,12 @@ void QuestionPanel::refresh(View& v) {
     }
     const int front = queue.empty() ? 0 : queue.front().id;
     if (front == v.shownId) {
-        if (!queue.empty() && queue.size() > 1) {  // (only the counter may have changed)
-            gtk_label_set_text(GTK_LABEL(v.who), (queue.front().who + " спрашивает · 1/" +
-                                                  std::to_string(queue.size())).c_str());
-        } else if (!queue.empty()) {
-            gtk_label_set_text(GTK_LABEL(v.who), (queue.front().who + " спрашивает").c_str());
+        if (!queue.empty()) {  // (only the counter may have changed: set only if it did, a label re-lays out)
+            const std::string who = queue.front().who + " спрашивает" +
+                                    (queue.size() > 1 ? " · 1/" + std::to_string(queue.size()) : "");
+            if (who != gtk_label_get_text(GTK_LABEL(v.who))) {
+                gtk_label_set_text(GTK_LABEL(v.who), who.c_str());
+            }
         }
         return;  // (the same question: its buttons stay, a tap on them is never lost)
     }
@@ -262,7 +265,7 @@ void QuestionPanel::refresh(View& v) {
         gtk_label_set_text(GTK_LABEL(v.who), "❓ Вопросы агентов");
         gtk_label_set_text(GTK_LABEL(v.text), "Вопросов нет");
         gtk_style_context_add_class(textCtx, "xoai-question-idle");
-        gtk_label_set_text(GTK_LABEL(v.left), "");
+        xoj::gui::drawnTextSet(v.left, "");
         return;
     }
     gtk_style_context_remove_class(textCtx, "xoai-question-idle");

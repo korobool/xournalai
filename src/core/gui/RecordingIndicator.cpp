@@ -1,3 +1,4 @@
+#include "gui/DrawnText.h"  // for drawnTextNew
 #include "RecordingIndicator.h"
 
 #include <algorithm>  // for clamp, copy
@@ -10,7 +11,7 @@ namespace xoj::gui {
 namespace {
 constexpr int WAVE_WIDTH = 86;
 constexpr int WAVE_HEIGHT = 18;
-constexpr guint FRAME_MS = 100;  // (10 frames a second: enough for a level meter; 20 redrew the window too often)
+constexpr guint FRAME_MS = 125;  // (8 frames a second: enough for a level meter; 20 redrew the window too often)
 
 void named(GtkWidget* w, const char* name) {
     gtk_widget_set_name(w, name);
@@ -30,7 +31,8 @@ RecordingIndicator::RecordingIndicator(GtkWidget* mainBox, Source src): source(s
     gtk_widget_set_valign(wave, GTK_ALIGN_CENTER);
     g_signal_connect(wave, "draw", G_CALLBACK(onDraw), this);
 
-    label = gtk_label_new("");
+    // (the running time: a text that draws itself; a label's new text each second repainted the whole window)
+    label = xoj::gui::drawnTextNew("");
     named(label, "recordingIndicatorLabel");
 
     stop = gtk_button_new_with_label("Stop");
@@ -226,7 +228,7 @@ void RecordingIndicator::updateLabel() {
     gchar* text = seconds >= 3600 ?
                           g_strdup_printf("%s %d:%02d:%02d", what, seconds / 3600, seconds / 60 % 60, seconds % 60) :
                           g_strdup_printf("%s %d:%02d", what, seconds / 60, seconds % 60);
-    gtk_label_set_text(GTK_LABEL(label), text);
+    xoj::gui::drawnTextSet(label, text);
     g_free(text);
 }
 
