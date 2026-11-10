@@ -32,6 +32,27 @@ std::string escapeQuery(const std::string& q) {
     return out;
 }
 
+/// The mark of a kept page in its title (put back when a site rewrites its title)
+constexpr const char* STAR = "★ ";
+const char* const MARK_TITLE =
+        "(() => { if (!document.title.startsWith('★ ')) { document.title = '★ ' + document.title; } return "
+        "document.title; })()";
+
+/// An address as the same page: without its fragment or a trailing slash
+std::string sameAddress(std::string url) {
+    if (const auto hash = url.find('#'); hash != std::string::npos) {
+        url.erase(hash);
+    }
+    while (!url.empty() && url.back() == '/') {
+        url.pop_back();
+    }
+    return url;
+}
+
+std::string withoutStar(const std::string& title) {
+    return title.rfind(STAR, 0) == 0 ? title.substr(std::string(STAR).size()) : title;
+}
+
 /// What `read` and `saveImage` count as a picture: big enough to mean something
 const char* const PICTURES = "[...document.images].filter(i => i.naturalWidth >= 100 && i.naturalHeight >= 60)";
 
@@ -839,23 +860,183 @@ void ResearchBrowser::list(Done done) {
             return;
         }
         json tabs = json::array();
+        std::set<std::string> present;
         for (const auto& t: all.is_array() ? all : json::array()) {
             if (t.value("type", "") != "page") {
                 continue;
             }
-            json tab = {{"tab", t.value("id", "")}, {"url", t.value("url", "")}, {"title", t.value("title", "")}};
-            if (auto it = topics.find(t.value("id", "")); it != topics.end()) {
+            const std::string id = t.value("id", "");
+            present.insert(id);
+            json tab = {{"tab", id}, {"url", t.value("url", "")}, {"title", t.value("title", "")}};
+            if (auto it = topics.find(id); it != topics.end()) {
                 tab["topic"] = it->second;
             }
+            if (isKept(t)) {
+                tab["kept"] = true;
+                if (auto k = kept.find(id); k != kept.end()) {
+                    tab["note"] = k->second.note;
+                    if (t.value("title", "").rfind(STAR, 0) != 0) {
+                        evaluate(id, MARK_TITLE, [](const json&, const std::string&) {});  // (the site rewrote it)
+                    }
+                }
+            }
+            if (isSeen(id)) {
+                tab["seen"] = true;
+            }
             tabs.push_back(std::move(tab));
+        }
+        for (auto it = kept.begin(); it != kept.end();) {  // (closed by him)
+            it = present.count(it->first) ? std::next(it) : kept.erase(it);
         }
         done({{"tabs", tabs}}, "");
     });
 }
 
-void ResearchBrowser::close(const std::string& tab, Done done) {
+bool ResearchBrowser::isKept(const json& tab) const {
+    return kept.count(tab.value("id", "")) > 0 || tab.value("title", "").rfind(STAR, 0) == 0;
+}
+
+void ResearchBrowser::closeTab(const std::string& tab, Done done) {
     topics.erase(tab);
+    kept.erase(tab);
     http("GET", "/json/close/" + tab, [done](const json&, const std::string& error) { done(nullptr, error); });
+}
+
+void ResearchBrowser::close(const std::string& tab, bool ownerAsked, Done done) {
+    if (ownerAsked) {
+        closeTab(tab, done);
+        return;
+    }
+    std::weak_ptr<bool> token = alive;
+    http("GET", "/json/list", [this, token, tab, done](const json& all, const std::string& error) {
+        if (!token.lock()) {
+            return;
+        }
+        for (const auto& t: all.is_array() ? all : json::array()) {
+            if (t.value("id", "") != tab) {
+                continue;
+            }
+            if (isKept(t)) {
+                done(nullptr, "this page is kept (★): it stays open until the owner closes it (close it for him only "
+                              "when he asks: owner_asked=true)");
+            } else if (isSeen(tab)) {
+                done(nullptr, "the owner looked at this page: it stays open until he closes it (close it for him only "
+                              "when he asks: owner_asked=true)");
+            } else {
+                closeTab(tab, done);
+            }
+            return;
+        }
+        done(nullptr, error.empty() ? "no such tab: " + tab : error);
+    });
+}
+
+void ResearchBrowser::closeAll(bool ownerAsked, Done done) {
+    std::weak_ptr<bool> token = alive;
+    http("GET", "/json/list", [this, token, ownerAsked, done](const json& all, const std::string& error) {
+        if (!token.lock()) {
+            return;
+        }
+        if (!error.empty()) {
+            done(nullptr, error);
+            return;
+        }
+        json closed = json::array(), left = json::array();
+        for (const auto& t: all.is_array() ? all : json::array()) {
+            const std::string id = t.value("id", "");
+            if (t.value("type", "") != "page" || (t.value("url", "") == "about:blank" && !topics.count(id))) {
+                continue;  // (its first, empty tab: the window stays)
+            }
+            if (!ownerAsked && (isKept(t) || isSeen(id))) {
+                left.push_back({{"tab", id}, {"title", t.value("title", "")}, {"why", isKept(t) ? "kept" : "seen"}});
+                continue;
+            }
+            closeTab(id, [](const json&, const std::string&) {});
+            closed.push_back(id);
+        }
+        done({{"closed", closed}, {"left_open", left}}, "");
+    });
+}
+
+void ResearchBrowser::keep(const std::string& tab, const std::string& url, const std::string& topic,
+                           const std::string& note, Done done) {
+    std::weak_ptr<bool> token = alive;
+    http("GET", "/json/list", [this, token, tab, url, topic, note, done](const json& all, const std::string& error) {
+        if (!token.lock()) {
+            return;
+        }
+        if (!error.empty()) {
+            done(nullptr, error);
+            return;
+        }
+        json found;
+        for (const auto& t: all.is_array() ? all : json::array()) {
+            if (t.value("type", "") == "page" &&
+                (t.value("id", "") == tab ||
+                 (tab.empty() && !url.empty() && sameAddress(t.value("url", "")) == sameAddress(url)))) {
+                found = t;
+                break;
+            }
+        }
+        if (!found.is_object()) {
+            done(nullptr, tab.empty() ? "no tab with that address: " + url : "no such tab: " + tab);
+            return;
+        }
+        const std::string id = found.value("id", "");
+        Kept k{topic.empty() && topics.count(id) ? topics[id] : topic, note, found.value("url", ""),
+               withoutStar(found.value("title", ""))};
+        if (!k.topic.empty()) {
+            topics[id] = k.topic;
+        }
+        kept[id] = k;
+        appendSource(k);
+        evaluate(id, MARK_TITLE, [id, k, done](const json&, const std::string&) {
+            done({{"tab", id}, {"url", k.url}, {"title", k.title}, {"topic", k.topic}, {"kept", true}}, "");
+        });
+    });
+}
+
+void ResearchBrowser::appendSource(const Kept& k) const {
+    // (every kept page, also after the browser: <data>/xournalai/research/sources.jsonl)
+    std::error_code ec;
+    const fs::path file = settings.profileDir.parent_path() / "research" / "sources.jsonl";
+    fs::create_directories(file.parent_path(), ec);
+    GDateTime* now = g_date_time_new_now_local();
+    gchar* when = g_date_time_format_iso8601(now);
+    std::ofstream out(file, std::ios::app);
+    out << json({{"time", when}, {"topic", k.topic}, {"url", k.url}, {"title", k.title}, {"note", k.note}}).dump()
+        << "\n";
+    g_free(when);
+    g_date_time_unref(now);
+}
+
+void ResearchBrowser::sources(Done done) {
+    std::weak_ptr<bool> token = alive;
+    list([this, token, done](const json& r, const std::string& error) {
+        if (!token.lock()) {
+            return;
+        }
+        if (!error.empty()) {
+            done(nullptr, error);
+            return;
+        }
+        std::map<std::string, json> byTopic;
+        for (const auto& t: r.value("tabs", json::array())) {
+            if (!t.value("kept", false)) {
+                continue;
+            }
+            json page = {{"url", t.value("url", "")}, {"title", withoutStar(t.value("title", ""))}};
+            if (t.contains("note")) {
+                page["note"] = t["note"];
+            }
+            byTopic[t.value("topic", "")].push_back(std::move(page));
+        }
+        json out = json::array();
+        for (auto& [topic, pages]: byTopic) {
+            out.push_back({{"topic", topic}, {"pages", pages}});
+        }
+        done({{"sources", out}}, "");
+    });
 }
 
 void ResearchBrowser::evaluate(const std::string& tab, const std::string& expression, Done done) {

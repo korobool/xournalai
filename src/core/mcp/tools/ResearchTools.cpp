@@ -28,7 +28,14 @@ void registerResearchTools(McpServer& server) {
             "notations\") → its tab. op=list: the tabs (tab, url, title, topic). op=read: tab, max_chars (default "
             "6000) → title, url, the page's text, its pictures (n, src, alt, width, height) and the owner's selection. "
             "op=image: tab, n (a picture's number from read) → it is saved to a file: path, width, height, source, "
-            "title; place it with create_image(path, …) and a small source line under it. op=close: tab, or all=true. "
+            "title; place it with create_image(path, …) and a small source line under it. "
+            "Target pages and intermediate ones (the owner, 10 Nov): a target page is what he asked for or what was "
+            "looked for (the article, the paper, the entity's page); search results, steps along a site and pages that "
+            "turned out off topic are intermediate. op=keep: tab, or url (a page reached through the extension), "
+            "topic, note (what it is) → a ★ in its title; it stays open until he closes it. op=close: tab, or "
+            "all=true → closes intermediate pages; a kept page or one he looked at is refused (all=true leaves them), "
+            "unless he asked for it (owner_asked=true). Close intermediate pages as soon as you are past them. "
+            "op=sources: the kept pages by topic (for the «🔎 Sources» card at the end). "
             "This tool itself only opens, reads and closes tabs and saves pictures. Never log in, buy, pay or type "
             "passwords there; posting, sending, uploading or downloading anything else needs the owner's tap first "
             "(ask_owner). Close the tabs you no longer need; keep a few at a time. op=signin: opens the browser for "
@@ -37,7 +44,8 @@ void registerResearchTools(McpServer& server) {
             "and then it is back, connected. Use it when he asks to sign in there, or when a sign-in is refused (\"This "
             "browser or app may not be secure\").";
     t.inputSchema = schema::object(
-            {{"op", schema::enumeration("Operation", {"open", "list", "read", "image", "close", "signin"})},
+            {{"op", schema::enumeration("Operation",
+                                        {"open", "list", "read", "image", "close", "signin", "keep", "sources"})},
              {"query", schema::string("open: what to search for")},
              {"kind", schema::enumeration("open: where to search", {"web", "images", "wiki", "scholar"})},
              {"url", schema::string("open: a page to open instead of a search")},
@@ -45,13 +53,17 @@ void registerResearchTools(McpServer& server) {
              {"tab", schema::string("read/image/close: the tab")},
              {"max_chars", schema::integer("read: at most this much text (default 6000)")},
              {"n", schema::integer("image: the picture's number (from read)")},
-             {"all", schema::boolean("close: every tab")}},
+             {"all", schema::boolean("close: every intermediate tab")},
+             {"note", schema::string("keep: what the page is (\"the SMILES article\")")},
+             {"owner_asked", schema::boolean("close: the owner asked to close it (also a kept page or one he looked at)")}},
             {"op"});
     t.tier = Tier::Ui;
     t.asyncHandler = [srv](const json& j, Responder respond) {
         Args args(j);
-        args.rejectUnknown({"op", "query", "kind", "url", "topic", "tab", "max_chars", "n", "all"});
-        const std::string op = args.choice("op", {"open", "list", "read", "image", "close", "signin"}, "");
+        args.rejectUnknown(
+                {"op", "query", "kind", "url", "topic", "tab", "max_chars", "n", "all", "note", "owner_asked"});
+        const std::string op =
+                args.choice("op", {"open", "list", "read", "image", "close", "signin", "keep", "sources"}, "");
         McpUi* ui = srv->getUi();
         assistant::ResearchBrowser* b = ui ? ui->research() : nullptr;
         if (!b) {
@@ -104,26 +116,18 @@ void registerResearchTools(McpServer& server) {
         } else if (op == "image") {
             const fs::path folder = fs::path(g_get_user_data_dir()) / "xournalai" / "research" / "images";
             b->saveImage(args.str("tab"), static_cast<int>(args.integer("n", 0, 0, 1000)), folder, reply);
+        } else if (op == "keep") {
+            if (!args.has("tab") && !args.has("url")) {
+                throw ToolError("keep: tab or url");
+            }
+            b->keep(args.str("tab", ""), args.str("url", ""), args.str("topic", ""), args.str("note", ""), reply);
+        } else if (op == "sources") {
+            b->sources(reply);
         } else if (args.boolean("all", false)) {
-            b->list([b, reply](const json& r, const std::string& error) {
-                if (!error.empty()) {
-                    reply(nullptr, error);
-                    return;
-                }
-                json closed = json::array();
-                for (const auto& tab: r.value("tabs", json::array())) {
-                    if (tab.value("url", "") == "about:blank" && !tab.contains("topic")) {
-                        continue;  // (its first, empty tab: the window stays)
-                    }
-                    b->close(tab.value("tab", ""), [](const json&, const std::string&) {});
-                    closed.push_back(tab.value("tab", ""));
-                }
-                reply({{"closed", closed}}, "");
-            });
+            b->closeAll(args.boolean("owner_asked", false), reply);
         } else {
-            b->close(args.str("tab"), [reply](const json&, const std::string& error) {
-                reply({{"closed", true}}, error);
-            });
+            b->close(args.str("tab"), args.boolean("owner_asked", false),
+                     [reply](const json&, const std::string& error) { reply({{"closed", true}}, error); });
         }
     };
     server.getRegistry().addTool(std::move(t));

@@ -24,6 +24,7 @@
 
 #include <functional>  // for function
 #include <map>         // for map
+#include <set>         // for set
 #include <memory>      // for shared_ptr
 #include <string>      // for string
 #include <vector>      // for vector
@@ -76,7 +77,18 @@ public:
     void read(const std::string& tab, size_t maxChars, Done done);
     /// Saves picture `n` of a tab (as `read` numbers them) into `folder`: path, width, height, source
     void saveImage(const std::string& tab, int n, const fs::path& folder, Done done);
-    void close(const std::string& tab, Done done);
+    /// Closes a tab; one that is kept (★) or that he looked at only when he asked for it (`ownerAsked`)
+    void close(const std::string& tab, bool ownerAsked, Done done);
+    /// Closes the tabs: all but the kept ones and those he looked at (unless he asked); its first, empty tab stays
+    void closeAll(bool ownerAsked, Done done);
+    /// A target page (what was looked for, or what he asked for: the owner, 10 Nov): ★ in its title, never closed by
+    /// an agent, open until he closes it. By tab, or by its address (a page an agent reached through the extension)
+    void keep(const std::string& tab, const std::string& url, const std::string& topic, const std::string& note,
+              Done done);
+    /// The kept pages, by topic
+    void sources(Done done);
+    /// He looked at this tab (in front while he was in the browser): an agent doesn't close it
+    void markSeen(const std::string& tab) { seen.insert(tab); }
     /// The owner's selection in the tab he looks at (or any tab with one): text, url, title
     void selection(Done done);
     /// The Claude in Chrome extension is installed in its profile (agents click, type and navigate through it)
@@ -135,6 +147,16 @@ private:
     bool launching = false;
     std::vector<std::function<void(const std::string&)>> waiting;  ///< (ensure() while it starts)
     std::map<std::string, std::string> topics;                     ///< tab → topic
+    struct Kept {
+        std::string topic, note, url, title;
+    };
+    std::map<std::string, Kept> kept;  ///< tab → why it is kept (a ★ in a title counts too: after a restart)
+    std::set<std::string> seen;        ///< the tabs he looked at
+    /// Whether a tab of /json/list is kept, or he looked at it
+    bool isKept(const nlohmann::json& tab) const;
+    bool isSeen(const std::string& tab) const { return seen.count(tab) > 0; }
+    void closeTab(const std::string& tab, Done done);
+    void appendSource(const Kept& k) const;
     GSubprocess* process = nullptr;  ///< the browser it started (closeOnExit)
     std::shared_ptr<bool> alive = std::make_shared<bool>(true);
 };

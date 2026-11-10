@@ -230,3 +230,35 @@ def test_7_tabs_open_in_the_background_and_stay_awake(app):
     ticks = int(r["text"].split("ticks:")[1].split()[0])
     assert ticks >= 20, f"a background tab counted only {ticks} ticks in 4 s (throttled: about 4)"
     c.call("research", op="close", tab=tab)
+
+
+def test_8_target_pages_are_kept_until_he_closes_them(app):
+    # (the owner, 10 Nov: keep the pages with what was looked for; the search results and steps on the way go; the kept
+    # ones stay open until he closes them himself)
+    c = app.client()
+    target = c.call("research", op="open", query="kept article", topic="T7 SMILES")["tab"]
+    step = c.call("research", op="open", query="a step on the way", topic="T7 SMILES")["tab"]
+    other = c.call("research", op="open", url=f"{BASE}/search?kind=web&q=reached+by+clicks")["tab"]
+    wait(lambda: all(c.call("research", op="read", tab=t)["title"].startswith("Results") for t in (target, step, other)))
+    k = c.call("research", op="keep", tab=target, note="the article itself")
+    assert k["kept"] and k["topic"] == "T7 SMILES", k
+    # a page an agent reached through the extension: kept by its address
+    assert c.call("research", op="keep", url=f"{BASE}/search?kind=web&q=reached+by+clicks", topic="T7 SMILES",
+                  note="found by clicking")["tab"] == other
+    assert wait(lambda: c.call("research", op="read", tab=target)["title"].startswith("★ Results")), "★ in its title"
+    tabs = {t["tab"]: t for t in c.call("research", op="list")["tabs"]}
+    assert tabs[target]["kept"] and tabs[target]["note"] == "the article itself" and not tabs[step].get("kept"), tabs
+    assert "kept" in c.call_error("research", op="close", tab=target)
+    r = c.call("research", op="close", all=True)
+    assert step in r["closed"] and target not in r["closed"] and other not in r["closed"], r
+    assert {t["tab"] for t in r["left_open"]} == {target, other}, r
+    src = c.call("research", op="sources")["sources"]
+    assert src == [{"topic": "T7 SMILES", "pages": src[0]["pages"]}] and len(src[0]["pages"]) == 2, src
+    assert {p["note"] for p in src[0]["pages"]} == {"the article itself", "found by clicking"}, src
+    assert not any(p["title"].startswith("★") for p in src[0]["pages"]), src
+    log = (app.home / "data" / "xournalai" / "research" / "sources.jsonl").read_text().splitlines()
+    assert any(json.loads(l)["note"] == "the article itself" for l in log), log
+    # he asks to close it: then it goes
+    assert c.call("research", op="close", tab=target, owner_asked=True)["closed"]
+    assert target not in {t["tab"] for t in c.call("research", op="list")["tabs"]}
+

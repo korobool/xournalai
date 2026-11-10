@@ -4145,9 +4145,11 @@
               "id": "T15.22.2",
               "story": "US-15.27",
               "title": "Target pages kept (★) until he closes them; intermediate pages closed as the agent goes",
-              "details": "The owner: keep the tabs with the content that was looked for (what he asked for, the entities he needs); search results and steps along a site are not needed; target tabs stay open until he closes them himself. research op=keep (tab or url, note): ★ in its title, kept; op=close refuses a kept tab or one he looked at (the tab in front while he was in the browser), all=true skips them; op=sources: the kept pages by topic (also appended to <data>/xournalai/research/sources.jsonl). The skill: close intermediate pages as soon as you are past them; a «🔎 Sources» card at the end.",
-              "commit": "",
-              "status": "todo"
+              "details": "The owner: keep the tabs with the content that was looked for (what he asked for, the entities he needs); search results and steps along a site are not needed; target tabs stay open until he closes them himself. research op=keep (tab or url, note): ★ in its title, kept; op=close refuses a kept tab or one he looked at (the tab in front while he was in the browser), all=true skips them; op=sources: the kept pages by topic (also appended to <data>/xournalai/research/sources.jsonl). The skill: close intermediate pages as soon as you are past them; a «🔎 Sources» card at the end. A ★ at the start of a title counts as kept also when the app has restarted while the browser kept running. The closing tool's all=true answers closed and left_open (with why: kept or seen). The worker's brief: keep its target pages, close its intermediate ones before it ends. test_e17_research test_8 (keep by tab and by address, the ★, close refused, all=true leaving the kept ones, sources by topic without the ★, the log, owner_asked); the tabs he looked at come with the focus guard (T15.22.4).",
+              "commit": "ai: target pages kept (★) until he closes them; intermediate pages closed as the agent goes",
+              "status": "done",
+              "started": "2026-11-10T10:10:25+00:00",
+              "finished": "2026-11-10T10:12:40+00:00"
             },
             {
               "id": "T15.22.3",

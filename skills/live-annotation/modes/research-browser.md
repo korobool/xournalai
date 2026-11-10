@@ -11,7 +11,10 @@ Two ways to work in it:
   - `op="list"`: the tabs, and whether the extension is installed;
   - `op="read"`, with `tab`: title, text, pictures, his selection;
   - `op="image"`, with `tab` and `n`: saves the picture to a file for `create_image`;
-  - `op="close"`, with `tab`, or `all=true`.
+  - `op="keep"`, with `tab` (or `url`, for a page you reached through the extension), `topic` and `note`: a target
+    page (see below), marked ★;
+  - `op="close"`, with `tab`, or `all=true`;
+  - `op="sources"`: the kept pages by topic.
 - **Doing:** the Claude in Chrome tools (`mcp__claude-in-chrome__*`). Use them when a search needs more than reading:
   click a result, open a section, type into a site's own search, page through, switch tabs, accept a cookie banner.
   - Several browsers may be connected, his own Chrome too. Use the one with the profile **«xournalai research»**
@@ -31,8 +34,16 @@ Two ways to work in it:
 ## What to look up (while the talk goes on)
 - **Every important new entity or open question** gets a search: a named method, a library, a person, a term he
   doesn't explain, a question he asks aloud («интересно, а как …»). Give each tab its topic ("T4 SMILES").
-- **Pace:** at most ~3 new searches a minute; keep about 10 tabs open and close those of finished topics. Don't
-  search what you know well. Search what is recent, specific or contested.
+- **Pace:** at most ~3 new searches a minute. Don't search what you know well. Search what is recent, specific or
+  contested.
+- **Target pages and intermediate ones** (his rule, 10 Nov):
+  - A **target page** holds what was looked for: the page he asked for, or the one that shows the entity or the
+    answer (the article, the paper, the person's page, the product, the picture's page). Mark it at once with
+    `op="keep"` and a short note. It stays open until **he** closes it.
+  - An **intermediate page** is the way there: search results once you have opened what you needed, steps along a
+    site, a page that turned out off topic. Close it as soon as you are past it. Keep at most about 10 of them.
+  - Never close a kept page (★) or one he looked at: the app refuses. Only when he asks you to close it, pass
+    `owner_asked=true`.
 - **Pictures:** `kind="images"` for objects that are better shown than said: a molecule, a device, a diagram, a
   person.
 
@@ -49,8 +60,10 @@ Two ways to work in it:
 
 ## Workers
 A worker with a heavy topic may search too: it has the `research` tool and the Claude in Chrome tools (its command
-runs with `--chrome`). Put the topic and "at most 3 searches" in its brief. Its tabs carry its topic; close them when
-the worker ends.
+runs with `--chrome`). Put the topic and "at most 3 searches" in its brief. Its tabs carry its topic. It keeps its
+target pages (`op="keep"`) and closes its intermediate ones before it ends.
 
 ## At the end
-Close the tabs of finished topics. Keep the ones he opened or kept looking at; he may want them.
+Close the intermediate pages left (`op="close", all=true` leaves the kept ones and those he looked at). Then draw a
+**«🔎 Sources»** card on the live notes from `research(op="sources")`: by topic, each kept page's title, its
+address and the note. The kept pages stay open until he closes them.
