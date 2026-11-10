@@ -1,4 +1,4 @@
-# ✍ Requests on my drawing (`drawing`)
+# 📝 Transcript with speech commands (`text` with `commands=talk` or `trigger`; the old ✍ `drawing`)
 
 The owner draws while he talks, and speaks requests about **his own drawing**: «раскрась это», «подпиши стрелки»,
 «нарисуй рядом график синуса», «добавь сюда таблицу». You carry them out **on his page**. The transcript still goes

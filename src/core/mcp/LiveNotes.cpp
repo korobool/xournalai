@@ -547,14 +547,33 @@ void LiveNotes::pumpLater() {
             +[](gpointer d) { delete static_cast<std::pair<std::weak_ptr<bool>, LiveNotes*>*>(d); });
 }
 
+void LiveNotes::reconfigure(const std::string& modeLine, const std::string& guide, const std::string& rule,
+                            bool wakeWhileTalking, std::vector<std::string> triggerWords, bool wakeOnlyForTrigger) {
+    opt.modeLine = modeLine;
+    opt.guide = guide;
+    opt.rule = rule;
+    opt.wakeWhileTalking = wakeWhileTalking;
+    opt.triggerWords = std::move(triggerWords);
+    opt.wakeOnlyForTrigger = wakeOnlyForTrigger;
+    maybeWake();
+}
+
 void LiveNotes::maybeWake() {
     if (!wake || opt.voice) {
         return;  // (🎙: woken with each command, not for speech)
     }
     int unread = 0;
+    bool triggered = false;  // (📝 with 🔤: a new phrase starting with the trigger phrase)
     for (const auto& [i, p]: pieces) {
-        unread += (i > lastRead && i <= lastWritten() && p.ok && !p.text.empty()) ? 1 : 0;
+        const bool fresh = i > lastRead && i <= lastWritten() && p.ok && !p.text.empty();
+        unread += fresh ? 1 : 0;
+        if (fresh && opt.wakeOnlyForTrigger) {
+            auto rest = afterTrigger(p.text, opt.triggerWords);
+            triggered = triggered || (rest && !rest->empty());
+        }
     }
+    // (📝 with 🔤: only context so far: nobody is woken for it)
+    const bool speechWorthWaking = !opt.wakeOnlyForTrigger || triggered;
     std::string page = "?";
     if (auto n = pageNumber(0)) {
         page = std::to_string(*n);
@@ -572,7 +591,7 @@ void LiveNotes::maybeWake() {
                                                         "its modes/research-browser.md)" :
                                                         " (the options: its modes/options.md)";
     const std::string context = opt.context ? opt.context() : "";
-    if (opt.wakeWhileTalking && unread > 0 && !wakePending) {
+    if (opt.wakeWhileTalking && unread > 0 && !wakePending && speechWorthWaking) {
         wakePending = true;
         wake(head + ": new transcribed speech." + modeSentence + " Call live_notes(op=\"read\") and continue as " +
              guide +
@@ -587,7 +606,8 @@ void LiveNotes::maybeWake() {
              " describes for this mode" + options +
              " (live_notes(op=\"status\") tells where)." +
              (opt.summary ? " The option «Summary at the end» is on: write the summary page too." : ""));
-    } else if (!opt.wakeWhileTalking && opt.summary && done() && !endWoken && lastWritten() > 0) {
+    } else if ((!opt.wakeWhileTalking || (opt.wakeOnlyForTrigger && lastRead == 0)) && opt.summary && done() &&
+               !endWoken && lastWritten() > 0) {
         endWoken = true;  // (📝 Текст: the transcript only, and the summary page it asked for at the end)
         wake(head + " ended: the whole text is in." + modeSentence + " The option «Summary at the end» is on: read it all "
                     "(live_notes(op=\"read\", since=0)) and write the summary page after the live-notes pages, as "

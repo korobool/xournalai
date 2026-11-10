@@ -74,9 +74,18 @@ public:
         bool on = false;
         bool available = true;
     };
+    /// The switch «Speech commands» (1.20.0): its three levels, above the tiles (and, during a recording, its chip)
+    struct RecordLevel {
+        std::string id, label, situation;  ///< off | trigger | talk; "🛡 Commands off"; "others talking, a video"
+        bool on = false;
+    };
     std::function<std::vector<RecordChoice>()> recordChoices;
     std::function<std::vector<RecordToggle>()> recordToggles;
+    std::function<std::vector<RecordLevel>()> recordLevels;
+    std::function<void(const std::string& id)> onRecordLevel;
     std::function<void(const std::string& id, bool on)> onRecordToggle;
+    /// During a recording: its commands level on the chip next to ✂ (`offAllowed`: 🛡 offered; not for 🎙)
+    void setLiveCommands(const std::string& level, bool offAllowed);
     std::function<void(const std::string& mode)> onLiveRecord;  ///< a mode's tile chosen
     std::function<void()> onCut;         ///< ✂ tapped
     std::function<void(bool down)> onTalk;  ///< 🎙 «Hold to talk» pressed / let go
@@ -138,6 +147,9 @@ private:
     bool isRecording() const;
     void drawRecordFace(GtkWidget* w, cairo_t* cr);
     GtkWidget* cutButton = nullptr;  ///< weak: ✂, next to Record during live notes
+    GtkWidget* levelChip = nullptr;  ///< weak: 🛡/🔤/💬 next to ✂ during live notes (tap: change it)
+    bool levelOffAllowed = true;
+    void openLevelMenu();
     GtkWidget* talkButton = nullptr;  ///< weak: 🎙 «Hold to talk», next to Record
     bool researchActive = false;  ///< the research browser runs
     int researchNew = 0;          ///< its tabs opened while he wasn't looking (the Tools panel's browser tile)

@@ -198,6 +198,9 @@ QuickTools::~QuickTools() {
     if (cutButton) {
         g_object_remove_weak_pointer(G_OBJECT(cutButton), reinterpret_cast<gpointer*>(&cutButton));
     }
+    if (levelChip) {
+        g_object_remove_weak_pointer(G_OBJECT(levelChip), reinterpret_cast<gpointer*>(&levelChip));
+    }
     if (talkPress) {
         g_object_unref(talkPress);
     }
@@ -499,6 +502,7 @@ constexpr const char* CSS =
         ".xoai-mode-name { font-weight: bold; font-size: 1.0em; }"
         ".xoai-mode-hint { font-size: 0.8em; opacity: 0.75; }"
         ".xoai-mode-badges { font-size: 0.95em; }"
+        ".xoai-level-chip { border-radius: 16px; font-size: 22px; padding: 4px 6px; }"
         ".xoai-pin-button { color: #ffffff; border: none; border-radius: 16px; padding: 6px 10px;"
         "  background-image: linear-gradient(160deg, #f0a43a, #d0731b); box-shadow: 0 2px 0 alpha(#000000, 0.2); }"
         ".xoai-pin-button label { color: #ffffff; font-weight: bold; }"
@@ -872,6 +876,19 @@ void QuickTools::placeButton(GtkWidget* mainBox, const std::vector<GtkWidget*>& 
     gtk_widget_set_no_show_all(cutButton, TRUE);
     gtk_box_pack_end(GTK_BOX(outer), cutButton, FALSE, FALSE, 0);
 
+    // 🛡/🔤/💬 during a recording: its speech commands, changed with a tap (someone came in, a video started)
+    levelChip = gtk_button_new_with_label("💬");
+    gtk_style_context_add_class(gtk_widget_get_style_context(levelChip), "xoai-level-chip");
+    gtk_widget_set_size_request(levelChip, 56, -1);
+    g_object_set(levelChip, "margin", 4, "margin-end", 0, nullptr);
+    gtk_widget_set_can_focus(levelChip, FALSE);
+    gtk_widget_set_tooltip_text(levelChip, "Speech commands of this recording: tap to change");
+    gtk_buildable_set_name(GTK_BUILDABLE(levelChip), "aiLiveLevelChip");
+    g_signal_connect(levelChip, "clicked",
+                     G_CALLBACK(+[](GtkButton*, gpointer d) { static_cast<QuickTools*>(d)->openLevelMenu(); }), this);
+    gtk_widget_set_no_show_all(levelChip, TRUE);
+    gtk_box_pack_end(GTK_BOX(outer), levelChip, FALSE, FALSE, 0);
+
     // 🎙 «Держи и говори»: hold it while saying a command; its own recording, whatever Record does; big, for a thumb
     talkButton = gtk_button_new();
     // (a microphone and «Hold»: the owner, 10 Nov, the row had grown too long; red while held)
@@ -967,6 +984,9 @@ void QuickTools::placeButton(GtkWidget* mainBox, const std::vector<GtkWidget*>& 
     gtk_widget_set_no_show_all(cutButton, TRUE);
     gtk_widget_hide(cutButton);
     g_object_add_weak_pointer(G_OBJECT(cutButton), reinterpret_cast<gpointer*>(&cutButton));
+    gtk_widget_set_no_show_all(levelChip, TRUE);
+    gtk_widget_hide(levelChip);
+    g_object_add_weak_pointer(G_OBJECT(levelChip), reinterpret_cast<gpointer*>(&levelChip));
     gtk_widget_set_no_show_all(talkButton, FALSE);
     gtk_widget_show_all(talkButton);  // (its content; the button itself with Record)
     gtk_widget_set_no_show_all(talkButton, TRUE);
@@ -1086,6 +1106,72 @@ void QuickTools::setLiveActive(bool on, bool voice) {
     if (cutButton) {
         gtk_widget_set_visible(cutButton, on);
     }
+    if (levelChip && !on) {
+        gtk_widget_set_visible(levelChip, false);
+    }
+}
+
+void QuickTools::setLiveCommands(const std::string& level, bool offAllowed) {
+    levelOffAllowed = offAllowed;
+    if (!levelChip) {
+        return;
+    }
+    const char* sign = level == "off" ? "🛡" : level == "trigger" ? "🔤" : "💬";
+    gtk_button_set_label(GTK_BUTTON(levelChip), sign);
+    gtk_widget_set_visible(levelChip, true);
+}
+
+void QuickTools::openLevelMenu() {
+    if (!levelChip || !recordLevels) {
+        return;
+    }
+    closePopover();
+    addCss();
+    popover = gtk_popover_new(levelChip);
+    g_object_add_weak_pointer(G_OBJECT(popover), reinterpret_cast<gpointer*>(&popover));
+    gtk_popover_set_position(GTK_POPOVER(popover), GTK_POS_BOTTOM);
+    gtk_buildable_set_name(GTK_BUILDABLE(popover), "aiLiveLevelMenu");
+    GtkWidget* box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+    g_object_set(box, "margin", 10, nullptr);
+    for (const auto& l: recordLevels()) {
+        GtkWidget* b = gtk_button_new_with_label((l.label + "\n" + l.situation).c_str());
+        gtk_label_set_justify(GTK_LABEL(gtk_bin_get_child(GTK_BIN(b))), GTK_JUSTIFY_CENTER);
+        gtk_style_context_add_class(gtk_widget_get_style_context(b), "xoai-record-chip");
+        if (l.on) {
+            gtk_style_context_add_class(gtk_widget_get_style_context(b), "xoai-chip-on");
+        }
+        gtk_widget_set_can_focus(b, FALSE);
+        gtk_widget_set_sensitive(b, l.id != "off" || levelOffAllowed);
+        gtk_buildable_set_name(GTK_BUILDABLE(b), ("aiLiveLevel-" + l.id).c_str());
+        g_object_set_data_full(G_OBJECT(b), "level", g_strdup(l.id.c_str()), g_free);
+        g_signal_connect(b, "clicked", G_CALLBACK(+[](GtkButton* b, gpointer d) {
+                             auto* self = static_cast<QuickTools*>(d);
+                             const std::string id = static_cast<const char*>(g_object_get_data(G_OBJECT(b), "level"));
+                             if (self->popover) {
+                                 gtk_popover_popdown(GTK_POPOVER(self->popover));
+                             }
+                             if (self->onRecordLevel) {
+                                 self->onRecordLevel(id);
+                             }
+                         }),
+                         this);
+        gtk_box_pack_start(GTK_BOX(box), b, FALSE, FALSE, 0);
+    }
+    gtk_container_add(GTK_CONTAINER(popover), box);
+    g_signal_connect(popover, "closed", G_CALLBACK(+[](GtkPopover* p, gpointer) {
+                         g_idle_add(
+                                 [](gpointer w) -> gboolean {
+                                     if (GTK_IS_WIDGET(w) && !gtk_widget_in_destruction(GTK_WIDGET(w))) {
+                                         gtk_widget_destroy(GTK_WIDGET(w));
+                                     }
+                                     g_object_unref(w);
+                                     return G_SOURCE_REMOVE;
+                                 },
+                                 g_object_ref(p));
+                     }),
+                     nullptr);
+    gtk_widget_show_all(box);
+    gtk_popover_popup(GTK_POPOVER(popover));
 }
 
 namespace {
@@ -1110,7 +1196,8 @@ GtkWidget* modeTile(const std::string& name, const std::string& sign, const std:
     gtk_label_set_max_width_chars(GTK_LABEL(nameLabel), 16);
     gtk_style_context_add_class(gtk_widget_get_style_context(nameLabel), "xoai-mode-name");
     gtk_box_pack_start(GTK_BOX(inner), nameLabel, FALSE, FALSE, 0);
-    GtkWidget* hintLabel = gtk_label_new(available ? hint.c_str() : "soon");
+    GtkWidget* hintLabel = gtk_label_new(hint.c_str());
+    gtk_buildable_set_name(GTK_BUILDABLE(hintLabel), (name + "-hint").c_str());
     gtk_label_set_justify(GTK_LABEL(hintLabel), GTK_JUSTIFY_CENTER);
     gtk_style_context_add_class(gtk_widget_get_style_context(hintLabel), "xoai-mode-hint");
     gtk_box_pack_start(GTK_BOX(inner), hintLabel, FALSE, FALSE, 0);
@@ -1160,7 +1247,55 @@ void QuickTools::openRecordMenu() {
     GtkWidget* box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
     g_object_set(box, "margin", 10, nullptr);
 
-    // The options of the next recording, first: big toggles, remembered (one tap on a tile then starts)
+    // Speech commands, first (the safety of what is said): three big choices, one of them on (1.20.0)
+    if (recordLevels) {
+        GtkWidget* levelsRow = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+        gtk_box_set_homogeneous(GTK_BOX(levelsRow), TRUE);
+        GtkWidget* title = gtk_label_new("Speech commands");
+        gtk_widget_set_halign(title, GTK_ALIGN_START);
+        gtk_style_context_add_class(gtk_widget_get_style_context(title), "xoai-quick-heading");
+        gtk_box_pack_start(GTK_BOX(box), title, FALSE, FALSE, 0);
+        for (const auto& l: recordLevels()) {
+            GtkWidget* b = gtk_toggle_button_new_with_label((l.label + "\n" + l.situation).c_str());
+            gtk_label_set_justify(GTK_LABEL(gtk_bin_get_child(GTK_BIN(b))), GTK_JUSTIFY_CENTER);
+            gtk_style_context_add_class(gtk_widget_get_style_context(b), "xoai-record-chip");
+            gtk_widget_set_can_focus(b, FALSE);
+            gtk_buildable_set_name(GTK_BUILDABLE(b), ("aiRecordLevel-" + l.id).c_str());
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(b), l.on);
+            if (l.on) {
+                gtk_style_context_add_class(gtk_widget_get_style_context(b), "xoai-chip-on");
+            }
+            g_object_set_data_full(G_OBJECT(b), "level", g_strdup(l.id.c_str()), g_free);
+            g_signal_connect(b, "clicked", G_CALLBACK(+[](GtkButton* b, gpointer d) {
+                                 auto* self = static_cast<QuickTools*>(d);
+                                 const std::string id = static_cast<const char*>(g_object_get_data(G_OBJECT(b), "level"));
+                                 // one of the three is on: the others go off (without calling back)
+                                 GtkWidget* row = gtk_widget_get_parent(GTK_WIDGET(b));
+                                 GList* kids = gtk_container_get_children(GTK_CONTAINER(row));
+                                 for (GList* k = kids; k; k = k->next) {
+                                     GtkWidget* o = GTK_WIDGET(k->data);
+                                     const bool on = o == GTK_WIDGET(b);
+                                     g_signal_handlers_block_matched(o, G_SIGNAL_MATCH_DATA, 0, 0, nullptr, nullptr, d);
+                                     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(o), on);
+                                     g_signal_handlers_unblock_matched(o, G_SIGNAL_MATCH_DATA, 0, 0, nullptr, nullptr,
+                                                                       d);
+                                     auto* ctx = gtk_widget_get_style_context(o);
+                                     on ? gtk_style_context_add_class(ctx, "xoai-chip-on") :
+                                          gtk_style_context_remove_class(ctx, "xoai-chip-on");
+                                 }
+                                 g_list_free(kids);
+                                 if (self->onRecordLevel) {
+                                     self->onRecordLevel(id);
+                                 }
+                                 self->refreshRecordBadges();
+                             }),
+                             this);
+            gtk_box_pack_start(GTK_BOX(levelsRow), b, TRUE, TRUE, 0);
+        }
+        gtk_box_pack_start(GTK_BOX(box), levelsRow, FALSE, FALSE, 0);
+    }
+
+    // The options of the next recording: big toggles, remembered (one tap on a tile then starts)
     GtkWidget* chips = gtk_flow_box_new();
     gtk_flow_box_set_selection_mode(GTK_FLOW_BOX(chips), GTK_SELECTION_NONE);
     gtk_flow_box_set_max_children_per_line(GTK_FLOW_BOX(chips), 3);
@@ -1250,18 +1385,26 @@ void QuickTools::refreshRecordBadges() {
     if (!recordGrid || !recordChoices) {
         return;
     }
-    // the options that apply to each mode, as its tile's badges (they follow the toggles)
+    // the options that apply to each mode, as its tile's badges (they follow the toggles), and whether it can be
+    // used now (🎙 Voice only needs speech commands), with its hint
     std::map<std::string, std::string> badges;
+    std::map<std::string, bool> usable;
     for (const auto& ch: recordChoices()) {
         badges["aiRecordMode-" + ch.id + "-badges"] = ch.badges;
+        badges["aiRecordMode-" + ch.id + "-hint"] = ch.hint;
+        usable["aiRecordMode-" + ch.id] = ch.available;
     }
     std::vector<GtkWidget*> stack{recordGrid};
     while (!stack.empty()) {
         GtkWidget* w = stack.back();
         stack.pop_back();
+        const char* n = GTK_IS_BUILDABLE(w) ? gtk_buildable_get_name(GTK_BUILDABLE(w)) : nullptr;
+        if (auto u = n ? usable.find(n) : usable.end(); u != usable.end()) {
+            gtk_widget_set_sensitive(w, u->second);
+        }
         if (GTK_IS_LABEL(w)) {
-            const char* n = gtk_buildable_get_name(GTK_BUILDABLE(w));
-            if (auto it = n ? badges.find(n) : badges.end(); it != badges.end()) {
+            if (auto it = n ? badges.find(n) : badges.end(); it != badges.end() &&
+                                                            it->second != gtk_label_get_text(GTK_LABEL(w))) {
                 gtk_label_set_text(GTK_LABEL(w), it->second.c_str());
             }
         } else if (GTK_IS_CONTAINER(w)) {

@@ -11,11 +11,11 @@ transcript column, no cards. Each phrase pops up for a few seconds as a tip by t
 (or at the top), and fades.
 
 What is a command (the owner's rule, 9 Nov 2026):
-- **Without the option «Trigger phrase»** (the default): **everything he says is a dialogue with you** that may
+- **With «Speech commands: 💬 conversation»** (the default): **everything he says is a dialogue with you** that may
   hold commands. Each phrase wakes you as `Voice (recording …): «…»`. Understand it from the text: a command
   («подпиши стрелки», «нарисуй рядом график синуса», «сделай таблицу из этого») → do it; a question → answer it; just
   talk (thinking aloud, context) → nothing visible, keep it for what follows («это», «там», «её»).
-- **With the option** (the trigger phrase «Hey Assistant», also «Эй, ассистент»): only a phrase that starts with it
+- **With «Speech commands: 🔤 only Hey Assistant»** (also «Эй, ассистент»): only a phrase that starts with it
   is a command; it wakes you as `Voice command (recording …): «…»` with the phrase removed; everything else is
   context and doesn't wake you.
 - **«Hold to talk»** (a button of its own next to Record, independent of every mode, 🛡 included: the owner, 10 Nov

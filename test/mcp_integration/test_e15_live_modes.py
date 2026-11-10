@@ -55,16 +55,32 @@ def test_1_the_long_press_offers_every_mode_and_the_options(app):
     long_press(app, widgets(c)["aiRecordButton"])
     ws = widgets(c)
     tiles = [n for n in ws if n.startswith("aiRecordMode-") and not n.endswith("-badges")]
-    assert sorted(tiles) == sorted(f"aiRecordMode-{m}" for m in
-                                   ["text", "voice", "drawing", "conspect", "safe", "konspekt"]), tiles
+    # (1.20.0: the tiles say what appears on paper; ✍ = 📝 with commands, 🛡 = 🧠 with commands off)
+    tiles = [n for n in tiles if not n.endswith("-hint")]
+    assert sorted(tiles) == sorted(f"aiRecordMode-{m}" for m in ["text", "voice", "conspect", "konspekt"]), tiles
     assert "aiRecordPlain" in ws  # (the plain recording too, first)
     assert ws["aiRecordMode-voice"].get("enabled", True) is True  # (since 1.17.1)
     chips = {n: ws[n] for n in ws if n.startswith("aiRecordOpt-")}
-    assert sorted(chips) == sorted(f"aiRecordOpt-{t}" for t in ["intense", "summary", "trigger", "questions",
-                                                                "browser"]), chips
+    assert sorted(chips) == sorted(f"aiRecordOpt-{t}" for t in ["intense", "summary", "questions", "browser"]), chips
+    # one switch for speech commands (it replaced the 🛡 tile and the 🔤 option)
+    levels = {n: ws[n] for n in ws if n.startswith("aiRecordLevel-")}
+    assert sorted(levels) == ["aiRecordLevel-off", "aiRecordLevel-talk", "aiRecordLevel-trigger"], levels
+    assert levels["aiRecordLevel-off"]["label"] == "🛡 Commands off\nothers talking, a video"
+    assert levels["aiRecordLevel-trigger"]["label"] == "🔤 «Hey Assistant»\npeople around"
+    assert levels["aiRecordLevel-talk"]["label"] == "💬 Conversation\njust me"
     assert chips["aiRecordOpt-intense"]["label"] == "🌿 Economy"  # (a switch: economy, or intense)
     assert chips["aiRecordOpt-browser"].get("enabled", True) is True  # (since 1.18.0: the research browser)
-    assert "aiResearchSignIn" not in ws  # (1.18.2: in the «🔎 Browser» button's menu, not a recording's choice)
+    assert "aiResearchSignIn" not in ws  # (in the Tools panel since 1.20.0, not a recording's choice)
+    # commands off: 🎙 Voice only (nothing but commands) can't be chosen; on again: it can
+    c.call("ui_interact", op="click", target=levels["aiRecordLevel-off"]["id"])
+    ws = widgets(c)
+    assert ws["aiRecordMode-voice"].get("enabled", True) is False, ws["aiRecordMode-voice"]
+    assert ws["aiRecordMode-voice-hint"]["label"] == "needs speech commands"
+    assert json.loads(state_file(app).read_text())["options"]["commands"] == "off"
+    assert ws["aiRecordMode-conspect-badges"]["label"].startswith("🛡")
+    c.call("ui_interact", op="click", target=ws["aiRecordLevel-talk"]["id"])
+    ws = widgets(c)
+    assert ws["aiRecordMode-voice"].get("enabled", True) is True and ws["aiRecordMode-conspect-badges"]["label"].startswith("💬")
     # the options are toggled with a finger, remembered, and shown on the tiles they apply to
     c.call("ui_interact", op="click", target=chips["aiRecordOpt-intense"]["id"])
     c.call("ui_interact", op="click", target=chips["aiRecordOpt-summary"]["id"])
@@ -72,8 +88,8 @@ def test_1_the_long_press_offers_every_mode_and_the_options(app):
     assert ws["aiRecordOpt-intense"]["label"] == "⚡ Intense" and ws["aiRecordOpt-summary"]["label"].startswith("☑")
     saved = json.loads(state_file(app).read_text())
     assert saved["options"]["intense"] is True and saved["options"]["summary"] is True, saved
-    assert ws["aiRecordMode-safe-badges"]["label"] == "⚡🧾", ws["aiRecordMode-safe-badges"]
-    assert ws["aiRecordMode-text-badges"]["label"] == "🧾"  # (no agent while it records: only the summary)
+    assert ws["aiRecordMode-conspect-badges"]["label"] == "💬⚡🧾", ws["aiRecordMode-conspect-badges"]
+    assert ws["aiRecordMode-text-badges"]["label"] == "💬⚡🧾"  # (📝 with commands: an agent listens)
     app.user_key("Escape")
     time.sleep(0.4)
     assert "aiRecordMode-text" not in widgets(c) or not widgets(c)["aiRecordMode-text"].get("visible", True)
@@ -109,15 +125,18 @@ def test_2_a_short_tap_on_record_is_the_plain_recording(app):
 
 def test_3_every_wake_up_names_the_mode_and_its_guide(app):
     c = app.client()
+    s = json.loads(state_file(app).read_text())
+    s["options"]["commands"] = "off"  # (🧠 with 🛡: what the 🛡 tile was)
+    state_file(app).write_text(json.dumps(s))
     before = len(wakes())
-    record(c, "safe.ogg", "safe", [("noise", 1), ("voice", 2), ("noise", 2)])
+    record(c, "safe.ogg", "conspect", [("noise", 1), ("voice", 2), ("noise", 2)])
     assert wait(lambda: len(wakes()) > before), wakes()
     line = wakes()[-1]
-    assert ": new transcribed speech. Mode «Notes, no commands» (safe: annotate=visual, requests=off; " \
+    assert ": new transcribed speech. Mode «Notes» (conspect: annotate=visual, commands=off; " \
         "options: intense, summary)." in line, line
     assert "modes/safe.md" in line and "nothing said is ever carried out" in line, line
     st = c.call("live_notes", op="status")
-    assert st["mode"] == "safe", st
+    assert st["mode"] == "conspect", st
     c.call("live_notes", op="read")
     end(c, "safe.ogg")
     assert wait(lambda: any("safe.ogg" in l and "ended" in l and "«Summary at the end»" in l for l in wakes())), wakes()
@@ -127,6 +146,7 @@ def test_4_text_wakes_nobody_while_it_records_and_only_for_a_summary_at_the_end(
     c = app.client()
     s = json.loads(state_file(app).read_text())
     s["options"]["summary"] = False
+    s["options"]["commands"] = "off"  # (📝 with 🛡: the transcript only)
     state_file(app).write_text(json.dumps(s))
     before = len(wakes())
     record(c, "text1.ogg", "text", [("noise", 1), ("voice", 2), ("noise", 2)])
@@ -155,13 +175,16 @@ def test_5_drawing_tells_where_the_owner_drew_last(app):
     for yy in range(y + 40, y + hh - 20, 60):  # (the owner's strokes, as test_e7 draws them)
         app.user_drag([(x + 10, yy), (x + ww // 2, yy), (x + ww - 10, yy)])
     time.sleep(0.5)
+    s = json.loads(state_file(app).read_text())
+    s["options"]["commands"] = "talk"  # (📝 with 💬: what ✍ was)
+    state_file(app).write_text(json.dumps(s))
     before = len(wakes())
-    record(c, "draw.ogg", "drawing", [("noise", 1), ("voice", 2), ("noise", 2)])
+    record(c, "draw.ogg", "text", [("noise", 1), ("voice", 2), ("noise", 2)])
     assert wait(lambda: len(wakes()) > before), wakes()
     line = wakes()[-1]
-    assert "Mode «Requests on my drawing» (drawing: annotate=none, requests=drawing" in line, line
+    assert "Mode «Transcript» (text: annotate=none, commands=talk" in line, line
     assert "modes/drawing.md" in line and "The owner's latest ink: page " in line and "s ago." in line, line
-    assert "What is said is context: draw nothing for it." in line, line
+    assert "What is said is context: draw nothing for it." in line and "his own strokes too" in line, line
     c.call("live_notes", op="read")
     end(c, "draw.ogg")
     assert len(c.call("doc_info")["pages"]) >= page

@@ -1,21 +1,31 @@
-# Live-notes modes (since 1.17.0)
+# Live-notes modes (since 1.17.0; reworked in 1.20.0)
 
-The owner chooses a mode by holding the Record button. The app names it in every wake-up line, e.g.
+The owner holds the Record button and answers two separate questions:
+- **what appears on paper**: the tile he taps (📝 Transcript, 🧠 Notes, 🗒 Typeset notes, 🎙 Voice only);
+- **may his speech steer things**: the switch «Speech commands»:
+  - 🛡 **off**: others talking, a video;
+  - 🔤 **only «Hey Assistant»**: people around;
+  - 💬 **conversation**: just him.
 
-    Live notes (recording 2026-11-10_10-00-00, page 3), mode «Notes, no commands» (safe: annotate=visual,
-    requests=off; options: intense, summary): new transcribed speech. … Read modes/safe.md …
+  He can change the switch during the recording too.
 
-`SKILL.md` describes the default mode, 🧠 **Notes + requests** (`conspect`). The module of another mode changes
-only what it says it changes; everything else in `SKILL.md` stays as written. The options of the recording are
-described in [options.md](options.md).
+The app names both in every wake-up line, e.g.
 
-| Mode | id | Module | In short |
-|---|---|---|---|
-| 📝 Transcript | `text` | — | the app writes the transcript only; you are woken only at the end, and only with the option «Summary at the end» |
-| 🎙 Voice control | `voice` | the **voice-control** skill | no live-notes page; you get commands |
-| ✍ Requests on my drawing | `drawing` | [drawing.md](drawing.md) | no cards; requests act on the owner's own page |
-| 🧠 Notes + requests | `conspect` | `SKILL.md` as written | cards and requests within the safe list |
-| 🛡 Notes, no commands | `safe` | [safe.md](safe.md) | cards and visuals; **no request is ever carried out** |
-| 🗒 Typeset notes | `konspekt` | [konspekt.md](konspekt.md) | a conspect with a really good layout and graphs |
+    Live notes (recording 2026-11-10_10-00-00, page 3), mode «Notes» (conspect: annotate=visual, commands=off;
+    options: intense, summary): new transcribed speech. … the live-annotation skill and its modes/safe.md …
+
+`SKILL.md` describes 🧠 **Notes** with 💬. The modules change only what they say they change; everything else in
+`SKILL.md` stays as written. The options of the recording are in [options.md](options.md).
+
+| Tile | id | 🛡 commands off | 🔤 «Hey Assistant» | 💬 conversation |
+|---|---|---|---|---|
+| 📝 Transcript | `text` | the transcript only: you are woken only at the end, and only for «Summary at the end» | [drawing.md](drawing.md), woken only for a phrase with the trigger | [drawing.md](drawing.md): requests act on his own page; nothing drawn for the talk |
+| 🧠 Notes | `conspect` | [safe.md](safe.md): cards, schemes, maps; **nothing said is ever carried out** | `SKILL.md`; only a phrase with the trigger is a request | `SKILL.md` as written |
+| 🗒 Typeset notes | `konspekt` | [konspekt.md](konspekt.md) and [safe.md](safe.md) | [konspekt.md](konspekt.md); only a phrase with the trigger is a request | [konspekt.md](konspekt.md) |
+| 🎙 Voice only | `voice` | (not offered) | the **voice-control** skill: only phrases with the trigger | the **voice-control** skill: a dialogue that may hold commands |
+
+The old ids still work: `drawing` is 📝 with commands, `safe` is 🧠 with commands off.
+
+«Hold to talk» is not part of this: holding it is always his own explicit command, in every mode.
 
 The option 🔎 Browser assistant (any mode with an agent) is [research-browser.md](research-browser.md).

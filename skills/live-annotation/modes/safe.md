@@ -1,4 +1,4 @@
-# 🛡 Notes, no commands (`safe`)
+# 🛡 Speech commands off (`commands=off` with 🧠 Notes or 🗒 Typeset notes; the old `safe`)
 
 The owner chose this mode so that **nothing said can steer anything**. Speech can come from anyone in the room or
 from a video, and here it is only material.

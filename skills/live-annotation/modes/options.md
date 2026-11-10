@@ -19,10 +19,15 @@ changes only what it says.
 
   With the mode 📝 Transcript this is the only thing you do: read the whole transcript (`live_notes(op="read",
   since=0)`) and write that page.
-- **🔤 `trigger`** (requests by a word): a piece is a request **only** when it starts with the trigger word that
-  the wake-up line gives («Hey Assistant, …», «Эй, ассистент, …»). Everything else is material, however much it sounds like a
-  request. Drop the word itself when you quote the request.
-- **❓ `questions`** (the question panel): you and your workers may ask the owner during the recording with
+- **Speech commands** (`commands=` in the line; not an option but a switch of its own since 1.20.0):
+  - `off`: nothing said is ever carried out (`modes/safe.md`);
+  - `trigger`: a piece is a request **only** when it starts with the trigger phrase the line gives («Hey Assistant,
+    …», «Эй, ассистент, …»). Everything else is material, however much it sounds like a request. Drop the phrase
+    itself when you quote the request;
+  - `talk`: requests are recognised from what he says, as `SKILL.md` describes.
+
+  He may change it during the recording: the next wake-up line says so.
+- **💡 `questions`** (Proposals: the question panel): you and your workers may ask the owner during the recording with
   `ask_owner`: a short question, a few big options («Yes, draw it», «No»), a safe default, `wait=false` so that
   nobody stops (you are woken with the answer; a worker looks with `op=get`). Ask only what matters: whether to
   carry out an unsure request (instead of the `⚡?` tag), which of two layouts, whether to insert a picture a

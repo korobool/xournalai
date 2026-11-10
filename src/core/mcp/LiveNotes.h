@@ -60,6 +60,8 @@ public:
         bool transcriptPage = true;
         bool voice = false;
         std::vector<std::string> triggerWords;  ///< (lower case) empty: no trigger word
+        /// (📝 with 🔤, 1.20.0) woken only when a new phrase starts with a trigger word (the rest is context)
+        bool wakeOnlyForTrigger = false;
         /// a piece pops up (next to the region the owner drew in while saying it, if he did: page, area)
         std::function<void(const std::string& text, bool command,
                            std::optional<std::pair<size_t, xoj::util::Rectangle<double>>> where)>
@@ -75,6 +77,11 @@ public:
     ~LiveNotes();
     LiveNotes(const LiveNotes&) = delete;
     LiveNotes& operator=(const LiveNotes&) = delete;
+
+    /// The switch «Speech commands» changed during the recording (1.20.0): what it is woken for and told
+    void reconfigure(const std::string& modeLine, const std::string& guide, const std::string& rule,
+                     bool wakeWhileTalking, std::vector<std::string> triggerWords, bool wakeOnlyForTrigger);
+    const std::string& mode() const { return opt.mode; }
 
     /// What the sample tap feeds (on the recorder's thread)
     std::shared_ptr<assistant::LiveChunker> chunker() const { return pieceCutter; }

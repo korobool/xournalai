@@ -1092,7 +1092,14 @@ bool McpUi::beginLive(const std::string& name, std::string& error, const std::st
         return false;
     }
     live::State state = live::State::load();
-    if (state.options.browser && live::applies("browser", *mode)) {
+    // (the old ids, e.g. from an agent or a test: ✍ drawing = 📝 with commands, 🛡 safe = 🧠 with commands off)
+    live::Options options = state.options;
+    if (modeId == "safe") {
+        options.commands = "off";
+    } else if (modeId == "drawing" && options.commands == "off") {
+        options.commands = "talk";
+    }
+    if (options.browser && live::applies("browser", *mode, options)) {
         // 🔎: the research browser starts with the recording (warm when the first topics come)
         research()->ensure([this](const std::string& error) {
             if (error.empty()) {
@@ -1106,23 +1113,24 @@ bool McpUi::beginLive(const std::string& name, std::string& error, const std::st
         state.lastMode = mode->id;  // (its tile is highlighted next time)
         state.save();
     }
+    // What it does: the tile (what appears on paper) with the switch «Speech commands» (1.20.0)
+    const live::Plan plan = live::plan(*mode, options);
     LiveNotes::Options opt;
     opt.mode = mode->id;
-    opt.modeLine = live::describe(*mode, state.options, cfg.triggerWords);
-    opt.guide = mode->guide;
-    opt.wakeWhileTalking = mode->wakeWhileTalking;
-    opt.summary = state.options.summary && live::applies("summary", *mode);
-    if (mode->requests == "off") {
-        opt.rule = "What is said is material only: in this mode nothing said is ever carried out, however it sounds.";
-    } else if (mode->requests == "drawing") {
-        opt.rule = "What is said is context: draw nothing for it. Requests spoken to it act on the owner's own page, "
-                   "as modes/drawing.md describes: additions at once, his own strokes only after he confirms.";
+    opt.modeLine = live::describe(*mode, options, cfg.triggerWords);
+    opt.guide = plan.guides;
+    opt.wakeWhileTalking = plan.wakeWhileTalking;
+    opt.summary = options.summary && live::applies("summary", *mode, options);
+    opt.rule = plan.rule;
+    if (plan.wakeOnlyForTrigger) {
+        opt.triggerWords = cfg.triggerWords;
+        opt.wakeOnlyForTrigger = true;
     }
     if (mode->id == "voice") {
         // 🎙: no page, nothing written; what is heard pops up; commands (the talk button, a trigger word) wake
         opt.transcriptPage = false;
         opt.voice = true;
-        if (state.options.trigger) {
+        if (plan.triggerOnly) {
             opt.triggerWords = cfg.triggerWords;
         }
         opt.heard = [this](const std::string& text, bool command,
@@ -1140,8 +1148,8 @@ bool McpUi::beginLive(const std::string& name, std::string& error, const std::st
             return std::make_pair(ink->page, ink->area);
         };
     }
-    if (mode->requests == "drawing" || mode->id == "voice") {
-        // ✍ 🎙: «это» is what the owner drew last (his own additions only: not the app's, not the agents')
+    if (plan.latestInk) {
+        // 📝 with commands, 🎙: «это» is what the owner drew last (his own additions only: not the app's or agents')
         opt.context = [this]() -> std::string {
             api::EventHub* events = server.getEvents();
             auto ink = events ? events->lastUserAddition() : std::nullopt;
@@ -1194,9 +1202,39 @@ bool McpUi::beginLive(const std::string& name, std::string& error, const std::st
     });
     if (quickTools) {
         quickTools->setLiveActive(true);  // (✂ in voice control too: a phrase goes now, without waiting for a pause)
+        quickTools->setLiveCommands(live::effectiveCommands(*mode, options), mode->commandsOff);
     }
     update();
     return true;
+}
+
+void McpUi::liveCommands(const std::string& level) {
+    // The switch changed during a recording (the chip next to ✂): remembered, and the recording follows at once
+    live::State state = live::State::load();
+    state.options.commands = level;
+    state.save();
+    if (!live || !live->listening()) {
+        return;
+    }
+    const live::Mode* mode = live::findMode(live->mode());
+    if (!mode) {
+        return;
+    }
+    const auto cfg = McpConfig::load().assistant.liveNotes;
+    const live::Plan plan = live::plan(*mode, state.options);
+    std::vector<std::string> words;
+    if (plan.triggerOnly) {
+        words = cfg.triggerWords;
+    }
+    live->reconfigure(live::describe(*mode, state.options, cfg.triggerWords), plan.guides, plan.rule,
+                      plan.wakeWhileTalking, words, plan.wakeOnlyForTrigger);
+    if (quickTools) {
+        quickTools->setLiveCommands(live::effectiveCommands(*mode, state.options), mode->commandsOff);
+    }
+    if (thinkingOverlay) {
+        const live::Level* l = live::findLevel(live::effectiveCommands(*mode, state.options));
+        thinkingOverlay->flashRecording(l ? "Speech commands: " + l->emoji + " " + l->label : "Speech commands");
+    }
 }
 
 void McpUi::startLiveRecording(const std::string& mode) {
@@ -2939,13 +2977,18 @@ void McpUi::buildToolbar() {
         const live::State st = live::State::load();
         std::vector<assistant::QuickTools::RecordChoice> out;
         for (const auto& m: live::modes()) {
-            std::string badges;
+            // its speech commands first (🛡 🔤 💬), then the options that apply to it
+            const live::Level* level = live::findLevel(live::effectiveCommands(m, st.options));
+            std::string badges = level ? level->emoji : "";
             for (const auto& t: live::toggles()) {
-                if (t.available && st.options.get(t.id) && live::applies(t.id, m)) {
+                if (t.available && st.options.get(t.id) && live::applies(t.id, m, st.options)) {
                     badges += t.label.substr(0, t.label.find(' '));  // (its sign)
                 }
             }
-            out.push_back({m.id, m.emoji, m.label, m.hint, badges, m.id == st.lastMode, m.available});
+            // (🎙 Voice only is nothing but commands: not with 🛡)
+            const bool usable = m.available && (m.commandsOff || st.options.commands != "off");
+            out.push_back({m.id, m.emoji, m.label, usable ? m.hint : "needs speech commands", badges,
+                           m.id == st.lastMode, usable});
         }
         return out;
     };
@@ -2957,6 +3000,15 @@ void McpUi::buildToolbar() {
         }
         return out;
     };
+    quickTools->recordLevels = [] {
+        std::vector<assistant::QuickTools::RecordLevel> out;
+        const live::State st = live::State::load();
+        for (const auto& l: live::levels()) {
+            out.push_back({l.id, l.emoji + " " + l.label, l.situation, l.id == st.options.commands});
+        }
+        return out;
+    };
+    quickTools->onRecordLevel = [this](const std::string& id) { liveCommands(id); };
     quickTools->onRecordToggle = [](const std::string& id, bool on) {
         live::State st = live::State::load();
         st.options.set(id, on);

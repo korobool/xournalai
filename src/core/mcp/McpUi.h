@@ -155,6 +155,8 @@ public:
     void researchRunning(bool running);  ///< «📌 Insert selection» shows while it runs
     /// Opens it for signing in (Google refuses to sign in while the app is connected to it); back when he closes it
     void researchSignIn();
+    /// The switch «Speech commands» changed (in the Record menu or, during a recording, its chip): off | trigger | talk
+    void liveCommands(const std::string& level);
     void researchUnavailable(const std::string& error);  ///< (a pop-up: why not, or that it is open for signing in)
     /// (tests) the focus guard's state, the «↩ Back» pill, «N new»
     nlohmann::json researchFocusState() const;

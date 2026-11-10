@@ -57,7 +57,7 @@ Two ways to work in it:
 ## What to do with what is found
 - **Facts:** put the gist on the topic's card with a small source line ("— en.wikipedia.org"). Mark it as background
   ("фон:"), never as something that was said.
-- **Pictures and quotes are the owner's choice.** With the ❓ Question panel option, propose them with `ask_owner`:
+- **Pictures and quotes are the owner's choice.** With the 💡 Proposals option (`questions`), propose them with `ask_owner`:
   `wait=false`, in English, a default of not inserting, e.g. «Insert this picture of the SMILES notation?» with
   «Insert» and «Not now». On «Insert», call `research(op="image")`, then `create_image(path, …)` inside the topic's
   slot, with a source line. Without that option, insert no pictures; put a small «🔎 2 tabs» mark on the card, and
