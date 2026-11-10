@@ -31,9 +31,13 @@ void registerResearchTools(McpServer& server) {
             "title; place it with create_image(path, …) and a small source line under it. op=close: tab, or all=true. "
             "This tool itself only opens, reads and closes tabs and saves pictures. Never log in, buy, pay or type "
             "passwords there; posting, sending, uploading or downloading anything else needs the owner's tap first "
-            "(ask_owner). Close the tabs you no longer need; keep a few at a time.";
+            "(ask_owner). Close the tabs you no longer need; keep a few at a time. op=signin: opens the browser for "
+            "the owner to sign in (Google, claude.ai, the extension): Google refuses to sign in while the app is "
+            "connected to it, so it is restarted without that connection; reading waits until he closes that window, "
+            "and then it is back, connected. Use it when he asks to sign in there, or when a sign-in is refused (\"This "
+            "browser or app may not be secure\").";
     t.inputSchema = schema::object(
-            {{"op", schema::enumeration("Operation", {"open", "list", "read", "image", "close"})},
+            {{"op", schema::enumeration("Operation", {"open", "list", "read", "image", "close", "signin"})},
              {"query", schema::string("open: what to search for")},
              {"kind", schema::enumeration("open: where to search", {"web", "images", "wiki", "scholar"})},
              {"url", schema::string("open: a page to open instead of a search")},
@@ -47,7 +51,7 @@ void registerResearchTools(McpServer& server) {
     t.asyncHandler = [srv](const json& j, Responder respond) {
         Args args(j);
         args.rejectUnknown({"op", "query", "kind", "url", "topic", "tab", "max_chars", "n", "all"});
-        const std::string op = args.choice("op", {"open", "list", "read", "image", "close"}, "");
+        const std::string op = args.choice("op", {"open", "list", "read", "image", "close", "signin"}, "");
         McpUi* ui = srv->getUi();
         assistant::ResearchBrowser* b = ui ? ui->research() : nullptr;
         if (!b) {
@@ -56,6 +60,14 @@ void registerResearchTools(McpServer& server) {
         auto reply = [respond](const json& r, const std::string& error) {
             respond(error.empty() ? ToolResult::structured(r.is_null() ? json::object() : r) : ToolResult::error(error));
         };
+        if (op == "signin") {
+            ui->researchSignIn();
+            respond(ToolResult::structured({{"signing_in", true},
+                                            {"note", "the research browser opens without the app's connection, on "
+                                                     "this workspace, with a page that says what to do; when the "
+                                                     "owner closes it, it is back, connected"}}));
+            return;
+        }
         if (op == "open") {
             const std::string url = args.has("url") ? args.str("url") :
                                                       b->searchUrl(args.str("kind", "web"), args.str("query"));
@@ -70,6 +82,9 @@ void registerResearchTools(McpServer& server) {
                 b->open(url, topic, reply);
             });
             return;
+        }
+        if (b->signingIn()) {
+            throw ToolError(assistant::ResearchBrowser::SIGN_IN_OPEN);
         }
         if (!b->running()) {
             // (it may still run from before: found again)

@@ -40,6 +40,10 @@
   - the app itself drives it through the DevTools protocol for the cheap part: opening searches, reading, pictures,
     «📌 Insert selection»;
   - Playwright, or a browser build of our own, are for later.
+  - **Signing in (1.18.1):** Google refuses to sign in a browser a program is connected to (the owner's first try:
+    «This browser or app may not be secure» on Claude in Chrome's «Continue with Google»). So signing in happens in
+    the same profile restarted without the DevTools port (its first start, «🔑 Browser sign-in», `research
+    op=signin`). When he closes it, it comes back connected; the sign-ins stay in the profile.
 - **Fewer taps (10 Nov):** the question panel is only for unsafe operations outside the app and for disambiguation.
   An explicit command on the document, his own strokes included, is done at once as one undo step.
 - **Deferred, experimental:** telling the speakers apart ("я / собеседник" in an interview; diarization on the A40

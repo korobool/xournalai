@@ -9,9 +9,13 @@
  * tabs, take a picture. Clicks, typing and a site's navigation are the agents' part, through the Claude in Chrome
  * extension in the same profile (prepareProfile gives it the owner's native-messaging manifest).
  *
+ * Signing in (1.18.1): Google refuses to sign in a browser with a DevTools port ("This browser or app may not be
+ * secure", the owner's first try, 10 Nov 2026), so for signing in the browser is restarted without it; once he closes
+ * that window it comes back connected (the sign-ins stay in the profile). Its first start is such a sign-in.
+ *
  * Settings (mcp.json assistant.research_browser): chrome (the command), profile ("own" | "incognito"), where ("auto" |
  * "here" | "workspace:N" | "monitor:N"), password_store ("" = the system's | "basic"), search (kind → URL template
- * with {q}: web, images, wiki, scholar).
+ * with {q}: web, images, wiki, scholar), sign_in_pages (opened for signing in; default claude.ai's login).
  *
  * @license GNU GPLv2 or later
  */
@@ -48,6 +52,7 @@ public:
         bool closeOnExit = false;            ///< ends the browser it started when the app quits (tests)
         bool offerExtension = true;  ///< opens the Claude in Chrome extension's store page when it isn't installed
         std::map<std::string, std::string> search;  ///< kind → URL template with {q}
+        std::vector<std::string> signInPages = {"https://claude.ai/login"};  ///< opened for signing in
         static Settings fromJson(const nlohmann::json& j, const fs::path& dataDir);
     };
     using Done = std::function<void(const nlohmann::json& result, const std::string& error)>;
@@ -76,11 +81,39 @@ public:
     void selection(Done done);
     /// The Claude in Chrome extension is installed in its profile (agents click, type and navigate through it)
     bool extensionInstalled() const;
+
+    /// Opens it for signing in (Google, claude.ai, the Claude in Chrome extension): restarted without the app's DevTools
+    /// port, which Google refuses to sign in with, on this workspace, with a page that says what to do. When he closes
+    /// that window it comes back connected, if it ran before (or was set up for the first time). `done` once it shows.
+    void signIn(std::function<void(const std::string& error)> done);
+    /// It is open for signing in (the app can't read it then)
+    bool signingIn() const { return signInOpen; }
+    /// (the UI) the sign-in window was closed; `connected`: the browser is back with the app's connection
+    std::function<void(bool connected)> onSignInClosed;
+    /// What ensure() and the tool say while it is open for signing in
+    static constexpr const char* SIGN_IN_OPEN =
+            "the research browser is open for signing in (Google and Claude in Chrome refuse to sign in while the app "
+            "is connected to it); once the owner closes that window it comes back connected";
     static constexpr const char* EXTENSION_ID = "fcoeoabgfenejglbffodgkkbkcdhcgfn";
     static constexpr const char* PROFILE_NAME = "xournalai research";
 
 private:
     void launch(std::function<void(const std::string&)> ready);
+    /// (the first start: set up, else launch)
+    void start(std::function<void(const std::string&)> ready);
+    /// The Chrome holding its profile (from its SingletonLock), 0 if none; `withPort`: whether it has a DevTools port
+    int profilePid(bool* withPort = nullptr) const;
+    /// Closes the browser (Browser.close; else SIGTERM to its verified pid) and waits until its profile is free
+    void shutDown(std::function<void(const std::string&)> done);
+    void waitForExit(int tries, std::function<void(bool exited)> done);
+    void launchPlain(const std::vector<std::string>& urls, std::function<void(const std::string&)> done);
+    void watchSignIn();
+    std::string setupPage() const;
+    /// One DevTools command over a WebSocket (path: /devtools/page/<id> or /devtools/browser/<id>): its result
+    void command(const std::string& path, const std::string& method, const nlohmann::json& params, Done done);
+    bool signInOpen = false;
+    bool reconnectAfterSignIn = false;
+    guint signInWatch = 0;
     void prepareProfile(const fs::path& dir);
     bool offered = false;  ///< (the store page, once a run)
     void waitForPort(int tries, std::function<void(const std::string&)> ready);

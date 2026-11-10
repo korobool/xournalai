@@ -4,6 +4,8 @@ DevTools protocol: searches open as tabs, agents read them and save pictures, th
 with «📌 Insert selection». A local test site stands in for the web (no internet)."""
 
 import http.server
+import os
+import signal
 import json
 import pathlib
 import socketserver
@@ -70,6 +72,7 @@ APP_CONFIG = {"assistant": {"autostart": False,
                                 "close_on_exit": True, "offer_extension": False,
                                 "extra_args": ["--disable-background-networking", "--disable-component-update",
                                                "--disable-sync", "--disable-features=Translate"],
+                                "sign_in_pages": [f"{BASE}/signin"],
                                 "search": {k: f"{BASE}/search?kind={k}&q={{q}}"
                                            for k in ("web", "images", "wiki", "scholar")}}}}
 
@@ -162,3 +165,41 @@ def test_5_closing_its_tabs(app):
     r = c.call("research", op="close", all=True)
     assert STATE["tab"] in r["closed"], r
     assert not [t for t in c.call("research", op="list")["tabs"] if t.get("topic")], "a tab with a topic is left"
+
+
+def holder(profile):
+    """The Chrome holding the profile (its SingletonLock → host-pid) and its command line"""
+    try:
+        pid = int(os.readlink(profile / "SingletonLock").rsplit("-", 1)[1])
+        return pid, pathlib.Path(f"/proc/{pid}/cmdline").read_bytes().replace(b"\0", b" ").decode()
+    except (OSError, ValueError, IndexError):
+        return 0, ""
+
+
+def test_6_signing_in_lets_go_of_the_browser_and_takes_it_back(app):
+    # Google refuses to sign in while a program is connected to the browser (its DevTools port; the owner, 10 Nov):
+    # for signing in it is restarted without the port; once he closes it, it is back, connected
+    c = app.client()
+    profile = app.home / "data" / "xournalai" / "research-browser"
+    before, cmd = holder(profile)
+    assert before and "--remote-debugging-port" in cmd, cmd
+    assert c.call("research", op="signin")["signing_in"]
+    plain = wait(lambda: (lambda p: p if p[0] and p[0] != before and "--remote-debugging-port" not in p[1] else None)(
+        holder(profile)), 30)
+    assert plain, holder(profile)
+    pid, cmd = plain
+    assert "research-sign-in.html" in cmd and f"{BASE}/signin" in cmd and "chromewebstore" not in cmd, cmd
+    assert not (profile / "DevToolsActivePort").exists()
+    assert "Sign in to the research browser" in (profile.parent / "research-sign-in.html").read_text()
+    assert "signing in" in c.call_error("research", op="list"), "reading waits while he signs in"
+    assert wait(lambda: not widgets(c)["aiResearchPinButton"].get("visible", True)), "📌 hides meanwhile"
+    # he closes it (here: the same clean exit as closing its window; not in its first second)
+    time.sleep(1.5)
+    os.kill(pid, signal.SIGTERM)
+    back = wait(lambda: (lambda p: p if p[0] and p[0] != pid and "--remote-debugging-port" in p[1] else None)(
+        holder(profile)), 40)
+    assert back, holder(profile)
+    lst = wait(lambda: (lambda r: r if not r.get("isError") else None)(c.call_raw("research", op="list")), 20)
+    assert lst and not lst.get("isError"), lst
+    assert wait(lambda: widgets(c)["aiResearchPinButton"].get("visible", True)), "📌 is back"
+

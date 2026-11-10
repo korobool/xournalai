@@ -22,6 +22,11 @@ Two ways to work in it:
     what, where and which file.
 - If `research(op="list")` says the extension isn't installed yet, its store page is open in that browser and he
   installs it once. Until then, use only the reading tool.
+- **Signing in** (Google, claude.ai, the extension) is his, in a window the app lets go of: Google refuses to sign in
+  while the app is connected to the browser («This browser or app may not be secure»). When he asks to sign in there,
+  or a sign-in is refused, call `research(op="signin")`. The browser restarts without the app's connection, with a page
+  that says what to do. Until he closes that window, `research` answers that it is open for signing in, and you wait.
+  Then it is back, connected, with his sign-ins. He can also tap «🔑 Browser sign-in» in the Record menu.
 
 ## What to look up (while the talk goes on)
 - **Every important new entity or open question** gets a search: a named method, a library, a person, a term he

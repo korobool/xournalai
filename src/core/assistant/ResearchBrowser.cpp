@@ -1,8 +1,9 @@
 #include "ResearchBrowser.h"
 
 #include <algorithm>  // for clamp
-#include <csignal>    // for SIGTERM
+#include <csignal>    // for SIGTERM, kill
 #include <fstream>    // for ifstream, ofstream
+#include <sstream>    // for ostringstream
 
 #include <libsoup/soup.h>
 
@@ -71,6 +72,14 @@ ResearchBrowser::Settings ResearchBrowser::Settings::fromJson(const json& j, con
             }
         }
     }
+    if (j.contains("sign_in_pages") && j["sign_in_pages"].is_array()) {
+        s.signInPages.clear();
+        for (const auto& a: j["sign_in_pages"]) {
+            if (a.is_string()) {
+                s.signInPages.push_back(a.get<std::string>());
+            }
+        }
+    }
     if (j.contains("profile_dir") && j["profile_dir"].is_string()) {
         s.profileDir = fs::path(j["profile_dir"].get<std::string>());
     }
@@ -91,6 +100,9 @@ ResearchBrowser::ResearchBrowser(Settings s, GtkWindow* window): settings(std::m
 
 ResearchBrowser::~ResearchBrowser() {
     *alive = false;
+    if (signInWatch) {
+        g_source_remove(signInWatch);
+    }
     // (the browser stays: it is a window of the owner's; the next start of the app finds it again; unless asked)
     if (process) {
         if (settings.closeOnExit) {
@@ -119,6 +131,10 @@ int ResearchBrowser::readPortFile() const {
 }
 
 void ResearchBrowser::ensure(std::function<void(const std::string& error)> ready) {
+    if (signInOpen) {
+        ready(SIGN_IN_OPEN);
+        return;
+    }
     if (launching) {
         waiting.push_back(std::move(ready));
         return;
@@ -126,7 +142,7 @@ void ResearchBrowser::ensure(std::function<void(const std::string& error)> ready
     // (it may still run: from before, or the app restarted; else it is started)
     const int known = port ? port : readPortFile();
     if (known <= 0) {
-        launch(std::move(ready));
+        start(std::move(ready));
         return;
     }
     port = known;
@@ -140,11 +156,39 @@ void ResearchBrowser::ensure(std::function<void(const std::string& error)> ready
             return;
         }
         port = 0;
-        launch(ready);
+        start(ready);
     });
 }
 
+void ResearchBrowser::start(std::function<void(const std::string&)> ready) {
+    if (settings.offerExtension && !offered && settings.profile != "incognito" && !extensionInstalled()) {
+        // Its first start: set up (Claude in Chrome installed, signed in), which needs it without the app's port; it
+        // comes back connected when he closes it
+        offered = true;
+        reconnectAfterSignIn = true;
+        signIn([ready](const std::string& error) { ready(error.empty() ? SIGN_IN_OPEN : error); });
+        return;
+    }
+    launch(std::move(ready));
+}
+
 void ResearchBrowser::launch(std::function<void(const std::string&)> ready) {
+    if (settings.profile != "incognito") {
+        bool withPort = false;
+        if (profilePid(&withPort) > 0) {
+            if (withPort) {
+                ready("the research browser runs but does not answer; close its window and try again");
+                return;
+            }
+            // open without the app's port (for signing in, from before the app restarted, or started by hand): it
+            // comes back connected once he closes it
+            signInOpen = true;
+            reconnectAfterSignIn = true;
+            watchSignIn();
+            ready(SIGN_IN_OPEN);
+            return;
+        }
+    }
     launching = true;
     waiting.push_back(std::move(ready));
     std::error_code ec;
@@ -227,18 +271,268 @@ void ResearchBrowser::launch(std::function<void(const std::string&)> ready) {
         if (error.empty() && !target) {
             place();
         }
-        if (error.empty() && settings.offerExtension && !offered && !extensionInstalled()) {
-            // (agents click, type and navigate through the Claude in Chrome extension: installed once, by him)
-            offered = true;
-            open(std::string("https://chromewebstore.google.com/detail/") + EXTENSION_ID, "install Claude in Chrome",
-                 [](const json&, const std::string&) {});
-        }
         auto w = std::move(waiting);
         waiting.clear();
         for (auto& f: w) {
             f(error);
         }
     });
+}
+
+int ResearchBrowser::profilePid(bool* withPort) const {
+    // Chrome holds its profile folder with a link "SingletonLock" → "<host>-<pid>"
+    std::error_code ec;
+    const std::string target = fs::read_symlink(settings.profileDir / "SingletonLock", ec).string();
+    const auto dash = target.rfind('-');
+    if (ec || dash == std::string::npos) {
+        return 0;
+    }
+    const int pid = std::atoi(target.c_str() + dash + 1);
+    if (pid <= 0 || kill(pid, 0) != 0) {
+        return 0;
+    }
+    // (verified: that process is a Chrome of this very profile folder)
+    std::ifstream in("/proc/" + std::to_string(pid) + "/cmdline", std::ios::binary);
+    std::ostringstream all;
+    all << in.rdbuf();
+    std::string cmd = all.str();
+    std::replace(cmd.begin(), cmd.end(), '\0', ' ');
+    if (cmd.find("--user-data-dir=" + settings.profileDir.string()) == std::string::npos) {
+        return 0;
+    }
+    if (withPort) {
+        *withPort = cmd.find("--remote-debugging-port") != std::string::npos;
+    }
+    return pid;
+}
+
+void ResearchBrowser::waitForExit(int tries, std::function<void(bool exited)> done) {
+    struct Wait {
+        std::weak_ptr<bool> token;
+        ResearchBrowser* self;
+        int tries;
+        std::function<void(bool)> done;
+    };
+    g_timeout_add(
+            200,
+            +[](gpointer d) -> gboolean {
+                std::unique_ptr<Wait> w(static_cast<Wait*>(d));
+                if (!w->token.lock()) {
+                    return G_SOURCE_REMOVE;
+                }
+                if (w->self->profilePid() == 0) {
+                    w->done(true);
+                } else if (w->tries <= 0) {
+                    w->done(false);
+                } else {
+                    w->self->waitForExit(w->tries - 1, std::move(w->done));
+                }
+                return G_SOURCE_REMOVE;
+            },
+            new Wait{alive, this, tries, std::move(done)});
+}
+
+void ResearchBrowser::shutDown(std::function<void(const std::string&)> done) {
+    std::weak_ptr<bool> token = alive;
+    // the last resort: SIGTERM (a clean exit for Chrome) to the pid that holds this very profile
+    auto terminate = [this, token, done]() {
+        if (!token.lock()) {
+            return;
+        }
+        if (const int pid = profilePid(); pid > 0) {
+            kill(pid, SIGTERM);
+        }
+        waitForExit(50, [done](bool exited) { done(exited ? "" : "the research browser did not close"); });
+    };
+    if (port <= 0) {
+        port = readPortFile();
+    }
+    http("GET", "/json/version", [this, token, terminate, done](const json& v, const std::string& error) {
+        if (!token.lock()) {
+            return;
+        }
+        const std::string ws = v.is_object() ? v.value("webSocketDebuggerUrl", "") : "";
+        const auto at = ws.find("/devtools/browser/");
+        if (!error.empty() || at == std::string::npos) {
+            terminate();
+            return;
+        }
+        command(ws.substr(at), "Browser.close", json::object(), [](const json&, const std::string&) {});
+        port = 0;
+        waitForExit(50, [token, terminate, done](bool exited) {
+            if (!token.lock()) {
+                return;
+            }
+            if (exited) {
+                done("");
+            } else {
+                terminate();
+            }
+        });
+    });
+}
+
+std::string ResearchBrowser::setupPage() const {
+    // A page of the app's own, first in the sign-in window: what to do there (in the app's language: English)
+    const fs::path page = settings.profileDir.parent_path() / "research-sign-in.html";
+    std::ofstream out(page);
+    out << R"(<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>xournalai research browser: sign in</title>
+<style>
+:root { color-scheme: light dark; --bg: #fbfbf8; --fg: #222; --muted: #666; --accent: #2f6fde; }
+@media (prefers-color-scheme: dark) { :root { --bg: #1d1f21; --fg: #e8e8e8; --muted: #a0a0a0; --accent: #7aa7ff; } }
+body { background: var(--bg); color: var(--fg); font: 18px/1.5 system-ui, sans-serif; margin: 0; padding: 48px 16px; }
+main { max-width: 640px; margin: 0 auto; }
+h1 { font-size: 26px; margin: 0 0 6px; }
+p.lead { color: var(--muted); margin: 0 0 28px; }
+ol { padding-left: 22px; } li { margin: 0 0 16px; }
+b { color: var(--accent); }
+</style></head><body><main>
+<h1>Sign in to the research browser</h1>
+<p class="lead">The app has let go of this window for now: Google doesn't allow signing in while a program is
+connected to the browser. Your sign-ins stay in this profile.</p>
+<ol>
+<li><b>Claude in Chrome:</b> if a Chrome Web Store tab is open, add the extension (once).</li>
+<li><b>Claude:</b> sign in on the claude.ai tab (Continue with Google works here), then open the extension (its icon
+or the side panel) and sign in there too.</li>
+<li><b>Google</b> (optional): sign in if you want your searches signed in.</li>
+<li><b>Close this window.</b> The app opens the research browser again, connected, with your sign-ins.</li>
+</ol>
+</main></body></html>
+)";
+    return page.string();
+}
+
+void ResearchBrowser::signIn(std::function<void(const std::string&)> done) {
+    if (settings.profile == "incognito") {
+        done("the research browser runs incognito (its settings): nothing stays signed in there");
+        return;
+    }
+    if (launching) {
+        done("the research browser is starting: try again in a moment");
+        return;
+    }
+    std::vector<std::string> urls = {"file://" + setupPage()};
+    if (settings.offerExtension && !extensionInstalled()) {
+        urls.push_back(std::string("https://chromewebstore.google.com/detail/") + EXTENSION_ID);
+    }
+    for (const auto& u: settings.signInPages) {
+        urls.push_back(u);
+    }
+    bool withPort = false;
+    const int pid = profilePid(&withPort);
+    if (pid > 0 && !withPort) {
+        launchPlain(urls, done);  // (open for signing in already: its pages shown again)
+        return;
+    }
+    if (pid > 0) {
+        reconnectAfterSignIn = true;  // (it ran: it comes back connected)
+        std::weak_ptr<bool> token = alive;
+        shutDown([this, token, urls, done](const std::string& error) {
+            if (!token.lock()) {
+                return;
+            }
+            if (!error.empty()) {
+                done(error);
+                return;
+            }
+            launchPlain(urls, done);
+        });
+        return;
+    }
+    launchPlain(urls, done);
+}
+
+void ResearchBrowser::launchPlain(const std::vector<std::string>& urls, std::function<void(const std::string&)> done) {
+    std::error_code ec;
+    const fs::path dir = settings.profileDir;
+    fs::create_directories(dir, ec);
+    fs::remove(dir / "DevToolsActivePort", ec);
+    prepareProfile(dir);
+    port = 0;
+    // On this workspace, where he signs in; no DevTools port (the point)
+    std::vector<std::string> args = {settings.chrome, "--user-data-dir=" + dir.string(),
+                                     std::string("--class=") + WINDOW_CLASS, "--no-first-run",
+                                     "--no-default-browser-check", "--new-window"};
+    if (!settings.passwordStore.empty()) {
+        args.push_back("--password-store=" + settings.passwordStore);
+    }
+    for (const auto& a: settings.extraArgs) {
+        args.push_back(a);
+    }
+    for (const auto& u: urls) {
+        args.push_back(u);
+    }
+    std::vector<const char*> argv;
+    for (const auto& a: args) {
+        argv.push_back(a.c_str());
+    }
+    argv.push_back(nullptr);
+    GError* err = nullptr;
+    GSubprocess* p = g_subprocess_newv(argv.data(),
+                                       static_cast<GSubprocessFlags>(G_SUBPROCESS_FLAGS_STDOUT_SILENCE |
+                                                                     G_SUBPROCESS_FLAGS_STDERR_SILENCE),
+                                       &err);
+    if (!p) {
+        const std::string e = std::string("the browser could not be started (") + settings.chrome +
+                              "): " + (err ? err->message : "?");
+        g_clear_error(&err);
+        done(e);
+        return;
+    }
+    if (process) {
+        g_object_unref(process);
+    }
+    process = p;
+    signInOpen = true;
+    watchSignIn();
+    done("");
+}
+
+void ResearchBrowser::watchSignIn() {
+    if (signInWatch) {
+        return;
+    }
+    // Once a second: whether a Chrome still holds its profile (it may take a moment to start: 5 s; if it is slower
+    // than that, the next start finds it open without the port and watches it again)
+    struct Watch {
+        ResearchBrowser* self;
+        int startup = 5;
+        bool seen = false;
+    };
+    signInWatch = g_timeout_add_seconds_full(
+            G_PRIORITY_DEFAULT, 1,
+            +[](gpointer d) -> gboolean {
+                auto* w = static_cast<Watch*>(d);
+                ResearchBrowser* self = w->self;
+                if (self->profilePid() > 0) {
+                    w->seen = true;
+                    return G_SOURCE_CONTINUE;
+                }
+                if (!w->seen && --w->startup > 0) {
+                    return G_SOURCE_CONTINUE;
+                }
+                // closed: back with the app's connection, if it ran before (or this was its first setup)
+                self->signInWatch = 0;
+                self->signInOpen = false;
+                const bool reconnect = self->reconnectAfterSignIn;
+                self->reconnectAfterSignIn = false;
+                if (!reconnect) {
+                    if (self->onSignInClosed) {
+                        self->onSignInClosed(false);
+                    }
+                    return G_SOURCE_REMOVE;
+                }
+                std::weak_ptr<bool> token = self->alive;
+                self->ensure([self, token](const std::string& error) {
+                    if (token.lock() && self->onSignInClosed) {
+                        self->onSignInClosed(error.empty());
+                    }
+                });
+                return G_SOURCE_REMOVE;
+            },
+            new Watch{this}, +[](gpointer d) { delete static_cast<Watch*>(d); });
 }
 
 void ResearchBrowser::prepareProfile(const fs::path& dir) {
@@ -497,15 +791,31 @@ void ResearchBrowser::close(const std::string& tab, Done done) {
 }
 
 void ResearchBrowser::evaluate(const std::string& tab, const std::string& expression, Done done) {
+    // the value returned as JSON text
+    command("/devtools/page/" + tab, "Runtime.evaluate",
+            {{"expression", expression}, {"returnByValue", true}, {"awaitPromise", true}},
+            [done](const json& r, const std::string& error) {
+                if (!error.empty()) {
+                    done(nullptr, error);
+                } else if (r.contains("exceptionDetails")) {
+                    done(nullptr, "the page said: " + r["exceptionDetails"].value("text", std::string("?")));
+                } else {
+                    const json& v = r.contains("result") ? r["result"] : json();
+                    done(v.contains("value") ? v["value"] : json(), "");
+                }
+            });
+}
+
+void ResearchBrowser::command(const std::string& path, const std::string& method, const json& params, Done done) {
     if (port <= 0) {
         done(nullptr, "the browser does not run");
         return;
     }
-    // one DevTools connection per question: Runtime.evaluate, the value returned as JSON text
-    const std::string uri = "ws://127.0.0.1:" + std::to_string(port) + "/devtools/page/" + tab;
+    // one DevTools connection per command
+    const std::string uri = "ws://127.0.0.1:" + std::to_string(port) + path;
     SoupMessage* msg = soup_message_new("GET", uri.c_str());
     if (!msg) {
-        done(nullptr, "no such tab: " + tab);
+        done(nullptr, "no such target: " + path);
         return;
     }
     struct Ask {
@@ -529,18 +839,13 @@ void ResearchBrowser::evaluate(const std::string& tab, const std::string& expres
             }
         }
     };
-    auto* ask = new Ask{alive,
-                        json({{"id", 1},
-                              {"method", "Runtime.evaluate"},
-                              {"params", {{"expression", expression}, {"returnByValue", true}, {"awaitPromise", true}}}})
-                                .dump(),
-                        std::move(done)};
+    auto* ask = new Ask{alive, json({{"id", 1}, {"method", method}, {"params", params}}).dump(), std::move(done)};
     ask->timeout = g_timeout_add_seconds(
             15,
             +[](gpointer d) -> gboolean {
                 auto* a = static_cast<Ask*>(d);
                 a->timeout = 0;
-                a->answer(nullptr, "the tab did not answer");
+                a->answer(nullptr, "the browser did not answer");
                 if (a->conn) {
                     soup_websocket_connection_close(a->conn, SOUP_WEBSOCKET_CLOSE_NORMAL, nullptr);
                 }
@@ -554,7 +859,7 @@ void ResearchBrowser::evaluate(const std::string& tab, const std::string& expres
                 GError* err = nullptr;
                 SoupWebsocketConnection* conn = soup_session_websocket_connect_finish(SOUP_SESSION(src), res, &err);
                 if (!conn) {
-                    a->answer(nullptr, std::string("no connection to the tab: ") + (err ? err->message : "?"));
+                    a->answer(nullptr, std::string("no connection to the browser: ") + (err ? err->message : "?"));
                     g_clear_error(&err);
                     delete a;  // (answered: its timeout is gone)
                     return;
@@ -570,22 +875,17 @@ void ResearchBrowser::evaluate(const std::string& tab, const std::string& expres
                                      if (m.is_discarded() || m.value("id", 0) != 1) {
                                          return;
                                      }
-                                     const json& r = m.contains("result") ? m["result"] : json();
                                      if (m.contains("error")) {
                                          a->answer(nullptr, m["error"].dump());
-                                     } else if (r.contains("exceptionDetails")) {
-                                         a->answer(nullptr, "the page said: " +
-                                                                    r["exceptionDetails"].value("text", std::string("?")));
                                      } else {
-                                         const json& v = r.contains("result") ? r["result"] : json();
-                                         a->answer(v.contains("value") ? v["value"] : json(), "");
+                                         a->answer(m.contains("result") ? m["result"] : json::object(), "");
                                      }
                                      soup_websocket_connection_close(c, SOUP_WEBSOCKET_CLOSE_NORMAL, nullptr);
                                  }),
                                  a);
                 g_signal_connect(conn, "closed", G_CALLBACK(+[](SoupWebsocketConnection* c, gpointer d) {
                                      auto* a = static_cast<Ask*>(d);
-                                     a->answer(nullptr, "the tab closed the connection");
+                                     a->answer(nullptr, "the browser closed the connection");
                                      g_object_unref(c);
                                      delete a;
                                  }),

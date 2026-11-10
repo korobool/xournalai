@@ -4074,6 +4074,42 @@
               "finished": "2026-11-10T00:48:01+00:00"
             }
           ]
+        },
+        {
+          "id": "S15.21",
+          "title": "Signing in to the research browser",
+          "version": "1.18.1",
+          "stories": [
+            {
+              "id": "US-15.26",
+              "text": "As the owner, I want to sign in to Google and Claude in Chrome in the research browser, so that agents can click and navigate there.",
+              "acceptance": [
+                "signing in happens in the same profile without the app's DevTools connection",
+                "when he closes that window, the browser comes back connected with his sign-ins",
+                "the first start is such a sign-in; later from the Record menu or by asking"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T15.21.1",
+              "story": "US-15.26",
+              "title": "Signing in: the research browser restarted without the DevTools port, back connected when closed",
+              "details": "The owner's first test of 1.18.0 (08:42): Claude in Chrome installed fine, but its «Continue with Google» ended on accounts.google.com/v3/signin/rejected «Couldn't sign you in. This browser or app may not be secure». The browser ran with --remote-debugging-port=0 (its tabs read through that port showed the claude.ai OAuth login and the rejection), and Google refuses to sign in a browser a program is connected to. ResearchBrowser::signIn: closes it (Browser.close over the browser's WebSocket; else SIGTERM to the pid that holds this very profile: its SingletonLock → host-pid, checked against /proc/<pid>/cmdline), restarts it without the port, on this workspace, with research-sign-in.html (what to do, in English), the store page while the extension is missing (offer_extension) and sign_in_pages (claude.ai/login); a watcher (once a second: the profile's lock) brings it back connected when he closes it, if it ran before or it was the first setup. The first start is such a setup. A Chrome found holding the profile without the port (the app restarted meanwhile, or started by hand) is watched the same way. ensure() and the tool answer SIGN_IN_OPEN meanwhile; 📌 hides. «🔑 Browser sign-in» in the Record menu; research op=signin; the skill tells agents when to use it. The DevTools WebSocket code is one command() now (evaluate and Browser.close). test_e17_research test_6 (the restart without the port, the page, reading waits, 📌 hides, back connected after a clean exit, in 0.3 s; a 30 s startup grace first made it wait: 5 s now) and test_e15_live_modes test_1 (the menu's button).",
+              "commit": "ai: signing in to the research browser: restarted without the DevTools port, back connected when closed",
+              "status": "done",
+              "started": "2026-11-10T08:53:47+00:00",
+              "finished": "2026-11-10T08:53:47+00:00"
+            },
+            {
+              "id": "T15.21.2",
+              "story": "US-15.26",
+              "title": "Release 1.18.1",
+              "details": "",
+              "commit": "",
+              "status": "todo"
+            }
+          ]
         }
       ]
     }

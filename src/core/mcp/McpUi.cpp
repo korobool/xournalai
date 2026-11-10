@@ -1087,7 +1087,7 @@ bool McpUi::beginLive(const std::string& name, std::string& error, const std::st
             if (error.empty()) {
                 researchRunning(true);
             } else {
-                g_warning("research browser: %s", error.c_str());
+                researchUnavailable(error);
             }
         });
     }
@@ -1989,8 +1989,39 @@ assistant::ResearchBrowser* McpUi::research() {
         researchBrowser = std::make_unique<assistant::ResearchBrowser>(
                 assistant::ResearchBrowser::Settings::fromJson(McpConfig::load().assistant.researchBrowser, data),
                 GTK_WINDOW(server.getControl()->getWindow()->getWindow()));
+        researchBrowser->onSignInClosed = [this](bool connected) {
+            researchRunning(connected);
+            if (thinkingOverlay && connected) {
+                thinkingOverlay->flashRecording("The research browser is back, connected");
+            }
+        };
     }
     return researchBrowser.get();
+}
+
+void McpUi::researchSignIn() {
+    assistant::ResearchBrowser* b = research();
+    researchRunning(false);
+    if (thinkingOverlay) {
+        thinkingOverlay->flashRecording("Research browser: sign in there, then close its window");
+    }
+    b->signIn([this](const std::string& error) {
+        if (!error.empty()) {
+            g_warning("research browser: %s", error.c_str());
+            if (thinkingOverlay) {
+                thinkingOverlay->flashRecording("Research browser: " + error);
+            }
+        }
+    });
+}
+
+void McpUi::researchUnavailable(const std::string& error) {
+    g_warning("research browser: %s", error.c_str());
+    if (thinkingOverlay) {
+        thinkingOverlay->flashRecording(error == assistant::ResearchBrowser::SIGN_IN_OPEN ?
+                                                "Research browser: sign in there, then close its window" :
+                                                "No research browser");
+    }
 }
 
 void McpUi::researchStarting() {
@@ -2009,9 +2040,7 @@ void McpUi::insertResearchSelection() {
     assistant::ResearchBrowser* b = research();
     b->ensure([this, b](const std::string& error) {
         if (!error.empty()) {
-            if (thinkingOverlay) {
-                thinkingOverlay->flashRecording("No research browser");
-            }
+            researchUnavailable(error);
             return;
         }
         b->selection([this](const json& s, const std::string& error) {
@@ -2751,6 +2780,7 @@ void McpUi::buildToolbar() {
     quickTools->onCut = [this] { cutLive(); };
     quickTools->onTalk = [this](bool down) { talkPressed(down); };
     quickTools->onPinSelection = [this] { insertResearchSelection(); };
+    quickTools->onResearchSignIn = [this] { researchSignIn(); };
     if (GAction* a = g_action_map_lookup_action(G_ACTION_MAP(server.getControl()->getWindow()->getWindow()),
                                                 "ai-tools-button")) {
         g_simple_action_set_state(G_SIMPLE_ACTION(a), g_variant_new_boolean(quickTools->buttonWanted()));

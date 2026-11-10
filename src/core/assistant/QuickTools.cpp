@@ -1149,6 +1149,26 @@ void QuickTools::openRecordMenu() {
                          this);
         gtk_container_add(GTK_CONTAINER(chips), chip);
     }
+    if (onResearchSignIn) {
+        // The research browser opened for signing in (Google refuses while the app is connected to it)
+        GtkWidget* signIn = gtk_button_new_with_label("🔑 Browser sign-in");
+        gtk_style_context_add_class(gtk_widget_get_style_context(signIn), "xoai-record-chip");
+        gtk_widget_set_can_focus(signIn, FALSE);
+        gtk_buildable_set_name(GTK_BUILDABLE(signIn), "aiResearchSignIn");
+        gtk_widget_set_tooltip_text(signIn, "Open the research browser to sign in to Google, Claude and Claude in "
+                                            "Chrome; close it when done and it comes back connected");
+        g_signal_connect(signIn, "clicked", G_CALLBACK(+[](GtkButton*, gpointer d) {
+                             auto* self = static_cast<QuickTools*>(d);
+                             if (self->popover) {
+                                 gtk_popover_popdown(GTK_POPOVER(self->popover));
+                             }
+                             if (self->onResearchSignIn) {
+                                 self->onResearchSignIn();
+                             }
+                         }),
+                         this);
+        gtk_container_add(GTK_CONTAINER(chips), signIn);
+    }
     gtk_box_pack_start(GTK_BOX(box), chips, FALSE, FALSE, 0);
 
     // The modes: big tiles, three in a row, the plain recording first (as a tap on Record)

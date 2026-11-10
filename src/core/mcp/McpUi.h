@@ -141,6 +141,9 @@ public:
     assistant::ResearchBrowser* research();
     void researchStarting();             ///< (a pop-up: it starts)
     void researchRunning(bool running);  ///< «📌 Insert selection» shows while it runs
+    /// Opens it for signing in (Google refuses to sign in while the app is connected to it); back when he closes it
+    void researchSignIn();
+    void researchUnavailable(const std::string& error);  ///< (a pop-up: why not, or that it is open for signing in)
     /// «📌 Insert selection»: what the owner selected in the research browser goes on the page he looks at, as a quote
     /// with its source (undoable, his)
     void insertResearchSelection();

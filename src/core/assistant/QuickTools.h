@@ -81,6 +81,7 @@ public:
     std::function<void()> onCut;         ///< ✂ tapped
     std::function<void(bool down)> onTalk;  ///< 🎙 «Hold to talk» pressed / let go
     std::function<void()> onPinSelection;   ///< «📌 Insert selection» (the research browser's selection to the page)
+    std::function<void()> onResearchSignIn;  ///< «🔑 Browser sign-in» in the Record menu (the research browser)
     /// The research browser runs: «📌 Insert selection» shows
     void setResearchActive(bool on);
     /// A live-notes recording goes on: ✂ (send the piece being spoken now) shows next to Record; in voice control
