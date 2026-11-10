@@ -10,6 +10,33 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.18.0 — 🔎 The research browser
+- **The 🔎 Browser assistant option in the Record menu now works.** It runs a research browser: Chrome with a profile
+  of the app's own («xournalai research», kept in `~/.local/share/xournalai/research-browser`). The window opens on
+  another monitor, or on the next workspace when there is only one monitor. The browser does the searching: agents
+  open searches as tabs you can see and open, and read only what they need. With the option on, the browser starts
+  together with the recording.
+- **New tool `research`, the app's own cheap path** through the DevTools protocol:
+  - `open`: a search on the web, in images, on Wikipedia or in Scholar, or a link, with a topic;
+  - `list`, `read`: the text, the pictures and your selection;
+  - `image`: saves a picture to a file for `create_image`;
+  - `close`.
+- **Clicks, typing, navigation and tabs through the Claude in Chrome extension.** The app copies your extension's
+  native-messaging manifest into the browser's profile. On the first run, the extension's store page opens there:
+  install it once and sign in. Agents then pick the «xournalai research» browser among the connected ones and work in
+  the extension's tab group; worker tabs start with `--chrome`. Posting, sending or uploading anything there needs
+  your tap first; agents never log in, buy or pay there.
+- **«📌 Insert selection»:** while the browser runs, a button next to Record puts the text you selected in the browser
+  onto the page you are looking at, as a quote with its source. It goes into your undo history.
+- **Settings** in `assistant.research_browser`:
+  - `chrome`: which binary to run;
+  - `profile`: own or incognito;
+  - `where`: auto, here, workspace:N or monitor:N;
+  - `password_store`, `search` (the search page addresses), `extra_args`, `close_on_exit`, `offer_extension`.
+- **Fewer taps** (your rule): what you ask on the document, your own strokes included, is done at once, as one undo
+  step. The question panel is only for real ambiguity and for anything outside the app. The skills and the serving
+  session's instructions follow this.
+
 ## 1.17.5 — Hold to talk; English captions
 - **🎙 Hold to talk, next to Record.** It is always there, in any mode, with or without a recording.
   - While you hold it, the microphone is recorded on its own, using the input device chosen in the audio settings.
