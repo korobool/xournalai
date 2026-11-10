@@ -10,6 +10,19 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.18.1 — Signing in to the research browser
+- **Signing in works.** Google refused to sign in to the research browser ("This browser or app may not be secure"),
+  so neither Claude in Chrome nor Google could be signed in. The cause was the app's own DevTools connection: Google
+  refuses to sign in while a program is connected to the browser. For signing in, the browser now restarts without
+  that connection, on the workspace you are on, with a page that says what to do. When you close that window, it comes
+  back connected, and your sign-ins stay.
+  - Its first start is such a sign-in: add Claude in Chrome, sign in to Claude (Continue with Google works), close the
+    window.
+  - Later: **«🔑 Browser sign-in»** in the Record menu (hold Record), or ask the assistant (`research op=signin`).
+  - While it is open for signing in, the app can't read the browser: agents are told to wait, and «📌 Insert
+    selection» hides until it is back.
+  - `assistant.research_browser.sign_in_pages`: the pages it opens for signing in (claude.ai's login by default).
+
 ## 1.18.0 — 🔎 The research browser
 - **The 🔎 Browser assistant option in the Record menu now works.** It runs a research browser: Chrome with a profile
   of the app's own («xournalai research», kept in `~/.local/share/xournalai/research-browser`). The window opens on
