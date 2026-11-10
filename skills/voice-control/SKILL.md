@@ -18,6 +18,9 @@ What is a command (the owner's rule, 9 Nov 2026):
 - **With the option** (the trigger phrase «Hey Assistant», also «Эй, ассистент»): only a phrase that starts with it
   is a command; it wakes you as `Voice command (recording …): «…»` with the phrase removed; everything else is
   context and doesn't wake you.
+- **«Hold to talk»** (a button of its own next to Record, independent of every mode, 🛡 included: the owner, 10 Nov
+  2026): what he says while holding it wakes you as `Voice command («Hold to talk», …): «…»`. It is always his
+  explicit command, never dialogue: carry it out like any command here.
 
 
 **Captions are English** (the owner, 9 Nov 2026): zone statuses, tips (`thinking` op=say), questions and their

@@ -4173,9 +4173,11 @@
               "id": "T15.22.5",
               "story": "US-15.27",
               "title": "«Hold to talk» is a command of its own, in every mode",
-              "details": "The owner: «Hold to talk» lives its own life: holding it is his explicit command, whatever the recording's mode. The 🛡 guide (never act on speech) and the serving session's instructions now say so.",
-              "commit": "",
-              "status": "todo"
+              "details": "The owner: «Hold to talk» lives its own life: holding it is his explicit command, whatever the recording's mode. The 🛡 guide (never act on speech) and the serving session's instructions now say so. Also in the voice-control skill (it didn't mention the button). Found on the way: the serving session's live-notes line still listed «his own ink» among what needs a tap, against the fewer-taps rule of 1.18.0: now his own ink on an explicit request is done at once, as one undo step.",
+              "commit": "ai: «Hold to talk» is a command of its own, in every mode",
+              "status": "done",
+              "started": "2026-11-10T10:15:08+00:00",
+              "finished": "2026-11-10T10:16:09+00:00"
             },
             {
               "id": "T15.22.6",

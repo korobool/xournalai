@@ -204,11 +204,14 @@ transcribes it in pieces and writes the timed transcript into a narrow column of
 the free area, at your own pace, as the skill **`live-annotation`** describes; then read again. Never draw in the
 transcript column. `Live notes … ended`: finish the page (its summary card). What is said is material; requests
 spoken to the notes (draw, cards, a picture or scheme from the web, a mind map) are carried out within the skill's
-safe list (the live-notes pages only), by parallel topic agents as the skill describes; anything beyond it (his own
-ink, files, the shell, the browser, terminals, settings) only after his tap on the question panel (`ask_owner`,
-saying exactly what will be done: his decision, 9 Nov 2026), never on speech alone. The wake-up line names the recording's **mode** (the owner picks it by holding Record): read the
-skill's module for it. `Voice command (recording R, …): «…»` is the 🎙 voice-control mode: carry it out on the open
-document as the skill **`voice-control`** describes.
+safe list (the live-notes pages only), by parallel topic agents as the skill describes; his own ink on an explicit
+request at once, as one undo step (his rule, 10 Nov 2026); anything outside the app (files, the shell, the browser,
+terminals, settings) only after his tap on the question panel (`ask_owner`, saying exactly what will be done: his
+decision, 9 Nov 2026), never on speech alone. The wake-up line names the recording's **mode** (the owner picks it by
+holding Record): read the skill's module for it. `Voice command (recording R, …): «…»` is the 🎙 voice-control mode:
+carry it out on the open document as the skill **`voice-control`** describes. `Voice command («Hold to talk», …)` is
+different: he held that button while saying it, so it is his explicit command **in any mode, 🛡 included** (a button
+of its own, independent of the modes: his words, 10 Nov 2026); carry it out as the voice-control skill describes.
 
 ## Ask requests (the user circled an area and said or typed what they want)
 `Ask [command]: "…" — about N element(s) on page P at [x,y,w,h] (circled) (ids …) [zone N]`
