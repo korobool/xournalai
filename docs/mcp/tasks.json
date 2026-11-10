@@ -4271,9 +4271,11 @@
               "id": "T15.24.3",
               "story": "US-15.29",
               "title": "A shorter row next to Record: the browser's buttons in Tools, with icons; «Hold to talk» a microphone",
-              "details": "The owner (10 Nov): the row of big buttons grew too long («кнопки такие, как Browser, Insert selection лучше внести в инструменты»; «вместо надписи браузер — рисуночек глобуса»; «Insert selection — какую-то иконку»; «Hold to talk — микрофончик с признаком нажатия; может быть, просто Hold»). 🌐 (the research browser, with its «N new» as a badge) and 📌 (insert the selection) become tiles of the Tools panel with icons; «Hold to talk» becomes a microphone with «Hold» under it, clearly lit while held.",
-              "commit": "",
-              "status": "todo"
+              "details": "The owner (10 Nov): the row of big buttons grew too long («кнопки такие, как Browser, Insert selection лучше внести в инструменты»; «вместо надписи браузер — рисуночек глобуса»; «Insert selection — какую-то иконку»; «Hold to talk — микрофончик с признаком нажатия; может быть, просто Hold»). 🌐 (the research browser, with its «N new» as a badge) and 📌 (insert the selection) become tiles of the Tools panel with icons; «Hold to talk» becomes a microphone with «Hold» under it, clearly lit while held. Built: a «Research browser» group in the Tools panel: Browser (web-browser-symbolic; its label says «N new» while tabs wait unseen; a tap: there and back, a closed browser started and shown, its first coming to the front his asking), Insert (view-pin-symbolic), Sign in (dialog-password-symbolic; the old button's long-press menu is gone). «Hold»: the microphone icon over «Hold», 76 px instead of 120, red while held. Seen on a screenshot of the test display (1400 wide): Focus, Full screen, Hold, Record, Tools; the panel's new group with its three tiles. test_e17_research: the tiles instead of the buttons (test_10 the group, test_12 a closed browser started and shown from the tile); test_e13_quick_tools test_19: the room left is measured against the widest tile shown (the next to fit, Auto-improve, is a switch with a gap before it).",
+              "commit": "ai: a shorter row next to Record: the research browser's tiles in Tools; «Hold» a microphone",
+              "status": "done",
+              "started": "2026-11-10T11:37:06+00:00",
+              "finished": "2026-11-10T11:43:07+00:00"
             },
             {
               "id": "T15.24.4",

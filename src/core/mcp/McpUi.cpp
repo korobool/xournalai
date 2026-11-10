@@ -2178,7 +2178,8 @@ void McpUi::researchOwnerInBrowser(bool in) {
 nlohmann::json McpUi::researchFocusState() const {
     nlohmann::json s = focusGuard ? focusGuard->state() : nlohmann::json::object();
     s["back_pill"] = quickTools && quickTools->backPillVisible();
-    s["browser_button"] = quickTools ? quickTools->browserButtonText() : "";
+    s["new_tabs"] = quickTools ? quickTools->researchNewTabs() : 0;
+    s["research_active"] = quickTools && quickTools->researchIsActive();
     s["busy"] = researchBrowser && researchBrowser->busy();
     return s;
 }

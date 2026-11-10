@@ -377,9 +377,11 @@ def test_19_the_row_fills_its_room(app):
             shown = [w for w in widgets(c, prefix="aiTablet-") if w.get("visible", True)]
             if len(shown) == len(widgets(c, prefix="aiTablet-")) - 1:  # (all but the pen's colours: nothing hidden)
                 continue
-            tile = widgets(c, "aiTablet-ask")[0]["bbox"][2]
+            # (the next one to fit is Auto-improve, a switch: as wide as the Touch switch, with a gap before it;
+            # 1.20.0's narrower «Hold» left room enough for a plain tile but not for it)
+            tile = max(w["bbox"][2] for w in shown)
             gap = widgets(c, "aiFocusButton")[0]["bbox"][0] - max(w["bbox"][0] + w["bbox"][2] for w in shown)
-            assert gap < tile + 6 + 14, (width, gap, [w["name"] for w in shown])
+            assert gap < tile + 6 + 14, (width, gap, tile, [w["name"] for w in shown])
             # the terminal opens only from here: it stays; Auto-improve (in Tools too) gives way first
             names = [w["name"] for w in shown]
             assert "aiTablet-terminal" in names and "aiTablet-auto-improve" not in names, names

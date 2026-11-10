@@ -109,6 +109,32 @@ def wait(pred, timeout=20):
 STATE = {}
 
 
+def tile(c, name):
+    """Taps a tile of the Tools panel (the research browser's are there since 1.20.0: the row next to Record had
+    grown too long)"""
+    c.call("action_run", action="win.ai-quick-tools")
+    ws = wait(lambda: (lambda ws: ws if f"aiQuick-{name}" in ws else None)(widgets(c)), 5)
+    assert ws, f"no tile {name}"
+    c.call("ui_interact", op="click", target=ws[f"aiQuick-{name}"]["id"])
+
+
+def tile_text(c, name):
+    """The words under a Tools tile's icon (a label inside the tile)"""
+    main = max(c.call("ui_windows")["windows"], key=lambda w: w["size"][0] * w["size"][1])
+    all_ = c.call("ui_inspect", target=main["id"], max_depth=80, all=True)["widgets"]
+    t = next((w for w in all_ if w.get("name") == f"aiQuick-{name}"), None)
+    if not t:
+        return None
+    x, y, w, h = t["bbox"]
+    inside = [v.get("label", "") for v in all_ if v["type"] == "GtkLabel" and v.get("label") and
+              x <= v["bbox"][0] < x + w and y <= v["bbox"][1] < y + h]
+    return inside[0] if inside else ""
+
+
+def active(c):
+    return c.call("test_focus")["research_active"]
+
+
 def test_0_the_option_starts_the_browser_with_a_recording(app):
     """🔎 in the Record menu: the research browser starts with the recording, warm for the first topics."""
     # the owner's Claude in Chrome host manifest (here a stand-in in the test's HOME): copied into the profile
@@ -123,7 +149,7 @@ def test_0_the_option_starts_the_browser_with_a_recording(app):
     c.call("test_live_audio", op="start", name="research.ogg", mode="conspect")
     profile = app.home / "data" / "xournalai" / "research-browser"
     assert wait(lambda: (profile / "DevToolsActivePort").exists(), 30)
-    assert wait(lambda: widgets(c)["aiResearchPinButton"].get("visible", True))
+    assert wait(lambda: active(c))
     c.call("test_recording", file=str(DIR / "research.ogg"), name="research.ogg", duration_ms=1000)
 
 
@@ -141,7 +167,7 @@ def test_1_a_search_opens_in_the_app_s_own_browser(app):
     assert any(t["tab"] == r["tab"] and t.get("topic") == "T4 notations" for t in lst["tabs"]), lst
     assert lst["browser"] == "xournalai research" and lst["extension"]["installed"] is False, lst
     assert lst["extension"]["device_id"] is None and "select_browser" in lst["extension"]["use"], lst
-    assert wait(lambda: widgets(c)["aiResearchPinButton"].get("visible", True))  # (📌 while it runs)
+    assert wait(lambda: active(c))  # (it runs: the app knows)
 
 
 def test_2_a_tab_is_read_with_its_pictures_and_the_selection(app):
@@ -167,7 +193,7 @@ def test_3_a_picture_is_saved_and_placed(app):
 def test_4_the_owner_s_selection_goes_on_the_page(app):
     c = app.client()
     before = len(c.call("page_elements", detail="full", limit=500)["elements"])
-    c.call("ui_interact", op="click", target=widgets(c)["aiResearchPinButton"]["id"])
+    tile(c, "research-pin")
     def quote():
         es = c.call("page_elements", detail="full", limit=500)["elements"]
         return [e for e in es if e.get("type") == "text" and "A quote worth keeping" in e.get("text", "")]
@@ -208,7 +234,7 @@ def test_6_signing_in_lets_go_of_the_browser_and_takes_it_back(app):
     assert not (profile / "DevToolsActivePort").exists()
     assert "Sign in to the research browser" in (profile.parent / "research-sign-in.html").read_text()
     assert "signing in" in c.call_error("research", op="list"), "reading waits while he signs in"
-    assert wait(lambda: not widgets(c)["aiResearchPinButton"].get("visible", True)), "📌 hides meanwhile"
+    assert wait(lambda: not active(c)), "not connected meanwhile"
     # he closes it (here: the same clean exit as closing its window; not in its first second)
     time.sleep(1.5)
     os.kill(pid, signal.SIGTERM)
@@ -217,7 +243,7 @@ def test_6_signing_in_lets_go_of_the_browser_and_takes_it_back(app):
     assert back, holder(profile)
     lst = wait(lambda: (lambda r: r if not r.get("isError") else None)(c.call_raw("research", op="list")), 20)
     assert lst and not lst.get("isError"), lst
-    assert wait(lambda: widgets(c)["aiResearchPinButton"].get("visible", True)), "📌 is back"
+    assert wait(lambda: active(c)), "connected again"
 
 
 def test_7_tabs_open_in_the_background_and_stay_awake(app):
@@ -344,11 +370,13 @@ def test_9_it_never_takes_the_focus_by_itself_and_his_own_switch_stays(app):
     # 4. «🔎 Browser · N new»: tabs opened while he wasn't looking; one tap takes him there
     wm_activates(app, app_w)
     c.call("research", op="open", query="while he draws", topic="T9")
-    assert wait(lambda: c.call("test_focus")["browser_button"] == "🔎 Browser\n1 new", 5), c.call("test_focus")
-    c.call("ui_interact", op="click", target=widgets(c)["aiResearchBrowserButton"]["id"])
+    assert wait(lambda: c.call("test_focus")["new_tabs"] == 1, 5), c.call("test_focus")
+    c.call("action_run", action="win.ai-quick-tools")  # (the Tools panel: its browser tile says so)
+    assert wait(lambda: tile_text(c, "research-browser") == "1 new", 5), tile_text(c, "research-browser")
+    c.call("ui_interact", op="click", target=widgets(c)["aiQuick-research-browser"]["id"])
     s = wait(lambda: (lambda s: s if s["in_browser"] else None)(c.call("test_focus")), 5)
-    assert s and s["shown"] and s["back_pill"] and s["browser_button"] == "🔎 Browser", s
-    c.call("ui_interact", op="click", target=widgets(c)["aiResearchBrowserButton"]["id"])  # (again: back)
+    assert s and s["shown"] and s["back_pill"] and s["new_tabs"] == 0, s
+    tile(c, "research-browser")  # (again: back)
     assert wait(lambda: not c.call("test_focus")["in_browser"], 5)
     # 5. when nothing works in the browser, its coming to the front is left alone
     wm_activates(app, app_w)
@@ -360,17 +388,17 @@ def test_9_it_never_takes_the_focus_by_itself_and_his_own_switch_stays(app):
     wm_activates(app, app_w)
 
 
-def test_10_signing_in_is_in_the_browser_button_s_menu(app):
+def test_10_its_tiles_are_in_the_tools_panel(app):
+    # (the owner, 10 Nov: «кнопки такие, как Browser, Insert selection лучше внести в инструменты»; icons, short names)
     c = app.client()
-    w = widgets(c)["aiResearchBrowserButton"]
-    x, y, width, height = w["bbox"]
-    app._xdo("mousemove", x + width // 2, y + height // 2)
-    app._xdo("mousedown", 1)
-    time.sleep(1.2)
-    app._xdo("mouseup", 1)
-    ws = wait(lambda: (lambda ws: ws if "aiResearchSignIn" in ws else None)(widgets(c)), 5)
-    assert ws and ws["aiResearchSignIn"]["label"] == "🔑 Browser sign-in", sorted(ws)[:20]
-    # (no «🔑» in the Record menu any more: test_e15_live_modes)
+    ws = widgets(c)
+    assert "aiResearchBrowserButton" not in ws and "aiResearchPinButton" not in ws, "not in the row next to Record"
+    c.call("action_run", action="win.ai-quick-tools")
+    ws = wait(lambda: (lambda ws: ws if "aiQuick-research-browser" in ws else None)(widgets(c)), 5)
+    assert ws, "no browser tile"
+    assert [tile_text(c, f"research-{t}") for t in ("browser", "pin", "signin")] == ["Browser", "Insert", "Sign in"]
+    c.call("action_run", action="win.ai-quick-tools")  # (closed again)
+    assert "aiResearchSignIn" not in ws  # (no menu of its own any more)
 
 
 def alive(pid):
@@ -390,10 +418,25 @@ def test_11_a_closed_browser_comes_back_when_it_is_needed(app):
     os.kill(pid, signal.SIGTERM)  # (he closes its window)
     assert wait(lambda: not alive(pid), 15)
     time.sleep(2.5)  # (the app notices it is gone)
-    assert not widgets(c)["aiResearchPinButton"].get("visible", True), "its buttons go with it"
+    assert not active(c), "the app knows it is gone"
     lst = c.call("research", op="list", timeout=60)  # (an agent looks at its tabs first)
     assert isinstance(lst["tabs"], list), lst
     new, cmd = holder(profile)
     assert new and new != pid and alive(new) and "--remote-debugging-port" in cmd, (new, cmd)
-    assert wait(lambda: widgets(c)["aiResearchPinButton"].get("visible", True), 5), "and come back with it"
+    assert wait(lambda: active(c), 5), "and that it is back"
+
+
+def test_12_the_browser_tile_starts_a_closed_browser_and_shows_it(app):
+    c = app.client()
+    profile = app.home / "data" / "xournalai" / "research-browser"
+    pid, _ = holder(profile)
+    os.kill(pid, signal.SIGTERM)
+    assert wait(lambda: not alive(pid), 15)
+    assert wait(lambda: not active(c), 6)
+    tile(c, "research-browser")
+    s = wait(lambda: (lambda s: s if s["in_browser"] else None)(c.call("test_focus")), 30)
+    assert s and s["shown"] and s["returned"] == 1, s  # (its coming to the front was his asking: not undone)
+    new, cmd = holder(profile)
+    assert alive(new) and "--remote-debugging-port" in cmd
+    tile(c, "research-browser")  # (back)
 

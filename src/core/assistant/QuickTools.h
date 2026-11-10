@@ -81,17 +81,16 @@ public:
     std::function<void()> onCut;         ///< ✂ tapped
     std::function<void(bool down)> onTalk;  ///< 🎙 «Hold to talk» pressed / let go
     std::function<void()> onPinSelection;   ///< «📌 Insert selection» (the research browser's selection to the page)
-    std::function<void()> onResearchSignIn;  ///< «🔑 Browser sign-in» (the «🔎 Browser» button's long press)
-    std::function<void()> onResearchShow;    ///< «🔎 Browser» tapped: the browser in front, or the notes again
+    std::function<void()> onResearchSignIn;  ///< the Tools panel's «Sign in» (the research browser)
+    std::function<void()> onResearchShow;    ///< the Tools panel's «Browser»: the browser in front, or the notes again
     std::function<void()> onResearchBack;    ///< «↩ Back» tapped
     /// «🔎 Browser · N new»: tabs opened while he wasn't looking
     void setResearchNew(int n);
     /// «↩ Back» over the browser while he is in it (`area`: the work area of the browser's monitor)
     void setBackPill(bool visible, const GdkRectangle* area = nullptr);
     bool backPillVisible() const { return backPill && gtk_widget_get_visible(backPill); }
-    std::string browserButtonText() const {
-        return browserLabel ? gtk_label_get_text(GTK_LABEL(browserLabel)) : "";
-    }
+    int researchNewTabs() const { return researchNew; }
+    bool researchIsActive() const { return researchActive; }
     /// The research browser runs: «📌 Insert selection» shows
     void setResearchActive(bool on);
     /// A live-notes recording goes on: ✂ (send the piece being spoken now) shows next to Record; in voice control
@@ -140,13 +139,9 @@ private:
     void drawRecordFace(GtkWidget* w, cairo_t* cr);
     GtkWidget* cutButton = nullptr;  ///< weak: ✂, next to Record during live notes
     GtkWidget* talkButton = nullptr;  ///< weak: 🎙 «Hold to talk», next to Record
-    GtkWidget* pinButton = nullptr;   ///< weak: 📌 «Insert selection», while the research browser runs
-    GtkWidget* browserButton = nullptr;  ///< weak: «🔎 Browser», while the research browser runs
-    GtkWidget* browserLabel = nullptr;   ///< weak
-    GtkGesture* browserLongPress = nullptr;  ///< (owned)
-    bool suppressBrowserClick = false;
+    bool researchActive = false;  ///< the research browser runs
+    int researchNew = 0;          ///< its tabs opened while he wasn't looking (the Tools panel's browser tile)
     GtkWidget* backPill = nullptr;  ///< (owned: a small window of its own over the browser)
-    void openBrowserMenu();
     GtkGesture* talkPress = nullptr;  ///< (owned) its press and release, by finger, pen or mouse
     GtkGesture* recordLongPress = nullptr;  ///< (owned: a GTK 3 gesture is not kept by its widget)
     bool suppressRecordClick = false;  ///< the long press opened the menu: its release is not a click

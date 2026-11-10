@@ -38,6 +38,13 @@ const std::vector<Entry>& catalog() {
              "Highlight what you mean while you say it; a pause opens Ask"},
             {"command", "Command", "mail-send-symbolic", "Tell the AI what to do with the selection (or the page)"},
             {"terminal", "Terminal", "utilities-terminal-symbolic", "Show or hide the AI terminal"},
+            {"research-browser", "Browser", "web-browser-symbolic",
+             "The research browser in front, or back to the notes (started again when it was closed)"},
+            {"research-pin", "Insert", "view-pin-symbolic",
+             "Put what you selected in the research browser on this page, with its source"},
+            {"research-signin", "Sign in", "dialog-password-symbolic",
+             "Open the research browser to sign in to Google, Claude and Claude in Chrome; close it when done and it "
+             "comes back connected"},
             {"size", "Size", "xopp-thickness-medium", "Thickness: fine → medium → thick"},
             {"new-page", "New page", "xopp-page-add", "Insert a page after this one"},
             {"highlighter", "Highlighter", "xopp-tool-highlighter", "Highlight"},
@@ -194,18 +201,6 @@ QuickTools::~QuickTools() {
     if (talkPress) {
         g_object_unref(talkPress);
     }
-    if (pinButton) {
-        g_object_remove_weak_pointer(G_OBJECT(pinButton), reinterpret_cast<gpointer*>(&pinButton));
-    }
-    if (browserButton) {
-        g_object_remove_weak_pointer(G_OBJECT(browserButton), reinterpret_cast<gpointer*>(&browserButton));
-    }
-    if (browserLabel) {
-        g_object_remove_weak_pointer(G_OBJECT(browserLabel), reinterpret_cast<gpointer*>(&browserLabel));
-    }
-    if (browserLongPress) {
-        g_object_unref(browserLongPress);
-    }
     if (backPill) {
         gtk_widget_destroy(backPill);
     }
@@ -335,6 +330,12 @@ void QuickTools::activate(const std::string& id) {
         }
     }
     if (done) {
+    } else if (id == "research-browser" || id == "research-pin" || id == "research-signin") {
+        const auto& f = id == "research-browser" ? onResearchShow : id == "research-pin" ? onPinSelection :
+                                                                                            onResearchSignIn;
+        if (f) {
+            f();
+        }
     } else if (id == "undo") {
         db->fireActivateAction(Action::UNDO);
     } else if (id == "redo") {
@@ -542,6 +543,8 @@ const std::vector<Group>& groups() {
             {"Page", {"undo", "redo", "new-page"}},
             {"View", {"touch", "zoom-out", "zoom-fit", "zoom-in"}},
             {"AI", {"ask", "ai-highlighter", "command", "auto-improve", "terminal"}},
+            // (the owner, 10 Nov: out of the row next to Record, which had grown too long; icons, short names)
+            {"Research browser", {"research-browser", "research-pin", "research-signin"}},
     };
     return all;
 }
@@ -633,6 +636,9 @@ void QuickTools::open(GtkWidget* anchor) {
             std::string label = it->label;
             if (std::string(id) == "size" && th->hasCapability(TOOL_CAP_SIZE)) {
                 label = std::string("Size: ") + sizeName(th->getActiveTool()->getSize());
+            }
+            if (std::string(id) == "research-browser" && researchNew > 0) {
+                label = std::to_string(researchNew) + " new";  // (tabs opened while he wasn't looking)
             }
             GtkWidget* tile = gtk_button_new();
             gtk_container_add(GTK_CONTAINER(tile), tileContent(it->icon, label, 36));
@@ -868,11 +874,10 @@ void QuickTools::placeButton(GtkWidget* mainBox, const std::vector<GtkWidget*>& 
 
     // 🎙 «Держи и говори»: hold it while saying a command; its own recording, whatever Record does; big, for a thumb
     talkButton = gtk_button_new();
-    GtkWidget* talkLabel = gtk_label_new("🎙 Hold\nto talk");
-    gtk_label_set_justify(GTK_LABEL(talkLabel), GTK_JUSTIFY_CENTER);
-    gtk_container_add(GTK_CONTAINER(talkButton), talkLabel);
+    // (a microphone and «Hold»: the owner, 10 Nov, the row had grown too long; red while held)
+    gtk_container_add(GTK_CONTAINER(talkButton), tileContent("audio-input-microphone-symbolic", "Hold", 34));
     gtk_style_context_add_class(gtk_widget_get_style_context(talkButton), "xoai-talk-button");
-    gtk_widget_set_size_request(talkButton, 120, -1);
+    gtk_widget_set_size_request(talkButton, 76, -1);
     g_object_set(talkButton, "margin", 4, "margin-end", 0, nullptr);
     gtk_widget_set_can_focus(talkButton, FALSE);
     gtk_widget_set_tooltip_text(talkButton, "Hold while you say a command (recognized on your speech server)");
@@ -903,61 +908,6 @@ void QuickTools::placeButton(GtkWidget* mainBox, const std::vector<GtkWidget*>& 
                      this);
     gtk_widget_set_no_show_all(talkButton, TRUE);
     gtk_box_pack_end(GTK_BOX(outer), talkButton, FALSE, FALSE, 0);
-
-    // 📌 the research browser's selection to the page: only while that browser runs
-    pinButton = gtk_button_new();
-    GtkWidget* pinLabel = gtk_label_new("📌 Insert\nselection");
-    gtk_label_set_justify(GTK_LABEL(pinLabel), GTK_JUSTIFY_CENTER);
-    gtk_container_add(GTK_CONTAINER(pinButton), pinLabel);
-    gtk_style_context_add_class(gtk_widget_get_style_context(pinButton), "xoai-pin-button");
-    gtk_widget_set_size_request(pinButton, 96, -1);
-    g_object_set(pinButton, "margin", 4, "margin-end", 0, nullptr);
-    gtk_widget_set_can_focus(pinButton, FALSE);
-    gtk_widget_set_tooltip_text(pinButton, "Put what you selected in the research browser on this page, with its source");
-    gtk_buildable_set_name(GTK_BUILDABLE(pinButton), "aiResearchPinButton");
-    g_signal_connect(pinButton, "clicked", G_CALLBACK(+[](GtkButton*, gpointer d) {
-                         auto* self = static_cast<QuickTools*>(d);
-                         if (self->onPinSelection) {
-                             self->onPinSelection();
-                         }
-                     }),
-                     this);
-    gtk_widget_set_no_show_all(pinButton, TRUE);
-    gtk_box_pack_end(GTK_BOX(outer), pinButton, FALSE, FALSE, 0);
-
-    // 🔎 the research browser in front and back again (it stays behind the notes); its long press: signing in
-    browserButton = gtk_button_new();
-    browserLabel = gtk_label_new("🔎 Browser");
-    gtk_label_set_justify(GTK_LABEL(browserLabel), GTK_JUSTIFY_CENTER);
-    gtk_container_add(GTK_CONTAINER(browserButton), browserLabel);
-    gtk_style_context_add_class(gtk_widget_get_style_context(browserButton), "xoai-browser-button");
-    gtk_widget_set_size_request(browserButton, 96, -1);
-    g_object_set(browserButton, "margin", 4, "margin-end", 0, nullptr);
-    gtk_widget_set_can_focus(browserButton, FALSE);
-    gtk_widget_set_tooltip_text(browserButton, "The research browser in front, or back to the notes; hold it to sign in "
-                                               "there");
-    gtk_buildable_set_name(GTK_BUILDABLE(browserButton), "aiResearchBrowserButton");
-    g_signal_connect(browserButton, "clicked", G_CALLBACK(+[](GtkButton*, gpointer d) {
-                         auto* self = static_cast<QuickTools*>(d);
-                         if (self->suppressBrowserClick) {
-                             self->suppressBrowserClick = false;
-                             return;
-                         }
-                         if (self->onResearchShow) {
-                             self->onResearchShow();
-                         }
-                     }),
-                     this);
-    browserLongPress = gtk_gesture_long_press_new(browserButton);
-    gtk_event_controller_set_propagation_phase(GTK_EVENT_CONTROLLER(browserLongPress), GTK_PHASE_CAPTURE);
-    g_signal_connect(browserLongPress, "pressed", G_CALLBACK(+[](GtkGestureLongPress*, double, double, gpointer d) {
-                         auto* self = static_cast<QuickTools*>(d);
-                         self->suppressBrowserClick = true;
-                         self->openBrowserMenu();
-                     }),
-                     this);
-    gtk_widget_set_no_show_all(browserButton, TRUE);
-    gtk_box_pack_end(GTK_BOX(outer), browserButton, FALSE, FALSE, 0);
 
     // Full screen: the app's own full-screen toggle, big enough for a finger
     fullscreenButton = gtk_button_new();
@@ -1017,17 +967,6 @@ void QuickTools::placeButton(GtkWidget* mainBox, const std::vector<GtkWidget*>& 
     gtk_widget_set_no_show_all(cutButton, TRUE);
     gtk_widget_hide(cutButton);
     g_object_add_weak_pointer(G_OBJECT(cutButton), reinterpret_cast<gpointer*>(&cutButton));
-    gtk_widget_set_no_show_all(pinButton, FALSE);
-    gtk_widget_show_all(pinButton);  // (its content; the button itself while the research browser runs)
-    gtk_widget_set_no_show_all(pinButton, TRUE);
-    gtk_widget_hide(pinButton);
-    g_object_add_weak_pointer(G_OBJECT(pinButton), reinterpret_cast<gpointer*>(&pinButton));
-    gtk_widget_set_no_show_all(browserButton, FALSE);
-    gtk_widget_show_all(browserButton);
-    gtk_widget_set_no_show_all(browserButton, TRUE);
-    gtk_widget_hide(browserButton);
-    g_object_add_weak_pointer(G_OBJECT(browserButton), reinterpret_cast<gpointer*>(&browserButton));
-    g_object_add_weak_pointer(G_OBJECT(browserLabel), reinterpret_cast<gpointer*>(&browserLabel));
     gtk_widget_set_no_show_all(talkButton, FALSE);
     gtk_widget_show_all(talkButton);  // (its content; the button itself with Record)
     gtk_widget_set_no_show_all(talkButton, TRUE);
@@ -1093,71 +1032,13 @@ void QuickTools::toggleRecording() {
 }
 
 void QuickTools::setResearchActive(bool on) {
-    if (pinButton) {
-        gtk_widget_set_visible(pinButton, on);
-    }
-    if (browserButton) {
-        gtk_widget_set_visible(browserButton, on);
-    }
+    researchActive = on;
     if (!on) {
         setBackPill(false);
     }
 }
 
-void QuickTools::setResearchNew(int n) {
-    if (browserLabel) {
-        gtk_label_set_text(GTK_LABEL(browserLabel),
-                           n > 0 ? ("🔎 Browser\n" + std::to_string(n) + " new").c_str() : "🔎 Browser");
-    }
-}
-
-void QuickTools::openBrowserMenu() {
-    if (!browserButton) {
-        return;
-    }
-    closePopover();
-    addCss();
-    popover = gtk_popover_new(browserButton);
-    g_object_add_weak_pointer(G_OBJECT(popover), reinterpret_cast<gpointer*>(&popover));
-    gtk_popover_set_position(GTK_POPOVER(popover), GTK_POS_BOTTOM);
-    gtk_buildable_set_name(GTK_BUILDABLE(popover), "aiResearchBrowserMenu");
-    GtkWidget* box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
-    g_object_set(box, "margin", 10, nullptr);
-    // The research browser opened for signing in (Google refuses while the app is connected to it)
-    GtkWidget* signIn = gtk_button_new_with_label("🔑 Browser sign-in");
-    gtk_style_context_add_class(gtk_widget_get_style_context(signIn), "xoai-record-chip");
-    gtk_widget_set_can_focus(signIn, FALSE);
-    gtk_buildable_set_name(GTK_BUILDABLE(signIn), "aiResearchSignIn");
-    gtk_widget_set_tooltip_text(signIn, "Open the research browser to sign in to Google, Claude and Claude in Chrome; "
-                                        "close it when done and it comes back connected");
-    g_signal_connect(signIn, "clicked", G_CALLBACK(+[](GtkButton*, gpointer d) {
-                         auto* self = static_cast<QuickTools*>(d);
-                         if (self->popover) {
-                             gtk_popover_popdown(GTK_POPOVER(self->popover));
-                         }
-                         if (self->onResearchSignIn) {
-                             self->onResearchSignIn();
-                         }
-                     }),
-                     this);
-    gtk_box_pack_start(GTK_BOX(box), signIn, FALSE, FALSE, 0);
-    gtk_container_add(GTK_CONTAINER(popover), box);
-    g_signal_connect(popover, "closed", G_CALLBACK(+[](GtkPopover* p, gpointer d) {
-                         static_cast<QuickTools*>(d)->suppressBrowserClick = false;
-                         g_idle_add(
-                                 [](gpointer w) -> gboolean {
-                                     if (GTK_IS_WIDGET(w) && !gtk_widget_in_destruction(GTK_WIDGET(w))) {
-                                         gtk_widget_destroy(GTK_WIDGET(w));
-                                     }
-                                     g_object_unref(w);
-                                     return G_SOURCE_REMOVE;
-                                 },
-                                 g_object_ref(p));
-                     }),
-                     this);
-    gtk_widget_show_all(box);
-    gtk_popover_popup(GTK_POPOVER(popover));
-}
+void QuickTools::setResearchNew(int n) { researchNew = n; }
 
 void QuickTools::setBackPill(bool visible, const GdkRectangle* area) {
     if (!visible) {
