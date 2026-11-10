@@ -64,6 +64,8 @@ def test_1_an_unanswered_x_server_rescues_and_exits(app):
 
 
 def _app_alive(app):
-    out = subprocess.run(["pgrep", "-g", str(app.proc.pid), "-f", "install/bin/xournalpp"], capture_output=True,
+    # (its own binary's path: the release check runs a copy installed elsewhere, whose path has no "install/bin";
+    # then the app looked gone at once, the grab ended too early and the rescue never saw the UI waiting, 10 Nov)
+    out = subprocess.run(["pgrep", "-g", str(app.proc.pid), "-f", app.binary + " "], capture_output=True,
                          text=True).stdout.split()
     return bool(out)

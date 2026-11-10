@@ -10,6 +10,24 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.19.0 — Questions on the canvas
+- **A question about something on the page shows there too, at once.**
+  - A dashed outline in the question's colour goes round the drawing it is about.
+  - Beside it is a bubble with the short question and the agent's buttons, e.g. «① Improve the butterfly? [Yes, improve]
+    [No]». It sits on the left of the drawing (away from your hand), else above or below, never over it.
+  - It follows scrolling and zooming and hides while the drawing is off screen. A thin bar under it shows the time
+    left.
+- **The full question stays in the question panel,** with the same number in the same colour («① Claude asks») and a
+  «↗ page 3» button that takes you to the drawing. A tap in either place answers it; both go.
+- **Only a finger or a mouse answers on the canvas:** never the pen, nor a touch right after the pen (the palm resting
+  while you write).
+- **Never for an action outside the app:** files, the shell, the browser, uploads. Your consent for those is only
+  given in the panel, never next to your pen.
+- **A switch in the panel,** «Questions on the canvas too», turns the bubbles off (`assistant.questions_on_canvas`,
+  on by default).
+- For agents: `ask_owner` takes `about` ({page, region}) or `about_ink=true` («this»: your latest strokes), `short`
+  (the bubble's few words) and `outside`.
+
 ## 1.18.2 — The research browser stays in the background
 - **It never takes the focus by itself.**
   - Search tabs open in the background.
