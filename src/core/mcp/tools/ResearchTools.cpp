@@ -18,12 +18,12 @@ void registerResearchTools(McpServer& server) {
     t.name = "research";
     t.title = "The research browser (search in tabs the owner sees)";
     t.description =
-            "The app's research browser: a Chrome of its own (its own profile \"xournalai research\", on another "
-            "monitor or workspace) where searches open as tabs the owner can see and open. The browser does the "
-            "searching; you read only what you need. To click, type, navigate a site or switch tabs, use the Claude in "
-            "Chrome tools (mcp__claude-in-chrome__*) on this browser: its profile has the extension (list says whether "
-            "it is installed); with several browsers connected, pick the one of the profile \"xournalai research\" "
-            "(list_connected_browsers / select_browser) and work in the extension's tab group. This tool is the cheap "
+            "The app's research browser: a Chrome of its own (its own profile, \"xournalai research\") where searches "
+            "open as tabs the owner can see and open. The browser does the searching; you read only what you need. To "
+            "click, type, navigate a site or switch tabs, use the Claude in Chrome tools (mcp__claude-in-chrome__*) on "
+            "exactly this browser: op=list gives its extension's name and device_id (select_browser with exactly that "
+            "id; several Chromes of his may be connected, all named alike); work in the extension's tab group. Never "
+            "another browser unless the owner names it. This tool is the cheap "
             "way to search and read. op=open: query + kind (web | images | wiki | scholar), or url; topic (what it is for, e.g. \"T3 "
             "notations\") → its tab. op=list: the tabs (tab, url, title, topic). op=read: tab, max_chars (default "
             "6000) → title, url, the page's text, its pictures (n, src, alt, width, height) and the owner's selection. "
@@ -104,12 +104,18 @@ void registerResearchTools(McpServer& server) {
         }
         if (op == "list") {
             b->list([b, reply](const json& r, const std::string& error) {
-                json out = r.is_object() ? r : json::object();
-                out["browser"] = assistant::ResearchBrowser::PROFILE_NAME;
-                out["extension"] = b->extensionInstalled() ? "installed" :
-                                                             "not installed yet (its store page opens in this browser; "
-                                                             "the owner installs it once)";
-                reply(out, error);
+                if (!error.empty()) {
+                    reply(nullptr, error);
+                    return;
+                }
+                b->identity([r, reply](const json& id, const std::string&) {
+                    json out = r.is_object() ? r : json::object();
+                    out["browser"] = assistant::ResearchBrowser::PROFILE_NAME;
+                    out["extension"] = id;
+                    out["extension"]["use"] = "Claude in Chrome: select_browser with exactly this device_id; never "
+                                              "another browser unless the owner names it";
+                    reply(out, "");
+                });
             });
         } else if (op == "read") {
             b->read(args.str("tab"), static_cast<size_t>(args.integer("max_chars", 6000, 200, 60000)), reply);

@@ -607,6 +607,47 @@ bool ResearchBrowser::extensionInstalled() const {
     return fs::is_directory(settings.profileDir / "Default" / "Extensions" / EXTENSION_ID, ec);
 }
 
+void ResearchBrowser::identity(Done done) {
+    const bool installed = extensionInstalled();
+    std::weak_ptr<bool> token = alive;
+    http("GET", "/json/list", [this, token, installed, done](const json& all, const std::string& error) {
+        if (!token.lock()) {
+            return;
+        }
+        json out = {{"installed", installed}, {"name", nullptr}, {"device_id", nullptr}};
+        std::string worker;
+        for (const auto& t: all.is_array() ? all : json::array()) {
+            if (t.value("type", "") == "service_worker" && t.value("url", "").find(EXTENSION_ID) != std::string::npos) {
+                worker = t.value("id", "");
+            }
+        }
+        if (!error.empty() || worker.empty()) {
+            out["note"] = installed ? "the extension is asleep or not connected yet" :
+                                      "not installed yet (the owner installs it once: «🔑 Browser sign-in»)";
+            done(out, "");
+            return;
+        }
+        // (its storage, as its pairing dialog writes it: a name of its own unless he gave one)
+        const std::string expr =
+                std::string("(async () => { const s = await chrome.storage.local.get(['bridgeDisplayName', "
+                            "'bridgeDeviceId']); if (!s.bridgeDisplayName) { await chrome.storage.local.set("
+                            "{bridgeDisplayName: '") +
+                PROFILE_NAME +
+                "'}); s.bridgeDisplayName = '" + PROFILE_NAME +
+                "'; } return JSON.stringify({name: s.bridgeDisplayName, device_id: s.bridgeDeviceId || null}); })()";
+        evaluate(worker, expr, [out, done](const json& v, const std::string& e) mutable {
+            const json r = v.is_string() ? json::parse(v.get<std::string>(), nullptr, false) : json();
+            if (r.is_object()) {
+                out["name"] = r.value("name", json());
+                out["device_id"] = r.value("device_id", json());
+            } else {
+                out["note"] = "the extension did not answer: " + e;
+            }
+            done(out, "");
+        });
+    });
+}
+
 void ResearchBrowser::waitForPort(int tries, std::function<void(const std::string&)> ready) {
     std::weak_ptr<bool> token = alive;
     struct Wait {

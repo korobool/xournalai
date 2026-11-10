@@ -133,7 +133,8 @@ def test_1_a_search_opens_in_the_app_s_own_browser(app):
         or (profile / "Default" / "Preferences").exists()
     lst = c.call("research", op="list")
     assert any(t["tab"] == r["tab"] and t.get("topic") == "T4 notations" for t in lst["tabs"]), lst
-    assert lst["browser"] == "xournalai research" and lst["extension"].startswith("not installed"), lst
+    assert lst["browser"] == "xournalai research" and lst["extension"]["installed"] is False, lst
+    assert lst["extension"]["device_id"] is None and "select_browser" in lst["extension"]["use"], lst
     assert wait(lambda: widgets(c)["aiResearchPinButton"].get("visible", True))  # (📌 while it runs)
 
 

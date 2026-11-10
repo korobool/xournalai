@@ -4155,9 +4155,11 @@
               "id": "T15.22.3",
               "story": "US-15.27",
               "title": "The research browser's name and deviceId for agents",
-              "details": "Claude in Chrome lists every connected Chrome (each profile its own entry) under its display name, by default the host name (\"pop-os\" for all of his): an agent choosing by name could take the wrong instance. The extension keeps a user-set name (bridgeDisplayName) and its id (bridgeDeviceId, made on its first connection) in its storage: the app names the research browser «xournalai research» when no name is set, and research op=list gives the name and the deviceId. The skill and the serving session's instructions: research only in exactly that browser; any other browser (his own, the DataAnnotation profile) only when he names it.",
-              "commit": "",
-              "status": "todo"
+              "details": "Claude in Chrome lists every connected Chrome (each profile its own entry) under its display name, by default the host name (\"pop-os\" for all of his): an agent choosing by name could take the wrong instance. The extension keeps a user-set name (bridgeDisplayName) and its id (bridgeDeviceId, made on its first connection) in its storage: the app names the research browser «xournalai research» when no name is set, and research op=list gives the name and the deviceId. The skill and the serving session's instructions: research only in exactly that browser; any other browser (his own, the DataAnnotation profile) only when he names it. Found in the extension (1.0.106): bridgeDeviceId is a UUID it makes on its first connection; bridgeDisplayName is what its pairing dialog sets (confirming the default name removes it, so the app sets it again on the next list); in his research profile on 10 Nov there was no device id yet (the extension had not connected) and the default name was \"pop-os\". ResearchBrowser::identity reads them in the extension's service worker (a name only when none is set, never over his). The expression checked in node against a stub (no name / his name kept / an id); the tests cover the not-installed answer (no extension in the test profile). The worker's and the serving session's instructions: exactly that device; another browser only when he names it.",
+              "commit": "ai: the research browser's name and device id for agents; browsers never mixed up",
+              "status": "done",
+              "started": "2026-11-10T10:13:01+00:00",
+              "finished": "2026-11-10T10:15:03+00:00"
             },
             {
               "id": "T15.22.4",

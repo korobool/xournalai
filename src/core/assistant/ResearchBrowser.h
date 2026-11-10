@@ -107,6 +107,10 @@ public:
             "the research browser is open for signing in (Google and Claude in Chrome refuse to sign in while the app "
             "is connected to it); once the owner closes that window it comes back connected";
     static constexpr const char* EXTENSION_ID = "fcoeoabgfenejglbffodgkkbkcdhcgfn";
+    /// How agents find this browser among the ones connected to Claude in Chrome (every Chrome of his is listed, all
+    /// under the host's name by default): the extension's own name for it (set to PROFILE_NAME when he has set none)
+    /// and its device id (made when it first connects): installed, name, device_id
+    void identity(Done done);
     static constexpr const char* PROFILE_NAME = "xournalai research";
 
 private:

@@ -17,8 +17,11 @@ Two ways to work in it:
   - `op="sources"`: the kept pages by topic.
 - **Doing:** the Claude in Chrome tools (`mcp__claude-in-chrome__*`). Use them when a search needs more than reading:
   click a result, open a section, type into a site's own search, page through, switch tabs, accept a cookie banner.
-  - Several browsers may be connected, his own Chrome too. Use the one with the profile **«xournalai research»**
-    (`list_connected_browsers`, then `select_browser`), never his own.
+  - Several browsers may be connected: his own Chrome, his other profiles (DataAnnotation…), and their default
+    names are all alike. `research(op="list")` gives the research browser's `extension.name` («xournalai
+    research») and `extension.device_id`: `select_browser` with **exactly that id**, never another browser. If the
+    id is still empty (the extension hasn't connected yet), use only the reading tool. Another browser only when he
+    names it.
   - Work in the extension's tab group: `tabs_context_mcp`, then `tabs_create_mcp` or `navigate`.
   - Never log in, sign up, buy, pay or type a password there, even with his tap: he signs in himself.
   - Posting, sending, uploading or downloading anything needs his tap first: ask with `ask_owner`, saying exactly
