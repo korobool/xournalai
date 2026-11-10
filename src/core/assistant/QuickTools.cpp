@@ -194,6 +194,9 @@ QuickTools::~QuickTools() {
     if (talkPress) {
         g_object_unref(talkPress);
     }
+    if (pinButton) {
+        g_object_remove_weak_pointer(G_OBJECT(pinButton), reinterpret_cast<gpointer*>(&pinButton));
+    }
     if (talkButton) {
         g_object_remove_weak_pointer(G_OBJECT(talkButton), reinterpret_cast<gpointer*>(&talkButton));
     }
@@ -483,6 +486,9 @@ constexpr const char* CSS =
         ".xoai-mode-name { font-weight: bold; font-size: 1.0em; }"
         ".xoai-mode-hint { font-size: 0.8em; opacity: 0.75; }"
         ".xoai-mode-badges { font-size: 0.95em; }"
+        ".xoai-pin-button { color: #ffffff; border: none; border-radius: 16px; padding: 6px 10px;"
+        "  background-image: linear-gradient(160deg, #f0a43a, #d0731b); box-shadow: 0 2px 0 alpha(#000000, 0.2); }"
+        ".xoai-pin-button label { color: #ffffff; font-weight: bold; }"
         ".xoai-talk-button { color: #ffffff; border: none; border-radius: 16px; padding: 6px 10px;"
         "  background-image: linear-gradient(160deg, #2bb3a0, #13806f);"
         "  box-shadow: 0 2px 8px alpha(#13806f, 0.5), inset 0 1px alpha(#ffffff, 0.3); }"
@@ -880,6 +886,27 @@ void QuickTools::placeButton(GtkWidget* mainBox, const std::vector<GtkWidget*>& 
     gtk_widget_set_no_show_all(talkButton, TRUE);
     gtk_box_pack_end(GTK_BOX(outer), talkButton, FALSE, FALSE, 0);
 
+    // 📌 the research browser's selection to the page: only while that browser runs
+    pinButton = gtk_button_new();
+    GtkWidget* pinLabel = gtk_label_new("📌 Insert\nselection");
+    gtk_label_set_justify(GTK_LABEL(pinLabel), GTK_JUSTIFY_CENTER);
+    gtk_container_add(GTK_CONTAINER(pinButton), pinLabel);
+    gtk_style_context_add_class(gtk_widget_get_style_context(pinButton), "xoai-pin-button");
+    gtk_widget_set_size_request(pinButton, 96, -1);
+    g_object_set(pinButton, "margin", 4, "margin-end", 0, nullptr);
+    gtk_widget_set_can_focus(pinButton, FALSE);
+    gtk_widget_set_tooltip_text(pinButton, "Put what you selected in the research browser on this page, with its source");
+    gtk_buildable_set_name(GTK_BUILDABLE(pinButton), "aiResearchPinButton");
+    g_signal_connect(pinButton, "clicked", G_CALLBACK(+[](GtkButton*, gpointer d) {
+                         auto* self = static_cast<QuickTools*>(d);
+                         if (self->onPinSelection) {
+                             self->onPinSelection();
+                         }
+                     }),
+                     this);
+    gtk_widget_set_no_show_all(pinButton, TRUE);
+    gtk_box_pack_end(GTK_BOX(outer), pinButton, FALSE, FALSE, 0);
+
     // Full screen: the app's own full-screen toggle, big enough for a finger
     fullscreenButton = gtk_button_new();
     gtk_style_context_add_class(gtk_widget_get_style_context(fullscreenButton), "xoai-fullscreen-button");
@@ -938,6 +965,11 @@ void QuickTools::placeButton(GtkWidget* mainBox, const std::vector<GtkWidget*>& 
     gtk_widget_set_no_show_all(cutButton, TRUE);
     gtk_widget_hide(cutButton);
     g_object_add_weak_pointer(G_OBJECT(cutButton), reinterpret_cast<gpointer*>(&cutButton));
+    gtk_widget_set_no_show_all(pinButton, FALSE);
+    gtk_widget_show_all(pinButton);  // (its content; the button itself while the research browser runs)
+    gtk_widget_set_no_show_all(pinButton, TRUE);
+    gtk_widget_hide(pinButton);
+    g_object_add_weak_pointer(G_OBJECT(pinButton), reinterpret_cast<gpointer*>(&pinButton));
     gtk_widget_set_no_show_all(talkButton, FALSE);
     gtk_widget_show_all(talkButton);  // (its content; the button itself with Record)
     gtk_widget_set_no_show_all(talkButton, TRUE);
@@ -1000,6 +1032,12 @@ void QuickTools::toggleRecording() {
         g_variant_unref(st);
     }
     g_action_change_state(a, g_variant_new_boolean(!on));
+}
+
+void QuickTools::setResearchActive(bool on) {
+    if (pinButton) {
+        gtk_widget_set_visible(pinButton, on);
+    }
 }
 
 void QuickTools::setLiveActive(bool on, bool voice) {

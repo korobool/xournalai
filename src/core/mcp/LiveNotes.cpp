@@ -566,7 +566,11 @@ void LiveNotes::maybeWake() {
             opt.modeLine.rfind("mode ", 0) == 0 ? " Mode" + opt.modeLine.substr(4) + "." : "";
     const std::string guide = opt.guide.empty() ? "the live-annotation skill" :
                                                   "the live-annotation skill and its " + opt.guide;
-    const std::string options = opt.modeLine.empty() ? "" : " (the options: its modes/options.md)";
+    const std::string options = opt.modeLine.empty() ? "" :
+                                opt.modeLine.find("browser") != std::string::npos ?
+                                                        " (the options: its modes/options.md; the research browser: "
+                                                        "its modes/research-browser.md)" :
+                                                        " (the options: its modes/options.md)";
     const std::string context = opt.context ? opt.context() : "";
     if (opt.wakeWhileTalking && unread > 0 && !wakePending) {
         wakePending = true;

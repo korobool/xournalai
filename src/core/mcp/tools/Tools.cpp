@@ -34,6 +34,7 @@ void registerAll(McpServer& server) {
     registerLiveTools(server);
     registerWorkerTools(server);
     registerQuestionTools(server);
+    registerResearchTools(server);
     registerTestTools(server);  // only with XOURNALAI_TEST_HOOKS=1
 }
 

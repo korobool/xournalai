@@ -17,3 +17,5 @@ described in [options.md](options.md).
 | 🧠 Notes + requests | `conspect` | `SKILL.md` as written | cards and requests within the safe list |
 | 🛡 Notes, no commands | `safe` | [safe.md](safe.md) | cards and visuals; **no request is ever carried out** |
 | 🗒 Typeset notes | `konspekt` | [konspekt.md](konspekt.md) | a conspect with a really good layout and graphs |
+
+The option 🔎 Browser assistant (any mode with an agent) is [research-browser.md](research-browser.md).

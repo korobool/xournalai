@@ -32,6 +32,16 @@
     workspace, where he works with it.
   - **The clean page** of 🗒 is typeset; his handwriting only when he asks for it.
   - **The trigger phrase is «Hey Assistant»,** off by default (requests are then recognised by meaning).
+- **The research browser, as built (1.18.0, the owner, 10 Nov night):**
+  - a search needs clicks, typing, a site's navigation and tabs, not only reading, so agents use the **Claude in
+    Chrome extension** in it;
+  - it is Chrome with a profile of the app's own («xournalai research»), into which the app copies the owner's
+    native-messaging manifest of the extension so that it can reach Claude Code;
+  - the app itself drives it through the DevTools protocol for the cheap part: opening searches, reading, pictures,
+    «📌 Insert selection»;
+  - Playwright, or a browser build of our own, are for later.
+- **Fewer taps (10 Nov):** the question panel is only for unsafe operations outside the app and for disambiguation.
+  An explicit command on the document, his own strokes included, is done at once as one undo step.
 - **Deferred, experimental:** telling the speakers apart ("я / собеседник" in an interview; diarization on the A40
   server). Only as an experimental option, later.
 - **Voice control:**

@@ -41,7 +41,7 @@ const std::vector<Toggle>& toggles() {
             {"summary", "🧾 Summary at the end", "", true},
             {"trigger", "🔤 Trigger phrase", "", true},
             {"questions", "❓ Question panel", "", true},
-            {"browser", "🔎 Browser assistant", "", false},
+            {"browser", "🔎 Browser assistant", "", true},
     };
     return list;
 }

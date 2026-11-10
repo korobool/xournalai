@@ -54,6 +54,7 @@ struct AskCapture;
 class AskPopover;
 class QuestionPanel;
 class RecordingChooser;
+class ResearchBrowser;
 }  // namespace xoj::assistant
 namespace xoj::api {
 struct DocEvent;
@@ -136,6 +137,13 @@ public:
     bool cancelQuestion(int id);
     /// An intent for the serving session (delivered when it is idle); nothing without the terminal
     void wakeServing(const std::string& text);
+    /// The research browser (🔎; made when first needed)
+    assistant::ResearchBrowser* research();
+    void researchStarting();             ///< (a pop-up: it starts)
+    void researchRunning(bool running);  ///< «📌 Insert selection» shows while it runs
+    /// «📌 Insert selection»: what the owner selected in the research browser goes on the page he looks at, as a quote
+    /// with its source (undoable, his)
+    void insertResearchSelection();
     /// The questions waiting, and the answers of the last ones
     json questions() const;
     std::optional<json> questionAnswer(int id) const;
@@ -304,6 +312,7 @@ private:
     gint64 talkStartUs = 0;
     int talkSeq = 0;
     guint talkIdle = 0;  ///< lets the recognizer go after a while without phrases
+    std::unique_ptr<assistant::ResearchBrowser> researchBrowser;
     void buildQuestions();
     void onQuestionAnswered(int id, const std::string& value, const std::string& by);
     std::unique_ptr<assistant::QuestionPanel> questionPanel;

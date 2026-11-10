@@ -44,7 +44,11 @@
 #include "assistant/RecordingChooser.h"          // for RecordingChooser
 #include "assistant/SpeechToText.h"              // for SpeechToText
 #include "assistant/Transcriber.h"  // for Transcriber
-#include "assistant/QuestionPanel.h"            // for QuestionPanel
+#include "api/DrawApi.h"  // for DrawApi
+#include "api/Placement.h"  // for findFreeSpace
+#include "XJson.h"  // for elementFromXJson
+#include "assistant/QuestionPanel.h"
+#include "assistant/ResearchBrowser.h"  // for ResearchBrowser            // for QuestionPanel
 #include "assistant/ThinkingOverlay.h"           // for ThinkingOverlay
 #include "control/RecordingObserver.h"           // for setRecordingObserver
 #include "control/AudioController.h"             // for AudioController
@@ -1077,6 +1081,16 @@ bool McpUi::beginLive(const std::string& name, std::string& error, const std::st
         return false;
     }
     live::State state = live::State::load();
+    if (state.options.browser && live::applies("browser", *mode)) {
+        // 🔎: the research browser starts with the recording (warm when the first topics come)
+        research()->ensure([this](const std::string& error) {
+            if (error.empty()) {
+                researchRunning(true);
+            } else {
+                g_warning("research browser: %s", error.c_str());
+            }
+        });
+    }
     if (!modeId.empty()) {
         state.lastMode = mode->id;  // (its tile is highlighted next time)
         state.save();
@@ -1969,6 +1983,86 @@ void McpUi::onTalkResult(const std::string& id, bool ok, const std::string& text
                 "the button while saying it).");
 }
 
+assistant::ResearchBrowser* McpUi::research() {
+    if (!researchBrowser) {
+        const fs::path data = fs::path(g_get_user_data_dir()) / "xournalai";
+        researchBrowser = std::make_unique<assistant::ResearchBrowser>(
+                assistant::ResearchBrowser::Settings::fromJson(McpConfig::load().assistant.researchBrowser, data),
+                GTK_WINDOW(server.getControl()->getWindow()->getWindow()));
+    }
+    return researchBrowser.get();
+}
+
+void McpUi::researchStarting() {
+    if (thinkingOverlay && (!researchBrowser || !researchBrowser->running())) {
+        thinkingOverlay->flashRecording("Opening the research browser…");
+    }
+}
+
+void McpUi::researchRunning(bool running) {
+    if (quickTools) {
+        quickTools->setResearchActive(running);
+    }
+}
+
+void McpUi::insertResearchSelection() {
+    assistant::ResearchBrowser* b = research();
+    b->ensure([this, b](const std::string& error) {
+        if (!error.empty()) {
+            if (thinkingOverlay) {
+                thinkingOverlay->flashRecording("No research browser");
+            }
+            return;
+        }
+        b->selection([this](const json& s, const std::string& error) {
+            if (!error.empty() || !s.is_object()) {
+                if (thinkingOverlay) {
+                    thinkingOverlay->flashRecording("Nothing selected in the browser");
+                }
+                return;
+            }
+            Control* ctrl = server.getControl();
+            std::string quote = s.value("text", "");
+            if (g_utf8_strlen(quote.c_str(), -1) > 1500) {
+                quote = std::string(quote.c_str(), static_cast<size_t>(g_utf8_offset_to_pointer(quote.c_str(), 1500) -
+                                                                       quote.c_str())) +
+                        "…";
+            }
+            const std::string source = s.value("title", "") + " · " + s.value("url", "");
+            const std::string text = "“" + quote + "”\n— " + source;
+            // on the page he looks at, in a free place (or at its top left)
+            const size_t pageIndex = api::currentPageIndex(ctrl);
+            PageRef page = ctrl->getDocument()->getPage(pageIndex);
+            if (!page) {
+                return;
+            }
+            const double width = 260;
+            const double height = 12.0 * (2 + static_cast<double>(g_utf8_strlen(text.c_str(), -1)) / 45);
+            auto free = api::findFreeSpace(api::occupiedAreas(page), page->getWidth(), page->getHeight(), width, height,
+                                           10);
+            json element = {{"type", "text"},
+                            {"text", text},
+                            {"x", free ? free->x : 20.0},
+                            {"y", free ? free->y : 20.0},
+                            {"wrap", width},
+                            {"font", {{"name", "Sans Italic"}, {"size", 9}}},
+                            {"color", "#333333"}};
+            std::vector<std::string> warnings;
+            std::vector<ElementPtr> elements;
+            elements.push_back(xjson::elementFromXJson(element, "research", warnings));
+            api::DrawTarget target;
+            target.page = pageIndex;
+            target.layer = "current";  // (his: on his layer, in his undo history)
+            api::DrawApi(ctrl).insert(target, std::move(elements), api::AnimationOptions{},
+                                      [this](const api::DrawResult&) {
+                                          if (thinkingOverlay) {
+                                              thinkingOverlay->flashRecording("Inserted the selection");
+                                          }
+                                      });
+        });
+    });
+}
+
 json McpUi::askStatus() const {
     if (!ask) {
         return {{"state", "off"}};
@@ -2403,9 +2497,11 @@ json McpUi::startWorker(const std::string& name, const std::string& brief, const
     // Only the tools of the live-annotation skill's safe list; anything else is refused without asking (dontAsk), so
     // a worker never waits on a question nobody watches. (--strict-mcp-config: only this app's MCP server.)
     // (the tab runs it through the login shell and execs it: no "exec" here)
+    // (--chrome: the Claude in Chrome extension of the research browser: a search may need clicks, typing, tabs)
     const std::string command = "claude --name " + shq("live " + name) + " --effort " + e +
-                                " --permission-mode dontAsk --allowedTools " +
-                                shq("mcp__xournalai,WebSearch,WebFetch,Read,Bash(python3 *)") + " --mcp-config " +
+                                " --chrome --permission-mode dontAsk --allowedTools " +
+                                shq("mcp__xournalai,mcp__claude-in-chrome,WebSearch,WebFetch,Read,Bash(python3 *)") +
+                                " --mcp-config " +
                                 shq(mcpConfig) + " --strict-mcp-config --settings " +
                                 shq(assistant::Companion::workerSettingsFile().string()) + " \"$(cat " +
                                 shq(briefFile.string()) + ")\"";
@@ -2654,6 +2750,7 @@ void McpUi::buildToolbar() {
     };
     quickTools->onCut = [this] { cutLive(); };
     quickTools->onTalk = [this](bool down) { talkPressed(down); };
+    quickTools->onPinSelection = [this] { insertResearchSelection(); };
     if (GAction* a = g_action_map_lookup_action(G_ACTION_MAP(server.getControl()->getWindow()->getWindow()),
                                                 "ai-tools-button")) {
         g_simple_action_set_state(G_SIMPLE_ACTION(a), g_variant_new_boolean(quickTools->buttonWanted()));

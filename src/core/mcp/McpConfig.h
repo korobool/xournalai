@@ -65,6 +65,8 @@ struct McpConfig {
             /// punctuation between the words ignored). The owner's choice: «Hey Assistant» (2026-11-09)
             std::vector<std::string> triggerWords{"hey assistant", "эй ассистент", "хей ассистент", "hey assistent"};
         } liveNotes;
+        /// The research browser (assistant/ResearchBrowser.h): kept as written
+        nlohmann::json researchBrowser = nlohmann::json::object();
     } assistant;
     fs::path backupDir;  ///< where those copies go
 

@@ -63,7 +63,7 @@ def test_1_the_long_press_offers_every_mode_and_the_options(app):
     assert sorted(chips) == sorted(f"aiRecordOpt-{t}" for t in ["intense", "summary", "trigger", "questions",
                                                                 "browser"]), chips
     assert chips["aiRecordOpt-intense"]["label"] == "🌿 Economy"  # (a switch: economy, or intense)
-    assert chips["aiRecordOpt-browser"].get("enabled", True) is False and "soon" in chips["aiRecordOpt-browser"]["label"]
+    assert chips["aiRecordOpt-browser"].get("enabled", True) is True  # (since 1.18.0: the research browser)
     # the options are toggled with a finger, remembered, and shown on the tiles they apply to
     c.call("ui_interact", op="click", target=chips["aiRecordOpt-intense"]["id"])
     c.call("ui_interact", op="click", target=chips["aiRecordOpt-summary"]["id"])

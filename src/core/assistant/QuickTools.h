@@ -79,7 +79,10 @@ public:
     std::function<void(const std::string& id, bool on)> onRecordToggle;
     std::function<void(const std::string& mode)> onLiveRecord;  ///< a mode's tile chosen
     std::function<void()> onCut;         ///< ✂ tapped
-    std::function<void(bool down)> onTalk;  ///< 🎙 voice control: the talk button pressed / let go
+    std::function<void(bool down)> onTalk;  ///< 🎙 «Hold to talk» pressed / let go
+    std::function<void()> onPinSelection;   ///< «📌 Insert selection» (the research browser's selection to the page)
+    /// The research browser runs: «📌 Insert selection» shows
+    void setResearchActive(bool on);
     /// A live-notes recording goes on: ✂ (send the piece being spoken now) shows next to Record; in voice control
     /// the big talk button instead (hold it while saying a command)
     void setLiveActive(bool on, bool voice = false);
@@ -125,7 +128,8 @@ private:
     bool isRecording() const;
     void drawRecordFace(GtkWidget* w, cairo_t* cr);
     GtkWidget* cutButton = nullptr;  ///< weak: ✂, next to Record during live notes
-    GtkWidget* talkButton = nullptr;  ///< weak: 🎙 «держи и говори», next to Record during voice control
+    GtkWidget* talkButton = nullptr;  ///< weak: 🎙 «Hold to talk», next to Record
+    GtkWidget* pinButton = nullptr;   ///< weak: 📌 «Insert selection», while the research browser runs
     GtkGesture* talkPress = nullptr;  ///< (owned) its press and release, by finger, pen or mouse
     GtkGesture* recordLongPress = nullptr;  ///< (owned: a GTK 3 gesture is not kept by its widget)
     bool suppressRecordClick = false;  ///< the long press opened the menu: its release is not a click

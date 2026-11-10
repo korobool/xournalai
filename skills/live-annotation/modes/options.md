@@ -27,4 +27,5 @@ changes only what it says.
   nobody stops (you are woken with the answer; a worker looks with `op=get`). Ask only what matters: whether to
   carry out an unsure request (instead of the `⚡?` tag), which of two layouts, whether to insert a picture a
   worker found. Without this option, don't ask during the recording: tag and go on.
-- **🔎 `browser`** (a browser assistant): not available yet.
+- **🔎 `browser`** (Browser assistant): the research browser runs with the recording; how to use it is in
+  [research-browser.md](research-browser.md).

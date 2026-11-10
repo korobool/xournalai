@@ -59,7 +59,9 @@ def test_1_a_worker_runs_its_brief_in_its_own_tab_with_only_the_safe_tools(app):
     assert w["cwd"] == str(companion / "workers") and w["worker"] == "T1" and w["handoff_off"] == "1", w
     a = w["args"]
     assert a[a.index("--permission-mode") + 1] == "dontAsk", a
-    assert a[a.index("--allowedTools") + 1] == "mcp__xournalai,WebSearch,WebFetch,Read,Bash(python3 *)", a
+    assert a[a.index("--allowedTools") + 1] == "mcp__xournalai,mcp__claude-in-chrome,WebSearch,WebFetch,Read," \
+        "Bash(python3 *)", a
+    assert "--chrome" in a, a  # (the research browser's extension: clicks, typing, tabs)
     assert a[a.index("--mcp-config") + 1] == str(companion / ".mcp.json") and "--strict-mcp-config" in a, a
     assert a[a.index("--effort") + 1] == "xhigh" and a[a.index("--name") + 1] == "live T1", a
     assert a[-1] == brief, a[-1]  # (the brief exactly: nothing in it is run by the shell)

@@ -24,7 +24,8 @@ void registerWorkerTools(McpServer& server) {
             "color (the topic's) and status: the app shows the slot as busy at once, a zone labelled with the worker's "
             "name that lasts until the worker ends it or is closed; the brief gets its id). The worker reads the brief as its "
             "first message, runs in <companion>/workers with its own CLAUDE.md, and may only use the xournalai tools, "
-            "web search and fetch, Read and python3 (anything else is refused without asking). Up to "
+            "the Claude in Chrome ones (the research browser: clicks, typing, tabs), web search and fetch, Read and "
+            "python3 (anything else is refused without asking). Up to "
             "assistant.max_parallel workers at once (with your subagents). op=list: the workers and whether they "
             "run. op=close (name, or all=true): ends a worker and closes its tab. Close them when their job is done "
             "(and all of them when live notes end). The owner sees every worker's tab.";
