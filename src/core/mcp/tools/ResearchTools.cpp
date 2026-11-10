@@ -1,6 +1,7 @@
 // Tool: research (the research browser: searches in tabs the owner sees; the cheap reading path)
 
-#include <memory>  // for shared_ptr
+#include <functional>  // for function
+#include <memory>      // for shared_ptr
 
 #include "assistant/ResearchBrowser.h"  // for ResearchBrowser
 #include "mcp/McpServer.h"
@@ -11,6 +12,12 @@
 #include "Tools.h"
 
 namespace xoj::mcp::tools {
+
+namespace {
+using Reply = std::function<void(const json&, const std::string&)>;
+/// One operation on a browser that runs (`req`: the call's own copy of its arguments)
+void runOp(assistant::ResearchBrowser* b, const std::string& op, const json& req, const Reply& reply);
+}  // namespace
 
 void registerResearchTools(McpServer& server) {
     McpServer* srv = &server;
@@ -98,10 +105,28 @@ void registerResearchTools(McpServer& server) {
         if (b->signingIn()) {
             throw ToolError(assistant::ResearchBrowser::SIGN_IN_OPEN);
         }
-        if (!b->running()) {
-            // (it may still run from before: found again)
-            b->ensure([](const std::string&) {});
-        }
+        // It may have been closed (by him, or the app restarted): every call makes sure it runs, and starts it again
+        // (the owner, 10 Nov: «если браузер был закрыт, он не может его автоматически открыть повторно?»)
+        b->ensure([b, ui, op, req = j, reply](const std::string& error) {
+            if (!error.empty()) {
+                reply(nullptr, error);
+                return;
+            }
+            ui->researchRunning(true);
+            try {  // (now in a callback of the main loop: an error is the tool's answer, never thrown out of it)
+                runOp(b, op, req, reply);
+            } catch (const std::exception& e) {
+                reply(nullptr, e.what());
+            }
+        });
+    };
+    server.getRegistry().addTool(std::move(t));
+}
+
+namespace {
+void runOp(assistant::ResearchBrowser* b, const std::string& op, const json& req, const Reply& reply) {
+    Args args(req);
+    {
         if (op == "list") {
             b->list([b, reply](const json& r, const std::string& error) {
                 if (!error.empty()) {
@@ -135,8 +160,8 @@ void registerResearchTools(McpServer& server) {
             b->close(args.str("tab"), args.boolean("owner_asked", false),
                      [reply](const json&, const std::string& error) { reply({{"closed", true}}, error); });
         }
-    };
-    server.getRegistry().addTool(std::move(t));
+    }
 }
+}  // namespace
 
 }  // namespace xoj::mcp::tools

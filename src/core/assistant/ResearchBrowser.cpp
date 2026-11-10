@@ -696,11 +696,12 @@ void ResearchBrowser::watchTargets() {
                                          self);
                         g_signal_connect(conn, "closed", G_CALLBACK(+[](SoupWebsocketConnection* c, gpointer d) {
                                              auto* self = static_cast<ResearchBrowser*>(d);
-                                             if (self->watcher == c) {
-                                                 self->watcher = nullptr;  // (the browser closed: watched again
-                                                                           // when it is back)
-                                                 g_object_unref(c);
+                                             if (self->watcher != c) {
+                                                 return;
                                              }
+                                             self->watcher = nullptr;  // (watched again when it is back)
+                                             g_object_unref(c);
+                                             self->checkClosedLater();
                                          }),
                                          self);
                         soup_websocket_connection_send_text(
@@ -710,6 +711,31 @@ void ResearchBrowser::watchTargets() {
             g_object_unref(msg);
         });
     });
+}
+
+void ResearchBrowser::checkClosedLater() {
+    // Closed by him? In a moment no Chrome holds its profile: its port is forgotten, so that the next use starts it
+    // again (and the UI hears it)
+    struct Check {
+        std::weak_ptr<bool> token;
+        ResearchBrowser* self;
+    };
+    g_timeout_add_full(
+            G_PRIORITY_DEFAULT, 1500,
+            +[](gpointer d) -> gboolean {
+                auto* c = static_cast<Check*>(d);
+                if (!c->token.lock() || c->self->signInOpen || c->self->launching || c->self->profilePid() > 0) {
+                    return G_SOURCE_REMOVE;
+                }
+                c->self->port = 0;
+                c->self->knownTargets.clear();
+                c->self->ownerLooking(false);
+                if (c->self->onClosed) {
+                    c->self->onClosed();
+                }
+                return G_SOURCE_REMOVE;
+            },
+            new Check{alive, this}, +[](gpointer d) { delete static_cast<Check*>(d); });
 }
 
 void ResearchBrowser::targetEvent(GBytes* bytes) {

@@ -4260,7 +4260,59 @@
             {
               "id": "T15.24.2",
               "story": "US-15.29",
+              "title": "The research browser comes back when it is needed",
+              "details": "The owner (10 Nov): «если браузер был закрыт, то пользоваться им нельзя, он не может его автоматически открыть повторно, да?». With the browser closed by him, the app still had its old port: a search started it again, but list, read, keep, sources answered an error, and an agent working through Claude in Chrome found no such browser. Now every research call first makes sure it runs (and starts it again); «🔎 Browser» starts it when it is closed and then shows it (its first coming to the front is his asking, not a grab); when it closes, the app forgets its port; the skill: a closed browser is opened again by research(op=\"list\"), then its device id. The tool's other operations now run inside ensure() (a copy of the call's arguments: Args holds a reference, which an asynchronous call outlives; its errors become the tool's answer, never an exception out of a main-loop callback). The target watcher's connection closing, then no Chrome holding the profile 1.5 s later: the port forgotten, the UI told (its buttons hide). test_e17_research test_11 (closed like its window, its buttons gone, research list starts it again with the port, the buttons back).",
+              "commit": "ai: the research browser comes back when it is needed",
+              "status": "done",
+              "started": "2026-11-10T11:33:59+00:00",
+              "finished": "2026-11-10T11:37:05+00:00"
+            },
+            {
+              "id": "T15.24.3",
+              "story": "US-15.29",
+              "title": "A shorter row next to Record: the browser's buttons in Tools, with icons; «Hold to talk» a microphone",
+              "details": "The owner (10 Nov): the row of big buttons grew too long («кнопки такие, как Browser, Insert selection лучше внести в инструменты»; «вместо надписи браузер — рисуночек глобуса»; «Insert selection — какую-то иконку»; «Hold to talk — микрофончик с признаком нажатия; может быть, просто Hold»). 🌐 (the research browser, with its «N new» as a badge) and 📌 (insert the selection) become tiles of the Tools panel with icons; «Hold to talk» becomes a microphone with «Hold» under it, clearly lit while held.",
+              "commit": "",
+              "status": "todo"
+            },
+            {
+              "id": "T15.24.4",
+              "story": "US-15.29",
               "title": "Release 1.20.0",
+              "details": "",
+              "commit": "",
+              "status": "todo"
+            }
+          ]
+        },
+        {
+          "id": "S15.25",
+          "title": "One speech recognition for every tool",
+          "version": "1.21.0",
+          "stories": [
+            {
+              "id": "US-15.30",
+              "text": "As the owner, I want every tool that hears me to recognise speech the same way: the remote multilingual model when it is there, else the local English one.",
+              "acceptance": [
+                "live notes, «Hold to talk», the AI lasso and the AI highlighter: the remote transcriber first, multilingual",
+                "when it is not available or fails, the same audio goes to the local English model",
+                "the agent's path for a whole recording stays as it is (remote first, audio_transcribe as the fallback)"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T15.25.1",
+              "story": "US-15.30",
+              "title": "The remote transcriber first, the local English model as the fallback, for every tool",
+              "details": "The owner (10 Nov): «всё, что подразумевает запись аудио и распознавание, разбито на две схемы … для AI Lasso и AI Highlighter включена только фолбековая модель. Я бы все их перевёл на один и тот же режим». Found: a whole recording goes to the agent (remote first, audio_transcribe = xournalai-stt base.en as the fallback); live notes and «Hold to talk» use the configured transcriber (his: a stream over ssh to his server) with no local fallback; the Ask lasso and the highlighter use only the local helper (SpeechToText, base.en, recording the microphone itself). All of them: the configured transcriber first (language auto), the local helper on the same audio when it is missing, fails or is too slow.",
+              "commit": "",
+              "status": "todo"
+            },
+            {
+              "id": "T15.25.2",
+              "story": "US-15.30",
+              "title": "Release 1.21.0",
               "details": "",
               "commit": "",
               "status": "todo"

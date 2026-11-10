@@ -23,6 +23,9 @@ Two ways to work in it:
     research») and `extension.device_id`: `select_browser` with **exactly that id**, never another browser. If the
     id is still empty (the extension hasn't connected yet), use only the reading tool. Another browser only when he
     names it.
+  - **Closed?** If he closed it (it is missing among the connected browsers), any `research` call opens it again:
+    call `research(op="list")`, wait a few seconds for the extension to connect (its `device_id` appears), then
+    select it.
   - Work in the extension's tab group: `tabs_context_mcp`, then `tabs_create_mcp` or `navigate`.
   - Never log in, sign up, buy, pay or type a password there, even with his tap: he signs in himself.
   - Posting, sending, uploading or downloading anything needs his tap first: ask with `ask_owner`, saying exactly

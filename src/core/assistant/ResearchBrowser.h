@@ -101,6 +101,8 @@ public:
     void ownerLooking(bool here);
     /// (the UI: «🔎 Browser · N new») tabs opened while he wasn't looking
     std::function<void(int newTabs)> onNewTabs;
+    /// (the UI) the browser was closed (by him): the next use starts it again
+    std::function<void()> onClosed;
     bool focusGuard() const { return settings.focusGuard; }
     /// The Chrome holding its profile (from its SingletonLock, checked to be alive and of this very profile), 0 if
     /// none; `withPort`: whether it has a DevTools port
@@ -178,6 +180,7 @@ private:
     void connected();
     void watchTargets();
     void targetEvent(GBytes* bytes);
+    void checkClosedLater();
     SoupWebsocketConnection* watcher = nullptr;
     bool connectingWatcher = false;
     std::set<std::string> knownTargets;  ///< (the pages there before the watch: not new)

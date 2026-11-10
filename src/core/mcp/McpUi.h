@@ -334,6 +334,9 @@ private:
     guint seenTimer = 0;                                ///< (while he is in the research browser)
     guint adoptIdle = 0;  ///< (at start: the research browser still running from before is taken up again)
     void researchOwnerInBrowser(bool in);
+    /// «🔎 Browser»: there and back; a closed browser is started and shown
+    void researchShow();
+    guint showRetry = 0;
     void buildQuestions();
     void onQuestionAnswered(int id, const std::string& value, const std::string& by);
     std::unique_ptr<assistant::QuestionPanel> questionPanel;

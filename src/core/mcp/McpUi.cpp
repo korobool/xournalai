@@ -244,6 +244,9 @@ McpUi::~McpUi() {
     if (adoptIdle) {
         g_source_remove(adoptIdle);
     }
+    if (showRetry) {
+        g_source_remove(showRetry);
+    }
     focusGuard.reset();  // (its hooks ask the research browser)
     if (highlightTimer) {
         g_source_remove(highlightTimer);
@@ -2074,6 +2077,7 @@ assistant::ResearchBrowser* McpUi::research() {
                 thinkingOverlay->flashRecording("The research browser is back, connected");
             }
         };
+        researchBrowser->onClosed = [this] { researchRunning(false); };
         researchBrowser->onNewTabs = [this](int n) {
             if (quickTools) {
                 quickTools->setResearchNew(n);
@@ -2095,6 +2099,49 @@ assistant::ResearchBrowser* McpUi::research() {
                 GTK_WINDOW(server.getControl()->getWindow()->getWindow()), "xournalai-research", std::move(hooks));
     }
     return researchBrowser.get();
+}
+
+void McpUi::researchShow() {
+    assistant::ResearchBrowser* b = research();
+    if (!focusGuard) {
+        return;
+    }
+    if (focusGuard->ownerInBrowser()) {
+        focusGuard->back();  // (two monitors: the button is still in sight)
+        return;
+    }
+    if (b->running() && focusGuard->showBrowser()) {
+        return;
+    }
+    // Closed (or not started yet): started, then shown as soon as its window is there; its first coming to the
+    // front is his asking
+    focusGuard->expectShow();
+    researchStarting();
+    b->ensure([this](const std::string& error) {
+        if (!error.empty()) {
+            researchUnavailable(error);
+            return;
+        }
+        researchRunning(true);
+        struct Try {
+            McpUi* ui;
+            int left;
+        };
+        if (showRetry) {
+            g_source_remove(showRetry);
+        }
+        showRetry = g_timeout_add_full(
+                G_PRIORITY_DEFAULT, 300,
+                +[](gpointer d) -> gboolean {
+                    auto* t = static_cast<Try*>(d);
+                    if (!t->ui->focusGuard || t->ui->focusGuard->showBrowser() || --t->left <= 0) {
+                        t->ui->showRetry = 0;
+                        return G_SOURCE_REMOVE;
+                    }
+                    return G_SOURCE_CONTINUE;
+                },
+                new Try{this, 50}, +[](gpointer d) { delete static_cast<Try*>(d); });
+    });
 }
 
 void McpUi::researchOwnerInBrowser(bool in) {
@@ -2918,17 +2965,7 @@ void McpUi::buildToolbar() {
     quickTools->onTalk = [this](bool down) { talkPressed(down); };
     quickTools->onPinSelection = [this] { insertResearchSelection(); };
     quickTools->onResearchSignIn = [this] { researchSignIn(); };
-    quickTools->onResearchShow = [this] {
-        research();
-        if (!focusGuard) {
-            return;
-        }
-        if (focusGuard->ownerInBrowser()) {
-            focusGuard->back();  // (two monitors: the button is still in sight)
-        } else if (!focusGuard->showBrowser() && thinkingOverlay) {
-            thinkingOverlay->flashRecording("No research browser window");
-        }
-    };
+    quickTools->onResearchShow = [this] { researchShow(); };
     quickTools->onResearchBack = [this] {
         if (focusGuard) {
             focusGuard->back();

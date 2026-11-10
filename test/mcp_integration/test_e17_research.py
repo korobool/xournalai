@@ -372,3 +372,28 @@ def test_10_signing_in_is_in_the_browser_button_s_menu(app):
     assert ws and ws["aiResearchSignIn"]["label"] == "🔑 Browser sign-in", sorted(ws)[:20]
     # (no «🔑» in the Record menu any more: test_e15_live_modes)
 
+
+def alive(pid):
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+
+
+def test_11_a_closed_browser_comes_back_when_it_is_needed(app):
+    # (the owner, 10 Nov: «если браузер был закрыт, то пользоваться им нельзя, он не может его автоматически открыть
+    # повторно, да?»: a search started it again, but list and read answered an error)
+    c = app.client()
+    profile = app.home / "data" / "xournalai" / "research-browser"
+    pid, _ = holder(profile)
+    os.kill(pid, signal.SIGTERM)  # (he closes its window)
+    assert wait(lambda: not alive(pid), 15)
+    time.sleep(2.5)  # (the app notices it is gone)
+    assert not widgets(c)["aiResearchPinButton"].get("visible", True), "its buttons go with it"
+    lst = c.call("research", op="list", timeout=60)  # (an agent looks at its tabs first)
+    assert isinstance(lst["tabs"], list), lst
+    new, cmd = holder(profile)
+    assert new and new != pid and alive(new) and "--remote-debugging-port" in cmd, (new, cmd)
+    assert wait(lambda: widgets(c)["aiResearchPinButton"].get("visible", True), 5), "and come back with it"
+

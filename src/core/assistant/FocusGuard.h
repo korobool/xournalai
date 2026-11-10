@@ -47,6 +47,8 @@ public:
     bool showBrowser();
     /// «↩ Back»: the notes in front again
     void back();
+    /// He asked for the browser while it starts: its first coming to the front is his, not a grab
+    void expectShow() { shown = true; }
     bool ownerInBrowser() const { return inBrowser; }
     /// The work area of the monitor the browser is on (for «↩ Back»); false when unknown
     bool browserMonitorArea(GdkRectangle* area) const;
