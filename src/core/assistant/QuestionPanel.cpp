@@ -143,8 +143,8 @@ void QuestionPanel::tick() {
         if (v->root && v->left && !queue.empty()) {
             const auto& q = queue.front();
             const gint64 s = q.deadlineUs ? std::max<gint64>(0, (q.deadlineUs - now) / G_USEC_PER_SEC) : -1;
-            std::string fallback = q.fallback == "no" ? "Нет" : q.fallback == "yes" ? "Да" : q.fallback;
-            xoj::gui::drawnTextSet(v->left, s >= 0 ? "через " + std::to_string(s) + " с: " + fallback : "");
+            std::string fallback = q.fallback == "no" ? "No" : q.fallback == "yes" ? "Yes" : q.fallback;
+            xoj::gui::drawnTextSet(v->left, s >= 0 ? "in " + std::to_string(s) + " s: " + fallback : "");
         }
     }
 }
@@ -243,7 +243,7 @@ void QuestionPanel::refresh(View& v) {
     const int front = queue.empty() ? 0 : queue.front().id;
     if (front == v.shownId) {
         if (!queue.empty()) {  // (only the counter may have changed: set only if it did, a label re-lays out)
-            const std::string who = queue.front().who + " спрашивает" +
+            const std::string who = queue.front().who + " asks" +
                                     (queue.size() > 1 ? " · 1/" + std::to_string(queue.size()) : "");
             if (who != gtk_label_get_text(GTK_LABEL(v.who))) {
                 gtk_label_set_text(GTK_LABEL(v.who), who.c_str());
@@ -262,15 +262,15 @@ void QuestionPanel::refresh(View& v) {
     g_list_free(kids);
     auto* textCtx = gtk_widget_get_style_context(v.text);
     if (queue.empty()) {
-        gtk_label_set_text(GTK_LABEL(v.who), "❓ Вопросы агентов");
-        gtk_label_set_text(GTK_LABEL(v.text), "Вопросов нет");
+        gtk_label_set_text(GTK_LABEL(v.who), "❓ Agents' questions");
+        gtk_label_set_text(GTK_LABEL(v.text), "No questions");
         gtk_style_context_add_class(textCtx, "xoai-question-idle");
         xoj::gui::drawnTextSet(v.left, "");
         return;
     }
     gtk_style_context_remove_class(textCtx, "xoai-question-idle");
     const auto& q = queue.front();
-    std::string who = q.who + " спрашивает";
+    std::string who = q.who + " asks";
     if (queue.size() > 1) {
         who += " · 1/" + std::to_string(queue.size());
     }
@@ -280,7 +280,7 @@ void QuestionPanel::refresh(View& v) {
     // only the asker's buttons (the owner, 2026-11-09: a panel of dynamic buttons); a yes/no question: Да, Нет
     std::vector<Option> options = q.options;
     if (options.empty()) {
-        options = {{"Да", "yes"}, {"Нет", "no"}};
+        options = {{"Yes", "yes"}, {"No", "no"}};
     }
     for (size_t i = 0; i < options.size(); i++) {
         GtkWidget* b = gtk_button_new_with_label(options[i].label.c_str());
@@ -289,7 +289,8 @@ void QuestionPanel::refresh(View& v) {
         gtk_style_context_add_class(gtk_widget_get_style_context(b), "xoai-question-option");
         gtk_widget_set_can_focus(b, FALSE);
         g_object_set_data_full(G_OBJECT(b), "value", g_strdup(options[i].value.c_str()), g_free);
-        if (options[i].value == "no" || options[i].label == "Нет" || options[i].label == "Не надо") {
+        if (options[i].value == "no" || options[i].label == "No" || options[i].label == "Not now" ||
+            options[i].label == "Нет" || options[i].label == "Не надо") {
             gtk_style_context_add_class(gtk_widget_get_style_context(b), "xoai-question-decline");
         }
         g_object_set_data(G_OBJECT(b), "question", GINT_TO_POINTER(q.id));

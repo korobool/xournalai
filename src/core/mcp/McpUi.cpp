@@ -16,6 +16,7 @@
 #include "control/zoom/ZoomControl.h"       // for ZoomControl
 #include "gui/Layout.h"                     // for Layout
 #include "gui/ScreenKeyboard.h"             // for screen_keyboard
+#include "audio/TalkCapture.h"  // for TalkCapture
 #include "gui/DrawnText.h"  // for drawnTextNew
 #include "gui/MainWindow.h"                 // for MainWindow
 #include "gui/PageView.h"                   // for XojPageView
@@ -42,6 +43,7 @@
 #include "assistant/QuickTools.h"                // for QuickTools
 #include "assistant/RecordingChooser.h"          // for RecordingChooser
 #include "assistant/SpeechToText.h"              // for SpeechToText
+#include "assistant/Transcriber.h"  // for Transcriber
 #include "assistant/QuestionPanel.h"            // for QuestionPanel
 #include "assistant/ThinkingOverlay.h"           // for ThinkingOverlay
 #include "control/RecordingObserver.h"           // for setRecordingObserver
@@ -281,6 +283,12 @@ McpUi::~McpUi() {
     }
     removeMenu();
     questionPanel.reset();  // (first: questions still open are answered "cancelled" while all else is there)
+    if (talkIdle) {
+        g_source_remove(talkIdle);
+        talkIdle = 0;
+    }
+    talkRecognizer.reset();  // (its answers would come to a window that is gone)
+    talkCapture.reset();
     quickTools.reset();
     aiToolbar.reset();
     server.setWorkerHook(nullptr);
@@ -1847,6 +1855,120 @@ std::optional<json> McpUi::questionAnswer(int id) const {
     return std::nullopt;
 }
 
+void McpUi::talkPressed(bool down, bool device) {
+    const gint64 now = g_get_monotonic_time();
+    if (down) {
+        if (!talkCapture) {
+            talkCapture = std::make_unique<xoj::audio::TalkCapture>(server.getControl()->getSettings());
+        }
+        std::string error;
+        if (!talkCapture->start(device, error)) {
+            g_warning("hold and talk: %s", error.c_str());
+            if (thinkingOverlay) {
+                thinkingOverlay->flashRecording("No microphone");
+            }
+            return;
+        }
+        talkStartUs = now;
+        return;
+    }
+    if (!talkCapture || !talkCapture->active()) {
+        return;
+    }
+    const std::vector<int16_t> samples = talkCapture->stop();
+    if (samples.size() < 16000 * 3 / 10) {  // (less than 0.3 s: a tap, not a phrase)
+        return;
+    }
+    const auto cfg = McpConfig::load().assistant.liveNotes;
+    if (!talkRecognizer || talkRecognizer->done()) {
+        assistant::TranscriberHooks hooks;
+        hooks.onResult = [this](const assistant::TranscriberResult& r) { onTalkResult(r.id, r.ok, r.text, r.error); };
+        hooks.onStatus = [](const std::string&) {};
+        std::string problem;
+        talkRecognizer.reset();
+        talkRecognizer = assistant::Transcriber::make(cfg.transcriber, std::move(hooks), problem);
+        if (!talkRecognizer) {
+            g_warning("hold and talk: %s", problem.c_str());
+            if (thinkingOverlay) {
+                thinkingOverlay->flashRecording("No speech recognizer");
+            }
+            return;
+        }
+    }
+    const fs::path folder = fs::path(g_get_user_data_dir()) / "xournalai" / "talk";
+    std::error_code ec;
+    fs::create_directories(folder, ec);
+    const std::string id = "talk-" + std::to_string(++talkSeq);
+    const fs::path wav = folder / (id + ".wav");
+    if (!assistant::writeWav16k(wav.string(), samples.data(), samples.size())) {
+        return;
+    }
+    talkTimes[id] = {talkStartUs, now};
+    assistant::TranscriberPiece piece;
+    piece.id = id;
+    piece.audioPath = wav.string();
+    piece.language = cfg.language.empty() ? "auto" : cfg.language;
+    talkRecognizer->submit(std::move(piece));
+    if (thinkingOverlay) {
+        thinkingOverlay->flashHeard("…", false);  // (heard: being recognized)
+    }
+    // the recognizer stays ready for the next phrase; ten minutes without one lets it go
+    if (talkIdle) {
+        g_source_remove(talkIdle);
+    }
+    talkIdle = g_timeout_add_seconds(
+            600,
+            +[](gpointer d) -> gboolean {
+                auto* ui = static_cast<McpUi*>(d);
+                ui->talkIdle = 0;
+                if (ui->talkRecognizer) {
+                    ui->talkRecognizer->finish();
+                }
+                return G_SOURCE_REMOVE;
+            },
+            this);
+}
+
+void McpUi::talkFeed(const float* frames, size_t count, int channels, int rate) {
+    if (talkCapture && talkCapture->active()) {
+        talkCapture->feed(frames, count, channels, rate);
+    }
+}
+
+void McpUi::onTalkResult(const std::string& id, bool ok, const std::string& text, const std::string& error) {
+    auto times = talkTimes.count(id) ? talkTimes[id] : std::make_pair(g_get_monotonic_time(), g_get_monotonic_time());
+    talkTimes.erase(id);
+    if (!ok || text.empty()) {
+        if (thinkingOverlay) {
+            thinkingOverlay->flashHeard(ok ? "didn't catch that" : "not recognized: " + error, false);
+        }
+        return;
+    }
+    // where he drew while saying it: what «это» means
+    std::optional<std::pair<size_t, xoj::util::Rectangle<double>>> where;
+    std::string line;
+    if (api::EventHub* events = server.getEvents()) {
+        if (auto ink = events->userInkBetween(times.first - 1500 * 1000, times.second + 500 * 1000)) {
+            where = std::make_pair(ink->page, ink->area);
+            char buf[200];
+            std::snprintf(buf, sizeof buf, " While saying it, the owner drew on page %zu around [%.0f, %.0f, %.0f, %.0f].",
+                          ink->page + 1, ink->area.x, ink->area.y, ink->area.width, ink->area.height);
+            line = buf;
+        } else if (auto last = events->lastUserAddition()) {
+            char buf[200];
+            std::snprintf(buf, sizeof buf, " The owner's latest ink: page %zu, [%.0f, %.0f, %.0f, %.0f].", last->page + 1,
+                          last->area.x, last->area.y, last->area.width, last->area.height);
+            line = buf;
+        }
+    }
+    if (thinkingOverlay) {
+        thinkingOverlay->flashHeard(text, true, where);
+    }
+    wakeServing("Voice command («Hold to talk», " + id + "): «" + text + "»." + line +
+                " Carry it out on the open document as the voice-control skill describes (it is a command: he held "
+                "the button while saying it).");
+}
+
 json McpUi::askStatus() const {
     if (!ask) {
         return {{"state", "off"}};
@@ -2531,11 +2653,7 @@ void McpUi::buildToolbar() {
         st.save();
     };
     quickTools->onCut = [this] { cutLive(); };
-    quickTools->onTalk = [this](bool down) {
-        if (live && live->listening()) {
-            live->talk(down);
-        }
-    };
+    quickTools->onTalk = [this](bool down) { talkPressed(down); };
     if (GAction* a = g_action_map_lookup_action(G_ACTION_MAP(server.getControl()->getWindow()->getWindow()),
                                                 "ai-tools-button")) {
         g_simple_action_set_state(G_SIMPLE_ACTION(a), g_variant_new_boolean(quickTools->buttonWanted()));

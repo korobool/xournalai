@@ -20,15 +20,15 @@ void registerQuestionTools(McpServer& server) {
     t.description =
             "Ask the owner a short question he answers with a tap, instead of asking in the terminal: the question "
             "panel shows it left of the AI terminal (or at the bottom left of the canvas when the terminal is "
-            "closed), with your options as big buttons (only yours: offer «Нет» / «Не надо» yourself when he may decline). Use it for a confirmation before "
+            "closed), with your options as big buttons (only yours: offer \"No\" / \"Not now\" yourself when he may decline; all of it in the app's interface language, English, like the rest of its interface). Use it for a confirmation before "
             "something he may not want (changing his own strokes, deleting, a big restructure), or a real choice "
             "(\"a mind map or a timeline?\"). op=ask: question (one line, in his language), options (up to 6 short "
-            "labels, e.g. [\"Да, рисовать\", \"Нет\"]; none: a yes/no question with the buttons Да / Нет, answered "
+            "labels, e.g. [\"Yes, draw it\", \"No\"]; none: a yes/no question with the buttons Yes / No, answered "
             "\"yes\" or \"no\"), default "
             "(the answer if he doesn't answer in time: make it the safe one; default \"no\"), timeout_s (10-600, "
             "default 90), wait (default true: the call returns his answer; false: it returns the id at once, and "
             "you are woken with the answer, or a worker looks with op=get). The answer is the label he tapped (yes / "
-            "no for a yes/no question); by: owner | timeout | cancelled. A spoken «да» is never an answer: only a tap is. "
+            "no for a yes/no question); by: owner | timeout | cancelled. A spoken \"yes\" is never an answer: only a tap is. "
             "op=get (id), op=cancel (id: no longer needed), op=list. Ask rarely, one thing at a time.";
     t.inputSchema = schema::object(
             {{"op", schema::enumeration("Operation", {"ask", "get", "cancel", "list"})},

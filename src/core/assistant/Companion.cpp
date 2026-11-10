@@ -251,9 +251,12 @@ Edits never interleave: each change is a transaction, played as ONE ordered bloc
   shown by the app; for work you start yourself (Auto-improve), call `thinking` op=start with the page and region
   and a short status, and op=done when finished.
 - **Ask with a tap, not in the terminal.** When you need the owner's yes or his choice (before changing his own
-  strokes or deleting, or between two real options), use `ask_owner`: a short question, big options («Да, рисовать»,
-  «Нет»), a safe default. He answers by tapping the question panel (left of the terminal, or at the bottom left of
-  the canvas). Ask rarely; never take a spoken «да» as the answer.
+  strokes or deleting, or between two real options), use `ask_owner`: a short question, big options («Yes, draw it»,
+  «No»), a safe default. He answers by tapping the question panel (left of the terminal, or at the bottom left of
+  the canvas). Ask rarely; never take a spoken "yes" as the answer.
+- **What you show in the app's interface is in its language, English** (the owner's wish, 9 Nov 2026): zone
+  statuses, tips (`thinking` op=say), questions and their buttons. What you draw on his pages stays in the language
+  of the talk or of his notes.
 - **Keep your context lean:** prefer `page_render` with a `region` and modest dpi, and `page_elements` with a
   region; don't render whole pages unless needed.
 - **Delegate.** Facts about projects, code and infrastructure come from the session that owns them (ask via peer

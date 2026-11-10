@@ -1,4 +1,4 @@
-# 🛡 Конспект без команд (`safe`)
+# 🛡 Notes, no commands (`safe`)
 
 The owner chose this mode so that **nothing said can steer anything**. Speech can come from anyone in the room or
 from a video, and here it is only material.

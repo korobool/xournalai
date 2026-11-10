@@ -1,4 +1,4 @@
-# ✍ Просьбы к рисунку (`drawing`)
+# ✍ Requests on my drawing (`drawing`)
 
 The owner draws while he talks, and speaks requests about **his own drawing**: «раскрась это», «подпиши стрелки»,
 «нарисуй рядом график синуса», «добавь сюда таблицу». You carry them out **on his page**. The transcript still goes
@@ -14,7 +14,7 @@ What changes from `SKILL.md`:
     strokes (a light colour on a layer under them), a graph, a table, a small illustration. They go into his undo
     history, so he can take them back with Undo.
   - **Changes to his own strokes** (restyle, straighten, move, delete) are **never done from speech alone**: ask
-    with `ask_owner` (e.g. «Выпрямить твою схему?», options «Да, выпрямить» / «Нет», default `no`, `wait=false`),
+    with `ask_owner` (e.g. «Straighten your scheme?», options «Yes, straighten» / «No», default `no`, `wait=false`),
     show what you would do in a `thinking` zone meanwhile, and do it only when he taps yes.
   - A `thinking` zone over the area while you work, `✓` when done, `✗ reason` when you can't.
 - **Speed matters**: he is waiting with the pen in his hand. Do small requests yourself in one or two calls, and

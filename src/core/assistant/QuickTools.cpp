@@ -842,16 +842,16 @@ void QuickTools::placeButton(GtkWidget* mainBox, const std::vector<GtkWidget*>& 
     gtk_widget_set_no_show_all(cutButton, TRUE);
     gtk_box_pack_end(GTK_BOX(outer), cutButton, FALSE, FALSE, 0);
 
-    // 🎙 voice control: hold it while saying a command (what is said without it is context); big, for a thumb
+    // 🎙 «Держи и говори»: hold it while saying a command; its own recording, whatever Record does; big, for a thumb
     talkButton = gtk_button_new();
-    GtkWidget* talkLabel = gtk_label_new("🎙 Держи\nи говори");
+    GtkWidget* talkLabel = gtk_label_new("🎙 Hold\nto talk");
     gtk_label_set_justify(GTK_LABEL(talkLabel), GTK_JUSTIFY_CENTER);
     gtk_container_add(GTK_CONTAINER(talkButton), talkLabel);
     gtk_style_context_add_class(gtk_widget_get_style_context(talkButton), "xoai-talk-button");
     gtk_widget_set_size_request(talkButton, 120, -1);
     g_object_set(talkButton, "margin", 4, "margin-end", 0, nullptr);
     gtk_widget_set_can_focus(talkButton, FALSE);
-    gtk_widget_set_tooltip_text(talkButton, "Voice control: hold while you say a command");
+    gtk_widget_set_tooltip_text(talkButton, "Hold while you say a command (recognized on your speech server)");
     gtk_buildable_set_name(GTK_BUILDABLE(talkButton), "aiVoiceTalkButton");
     talkPress = gtk_gesture_multi_press_new(talkButton);
     gtk_event_controller_set_propagation_phase(GTK_EVENT_CONTROLLER(talkPress), GTK_PHASE_CAPTURE);
@@ -939,9 +939,9 @@ void QuickTools::placeButton(GtkWidget* mainBox, const std::vector<GtkWidget*>& 
     gtk_widget_hide(cutButton);
     g_object_add_weak_pointer(G_OBJECT(cutButton), reinterpret_cast<gpointer*>(&cutButton));
     gtk_widget_set_no_show_all(talkButton, FALSE);
-    gtk_widget_show_all(talkButton);  // (its content; the button itself only during voice control)
+    gtk_widget_show_all(talkButton);  // (its content; the button itself with Record)
     gtk_widget_set_no_show_all(talkButton, TRUE);
-    gtk_widget_hide(talkButton);
+    gtk_widget_set_visible(talkButton, wantRecord);
     g_object_add_weak_pointer(G_OBJECT(talkButton), reinterpret_cast<gpointer*>(&talkButton));
     refreshRecord();
     refreshFullscreen();
@@ -1003,11 +1003,9 @@ void QuickTools::toggleRecording() {
 }
 
 void QuickTools::setLiveActive(bool on, bool voice) {
+    (void)voice;
     if (cutButton) {
-        gtk_widget_set_visible(cutButton, on && !voice);
-    }
-    if (talkButton) {
-        gtk_widget_set_visible(talkButton, on && voice);
+        gtk_widget_set_visible(cutButton, on);
     }
 }
 
@@ -1033,7 +1031,7 @@ GtkWidget* modeTile(const std::string& name, const std::string& sign, const std:
     gtk_label_set_max_width_chars(GTK_LABEL(nameLabel), 16);
     gtk_style_context_add_class(gtk_widget_get_style_context(nameLabel), "xoai-mode-name");
     gtk_box_pack_start(GTK_BOX(inner), nameLabel, FALSE, FALSE, 0);
-    GtkWidget* hintLabel = gtk_label_new(available ? hint.c_str() : "скоро");
+    GtkWidget* hintLabel = gtk_label_new(available ? hint.c_str() : "soon");
     gtk_label_set_justify(GTK_LABEL(hintLabel), GTK_JUSTIFY_CENTER);
     gtk_style_context_add_class(gtk_widget_get_style_context(hintLabel), "xoai-mode-hint");
     gtk_box_pack_start(GTK_BOX(inner), hintLabel, FALSE, FALSE, 0);
@@ -1061,7 +1059,7 @@ void showToggleState(GtkWidget* chip, const QuickTools::RecordToggle& t, bool on
         text = std::string(on ? "☑ " : "☐ ") + text;  // (a plain option: a box; a switch shows its side)
     }
     if (!t.available) {
-        text += " · скоро";
+        text += " · soon";
     }
     gtk_button_set_label(GTK_BUTTON(chip), text.c_str());
     GtkStyleContext* ctx = gtk_widget_get_style_context(chip);
@@ -1119,7 +1117,7 @@ void QuickTools::openRecordMenu() {
     GtkWidget* grid = gtk_grid_new();
     gtk_grid_set_row_spacing(GTK_GRID(grid), 8);
     gtk_grid_set_column_spacing(GTK_GRID(grid), 8);
-    std::vector<RecordChoice> choices = {{"plain", "⏺", "Запись", "только звук,\nкак тап по кнопке", "", false, true}};
+    std::vector<RecordChoice> choices = {{"plain", "⏺", "Record", "audio only,\nas a tap does", "", false, true}};
     if (recordChoices) {
         for (auto& ch: recordChoices()) {
             choices.push_back(std::move(ch));
@@ -1834,6 +1832,9 @@ void QuickTools::setRecordVisible(bool visible) {
     wantRecord = visible;
     if (recordButton) {
         gtk_widget_set_visible(recordButton, visible);
+    }
+    if (talkButton) {  // («Держи и говори»: always next to Record, recording or not, 2026-11-09)
+        gtk_widget_set_visible(talkButton, visible);
     }
     count("");  // (saves the choice)
 }

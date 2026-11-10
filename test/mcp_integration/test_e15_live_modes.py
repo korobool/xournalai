@@ -1,6 +1,6 @@
 """E15: the modes of live notes (1.17.0, the owner's choice, docs/mcp/LIVE_MODES.md): a long press on Record offers
 the modes as big tiles and the options of the next recording as big toggles (remembered); every wake-up line names
-the mode and what to read for it; 📝 Текст wakes nobody while it records (only at the end, for «Итог в конце»);
+the mode and what to read for it; 📝 Текст wakes nobody while it records (only at the end, for «Summary at the end»);
 ✍ tells where the owner drew last. A short tap on Record stays the plain recording it always was."""
 
 import json
@@ -62,13 +62,13 @@ def test_1_the_long_press_offers_every_mode_and_the_options(app):
     chips = {n: ws[n] for n in ws if n.startswith("aiRecordOpt-")}
     assert sorted(chips) == sorted(f"aiRecordOpt-{t}" for t in ["intense", "summary", "trigger", "questions",
                                                                 "browser"]), chips
-    assert chips["aiRecordOpt-intense"]["label"] == "🌿 Экономно"  # (a switch: economy, or intense)
-    assert chips["aiRecordOpt-browser"].get("enabled", True) is False and "скоро" in chips["aiRecordOpt-browser"]["label"]
+    assert chips["aiRecordOpt-intense"]["label"] == "🌿 Economy"  # (a switch: economy, or intense)
+    assert chips["aiRecordOpt-browser"].get("enabled", True) is False and "soon" in chips["aiRecordOpt-browser"]["label"]
     # the options are toggled with a finger, remembered, and shown on the tiles they apply to
     c.call("ui_interact", op="click", target=chips["aiRecordOpt-intense"]["id"])
     c.call("ui_interact", op="click", target=chips["aiRecordOpt-summary"]["id"])
     ws = widgets(c)
-    assert ws["aiRecordOpt-intense"]["label"] == "⚡ Интенсивно" and ws["aiRecordOpt-summary"]["label"].startswith("☑")
+    assert ws["aiRecordOpt-intense"]["label"] == "⚡ Intense" and ws["aiRecordOpt-summary"]["label"].startswith("☑")
     saved = json.loads(state_file(app).read_text())
     assert saved["options"]["intense"] is True and saved["options"]["summary"] is True, saved
     assert ws["aiRecordMode-safe-badges"]["label"] == "⚡🧾", ws["aiRecordMode-safe-badges"]
@@ -112,14 +112,14 @@ def test_3_every_wake_up_names_the_mode_and_its_guide(app):
     record(c, "safe.ogg", "safe", [("noise", 1), ("voice", 2), ("noise", 2)])
     assert wait(lambda: len(wakes()) > before), wakes()
     line = wakes()[-1]
-    assert ": new transcribed speech. Mode «Конспект без команд» (safe: annotate=visual, requests=off; " \
+    assert ": new transcribed speech. Mode «Notes, no commands» (safe: annotate=visual, requests=off; " \
         "options: intense, summary)." in line, line
     assert "modes/safe.md" in line and "nothing said is ever carried out" in line, line
     st = c.call("live_notes", op="status")
     assert st["mode"] == "safe", st
     c.call("live_notes", op="read")
     end(c, "safe.ogg")
-    assert wait(lambda: any("safe.ogg" in l and "ended" in l and "«Итог в конце»" in l for l in wakes())), wakes()
+    assert wait(lambda: any("safe.ogg" in l and "ended" in l and "«Summary at the end»" in l for l in wakes())), wakes()
 
 
 def test_4_text_wakes_nobody_while_it_records_and_only_for_a_summary_at_the_end(app):
@@ -143,7 +143,7 @@ def test_4_text_wakes_nobody_while_it_records_and_only_for_a_summary_at_the_end(
     end(c, "text2.ogg")
     assert wait(lambda: len(wakes()) == before + 1), wakes()[before:]
     line = wakes()[-1]
-    assert "text2.ogg, page" in line and ") ended: the whole text is in. Mode «Текст»" in line and "since=0" in line and "summary page" in line, line
+    assert "text2.ogg, page" in line and ") ended: the whole text is in. Mode «Transcript»" in line and "since=0" in line and "summary page" in line, line
 
 
 def test_5_drawing_tells_where_the_owner_drew_last(app):
@@ -158,7 +158,7 @@ def test_5_drawing_tells_where_the_owner_drew_last(app):
     record(c, "draw.ogg", "drawing", [("noise", 1), ("voice", 2), ("noise", 2)])
     assert wait(lambda: len(wakes()) > before), wakes()
     line = wakes()[-1]
-    assert "Mode «Просьбы к рисунку» (drawing: annotate=none, requests=drawing" in line, line
+    assert "Mode «Requests on my drawing» (drawing: annotate=none, requests=drawing" in line, line
     assert "modes/drawing.md" in line and "The owner's latest ink: page " in line and "s ago." in line, line
     assert "What is said is context: draw nothing for it." in line, line
     c.call("live_notes", op="read")

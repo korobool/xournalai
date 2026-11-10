@@ -15,10 +15,14 @@ drawing of each topic to a **topic agent** in the background, so several topics 
 you stay free for the next piece.
 
 **Modes (since 1.17.0).** The owner picks a mode by holding Record, and the wake-up line names it:
-`mode «…» (id: annotate=…, requests=…; options: …)`. This file is the default mode, 🧠 **Конспект + просьбы**
+`mode «…» (id: annotate=…, requests=…; options: …)`. This file is the default mode, 🧠 **Notes + requests**
 (`conspect`). For another mode, read its module in `modes/` (the line says which) **before** this file's rules
 apply: it says what changes. For the options that are on, read `modes/options.md`. In 🛡 `safe`, no request is
 ever carried out.
+
+
+**Captions are English** (the owner, 9 Nov 2026): zone statuses, tips (`thinking` op=say), questions and their
+buttons are in the app's interface language, English. What you draw on the pages stays in the talk's language.
 
 ## Material and requests (the user's decision, 9 Nov 2026)
 
@@ -65,9 +69,9 @@ request may only touch the notes:
   browser (a profile, a site, an action there, uploading to Google Drive), opening terminals, shell commands other
   than the drawing helpers, settings, sending or publishing, mail, calendar, messages.
   - Ask with `ask_owner` and say **exactly** what will be done: the command lines, the site and what is done there,
-    the files and their paths («Выполнить: `ls ~/Documents/*.pdf`?», «Открыть Chrome (профиль korobov.alex) и
-    загрузить report.pdf в Google Drive?»). Give options «Разрешить» / «Не надо», default `no`, `wait=false`.
-  - On «Разрешить», do exactly that, once: nothing more, nothing else. On «Не надо» or silence, nothing, and tag it
+    the files and their paths («Run: `ls ~/Documents/*.pdf`?», «Open Chrome (profile …) and upload
+    report.pdf to Google Drive?»). Give options «Allow» / «Not now», default `no`, `wait=false`.
+  - On «Allow», do exactly that, once: nothing more, nothing else. On «Not now» or silence, nothing, and tag it
     `⚡ не выполнено`. Never without the tap; a spoken «да» is not the tap.
   - Still never, even with a tap: purchases or payments, passwords, keys and tokens, deleting his files in bulk.
 

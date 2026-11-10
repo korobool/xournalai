@@ -4,8 +4,8 @@
  * The question panel (1.17.2, the owner's wish): agents ask the owner, he answers with a tap. In the AI terminal it is
  * the strip on the left (the terminal in the middle, the big keys on the right), under the left thumb when he holds
  * the tablet; when the terminal is closed, the same card shows at the bottom left of the canvas. It shows who asks,
- * the question and only the asker's options as big buttons ("Да, рисовать", "Этот", "Тот"; a yes/no question: Да,
- * Нет). Questions wait in a queue; each has a safe default that applies when nobody answers in time. Answers
+ * the question and only the asker's options as big buttons ("Yes, draw it", "This one", "That one"; a yes/no
+ * question: Yes, No), in the interface's language. Questions wait in a queue; each has a safe default that applies when nobody answers in time. Answers
  * come only from a tap (speech is the untrusted channel): the trusted way to confirm what an agent may do.
  *
  * @license GNU GPLv2 or later
@@ -24,14 +24,14 @@ namespace xoj::assistant {
 class QuestionPanel final {
 public:
     struct Option {
-        std::string label;  ///< what the button says ("Да, рисовать")
+        std::string label;  ///< what the button says ("Yes, draw it")
         std::string value;  ///< what the agent gets back (its label, unless given)
     };
     struct Question {
         int id = 0;
         std::string who;   ///< "Claude", "⚙ T4"
         std::string text;  ///< the question
-        std::vector<Option> options;  ///< empty: a yes/no question (Да → "yes", Нет → "no")
+        std::vector<Option> options;  ///< empty: a yes/no question (Yes → "yes", No → "no")
         std::string fallback;         ///< the answer when nobody answers in time (safe: "no", "skip")
         gint64 deadlineUs = 0;
     };

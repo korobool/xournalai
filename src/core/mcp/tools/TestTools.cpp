@@ -329,6 +329,46 @@ void registerTestTools(McpServer& server) {
     };
     server.getRegistry().addTool(std::move(liveAudio));
 
+    ToolSpec talk;
+    talk.name = "test_talk";
+    talk.title = "Test hook: «Hold to talk» without a microphone";
+    talk.description = "Test hook (XOURNALAI_TEST_HOOKS=1 only): op=press (as if the button were pressed, no "
+                       "microphone), op=feed (file: WAV PCM 16-bit mono: its sound), op=release (let go: the phrase "
+                       "goes to the speech recognizer).";
+    talk.inputSchema = schema::object({{"op", schema::enumeration("Operation", {"press", "feed", "release"})},
+                                       {"file", schema::string("feed: a WAV file")}},
+                                      {"op"});
+    talk.tier = Tier::Ui;
+    talk.handler = [srv](const json& j) {
+        Args args(j);
+        McpUi* ui = srv->getUi();
+        if (!ui) {
+            throw ToolError("no UI");
+        }
+        const std::string op = args.choice("op", {"press", "feed", "release"}, "");
+        if (op == "feed") {
+            gchar* data = nullptr;
+            gsize size = 0;
+            if (!g_file_get_contents(args.str("file").c_str(), &data, &size, nullptr) || size < 44) {
+                g_free(data);
+                throw ToolError("cannot read the WAV file");
+            }
+            const auto* bytes = reinterpret_cast<const unsigned char*>(data);
+            const int rate = static_cast<int>(bytes[24] | (bytes[25] << 8) | (bytes[26] << 16) | (bytes[27] << 24));
+            std::vector<float> samples((size - 44) / 2);
+            for (size_t i = 0; i < samples.size(); i++) {
+                samples[i] = static_cast<float>(static_cast<int16_t>(bytes[44 + 2 * i] | (bytes[45 + 2 * i] << 8))) /
+                             32768.0f;
+            }
+            g_free(data);
+            ui->talkFeed(samples.data(), samples.size(), 1, rate);
+        } else {
+            ui->talkPressed(op == "press", false);
+        }
+        return ToolResult::structured({{"ok", true}});
+    };
+    server.getRegistry().addTool(std::move(talk));
+
     ToolSpec recOn;
     recOn.name = "test_recorder";
     recOn.title = "Test hook: the recorder is on or off";

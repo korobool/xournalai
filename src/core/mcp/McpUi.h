@@ -58,6 +58,12 @@ class RecordingChooser;
 namespace xoj::api {
 struct DocEvent;
 }
+namespace xoj::audio {
+class TalkCapture;
+}
+namespace xoj::assistant {
+class Transcriber;
+}
 
 namespace xoj::mcp {
 
@@ -112,7 +118,7 @@ public:
     struct WorkerZone {
         size_t page = 0;
         xoj::util::Rectangle<double> area;
-        std::string status;           ///< e.g. "«Нотации молекул»: thinking (effort high)…"
+        std::string status;           ///< e.g. "«Notations»: thinking (effort high)…"
         std::optional<uint32_t> rgb;  ///< the topic's colour (0xRRGGBB)
     };
     json startWorker(const std::string& name, const std::string& brief, const std::string& effort, std::string& error,
@@ -285,6 +291,19 @@ private:
     void submitAsk(const std::string& command, const std::string& text);
     /// `area` of `page` in canvas widget coordinates (null if not shown)
     std::optional<GdkRectangle> canvasRect(size_t page, const xoj::util::Rectangle<double>& area) const;
+    /// «Держи и говори»: held, the microphone is recorded on its own; let go, the phrase goes to the speech recognizer
+    /// (the live notes' one) and then, as a command, to the serving session. `device`: false: sound only from tests
+public:
+    void talkPressed(bool down, bool device = true);
+    void talkFeed(const float* frames, size_t count, int channels, int rate);
+private:
+    void onTalkResult(const std::string& id, bool ok, const std::string& text, const std::string& error);
+    std::unique_ptr<xoj::audio::TalkCapture> talkCapture;
+    std::unique_ptr<assistant::Transcriber> talkRecognizer;
+    std::map<std::string, std::pair<gint64, gint64>> talkTimes;  ///< a phrase's id: when it was said
+    gint64 talkStartUs = 0;
+    int talkSeq = 0;
+    guint talkIdle = 0;  ///< lets the recognizer go after a while without phrases
     void buildQuestions();
     void onQuestionAnswered(int id, const std::string& value, const std::string& by);
     std::unique_ptr<assistant::QuestionPanel> questionPanel;

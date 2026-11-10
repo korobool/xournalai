@@ -1,4 +1,4 @@
-# 🗒 Ведение конспекта (`konspekt`)
+# 🗒 Typeset notes (`konspekt`)
 
 A conspect the owner could print: **layout quality and graphs first**. Requests work as in `SKILL.md`, within the
 safe list.

@@ -582,10 +582,10 @@ void LiveNotes::maybeWake() {
         wake(head + " ended: the whole text is in." + modeSentence + " Finish as " + guide +
              " describes for this mode" + options +
              " (live_notes(op=\"status\") tells where)." +
-             (opt.summary ? " The option «Итог в конце» is on: write the summary page too." : ""));
+             (opt.summary ? " The option «Summary at the end» is on: write the summary page too." : ""));
     } else if (!opt.wakeWhileTalking && opt.summary && done() && !endWoken && lastWritten() > 0) {
         endWoken = true;  // (📝 Текст: the transcript only, and the summary page it asked for at the end)
-        wake(head + " ended: the whole text is in." + modeSentence + " The option «Итог в конце» is on: read it all "
+        wake(head + " ended: the whole text is in." + modeSentence + " The option «Summary at the end» is on: read it all "
                     "(live_notes(op=\"read\", since=0)) and write the summary page after the live-notes pages, as "
                     "the live-annotation skill's modes/options.md describes. Draw nothing else.");
     }

@@ -3978,6 +3978,51 @@
               "finished": "2026-11-09T23:53:33+00:00"
             }
           ]
+        },
+        {
+          "id": "S15.19",
+          "title": "Hold to talk; captions in the interface's language",
+          "version": "1.17.5",
+          "stories": [
+            {
+              "id": "US-15.24",
+              "text": "As the owner, I want a hold-to-talk button next to Record that works in any mode and without a recording, recognized on my speech server, and the app's captions in the language of the rest of its interface (English).",
+              "acceptance": [
+                "held: its own recording; let go: the phrase is a command with the region drawn meanwhile",
+                "no Russian captions in the interface; agents write captions in English"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T15.19.1",
+              "story": "US-15.24",
+              "title": "«Hold to talk»: a button next to Record, its own recording, the live notes' recognizer",
+              "details": "The owner (22:4x-22:5x, via the companion): «Держи и говори» stays, always next to Record, in any mode and without a recording, independent of the Record modes; held it records, let go the phrase is a command recognized by Whisper on the A40. audio/TalkCapture: the selected input device of the audio settings (else the default), float frames downmixed and resampled to 16 kHz mono (as the chunker does), at most two minutes; feed() for tests. McpUi::talkPressed: press starts it (\"No microphone\" otherwise), release writes the phrase (at least 0.3 s) to <data>/xournalai/talk, submits it to the live notes' recognizer (kept for 10 minutes after the last phrase), shows «…» meanwhile; the result pops up by the region drawn while saying it and wakes the serving session: 'Voice command («Hold to talk», talk-N): «…». While saying it, the owner drew on page P around [...]. Carry it out …'. The button shows with Record (setRecordVisible); voice control's own talk button is gone (✂ there). Test hook test_talk (press, feed a WAV, release). test_e15_talk 3/3 (the button without a recording; a held phrase with the region drawn meanwhile; a tap is not a phrase).",
+              "commit": "ai: «Hold to talk»: a button next to Record, its own recording, the live notes' recognizer",
+              "status": "done",
+              "started": "2026-11-10T00:05:00+00:00",
+              "finished": "2026-11-10T00:05:00+00:00"
+            },
+            {
+              "id": "T15.19.2",
+              "story": "US-15.24",
+              "title": "Captions in the interface's language (English)",
+              "details": "The owner: UI captions and button captions are in the same language as the rest of the interface: English for him. The Record menu (modes: Transcript, Voice control, Requests on my drawing, Notes + requests, Notes, no commands, Typeset notes; options: Economy/Intense, Summary at the end, Trigger phrase, Question panel, Browser assistant; soon), the question panel (Claude asks, No questions, in N s: No, Yes/No), Hold to talk, the pop-ups, the wake lines' mode and option names. The serving session's instructions, the skills, ask_owner and thinking: what agents show in the interface (zone statuses, tips, questions and their buttons) is English; what they draw on pages stays in the talk's language. Tests follow.",
+              "commit": "ai: captions in the interface's language (English)",
+              "status": "done",
+              "started": "2026-11-10T00:05:01+00:00",
+              "finished": "2026-11-10T00:05:01+00:00"
+            },
+            {
+              "id": "T15.19.3",
+              "story": "US-15.24",
+              "title": "Release 1.17.5",
+              "details": "",
+              "commit": "",
+              "status": "todo"
+            }
+          ]
         }
       ]
     }

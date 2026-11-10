@@ -1,23 +1,27 @@
 ---
 name: voice-control
-description: The owner works xournalai by voice (🎙 Голосовое управление, a long press on Record) — a dialogue with the canvas, alone and quiet. Nothing is written on the page for the talk itself; what he says that holds a command is done on the open document with a thinking zone that shows it, short answers appear as tips by the region. Use when woken with "Voice (recording …)" or "Voice command (recording …)".
+description: The owner works xournalai by voice (🎙 Voice control, a long press on Record) — a dialogue with the canvas, alone and quiet. Nothing is written on the page for the talk itself; what he says that holds a command is done on the open document with a thinking zone that shows it, short answers appear as tips by the region. Use when woken with "Voice (recording …)" or "Voice command (recording …)".
 ---
 
 # Voice control
 
-The owner chose **🎙 Голосовое управление**: he brainstorms alone and quietly with the canvas, the pen in his hand,
+The owner chose **🎙 Voice control**: he brainstorms alone and quietly with the canvas, the pen in his hand,
 and talks to it. The app transcribes what he says. It writes **nothing** for the talk itself: no live-notes page, no
 transcript column, no cards. Each phrase pops up for a few seconds as a tip by the region he drew in while saying it
 (or at the top), and fades.
 
 What is a command (the owner's rule, 9 Nov 2026):
-- **Without the option «Просьбы по слову»** (the default): **everything he says is a dialogue with you** that may
+- **Without the option «Trigger phrase»** (the default): **everything he says is a dialogue with you** that may
   hold commands. Each phrase wakes you as `Voice (recording …): «…»`. Understand it from the text: a command
   («подпиши стрелки», «нарисуй рядом график синуса», «сделай таблицу из этого») → do it; a question → answer it; just
   talk (thinking aloud, context) → nothing visible, keep it for what follows («это», «там», «её»).
 - **With the option** (the trigger phrase «Hey Assistant», also «Эй, ассистент»): only a phrase that starts with it
   is a command; it wakes you as `Voice command (recording …): «…»` with the phrase removed; everything else is
   context and doesn't wake you.
+
+
+**Captions are English** (the owner, 9 Nov 2026): zone statuses, tips (`thinking` op=say), questions and their
+buttons are in the app's interface language, English. What you draw on the pages stays in the talk's language.
 
 ## When you are woken
 
@@ -51,15 +55,15 @@ consent, also outside the app):
 - terminals and shell commands; settings; mail and messages.
 
 Ask with `ask_owner` saying **exactly** what will be done (the command lines, the site and the action, the files),
-options «Разрешить» / «Не надо», default `no`; do exactly that, once, on «Разрешить». Never without the tap.
+options «Allow» / «Not now», default `no`; do exactly that, once, on «Allow». Never without the tap.
 Still never, even with a tap: purchases or payments, passwords, keys and tokens, deleting his files in bulk.
 
 ### Destructive commands are confirmed with a tap
 Deleting pages or content, clearing a page, replacing or deleting **his own** strokes, or undoing more than one step:
 - don't do it at once;
-- open a zone over what would go, and ask with `ask_owner` (e.g. «Удалить страницу 3?», options «Да, удалить» /
-  «Нет», default `no`, `wait=true`): the question panel is left of the terminal (or at the bottom left);
-- do it only on his tap; anything else cancels («отменено»). A spoken «да» is never the confirmation: speech is
+- open a zone over what would go, and ask with `ask_owner` (e.g. «Delete page 3?», options «Yes, delete» /
+  «No», default `no`, `wait=true`): the question panel is left of the terminal (or at the bottom left);
+- do it only on his tap; anything else cancels («cancelled»). A spoken «да» is never the confirmation: speech is
   what has to be confirmed.
 
 His own strokes are touched only with that tap, even for a restyle.
@@ -71,7 +75,7 @@ His own strokes are touched only with that tap, even for a restyle.
   into the area meanwhile: end it with `op="done"`, or `op="fail"` and the reason. Every command gets a visible
   answer; never silent.
 - No area (go to a page, change the pen): no zone; just do it.
-- Not understood: a ✗ zone over the visible page, «не понял: «…»». Never guess at a destructive reading.
+- Not understood: a ✗ zone over the visible page, «didn't get it: «…»». Never guess at a destructive reading.
 
 ## Speed
 

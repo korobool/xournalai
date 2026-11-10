@@ -11,16 +11,16 @@ namespace xoj::mcp::live {
 const std::vector<Mode>& modes() {
     // (the order of the menu's grid, after the plain recording: three in a row)
     static const std::vector<Mode> list = {
-            {"text", "📝", "Текст", "транскрипт на странице", "none", "off", true, false, "", true},
-            {"voice", "🎙", "Голосовое управление", "команды голосом,\nна странице ничего", "none", "commands",
+            {"text", "📝", "Transcript", "the text on a page,\nno AI while talking", "none", "off", true, false, "", true},
+            {"voice", "🎙", "Voice control", "talk to the canvas;\nnothing on the page", "none", "commands",
              false, true, "the voice-control skill", true},
-            {"drawing", "✍", "Просьбы к рисунку", "голосом правлю\nсвой рисунок", "none", "drawing", true, true,
+            {"drawing", "✍", "Requests on my drawing", "spoken requests act\non what I draw", "none", "drawing", true, true,
              "modes/drawing.md", true},
-            {"conspect", "🧠", "Конспект + просьбы", "карточки, схемы,\nвыполняет просьбы", "cards", "notes", true,
+            {"conspect", "🧠", "Notes + requests", "cards and schemes;\ndoes what I ask", "cards", "notes", true,
              true, "", true},
-            {"safe", "🛡", "Конспект без команд", "схемы и карточки,\nпросьбы не выполняет", "visual", "off", true,
+            {"safe", "🛡", "Notes, no commands", "cards and schemes;\nnever acts on speech", "visual", "off", true,
              true, "modes/safe.md", true},
-            {"konspekt", "🗒", "Ведение конспекта", "вёрстка и графики", "visual", "notes", true, true,
+            {"konspekt", "🗒", "Typeset notes", "a planned layout\nand graphs", "visual", "notes", true, true,
              "modes/konspekt.md", true},
     };
     return list;
@@ -37,11 +37,11 @@ const Mode* findMode(const std::string& id) {
 
 const std::vector<Toggle>& toggles() {
     static const std::vector<Toggle> list = {
-            {"intense", "⚡ Интенсивно", "🌿 Экономно", true},
-            {"summary", "🧾 Итог в конце", "", true},
-            {"trigger", "🔤 Просьбы по слову", "", true},
-            {"questions", "❓ Панель вопросов", "", true},
-            {"browser", "🔎 Браузер-помощник", "", false},
+            {"intense", "⚡ Intense", "🌿 Economy", true},
+            {"summary", "🧾 Summary at the end", "", true},
+            {"trigger", "🔤 Trigger phrase", "", true},
+            {"questions", "❓ Question panel", "", true},
+            {"browser", "🔎 Browser assistant", "", false},
     };
     return list;
 }
