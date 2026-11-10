@@ -1768,6 +1768,26 @@ void McpUi::submitAsk(const std::string& command, const std::string& text) {
 void McpUi::buildQuestions() {
     questionPanel = std::make_unique<assistant::QuestionPanel>(
             [this](int id, const std::string& value, const std::string& by) { onQuestionAnswered(id, value, by); });
+    questionPanel->setCanvasOn(McpConfig::load().assistant.questionsOnCanvas);
+    questionPanel->onCanvasToggle = [this](bool on) {
+        McpConfig cfg = McpConfig::load();
+        cfg.assistant.questionsOnCanvas = on;
+        cfg.save();
+        if (!on && thinkingOverlay) {
+            for (int id: thinkingOverlay->questionsShown()) {
+                thinkingOverlay->hideQuestion(id);
+            }
+        }
+    };
+    questionPanel->onLocate = [this](int id) {
+        auto it = questionPlaces.find(id);
+        if (it == questionPlaces.end()) {
+            return;
+        }
+        const auto& a = it->second.area;
+        server.getControl()->getScrollHandler()->scrollToPage(it->second.page,
+                                                              {a.x, a.y, a.x + a.width, a.y + a.height});
+    };
     // the card for when the terminal is not shown: bottom left of the canvas, where the left thumb is
     GtkWidget* overlay = server.getControl()->getWindow()->get("mainOverlay");
     if (overlay && GTK_IS_OVERLAY(overlay)) {
@@ -1806,7 +1826,8 @@ void McpUi::buildQuestions() {
 
 int McpUi::askOwner(const std::string& who, const std::string& text,
                     const std::vector<std::pair<std::string, std::string>>& options, const std::string& fallback,
-                    int timeoutS, std::function<void(const std::string& value, const std::string& by)> done) {
+                    int timeoutS, std::function<void(const std::string& value, const std::string& by)> done,
+                    std::optional<QuestionAbout> about) {
     if (!questionPanel) {
         return 0;
     }
@@ -1818,12 +1839,49 @@ int McpUi::askOwner(const std::string& who, const std::string& text,
     }
     q.fallback = fallback;
     q.deadlineUs = timeoutS > 0 ? g_get_monotonic_time() + static_cast<gint64>(timeoutS) * G_USEC_PER_SEC : 0;
+    if (about) {
+        q.place = "page " + std::to_string(about->page + 1);
+    }
     const int id = questionPanel->ask(q);
     if (done) {
         questionDone[id] = std::move(done);
     }
+    if (about) {
+        questionPlaces[id] = *about;
+        // On the canvas too, at what it is about, at once (the owner's switch in the panel; on by default)
+        if (thinkingOverlay && McpConfig::load().assistant.questionsOnCanvas) {
+            assistant::ThinkingOverlay::QuestionBubble b;
+            b.id = id;
+            b.mark = assistant::QuestionPanel::markOf(id);
+            b.rgb = assistant::QuestionPanel::colourOf(id);
+            b.page = about->page;
+            b.area = about->area;
+            b.text = about->shortText;
+            b.options = options;
+            b.startUs = g_get_monotonic_time();
+            b.deadlineUs = q.deadlineUs;
+            thinkingOverlay->showQuestion(b, [this](int qid, const std::string& value) {
+                if (questionPanel) {
+                    questionPanel->answer(qid, value);
+                }
+            });
+        }
+    }
     update();
     return id;
+}
+
+std::optional<std::pair<size_t, xoj::util::Rectangle<double>>> McpUi::ownersLatestInk() const {
+    api::EventHub* events = server.getEvents();
+    auto ink = events ? events->lastUserAddition() : std::nullopt;
+    if (!ink) {
+        return std::nullopt;
+    }
+    return std::make_pair(ink->page, ink->area);
+}
+
+std::vector<int> McpUi::questionsOnCanvas() const {
+    return thinkingOverlay ? thinkingOverlay->questionsShown() : std::vector<int>{};
 }
 
 bool McpUi::cancelQuestion(int id) { return questionPanel && questionPanel->cancel(id); }
@@ -1839,6 +1897,10 @@ void McpUi::wakeServing(const std::string& text) {
 }
 
 void McpUi::onQuestionAnswered(int id, const std::string& value, const std::string& by) {
+    questionPlaces.erase(id);
+    if (thinkingOverlay) {
+        thinkingOverlay->hideQuestion(id);  // (answered in either place, or its time is up: both go)
+    }
     questionAnswers[id] = {{"answer", value}, {"by", by}};
     while (questionAnswers.size() > 50) {
         questionAnswers.erase(questionAnswers.begin());
@@ -1859,8 +1921,17 @@ json McpUi::questions() const {
             for (const auto& o: q.options) {
                 options.push_back(o.label);
             }
-            waiting.push_back({{"id", q.id}, {"who", q.who}, {"question", q.text}, {"options", options},
-                               {"default", q.fallback}});
+            json item = {{"id", q.id},         {"mark", assistant::QuestionPanel::markOf(q.id)},
+                         {"who", q.who},       {"question", q.text},
+                         {"options", options}, {"default", q.fallback}};
+            if (auto it = questionPlaces.find(q.id); it != questionPlaces.end()) {
+                const auto& a = it->second.area;
+                item["about"] = {{"page", it->second.page + 1}, {"region", {a.x, a.y, a.width, a.height}}};
+                item["short"] = it->second.shortText;
+                const auto shown = questionsOnCanvas();
+                item["on_canvas"] = std::find(shown.begin(), shown.end(), q.id) != shown.end();
+            }
+            waiting.push_back(std::move(item));
         }
     }
     json answered = json::array();

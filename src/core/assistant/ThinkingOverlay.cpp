@@ -4,7 +4,17 @@
 #include <cmath>      // for M_PI
 #include <cstdio>     // for snprintf
 
+#include "gui/TooltipGuard.h"  // for lastPenActivityUs
+
 namespace xoj::assistant {
+
+bool bubbleTapAllowed(GdkInputSource source, gint64 sincePenUs) {
+    if (source == GDK_SOURCE_PEN || source == GDK_SOURCE_ERASER) {
+        return false;  // (the pen draws: it never answers)
+    }
+    constexpr gint64 PALM_US = 700 * 1000;
+    return !(source == GDK_SOURCE_TOUCHSCREEN && sincePenUs >= 0 && sincePenUs < PALM_US);
+}
 
 namespace {
 /// `s` as valid UTF-8 (invalid bytes become U+FFFD)
@@ -140,6 +150,9 @@ ThinkingOverlay::~ThinkingOverlay() {
     }
     while (!list.empty()) {
         removeZone(list.size() - 1);
+    }
+    while (!bubbleList.empty()) {
+        removeBubble(bubbleList.size() - 1);
     }
     if (chip) {
         GtkWidget* c = chip;
@@ -346,6 +359,7 @@ void ThinkingOverlay::layout() {
             }
         }
     }
+    layoutBubbles();
     if (chip) {
         const auto area = bounds ? bounds() : std::nullopt;
         if (chipText.empty() || !area) {
@@ -409,6 +423,255 @@ void ThinkingOverlay::invalidateMarks() {
     marksDrawn = now;
 }
 
+struct ThinkingOverlay::Bubble {
+    QuestionBubble q;
+    BubbleAnswer answer;
+    GtkWidget* box = nullptr;  ///< weak
+    bool visible = false;
+    GdkRectangle area{0, 0, 0, 0};   ///< its subject, in the overlay
+    GdkRectangle rect{0, 0, 0, 0};   ///< the bubble itself
+    GdkRectangle drawn{0, 0, 0, 0};  ///< where its outline and bar were drawn last
+    int barWidth = -1;
+};
+
+namespace {
+const char* BUBBLE_CSS =
+        ".xoai-question-bubble { padding: 8px 10px; border-radius: 16px; background-color: alpha(#1c1e23, 0.94); }"
+        ".xoai-question-bubble label { color: #ffffff; }"
+        ".xoai-bubble-text { font-weight: bold; font-size: 1.05em; }"
+        ".xoai-bubble-option { min-height: 44px; min-width: 64px; border-radius: 14px; font-weight: bold; border: none;"
+        "  color: #ffffff; background-image: linear-gradient(160deg, #4a90e2, #2d6fe0); }"
+        ".xoai-bubble-option.xoai-bubble-yes { background-image: linear-gradient(160deg, #3fc37a, #1e9a5a); }"
+        ".xoai-bubble-option.xoai-bubble-no { background-image: linear-gradient(160deg, #ff7a6a, #d8453c); }"
+        ".xoai-bubble-option.xoai-bubble-decline { background-image: linear-gradient(160deg, #8a8f99, #5f646e); }"
+        ".xoai-bubble-option label { color: #ffffff; }";
+
+void addBubbleCss() {
+    static bool added = false;
+    if (added) {
+        return;
+    }
+    added = true;
+    GtkCssProvider* css = gtk_css_provider_new();
+    gtk_css_provider_load_from_data(css, BUBBLE_CSS, -1, nullptr);
+    gtk_style_context_add_provider_for_screen(gdk_screen_get_default(), GTK_STYLE_PROVIDER(css),
+                                              GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+    g_object_unref(css);
+}
+
+std::string hexColour(uint32_t rgb) {
+    char buf[8];
+    std::snprintf(buf, sizeof buf, "#%06x", rgb & 0xffffff);
+    return buf;
+}
+}  // namespace
+
+void ThinkingOverlay::showQuestion(QuestionBubble q, BubbleAnswer onAnswer) {
+    hideQuestion(q.id);
+    if (!overlay) {
+        return;
+    }
+    addBubbleCss();
+    auto* b = new Bubble;
+    b->q = std::move(q);
+    b->answer = std::move(onAnswer);
+    const std::string name = "aiQuestionBubble" + std::to_string(b->q.id);
+    b->box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+    gtk_style_context_add_class(gtk_widget_get_style_context(b->box), "xoai-question-bubble");
+    gtk_buildable_set_name(GTK_BUILDABLE(b->box), name.c_str());
+    GtkWidget* text = gtk_label_new(nullptr);
+    gchar* escaped = g_markup_escape_text(validUtf8(b->q.text).c_str(), -1);
+    const std::string markup = "<span foreground=\"" + hexColour(b->q.rgb) + "\" size=\"larger\">" + b->q.mark +
+                               "</span> " + escaped;
+    g_free(escaped);
+    gtk_label_set_markup(GTK_LABEL(text), markup.c_str());
+    gtk_label_set_line_wrap(GTK_LABEL(text), TRUE);
+    gtk_label_set_max_width_chars(GTK_LABEL(text), 22);
+    gtk_style_context_add_class(gtk_widget_get_style_context(text), "xoai-bubble-text");
+    gtk_buildable_set_name(GTK_BUILDABLE(text), (name + "Text").c_str());
+    gtk_box_pack_start(GTK_BOX(b->box), text, FALSE, FALSE, 0);
+    auto options = b->q.options;
+    if (options.empty()) {
+        options = {{"Yes", "yes"}, {"No", "no"}};
+    }
+    for (size_t i = 0; i < options.size(); i++) {
+        GtkWidget* button = gtk_button_new_with_label(options[i].first.c_str());
+        auto* ctx = gtk_widget_get_style_context(button);
+        gtk_style_context_add_class(ctx, "xoai-bubble-option");
+        const std::string& v = options[i].second;
+        const std::string& l = options[i].first;
+        if (b->q.options.empty()) {
+            gtk_style_context_add_class(ctx, v == "yes" ? "xoai-bubble-yes" : "xoai-bubble-no");
+        } else if (v == "no" || l == "No" || l == "Not now") {
+            gtk_style_context_add_class(ctx, "xoai-bubble-decline");
+        }
+        gtk_widget_set_can_focus(button, FALSE);
+        gtk_buildable_set_name(GTK_BUILDABLE(button), (name + "Option" + std::to_string(i + 1)).c_str());
+        g_object_set_data_full(G_OBJECT(button), "value", g_strdup(v.c_str()), g_free);
+        g_object_set_data(G_OBJECT(button), "question", GINT_TO_POINTER(b->q.id));
+        g_signal_connect(button, "clicked", G_CALLBACK(+[](GtkButton* button, gpointer self) {
+                             // a finger or a mouse; never the pen, nor the palm right after it
+                             if (GdkEvent* e = gtk_get_current_event()) {
+                                 GdkDevice* d = gdk_event_get_source_device(e);
+                                 const GdkInputSource src = d ? gdk_device_get_source(d) : GDK_SOURCE_MOUSE;
+                                 gdk_event_free(e);
+                                 const gint64 pen = xoj::gui::lastPenActivityUs();
+                                 if (!bubbleTapAllowed(src, pen ? g_get_monotonic_time() - pen : -1)) {
+                                     return;
+                                 }
+                             }
+                             auto* ov = static_cast<ThinkingOverlay*>(self);
+                             const int id = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(button), "question"));
+                             const std::string value =
+                                     static_cast<const char*>(g_object_get_data(G_OBJECT(button), "value"));
+                             for (Bubble* bb: ov->bubbleList) {
+                                 if (bb->q.id == id) {
+                                     auto answer = bb->answer;  // (it goes with the answer)
+                                     if (answer) {
+                                         answer(id, value);
+                                     }
+                                     return;
+                                 }
+                             }
+                         }),
+                         this);
+        gtk_box_pack_start(GTK_BOX(b->box), button, FALSE, FALSE, 0);
+    }
+    gtk_widget_show_all(b->box);
+    gtk_widget_set_no_show_all(b->box, TRUE);
+    gtk_widget_hide(b->box);  // (shown by layout, where it belongs)
+    gtk_overlay_add_overlay(GTK_OVERLAY(overlay), b->box);
+    g_object_add_weak_pointer(G_OBJECT(b->box), reinterpret_cast<gpointer*>(&b->box));
+    bubbleList.push_back(b);
+    layout();
+    ensureTimer();
+}
+
+void ThinkingOverlay::hideQuestion(int id) {
+    for (size_t i = 0; i < bubbleList.size(); i++) {
+        if (bubbleList[i]->q.id == id) {
+            removeBubble(i);
+            return;
+        }
+    }
+}
+
+void ThinkingOverlay::removeBubble(size_t index) {
+    Bubble* b = bubbleList[index];
+    bubbleList.erase(bubbleList.begin() + static_cast<long>(index));
+    invalidate(b->drawn);
+    if (b->box) {
+        GtkWidget* w = b->box;
+        g_object_remove_weak_pointer(G_OBJECT(w), reinterpret_cast<gpointer*>(&b->box));
+        gtk_widget_destroy(w);
+    }
+    delete b;
+}
+
+std::vector<int> ThinkingOverlay::questionsShown() const {
+    std::vector<int> ids;
+    for (const Bubble* b: bubbleList) {
+        if (b->visible) {
+            ids.push_back(b->q.id);
+        }
+    }
+    return ids;
+}
+
+void ThinkingOverlay::layoutBubbles() {
+    const auto bnd = bounds ? bounds() : std::nullopt;
+    const gint64 now = g_get_monotonic_time();
+    for (Bubble* b: bubbleList) {
+        auto r = mapper ? mapper(b->q.page, b->q.area) : std::nullopt;
+        b->visible = r.has_value() && b->box && bnd;
+        if (!b->visible) {
+            if (b->box && gtk_widget_get_visible(b->box)) {
+                gtk_widget_hide(b->box);
+            }
+            invalidate(b->drawn);
+            b->drawn = {0, 0, 0, 0};
+            continue;
+        }
+        b->area = *r;
+        GtkRequisition nat;
+        gtk_widget_get_preferred_size(b->box, nullptr, &nat);
+        // Beside its subject, never over it: on the left (away from his drawing hand), else above, below, right
+        const GdkRectangle& a = b->area;
+        const int gap = 12;
+        const std::pair<int, int> spots[] = {{a.x - nat.width - gap, a.y},
+                                             {a.x, a.y - nat.height - gap},
+                                             {a.x, a.y + a.height + gap},
+                                             {a.x + a.width + gap, a.y}};
+        auto fits = [&](int x, int y) {
+            return x >= bnd->x + 4 && y >= bnd->y + 4 && x + nat.width <= bnd->x + bnd->width - 4 &&
+                   y + nat.height <= bnd->y + bnd->height - 4;
+        };
+        int x = spots[0].first, y = spots[0].second;
+        bool placed = false;
+        for (const auto& [sx, sy]: spots) {
+            if (fits(sx, sy)) {
+                x = sx;
+                y = sy;
+                placed = true;
+                break;
+            }
+        }
+        if (!placed) {  // (no room beside it: kept on the canvas, at its top left)
+            x = std::clamp(spots[0].first, bnd->x + 4, std::max(bnd->x + 4, bnd->x + bnd->width - nat.width - 4));
+            y = std::clamp(spots[0].second, bnd->y + 4, std::max(bnd->y + 4, bnd->y + bnd->height - nat.height - 4));
+        }
+        placeChild(b->box, x, y);
+        if (!gtk_widget_get_visible(b->box)) {
+            gtk_widget_show(b->box);
+        }
+        b->rect = {x, y, nat.width, nat.height};
+        const int bar = b->q.deadlineUs > b->q.startUs ?
+                                static_cast<int>(nat.width * std::clamp(static_cast<double>(b->q.deadlineUs - now) /
+                                                                                (b->q.deadlineUs - b->q.startUs),
+                                                                        0.0, 1.0)) :
+                                0;
+        GdkRectangle outline{a.x - 6, a.y - 6, a.width + 12, a.height + 12};
+        GdkRectangle under{x, y + nat.height + 2, nat.width, 4};
+        const GdkRectangle nowDrawn = unite(outline, under);
+        if (!gdk_rectangle_equal(&nowDrawn, &b->drawn) || bar != b->barWidth) {
+            invalidate(b->drawn);
+            invalidate(nowDrawn);
+            b->drawn = nowDrawn;
+            b->barWidth = bar;
+        }
+    }
+}
+
+void ThinkingOverlay::drawBubbles(cairo_t* cr) {
+    const auto area = bounds ? bounds() : std::nullopt;
+    for (const Bubble* b: bubbleList) {
+        if (!b->visible) {
+            continue;
+        }
+        cairo_save(cr);
+        if (area) {  // (the outline stays on the canvas: never over the terminal or the toolbars)
+            cairo_rectangle(cr, area->x, area->y, area->width, area->height);
+            cairo_clip(cr);
+        }
+        const double red = ((b->q.rgb >> 16) & 0xff) / 255.0, green = ((b->q.rgb >> 8) & 0xff) / 255.0,
+                     blue = (b->q.rgb & 0xff) / 255.0;
+        const GdkRectangle& a = b->area;
+        const double dashes[] = {7.0, 4.0};
+        cairo_set_dash(cr, dashes, 2, 0);
+        cairo_set_line_width(cr, 2.5);
+        cairo_rectangle(cr, a.x - 4, a.y - 4, a.width + 8, a.height + 8);
+        cairo_set_source_rgba(cr, red, green, blue, 0.95);
+        cairo_stroke(cr);
+        cairo_set_dash(cr, nullptr, 0, 0);
+        if (b->barWidth > 0) {  // (the time left)
+            cairo_rectangle(cr, b->rect.x, b->rect.y + b->rect.height + 2, b->barWidth, 3);
+            cairo_set_source_rgba(cr, red, green, blue, 0.9);
+            cairo_fill(cr);
+        }
+        cairo_restore(cr);
+    }
+}
+
 void ThinkingOverlay::setPageChip(const std::string& text, std::function<void()> onTap) {
     chipText = text;
     chipTap = std::move(onTap);
@@ -462,7 +725,8 @@ gboolean ThinkingOverlay::onTick(gpointer data) {
     }
     self->invalidateRecording();
     self->invalidateHeard();
-    if (self->list.empty() && self->rec == Recording::Off && g_get_monotonic_time() >= self->recMessageUntilUs &&
+    if (self->list.empty() && self->bubbleList.empty() && self->rec == Recording::Off &&
+        g_get_monotonic_time() >= self->recMessageUntilUs &&
         g_get_monotonic_time() >= self->heardUntilUs) {
         self->timer = 0;
         return G_SOURCE_REMOVE;
@@ -992,6 +1256,7 @@ gboolean ThinkingOverlay::onDraw(GtkWidget*, cairo_t* cr, gpointer data) {
         cairo_stroke(cr);
         cairo_set_dash(cr, nullptr, 0, 0);
     }
+    self->drawBubbles(cr);
     for (const Zone* z: self->list) {
         if (!z->visible) {
             continue;

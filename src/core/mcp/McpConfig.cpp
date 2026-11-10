@@ -88,6 +88,7 @@ McpConfig McpConfig::load() {
                 cfg.assistant.speech = a.value("speech", cfg.assistant.speech);
                 cfg.assistant.speechModel = a.value("speech_model", cfg.assistant.speechModel);
                 cfg.assistant.shareRecordings = a.value("share_recordings", cfg.assistant.shareRecordings);
+                cfg.assistant.questionsOnCanvas = a.value("questions_on_canvas", cfg.assistant.questionsOnCanvas);
                 if (a.contains("research_browser") && a["research_browser"].is_object()) {
                     cfg.assistant.researchBrowser = a["research_browser"];
                 }
@@ -188,6 +189,7 @@ void McpConfig::save() const {
                 {"share_recordings", assistant.shareRecordings},
                 {"screen_keyboard", assistant.screenKeyboard},
                 {"research_browser", assistant.researchBrowser},
+                {"questions_on_canvas", assistant.questionsOnCanvas},
                 {"live_notes",
                  {{"enabled", assistant.liveNotes.enabled},
                   {"transcriber", assistant.liveNotes.transcriber},

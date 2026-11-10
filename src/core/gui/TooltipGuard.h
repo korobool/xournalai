@@ -26,4 +26,7 @@ void installTooltipGuard(GtkWidget* canvas);
 /// focus guard: the same press seen by the X server without reaching the app went somewhere else, e.g. Alt+Tab)
 void setInputObserver(void (*observer)(guint32 time, gpointer data), gpointer data);
 
+/// When the pen (or eraser) last did anything in the app (monotonic µs; 0: never): a touch right after it is the palm
+gint64 lastPenActivityUs();
+
 }  // namespace xoj::gui

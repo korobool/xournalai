@@ -74,6 +74,11 @@ Ask with `ask_owner` only:
 
 A bulk deletion where it is unclear what goes counts as unclear.
 
+A question about something on the page shows there too, so that he sees what it is about (1.19.0): pass `about`
+({page, region}) or `about_ink=true` («это»: his latest strokes), and `short`, a few words for the bubble on the
+canvas ("Smooth this word?"). The full question stays in the panel. A question before anything outside the app never
+goes on the canvas: `outside=true`.
+
 ## How you show it
 
 - A **`thinking` zone** over the area the command acts on, with the command, short, as its status

@@ -132,9 +132,20 @@ public:
 #endif
     /// The question panel (1.17.2): an agent asks, the owner taps an answer. `options`: (label, value); none = a yes/no
     /// question. `done` gets (value, by: owner | timeout | cancelled). Returns the question's id (0: no panel)
+    /// What a question is about on the page (1.19.0): it shows there too, as a bubble with `shortText`
+    struct QuestionAbout {
+        size_t page = 0;
+        xoj::util::Rectangle<double> area;
+        std::string shortText;
+    };
     int askOwner(const std::string& who, const std::string& text,
                  const std::vector<std::pair<std::string, std::string>>& options, const std::string& fallback,
-                 int timeoutS, std::function<void(const std::string& value, const std::string& by)> done);
+                 int timeoutS, std::function<void(const std::string& value, const std::string& by)> done,
+                 std::optional<QuestionAbout> about = std::nullopt);
+    /// The owner's latest ink (page, area), for a question about «this»
+    std::optional<std::pair<size_t, xoj::util::Rectangle<double>>> ownersLatestInk() const;
+    /// (tests) the questions shown on the canvas
+    std::vector<int> questionsOnCanvas() const;
     bool cancelQuestion(int id);
     /// An intent for the serving session (delivered when it is idle); nothing without the terminal
     void wakeServing(const std::string& text);
@@ -328,6 +339,7 @@ private:
     std::unique_ptr<assistant::QuestionPanel> questionPanel;
     std::map<int, std::function<void(const std::string&, const std::string&)>> questionDone;
     std::map<int, json> questionAnswers;  ///< the last answers (for agents that look later)
+    std::map<int, QuestionAbout> questionPlaces;  ///< what the waiting questions are about
 #ifdef ENABLE_AI_TERMINAL
     void buildTerminal();
     assistant::TerminalSpec terminalSpec(const std::string& kind, bool serving) const;

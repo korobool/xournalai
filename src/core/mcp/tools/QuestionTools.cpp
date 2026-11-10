@@ -1,6 +1,7 @@
 // Tool: ask_owner (the question panel: an agent asks, the owner answers with a tap)
 
-#include <memory>  // for shared_ptr
+#include <memory>    // for shared_ptr
+#include <optional>  // for optional
 
 #include "mcp/McpProtocol.h"  // for callingWorker
 #include "mcp/McpServer.h"
@@ -31,7 +32,12 @@ void registerQuestionTools(McpServer& server) {
             "default 90), wait (default true: the call returns his answer; false: it returns the id at once, and "
             "you are woken with the answer, or a worker looks with op=get). The answer is the label he tapped (yes / "
             "no for a yes/no question); by: owner | timeout | cancelled. A spoken \"yes\" is never an answer: only a tap is. "
-            "op=get (id), op=cancel (id: no longer needed), op=list. Ask rarely, one thing at a time.";
+            "op=get (id), op=cancel (id: no longer needed), op=list. Ask rarely, one thing at a time. "
+            "A question about something on the page (the owner, 1.19.0): about = {page (1-based), region [x, y, width, "
+            "height] in page points}, or about_ink=true (his latest strokes: «this») → it shows there too, at once: an outline "
+            "and a bubble with short (a few words, e.g. \"Improve the butterfly?\") and your buttons, numbered and "
+            "coloured as in the panel, where the full question stays. outside=true: an action outside the app (files, "
+            "the shell, the browser…): never on the canvas, only in the panel (a tap next to his pen is too easy).";
     t.inputSchema = schema::object(
             {{"op", schema::enumeration("Operation", {"ask", "get", "cancel", "list"})},
              {"question", schema::string("ask: the question, short")},
@@ -39,12 +45,20 @@ void registerQuestionTools(McpServer& server) {
              {"default", schema::string("ask: the answer when nobody answers in time (safe; default \"no\")")},
              {"timeout_s", schema::integer("ask: seconds to wait (10-600, default 90)")},
              {"wait", schema::boolean("ask: wait for the answer (default true)")},
-             {"id", schema::integer("get/cancel: the question")}},
+             {"id", schema::integer("get/cancel: the question")},
+             {"about", schema::object({{"page", schema::integer("the page (1-based)")},
+                                       {"region", schema::array("[x, y, width, height] in page points",
+                                                                schema::number("coordinate"))}},
+                                      {"page", "region"}, "ask: what the question is about on the page")},
+             {"about_ink", schema::boolean("ask: it is about his latest strokes («this»)")},
+             {"short", schema::string("ask: the bubble's text on the canvas (a few words)")},
+             {"outside", schema::boolean("ask: it allows an action outside the app (only in the panel)")}},
             {"op"});
     t.tier = Tier::Ui;
     t.asyncHandler = [srv](const json& j, Responder respond) {
         Args args(j);
-        args.rejectUnknown({"op", "question", "options", "default", "timeout_s", "wait", "id"});
+        args.rejectUnknown({"op", "question", "options", "default", "timeout_s", "wait", "id", "about", "about_ink",
+                            "short", "outside"});
         const std::string op = args.choice("op", {"ask", "get", "cancel", "list"}, "");
         McpUi* ui = srv->getUi();
         if (!ui) {
@@ -86,6 +100,45 @@ void registerQuestionTools(McpServer& server) {
                 options.emplace_back(o.get<std::string>(), o.get<std::string>());
             }
         }
+        // What it is about on the page: a bubble there too (never for an action outside the app)
+        std::optional<McpUi::QuestionAbout> about;
+        if ((args.has("about") || args.boolean("about_ink", false)) && !args.boolean("outside", false)) {
+            const json& a = args.has("about") ? args.raw("about") : json();
+            McpUi::QuestionAbout place;
+            if (args.boolean("about_ink", false)) {
+                auto ink = ui->ownersLatestInk();
+                if (!ink) {
+                    throw ToolError("about_ink: the owner has drawn nothing yet");
+                }
+                place.page = ink->first;
+                place.area = ink->second;
+            } else if (a.is_object() && a.contains("region") && a["region"].is_array() && a["region"].size() == 4) {
+                const int pageNo = a.value("page", 0);
+                if (pageNo < 1) {
+                    throw ToolError("about.page: the page, 1-based");
+                }
+                place.page = static_cast<size_t>(pageNo - 1);
+                const json& r = a["region"];
+                place.area = {r[0].get<double>(), r[1].get<double>(), r[2].get<double>(), r[3].get<double>()};
+            } else {
+                throw ToolError("about: {page, region: [x, y, width, height]} (or about_ink=true)");
+            }
+            std::string shortText = args.str("short", "");
+            if (shortText.empty()) {  // (the question's start)
+                shortText = question;
+                if (g_utf8_strlen(shortText.c_str(), -1) > 40) {
+                    shortText = std::string(shortText.c_str(),
+                                            static_cast<size_t>(g_utf8_offset_to_pointer(shortText.c_str(), 38) -
+                                                                shortText.c_str())) +
+                                "…";
+                }
+            }
+            if (shortText.size() > 160) {
+                throw ToolError("short: a few words");
+            }
+            place.shortText = shortText;
+            about = place;
+        }
         const std::string fallback = args.str("default", "no");
         const int timeout = static_cast<int>(args.integer("timeout_s", 90, 10, 600));
         const bool wait = args.boolean("wait", true);
@@ -104,7 +157,7 @@ void registerQuestionTools(McpServer& server) {
                                 question + "»: «" + value + "» (" + by + ").");
             };
         }
-        const int id = ui->askOwner(who, question, options, fallback, timeout, std::move(done));
+        const int id = ui->askOwner(who, question, options, fallback, timeout, std::move(done), about);
         if (!id) {
             throw ToolError("no question panel in this window");
         }

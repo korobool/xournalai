@@ -9,6 +9,7 @@ namespace {
 GtkWidget* guardedCanvas = nullptr;  ///< weak
 void (*inputObserver)(guint32, gpointer) = nullptr;
 gpointer inputObserverData = nullptr;
+gint64 penActivityUs = 0;
 
 bool overGuardedCanvas(GdkEvent* event) {
     GtkWidget* target = gtk_get_event_widget(event);
@@ -19,6 +20,15 @@ void filter(GdkEvent* event, gpointer) {
     const GdkEventType type = gdk_event_get_event_type(event);
     if (inputObserver && (type == GDK_KEY_PRESS || type == GDK_BUTTON_PRESS || type == GDK_TOUCH_BEGIN)) {
         inputObserver(gdk_event_get_time(event), inputObserverData);
+    }
+    if (type == GDK_MOTION_NOTIFY || type == GDK_BUTTON_PRESS || type == GDK_BUTTON_RELEASE ||
+        type == GDK_PROXIMITY_IN) {
+        if (GdkDevice* d = gdk_event_get_source_device(event)) {
+            const GdkInputSource s = gdk_device_get_source(d);
+            if (s == GDK_SOURCE_PEN || s == GDK_SOURCE_ERASER) {
+                penActivityUs = g_get_monotonic_time();
+            }
+        }
     }
     // A pen whose button is let go (or that leaves the tablet's range) off the canvas: the canvas would never know
     // and a pen-button Ask would keep listening
@@ -59,6 +69,8 @@ bool isTooltipHover(GdkEventType type, GdkInputSource source, GdkModifierType st
             GDK_BUTTON1_MASK | GDK_BUTTON2_MASK | GDK_BUTTON3_MASK | GDK_BUTTON4_MASK | GDK_BUTTON5_MASK;
     return (state & buttons) == 0;  // (a drag, e.g. of a slider, still passes)
 }
+
+gint64 lastPenActivityUs() { return penActivityUs; }
 
 void setInputObserver(void (*observer)(guint32, gpointer), gpointer data) {
     inputObserver = observer;

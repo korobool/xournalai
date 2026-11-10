@@ -1,6 +1,7 @@
 #include "QuestionPanel.h"
 
 #include <algorithm>  // for find_if
+#include <cstdio>     // for snprintf
 
 #include "gui/DrawnText.h"  // for drawnTextSet
 
@@ -16,6 +17,8 @@ const char* CSS = ".xoai-questions { padding: 6px; }"
                   ".xoai-question-text { font-size: 1.15em; font-weight: bold; }"
                   ".xoai-question-idle { opacity: 0.55; }"
                   ".xoai-question-left { font-size: 0.85em; opacity: 0.7; }"
+                  ".xoai-question-locate { min-height: 34px; border-radius: 12px; font-weight: bold; }"
+                  ".xoai-question-canvas { font-size: 0.85em; opacity: 0.8; }"
                   ".xoai-question-option { min-height: 46px; border-radius: 14px; font-size: 1.1em; font-weight: bold;"
                   "  color: #ffffff; border: none; background-image: linear-gradient(160deg, #4a90e2, #2d6fe0);"
                   "  box-shadow: 0 2px 6px alpha(#2d6fe0, 0.45), inset 0 1px alpha(#ffffff, 0.3); }"
@@ -60,6 +63,24 @@ GtkWidget* label(const char* cls, bool wrap) {
 }  // namespace
 
 QuestionPanel::QuestionPanel(Answered onAnswer): onAnswer(std::move(onAnswer)) {}
+
+std::string QuestionPanel::markOf(int id) {
+    static const char* const circled[] = {"①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨", "⑩",
+                                          "⑪", "⑫", "⑬", "⑭", "⑮", "⑯", "⑰", "⑱", "⑲", "⑳"};
+    return circled[(std::max(id, 1) - 1) % 20];
+}
+
+uint32_t QuestionPanel::colourOf(int id) {
+    static const uint32_t colours[] = {0x2d6fe0, 0xe0732d, 0x1e9a5a, 0xb04fd8, 0xd8453c, 0x13806f};
+    return colours[(std::max(id, 1) - 1) % 6];
+}
+
+void QuestionPanel::setCanvasOn(bool on) {
+    canvasOn = on;
+    if (dock.canvasSwitch) {
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dock.canvasSwitch), on);
+    }
+}
 
 QuestionPanel::~QuestionPanel() {
     if (timer) {
@@ -188,6 +209,23 @@ GtkWidget* QuestionPanel::build(View& v, bool isFloating) {
     gtk_box_pack_start(GTK_BOX(box), v.text, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(box), v.options, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(box), v.left, FALSE, FALSE, 0);
+    if (!isFloating) {
+        // A question about something on the page shows there too (a bubble); this turns that off
+        v.canvasSwitch = gtk_check_button_new_with_label("Questions on the canvas too");
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(v.canvasSwitch), canvasOn);
+        gtk_widget_set_can_focus(v.canvasSwitch, FALSE);
+        gtk_style_context_add_class(gtk_widget_get_style_context(v.canvasSwitch), "xoai-question-canvas");
+        gtk_buildable_set_name(GTK_BUILDABLE(v.canvasSwitch), "aiQuestionsOnCanvas");
+        g_signal_connect(v.canvasSwitch, "toggled", G_CALLBACK(+[](GtkToggleButton* b, gpointer d) {
+                             auto* self = static_cast<QuestionPanel*>(d);
+                             self->canvasOn = gtk_toggle_button_get_active(b);
+                             if (self->onCanvasToggle) {
+                                 self->onCanvasToggle(self->canvasOn);
+                             }
+                         }),
+                         this);
+        gtk_box_pack_end(GTK_BOX(box), v.canvasSwitch, FALSE, FALSE, 0);
+    }
     if (isFloating) {
         v.root = box;
         gtk_style_context_add_class(ctx, "xoai-questions-card");
@@ -241,13 +279,24 @@ void QuestionPanel::refresh(View& v) {
         gtk_widget_set_visible(v.root, !queue.empty() && !dockShown);
     }
     const int front = queue.empty() ? 0 : queue.front().id;
+    // "② Claude asks · 1/2": its number in its colour, as on the canvas
+    auto setWho = [&v](const Question& q, size_t count) {
+        const std::string plain =
+                markOf(q.id) + " " + q.who + " asks" + (count > 1 ? " · 1/" + std::to_string(count) : "");
+        if (plain == gtk_label_get_text(GTK_LABEL(v.who))) {
+            return;  // (set only when it changed: a label re-lays out)
+        }
+        char colour[8];
+        std::snprintf(colour, sizeof colour, "#%06x", colourOf(q.id));
+        gchar* rest = g_markup_escape_text(plain.substr(markOf(q.id).size()).c_str(), -1);
+        const std::string markup =
+                std::string("<span foreground=\"") + colour + "\" size=\"larger\">" + markOf(q.id) + "</span>" + rest;
+        g_free(rest);
+        gtk_label_set_markup(GTK_LABEL(v.who), markup.c_str());
+    };
     if (front == v.shownId) {
-        if (!queue.empty()) {  // (only the counter may have changed: set only if it did, a label re-lays out)
-            const std::string who = queue.front().who + " asks" +
-                                    (queue.size() > 1 ? " · 1/" + std::to_string(queue.size()) : "");
-            if (who != gtk_label_get_text(GTK_LABEL(v.who))) {
-                gtk_label_set_text(GTK_LABEL(v.who), who.c_str());
-            }
+        if (!queue.empty()) {  // (only the counter may have changed)
+            setWho(queue.front(), queue.size());
         }
         return;  // (the same question: its buttons stay, a tap on them is never lost)
     }
@@ -262,7 +311,7 @@ void QuestionPanel::refresh(View& v) {
     g_list_free(kids);
     auto* textCtx = gtk_widget_get_style_context(v.text);
     if (queue.empty()) {
-        gtk_label_set_text(GTK_LABEL(v.who), "❓ Agents' questions");
+        gtk_label_set_text(GTK_LABEL(v.who), "❓ Agents' questions");  // (plain again)
         gtk_label_set_text(GTK_LABEL(v.text), "No questions");
         gtk_style_context_add_class(textCtx, "xoai-question-idle");
         xoj::gui::drawnTextSet(v.left, "");
@@ -270,12 +319,25 @@ void QuestionPanel::refresh(View& v) {
     }
     gtk_style_context_remove_class(textCtx, "xoai-question-idle");
     const auto& q = queue.front();
-    std::string who = q.who + " asks";
-    if (queue.size() > 1) {
-        who += " · 1/" + std::to_string(queue.size());
-    }
-    gtk_label_set_text(GTK_LABEL(v.who), who.c_str());
+    setWho(q, queue.size());
     gtk_label_set_text(GTK_LABEL(v.text), q.text.c_str());
+    if (!q.place.empty()) {
+        // «↗ page 3»: what it is about (on the canvas too, outlined in its colour)
+        GtkWidget* locate = gtk_button_new_with_label(("↗ " + q.place).c_str());
+        gtk_style_context_add_class(gtk_widget_get_style_context(locate), "xoai-question-locate");
+        gtk_widget_set_can_focus(locate, FALSE);
+        gtk_buildable_set_name(GTK_BUILDABLE(locate), (&v == &floating ? "aiQuestionCardLocate" : "aiQuestionLocate"));
+        g_object_set_data(G_OBJECT(locate), "question", GINT_TO_POINTER(q.id));
+        g_signal_connect(locate, "clicked", G_CALLBACK(+[](GtkButton* b, gpointer d) {
+                             auto* self = static_cast<QuestionPanel*>(d);
+                             if (self->onLocate) {
+                                 self->onLocate(GPOINTER_TO_INT(g_object_get_data(G_OBJECT(b), "question")));
+                             }
+                         }),
+                         this);
+        gtk_box_pack_start(GTK_BOX(v.options), locate, FALSE, FALSE, 0);
+        gtk_widget_show(locate);
+    }
     const std::string prefix = &v == &floating ? "aiQuestionCardOption" : "aiQuestionOption";
     // only the asker's buttons (the owner, 2026-11-09: a panel of dynamic buttons); a yes/no question: Да, Нет
     std::vector<Option> options = q.options;

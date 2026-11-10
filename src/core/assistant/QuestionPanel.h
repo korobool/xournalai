@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include <cstdint>     // for uint32_t
 #include <functional>  // for function
 #include <string>      // for string
 #include <vector>      // for vector
@@ -34,7 +35,16 @@ public:
         std::vector<Option> options;  ///< empty: a yes/no question (Yes → "yes", No → "no")
         std::string fallback;         ///< the answer when nobody answers in time (safe: "no", "skip")
         gint64 deadlineUs = 0;
+        std::string place;  ///< what it is about on the page, when it is ("page 3": «↗ page 3» takes him there)
     };
+    /// A question's number and colour, the same in the panel and on the canvas (1.19.0)
+    static std::string markOf(int id);
+    static uint32_t colourOf(int id);
+    /// «↗ page 3» tapped: the view goes to what the question is about
+    std::function<void(int id)> onLocate;
+    /// «Questions on the canvas too» (the strip's switch; remembered by the app)
+    std::function<void(bool on)> onCanvasToggle;
+    void setCanvasOn(bool on);
     /// (id, value, by: "owner" | "timeout" | "cancelled")
     using Answered = std::function<void(int id, const std::string& value, const std::string& by)>;
 
@@ -64,6 +74,7 @@ private:
         GtkWidget* text = nullptr;
         GtkWidget* options = nullptr;
         GtkWidget* left = nullptr;  ///< the countdown to the default
+        GtkWidget* canvasSwitch = nullptr;  ///< (the strip only)
         int shownId = -1;  ///< the question its option buttons are for (rebuilt only when it changes)
     };
     GtkWidget* build(View& v, bool floating);
@@ -78,6 +89,7 @@ private:
     View dock;
     View floating;
     bool dockShown = false;
+    bool canvasOn = true;
     guint timer = 0;
 };
 

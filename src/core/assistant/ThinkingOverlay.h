@@ -23,6 +23,10 @@
 
 namespace xoj::assistant {
 
+/// A tap on a question's bubble on the canvas counts only from a finger or a mouse: never the pen, nor a touch this
+/// soon after the pen (`sincePenUs`: the palm resting while he writes)
+bool bubbleTapAllowed(GdkInputSource source, gint64 sincePenUs);
+
 class ThinkingOverlay final {
 public:
     enum class State { Queued, Thinking, Done, Failed };
@@ -109,11 +113,38 @@ public:
     /// Where an agent works out of the user's view (instead of taking the view there): a small chip at the top right
     /// of the canvas, e.g. "AI ↓ p. 7"; a tap calls `onTap`. Empty text hides it.
     void setPageChip(const std::string& text, std::function<void()> onTap = {});
+
+    /// A question about something on the page (1.19.0; the owner: «если я нарисовал бабочку и ожидаю, что она
+    /// улучшится, а слева внизу появился тип, я могу это не заметить»): a dashed outline round it in the question's
+    /// colour and, at once, a bubble beside it (on the side away from his hand, never over it) with the short question
+    /// and its buttons. It follows scrolling and zooming and hides while the area is off screen; a thin bar under it
+    /// shows the time left. The full question stays in the question panel, with the same number and colour.
+    struct QuestionBubble {
+        int id = 0;
+        std::string mark;  ///< its number, as in the panel ("②")
+        size_t page = 0;
+        xoj::util::Rectangle<double> area;
+        std::string text;                                          ///< short
+        std::vector<std::pair<std::string, std::string>> options;  ///< (label, value); none: Yes / No
+        uint32_t rgb = 0x2d6fe0;
+        gint64 startUs = 0;
+        gint64 deadlineUs = 0;  ///< (0: no time limit)
+    };
+    using BubbleAnswer = std::function<void(int id, const std::string& value)>;
+    void showQuestion(QuestionBubble q, BubbleAnswer onAnswer);
+    void hideQuestion(int id);
+    /// (tests) the questions shown on the canvas now
+    std::vector<int> questionsShown() const;
     const std::string& pageChip() const { return chipText; }
     static const char* name(State s);
 
 private:
     struct Zone;
+    struct Bubble;
+    std::vector<Bubble*> bubbleList;
+    void layoutBubbles();
+    void drawBubbles(cairo_t* cr);
+    void removeBubble(size_t index);
     static gboolean onDraw(GtkWidget* w, cairo_t* cr, gpointer self);
     static gboolean onTick(gpointer self);
     void layout();

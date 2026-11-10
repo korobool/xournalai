@@ -67,6 +67,8 @@ struct McpConfig {
         } liveNotes;
         /// The research browser (assistant/ResearchBrowser.h): kept as written
         nlohmann::json researchBrowser = nlohmann::json::object();
+        /// A question about something on the page shows there too (a bubble), not only in the question panel (1.19.0)
+        bool questionsOnCanvas = true;
     } assistant;
     fs::path backupDir;  ///< where those copies go
 

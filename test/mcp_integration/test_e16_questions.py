@@ -28,6 +28,11 @@ def log():
     return LOG.read_text() if LOG.exists() else ""
 
 
+def mark(qid):
+    """A question's number, as the panel and the canvas show it (1.19.0)"""
+    return "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳"[(qid - 1) % 20]
+
+
 def shown(ws, name):
     return name in ws and ws[name].get("visible", True)
 
@@ -52,7 +57,7 @@ def test_2_options_are_big_buttons_and_a_tap_answers(app):
     r = c.call("ask_owner", op="ask", question="Нарисовать схему?", options=["Да, рисовать", "Нет"], wait=False)
     ws = widgets(c)
     assert ws["aiQuestionText"]["label"] == "Нарисовать схему?", ws["aiQuestionText"]
-    assert ws["aiQuestionWho"]["label"] == "Claude asks"
+    assert ws["aiQuestionWho"]["label"] == mark(r["id"]) + " Claude asks", ws["aiQuestionWho"]
     assert ws["aiQuestionOption1"]["label"] == "Да, рисовать" and ws["aiQuestionOption2"]["label"] == "Нет"
     assert c.call("ask_owner", op="get", id=r["id"])["state"] == "waiting"
     c.call("ui_interact", op="click", target=ws["aiQuestionOption1"]["id"])
@@ -94,10 +99,10 @@ def test_5_a_queue_and_a_worker_s_question(app):
     a = c.call("ask_owner", op="ask", question="Первый?", wait=False)
     b = w.call("ask_owner", op="ask", question="Какой вариант?", options=["Этот", "Тот"], wait=False)
     ws = widgets(c)
-    assert ws["aiQuestionWho"]["label"] == "Claude asks · 1/2", ws["aiQuestionWho"]
+    assert ws["aiQuestionWho"]["label"] == mark(a["id"]) + " Claude asks · 1/2", ws["aiQuestionWho"]
     c.call("ui_interact", op="click", target=ws["aiQuestionOption2"]["id"])  # (No)
     ws = widgets(c)
-    assert ws["aiQuestionWho"]["label"] == "⚙ T4 asks" and ws["aiQuestionText"]["label"] == "Какой вариант?"
+    assert ws["aiQuestionWho"]["label"] == mark(b["id"]) + " ⚙ T4 asks" and ws["aiQuestionText"]["label"] == "Какой вариант?"
     assert not shown(ws, "aiQuestionOption3")  # (only its own two)
     c.call("ui_interact", op="click", target=ws["aiQuestionOption2"]["id"])
     assert c.call("ask_owner", op="get", id=a["id"])["answer"] == "no"

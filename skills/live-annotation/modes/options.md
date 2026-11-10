@@ -26,6 +26,7 @@ changes only what it says.
   `ask_owner`: a short question, a few big options («Yes, draw it», «No»), a safe default, `wait=false` so that
   nobody stops (you are woken with the answer; a worker looks with `op=get`). Ask only what matters: whether to
   carry out an unsure request (instead of the `⚡?` tag), which of two layouts, whether to insert a picture a
-  worker found. Without this option, don't ask during the recording: tag and go on.
+  worker found. Without this option, don't ask during the recording: tag and go on. A question about something on
+  the page (a card, a slot, a picture's place) gets `about` ({page, region}) and `short`: it shows there too.
 - **🔎 `browser`** (Browser assistant): the research browser runs with the recording; how to use it is in
   [research-browser.md](research-browser.md).
