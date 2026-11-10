@@ -16,6 +16,7 @@ bool cancelled(GError* err) { return err && g_error_matches(err, G_IO_ERROR, G_I
 SpeechToText::SpeechToText(std::string model): modelName(std::move(model)), cancellable(g_cancellable_new()) {}
 
 SpeechToText::~SpeechToText() {
+    *alive = false;                     // (a remote answer still on its way finds nobody)
     g_cancellable_cancel(cancellable);  // no callback touches this object afterwards
     if (proc) {
         send(R"({"cmd":"quit"})");
@@ -115,7 +116,8 @@ void SpeechToText::settle() {
     if (!proc) {
         return;
     }
-    set(recordingNow ? State::Listening : (!waiting.empty() ? State::Transcribing : State::Ready));
+    const bool busy = !waiting.empty() || !saving.empty() || remotePending > 0;
+    set(recordingNow ? State::Listening : (busy ? State::Transcribing : State::Ready));
 }
 
 void SpeechToText::warmUp() {
@@ -250,6 +252,8 @@ void SpeechToText::onLine(const std::string& line) {
     }
     if (event == "ready") {
         settle();  // (Listening if start() was already sent: it is queued)
+    } else if (event == "saved") {
+        onSaved(j.value("path", ""), j.value("silent", false));
     } else if (event == "listening") {
         settle();
     } else if (event == "text" || event == "error") {
@@ -262,6 +266,13 @@ void SpeechToText::onLine(const std::string& line) {
             settle();  // (not Ready if a new recording started meanwhile)
             if (done) {
                 event == "text" ? done(j.value("text", ""), j.value("silent", true), "") : done("", true, lastProblem);
+            }
+        } else if (event == "error" && !saving.empty()) {
+            Done done = std::move(saving.front());  // (its recording could not be kept)
+            saving.pop_front();
+            settle();
+            if (done) {
+                done("", true, lastProblem);
             }
         } else if (event == "error") {
             recordingNow = false;  // e.g. the microphone could not be opened; stop() will then find no speech
@@ -279,6 +290,10 @@ void SpeechToText::onExit() {
     g_clear_object(&proc);
     auto pending = std::move(waiting);
     waiting.clear();
+    for (auto& d: saving) {
+        pending.push_back(std::move(d));
+    }
+    saving.clear();
     recordingNow = false;
     lastProblem = "the speech helper stopped";
     set(State::Unavailable);
@@ -317,9 +332,81 @@ void SpeechToText::stop(Done done) {
         }
         return;
     }
-    waiting.push_back(std::move(done));
-    send(R"({"cmd":"stop"})");
     recordingNow = false;
+    if (remote) {
+        // The recording as a WAV first: the remote transcriber tries it, the local model if it can't
+        const std::string dir = std::string(g_get_user_cache_dir()) + "/xournalai/speech";
+        g_mkdir_with_parents(dir.c_str(), 0700);
+        const std::string path = dir + "/ask-" + std::to_string(++saved % 50) + ".wav";
+        saving.push_back(std::move(done));
+        send(mcp::json({{"cmd", "stop"}, {"save", path}}).dump());
+    } else {
+        waiting.push_back(std::move(done));
+        send(R"({"cmd":"stop"})");
+    }
+    settle();
+}
+
+void SpeechToText::onSaved(const std::string& path, bool silent) {
+    if (saving.empty()) {
+        return;
+    }
+    Done done = std::move(saving.front());
+    saving.pop_front();
+    if (silent) {  // (holding the button without speaking changes nothing, as before)
+        g_remove(path.c_str());
+        settle();
+        if (done) {
+            done("", true, "");
+        }
+        return;
+    }
+    if (!remote) {
+        transcribeWav(path, [path, done](const std::string& t, bool s, const std::string& e) {
+            g_remove(path.c_str());
+            if (done) {
+                done(t, s, e);
+            }
+        });
+        return;
+    }
+    remotePending++;
+    settle();
+    std::weak_ptr<bool> token = alive;
+    remote(path, [this, token, path, done](const std::string& text, const std::string& error) {
+        if (!token.lock()) {
+            return;
+        }
+        remotePending--;
+        if (error.empty()) {
+            log("remote: \"" + text + "\"");
+            g_remove(path.c_str());
+            settle();
+            if (done) {
+                text.empty() ? done("", true, "") : done(text, false, "");
+            }
+            return;
+        }
+        log("remote transcriber: " + error + " (the local model instead)");
+        transcribeWav(path, [path, done](const std::string& t, bool s, const std::string& e) {
+            g_remove(path.c_str());
+            if (done) {
+                done(t, s, e);
+            }
+        });
+    });
+}
+
+void SpeechToText::transcribeWav(const std::string& path, Done done) {
+    warmUp();
+    if (!proc) {
+        if (done) {
+            done("", true, "speech is not available: " + lastProblem);
+        }
+        return;
+    }
+    waiting.push_back(std::move(done));
+    send(mcp::json({{"cmd", "transcribe"}, {"wav", path}}).dump());
     settle();
 }
 

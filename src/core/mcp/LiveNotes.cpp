@@ -320,6 +320,25 @@ void LiveNotes::onResult(const assistant::TranscriberResult& r) {
         return;
     }
     Piece& p = it->second;
+    if (!r.ok && opt.fallback && !p.fallbackTried && !p.wav.empty()) {
+        // The remote transcriber failed (or isn't there): the same piece goes to the local model (English only)
+        p.fallbackTried = true;
+        const std::string remoteError = r.error;
+        std::weak_ptr<bool> token = alive;
+        opt.fallback(p.wav, [this, token, index, remoteError](bool ok, const std::string& text, const std::string& e) {
+            if (!token.lock()) {
+                return;
+            }
+            assistant::TranscriberResult local;
+            local.id = std::to_string(index);
+            local.ok = ok;
+            local.text = text;
+            local.language = "en";
+            local.error = ok ? "" : remoteError + "; the local model: " + e;
+            onResult(local);
+        });
+        return;
+    }
     p.answered = true;
     p.ok = r.ok;
     p.text = r.text;

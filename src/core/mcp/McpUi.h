@@ -10,6 +10,7 @@
 
 #include <functional>  // for function
 #include <map>
+#include <set>
 #include <memory>    // for unique_ptr
 #include <optional>  // for optional
 #include <string>
@@ -155,6 +156,17 @@ public:
     void researchRunning(bool running);  ///< «📌 Insert selection» shows while it runs
     /// Opens it for signing in (Google refuses to sign in while the app is connected to it); back when he closes it
     void researchSignIn();
+    /// (1.21.0) The owner's remote transcriber on a WAV, for the tools that hear him (AI lasso, highlighter): its
+    /// text, or an error (not configured, failed, no answer in time) after which they use the local model
+    void remoteTranscribe(const std::string& wav,
+                          std::function<void(const std::string& text, const std::string& error)> done);
+    /// The talk recognizer (the configured remote transcriber, kept warm ten minutes after its last use)
+    bool talkRecognizerReady(std::string& problem);
+    void keepTalkRecognizer();
+    std::map<std::string, std::pair<std::function<void(const std::string&, const std::string&)>, guint>> remoteAsks;
+    int remoteSeq = 0;
+    /// A «Hold to talk» phrase recognized (by the remote transcriber or the local model): a command
+    void talkHeard(const std::string& id, bool ok, const std::string& text, const std::string& error);
     /// The switch «Speech commands» changed (in the Record menu or, during a recording, its chip): off | trigger | talk
     void liveCommands(const std::string& level);
     void researchUnavailable(const std::string& error);  ///< (a pop-up: why not, or that it is open for signing in)

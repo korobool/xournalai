@@ -7,6 +7,8 @@
  * stdout:
  *   {"cmd":"start"}                  → {"event":"listening"}          (records from the default microphone)
  *   {"cmd":"stop"}                   → {"event":"text","text":"…","silent":false,"audio_ms":…,"ms":…}
+ *   {"cmd":"stop","save":"…"}        → {"event":"saved","path":"…","silent":false,"audio_ms":…}  (the recording as a
+ *                                      WAV, not transcribed: the app's remote transcriber goes first, 1.21.0)
  *   {"cmd":"cancel"}                 → {"event":"cancelled"}
  *   {"cmd":"transcribe","wav":"…"}   → {"event":"text",…}             (a 16-bit PCM WAV file)
  *   {"cmd":"quit"}
@@ -552,8 +554,19 @@ int main(int argc, char** argv) {
             recording = recorder.start(why);
             recording ? emit({{"event", "listening"}}) : error(why);
         } else if (c == "stop") {
-            enqueue(recorder.stop());
+            auto pcm = recorder.stop();
             recording = false;
+            if (cmd.contains("save") && cmd["save"].is_string()) {
+                // (for the remote transcriber first: answered at once, in the order of the commands)
+                const std::string path = cmd["save"].get<std::string>();
+                saveWav(path, pcm);
+                emit({{"event", "saved"},
+                      {"path", path},
+                      {"silent", !hasSpeech(pcm)},
+                      {"audio_ms", static_cast<long>(pcm.size() * 1000 / RATE)}});
+            } else {
+                enqueue(std::move(pcm));
+            }
         } else if (c == "cancel") {
             recorder.stop();
             recording = false;

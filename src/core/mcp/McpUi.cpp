@@ -139,6 +139,12 @@ McpUi::McpUi(McpServer& server): server(server) {
 #ifdef ENABLE_STT
     if (server.getConfig().assistant.speech) {
         speechToText = std::make_unique<assistant::SpeechToText>(server.getConfig().assistant.speechModel);
+        // Every tool that hears him the same way (the owner, 10 Nov): the remote multilingual transcriber first,
+        // this local English model when it is not there, fails or is too slow
+        speechToText->setRemote([this](const std::string& wav,
+                                       std::function<void(const std::string&, const std::string&)> done) {
+            remoteTranscribe(wav, std::move(done));
+        });
         // Load the model soon (not during startup), so the first press of the pen button is answered at once
         speechWarmUp = g_timeout_add_seconds(
                 3,
@@ -241,6 +247,10 @@ McpUi::~McpUi() {
     if (seenTimer) {
         g_source_remove(seenTimer);
     }
+    for (auto& [id, ask]: remoteAsks) {
+        g_source_remove(ask.second);  // (their timeouts point here)
+    }
+    remoteAsks.clear();
     if (adoptIdle) {
         g_source_remove(adoptIdle);
     }
@@ -1148,6 +1158,20 @@ bool McpUi::beginLive(const std::string& name, std::string& error, const std::st
             return std::make_pair(ink->page, ink->area);
         };
     }
+#ifdef ENABLE_STT
+    if (speechToText) {
+        // a piece the remote transcriber can't do: the local model (English only), as every tool does (1.21.0)
+        opt.fallback = [this](const std::string& wav, std::function<void(bool, const std::string&, const std::string&)> cb) {
+            if (!speechToText) {
+                cb(false, "", "no local model");
+                return;
+            }
+            speechToText->transcribeWav(wav, [cb](const std::string& t, bool silent, const std::string& e) {
+                cb(e.empty(), silent ? "" : t, e);
+            });
+        };
+    }
+#endif
     if (plan.latestInk) {
         // 📝 with commands, 🎙: «это» is what the owner drew last (his own additions only: not the app's or agents')
         opt.context = [this]() -> std::string {
@@ -2014,21 +2038,6 @@ void McpUi::talkPressed(bool down, bool device) {
         return;
     }
     const auto cfg = McpConfig::load().assistant.liveNotes;
-    if (!talkRecognizer || talkRecognizer->done()) {
-        assistant::TranscriberHooks hooks;
-        hooks.onResult = [this](const assistant::TranscriberResult& r) { onTalkResult(r.id, r.ok, r.text, r.error); };
-        hooks.onStatus = [](const std::string&) {};
-        std::string problem;
-        talkRecognizer.reset();
-        talkRecognizer = assistant::Transcriber::make(cfg.transcriber, std::move(hooks), problem);
-        if (!talkRecognizer) {
-            g_warning("hold and talk: %s", problem.c_str());
-            if (thinkingOverlay) {
-                thinkingOverlay->flashRecording("No speech recognizer");
-            }
-            return;
-        }
-    }
     const fs::path folder = fs::path(g_get_user_data_dir()) / "xournalai" / "talk";
     std::error_code ec;
     fs::create_directories(folder, ec);
@@ -2038,14 +2047,24 @@ void McpUi::talkPressed(bool down, bool device) {
         return;
     }
     talkTimes[id] = {talkStartUs, now};
-    assistant::TranscriberPiece piece;
-    piece.id = id;
-    piece.audioPath = wav.string();
-    piece.language = cfg.language.empty() ? "auto" : cfg.language;
-    talkRecognizer->submit(std::move(piece));
     if (thinkingOverlay) {
         thinkingOverlay->flashHeard("…", false);  // (heard: being recognized)
     }
+    // The remote transcriber first; failing, missing or too slow: the local model on the same phrase (1.21.0)
+    const std::string path = wav.string();
+    remoteTranscribe(path, [this, id, path](const std::string& text, const std::string& error) {
+        if (error.empty() || !speechToText) {
+            talkHeard(id, error.empty(), text, error);
+            return;
+        }
+        g_message("hold and talk: %s; the local model instead", error.c_str());
+        speechToText->transcribeWav(path, [this, id](const std::string& t, bool silent, const std::string& e) {
+            talkHeard(id, e.empty(), silent ? "" : t, e);
+        });
+    });
+}
+
+void McpUi::keepTalkRecognizer() {
     // the recognizer stays ready for the next phrase; ten minutes without one lets it go
     if (talkIdle) {
         g_source_remove(talkIdle);
@@ -2069,7 +2088,74 @@ void McpUi::talkFeed(const float* frames, size_t count, int channels, int rate) 
     }
 }
 
+bool McpUi::talkRecognizerReady(std::string& problem) {
+    if (talkRecognizer && !talkRecognizer->done()) {
+        return true;
+    }
+    const auto cfg = McpConfig::load().assistant.liveNotes;
+    if (!cfg.transcriber.is_object() || cfg.transcriber.value("kind", "").empty()) {
+        problem = "no remote transcriber configured";
+        return false;
+    }
+    assistant::TranscriberHooks hooks;
+    hooks.onResult = [this](const assistant::TranscriberResult& r) { onTalkResult(r.id, r.ok, r.text, r.error); };
+    hooks.onStatus = [](const std::string&) {};
+    talkRecognizer.reset();
+    talkRecognizer = assistant::Transcriber::make(cfg.transcriber, std::move(hooks), problem);
+    return talkRecognizer != nullptr;
+}
+
+void McpUi::remoteTranscribe(const std::string& wav,
+                             std::function<void(const std::string& text, const std::string& error)> done) {
+    std::string problem;
+    if (!talkRecognizerReady(problem)) {
+        done("", problem);
+        return;
+    }
+    const auto cfg = McpConfig::load().assistant.liveNotes;
+    const std::string id = "ask-" + std::to_string(++remoteSeq);
+    // A remote transcriber that doesn't answer in time: the local model instead (he is waiting with the pen)
+    constexpr guint TIMEOUT_S = 10;
+    struct Late {
+        McpUi* ui;
+        std::string id;
+    };
+    const guint timer = g_timeout_add_seconds_full(
+            G_PRIORITY_DEFAULT, TIMEOUT_S,
+            +[](gpointer d) -> gboolean {
+                auto* l = static_cast<Late*>(d);
+                auto it = l->ui->remoteAsks.find(l->id);
+                if (it != l->ui->remoteAsks.end()) {
+                    auto f = std::move(it->second.first);
+                    l->ui->remoteAsks.erase(it);
+                    // (stuck: dropped, so that the next phrase starts it afresh; other phrases still waiting on it
+                    // get their own time-outs and the local model)
+                    l->ui->talkRecognizer.reset();
+                    f("", "the remote transcriber did not answer in time");
+                }
+                return G_SOURCE_REMOVE;
+            },
+            new Late{this, id}, +[](gpointer d) { delete static_cast<Late*>(d); });
+    remoteAsks[id] = {std::move(done), timer};
+    assistant::TranscriberPiece piece;
+    piece.id = id;
+    piece.audioPath = wav;
+    piece.language = cfg.language.empty() ? "auto" : cfg.language;
+    talkRecognizer->submit(std::move(piece));
+    keepTalkRecognizer();
+}
+
 void McpUi::onTalkResult(const std::string& id, bool ok, const std::string& text, const std::string& error) {
+    // (the remote transcriber's answer to remoteTranscribe: «Hold to talk», the AI lasso, the highlighter)
+    if (auto it = remoteAsks.find(id); it != remoteAsks.end()) {
+        auto f = std::move(it->second.first);
+        g_source_remove(it->second.second);
+        remoteAsks.erase(it);
+        f(ok ? text : "", ok ? "" : (error.empty() ? "not recognized" : error));
+    }
+}
+
+void McpUi::talkHeard(const std::string& id, bool ok, const std::string& text, const std::string& error) {
     auto times = talkTimes.count(id) ? talkTimes[id] : std::make_pair(g_get_monotonic_time(), g_get_monotonic_time());
     talkTimes.erase(id);
     if (!ok || text.empty()) {

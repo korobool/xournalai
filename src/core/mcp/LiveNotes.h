@@ -66,6 +66,10 @@ public:
         std::function<void(const std::string& text, bool command,
                            std::optional<std::pair<size_t, xoj::util::Rectangle<double>>> where)>
                 heard;
+        /// (1.21.0) the local English model on a piece's WAV, when the remote transcriber fails or isn't there
+        std::function<void(const std::string& wav,
+                           std::function<void(bool ok, const std::string& text, const std::string& error)> done)>
+                fallback;
         /// what the owner drew between two moments (monotonic µs): page and area
         std::function<std::optional<std::pair<size_t, xoj::util::Rectangle<double>>>(gint64 from, gint64 to)> inkDuring;
     };
@@ -106,6 +110,7 @@ public:
 
 private:
     struct Piece {
+        bool fallbackTried = false;  ///< (the local model has been asked)
         int index = 0;
         int64_t startMs = 0;
         int64_t endMs = 0;
