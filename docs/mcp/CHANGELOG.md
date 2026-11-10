@@ -10,6 +10,24 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.17.5 — Hold to talk; English captions
+- **🎙 Hold to talk, next to Record.** It is always there, in any mode, with or without a recording.
+  - While you hold it, the microphone is recorded on its own, using the input device chosen in the audio settings.
+  - When you let go, the phrase goes to the live notes' speech recognizer (Whisper on your server) and then, as a
+    command, to the serving session, together with the region you drew in while you spoke.
+  - «…» shows while it is being recognized, then the phrase itself.
+  - A tap shorter than 0.3 s sends nothing.
+  - The recognizer stays loaded for 10 minutes after the last phrase.
+- **The captions added in 1.17 are in English,** like the rest of the interface:
+  - the Record menu's modes: Transcript, Voice control, Requests on my drawing, Notes + requests, Notes, no
+    commands, Typeset notes;
+  - its options: Economy/Intense, Summary at the end, Trigger phrase, Question panel, Browser assistant;
+  - the question panel: «Claude asks», «No questions», «in 45 s: No», Yes/No;
+  - the pop-ups.
+
+  Agents are told to write what they show in the interface in English too: zone statuses, tips, questions and
+  their buttons. What they draw on your pages stays in the language of the talk.
+
 ## 1.17.4 — An idle app costs nothing
 - **A changed text no longer repaints the whole window.** When a GTK label gets new text, GTK re-lays out the
   window and repaints all of it: icons, blurred shadows, the canvas. That is thousands of X requests each time.
