@@ -10,6 +10,19 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.21.0 — One speech recognition for every tool
+- **Every tool that hears you recognises speech the same way:** the AI lasso's and the AI highlighter's dictation,
+  «Hold to talk» and live notes.
+  - **First your remote transcriber** (your speech server), multilingual: Russian and English both.
+  - **When it isn't there, fails or doesn't answer within 10 s,** the same audio goes to the local model on this
+    laptop (English only).
+  - Before, the lasso and the highlighter always used only the local English model, and «Hold to talk» and live notes
+    had no local fallback.
+- Holding the pen button without speaking still changes nothing (silence is found locally, before anything is sent).
+- A remote transcriber that got stuck is started afresh for the next phrase.
+- The first dictation after a while may take a moment longer (the remote transcriber wakes up); it then stays warm for
+  ten minutes.
+
 ## 1.20.0 — The Record menu asks two questions; a shorter row
 - **The Record menu** (hold Record) no longer has six tiles that each mixed two choices. Instead:
   - **Speech commands**, first: 🛡 **Commands off** (others talking, a video), 🔤 **«Hey Assistant»** (people
