@@ -10,6 +10,36 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.18.2 — The research browser stays in the background
+- **It never takes the focus by itself.**
+  - Search tabs open in the background.
+  - If the browser still comes to the front while agents work in it, and you were in your notes, you are brought
+    back at once, with a short message.
+  - Your own switches are never undone: Alt+Tab, a tap on the browser, a gesture. The app knows them because the
+    press didn't reach it.
+  - The guard can be turned off: `assistant.research_browser.focus_guard`.
+- **Where it is:** on one monitor, behind your notes on the same workspace (another workspace may stop it drawing);
+  with several monitors, on another one. The old "next workspace" stays as `where: "workspace"`.
+- **«🔎 Browser»** next to Record takes you there with one tap. **«↩ Back to the notes»**, a small button of the app's
+  own over the browser, brings you back. While you were away, the button counts what was opened: «🔎 Browser · 2 new».
+  Its long press holds «🔑 Browser sign-in» (no longer in the Record menu).
+- **Tabs don't fall asleep:** no background throttling, Memory Saver and tab freezing off in its profile; a tab is
+  woken and its lazy pictures loaded before it is read. (A background tab counted 3 timer ticks in 4 s before, at
+  least 20 now.)
+- **Target pages stay; the way there goes.**
+  - Agents mark the pages with what was looked for (what you asked for, the entity's page) with ★ in the title. They
+    stay open until you close them.
+  - Search results and steps along a site are closed as soon as the agent is past them.
+  - Pages you looked at are never closed by an agent either.
+  - At the end, a «🔎 Sources» card lists the kept pages by topic. Every kept page is also logged in
+    `~/.local/share/xournalai/research/sources.jsonl`.
+- **Browsers are never mixed up.** Claude in Chrome lists every connected Chrome of yours under the same name
+  ("pop-os"). The app names the research browser «xournalai research» in the extension and gives agents its exact
+  device id. They use only that one; another browser only when you name it.
+- **«Hold to talk»** is your own command in every mode, 🛡 included.
+- Fixed: the serving session's instructions still asked for a tap before changing your own strokes, against the
+  fewer-taps rule of 1.18.0.
+
 ## 1.18.1 — Signing in to the research browser
 - **Signing in works.** Google refused to sign in to the research browser ("This browser or app may not be secure"),
   so neither Claude in Chrome nor Google could be signed in. The cause was the app's own DevTools connection: Google

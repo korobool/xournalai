@@ -44,6 +44,13 @@
     «This browser or app may not be secure» on Claude in Chrome's «Continue with Google»). So signing in happens in
     the same profile restarted without the DevTools port (its first start, «🔑 Browser sign-in», `research
     op=signin`). When he closes it, it comes back connected; the sign-ins stay in the profile.
+  - **In the background (1.18.2, the owner, 10 Nov):** it never takes the focus; on one monitor it is behind the
+    notes (he goes there and back with one tap: «🔎 Browser» / «↩ Back», nothing added to the browser); its tabs
+    never sleep; target pages (★) stay until he closes them, intermediate ones are closed by the agent as it goes;
+    agents use exactly its device id, other browsers (his own, DataAnnotation) only when he names them.
+  - **Later (brainstorm, not decided):** a small extension of our own over native messaging instead of the DevTools
+    port (no port, no sign-in mode); a built-in WebKitGTK browser for research; our own Chromium build only if the
+    extension hits a wall.
 - **Fewer taps (10 Nov):** the question panel is only for unsafe operations outside the app and for disambiguation.
   An explicit command on the document, his own strokes included, is done at once as one undo step.
 - **Deferred, experimental:** telling the speakers apart ("я / собеседник" in an interview; diarization on the A40
