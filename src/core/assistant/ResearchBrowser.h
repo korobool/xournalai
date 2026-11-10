@@ -99,6 +99,12 @@ public:
 
 private:
     void launch(std::function<void(const std::string&)> ready);
+    /// Its profile's settings that keep tabs awake (Memory Saver, Energy Saver, freezing off)
+    void keepAwake(const fs::path& dir);
+    /// The browser's own DevTools connection (/devtools/browser/<id>)
+    void browserPath(std::function<void(const std::string& path, const std::string& error)> done);
+    void wake(const std::string& tab, std::function<void()> then);
+    void readAwake(const std::string& tab, size_t maxChars, Done done);
     /// (the first start: set up, else launch)
     void start(std::function<void(const std::string&)> ready);
     /// The Chrome holding its profile (from its SingletonLock), 0 if none; `withPort`: whether it has a DevTools port

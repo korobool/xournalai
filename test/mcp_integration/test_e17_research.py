@@ -40,6 +40,15 @@ class Site(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(PICTURE)
             return
+        if self.path.startswith("/ticks"):  # (a page that counts its own timer ticks: 10 a second when awake)
+            body = (b"<!doctype html><html><head><title>Ticks</title></head><body><main><p id='n'>ticks: 0</p></main>"
+                    b"<script>let n = 0; setInterval(() => { n++; document.getElementById('n').textContent = "
+                    b"'ticks: ' + n; }, 100);</script></body></html>")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(body)
+            return
         q = self.path.split("q=", 1)[1] if "q=" in self.path else ""
         from urllib.parse import unquote_plus
         q = unquote_plus(q)
@@ -203,3 +212,21 @@ def test_6_signing_in_lets_go_of_the_browser_and_takes_it_back(app):
     assert lst and not lst.get("isError"), lst
     assert wait(lambda: widgets(c)["aiResearchPinButton"].get("visible", True)), "📌 is back"
 
+
+def test_7_tabs_open_in_the_background_and_stay_awake(app):
+    # (the owner, 10 Nov: the browser took focus when pages opened; "не будет такого, что табы подзасыпают?")
+    c = app.client()
+    profile = app.home / "data" / "xournalai" / "research-browser"
+    _, cmd = holder(profile)
+    assert "--disable-background-timer-throttling" in cmd and "--disable-renderer-backgrounding" in cmd, cmd
+    assert "--disable-features=IntensiveWakeUpThrottling,Translate" in cmd, cmd  # (one, merged with extra_args')
+    prefs = json.loads((profile / "Default" / "Preferences").read_text())["performance_tuning"]
+    assert prefs["high_efficiency_mode"]["state"] == 0 and prefs["tab_freezing"]["enabled"] is False, prefs
+    assert prefs["force_foreground_priority_for_all_tabs"] is True, prefs
+    tab = c.call("research", op="open", url=f"{BASE}/ticks", topic="awake")["tab"]
+    time.sleep(4)
+    r = c.call("research", op="read", tab=tab)
+    assert r["visible"] is False, "it opened in the background, not as the active tab"
+    ticks = int(r["text"].split("ticks:")[1].split()[0])
+    assert ticks >= 20, f"a background tab counted only {ticks} ticks in 4 s (throttled: about 4)"
+    c.call("research", op="close", tab=tab)

@@ -36,7 +36,12 @@ std::string escapeQuery(const std::string& q) {
 const char* const PICTURES = "[...document.images].filter(i => i.naturalWidth >= 100 && i.naturalHeight >= 60)";
 
 std::string readExpression(size_t maxChars) {
-    return std::string("(() => { const pics = ") + PICTURES +
+    // (lazy pictures of a tab that was never on screen don't load: loaded first, a moment at most)
+    return std::string("(async () => { const lazy = [...document.images].filter(i => i.loading === 'lazy' && "
+                       "!i.complete); lazy.forEach(i => { i.loading = 'eager'; }); if (lazy.length) { await "
+                       "Promise.race([Promise.all(lazy.map(i => i.decode().catch(() => {}))), new Promise(r => "
+                       "setTimeout(r, 1500))]); } const pics = ") +
+           PICTURES +
            ".slice(0, 30).map((i, n) => ({n, src: (i.currentSrc || i.src || '').slice(0, 300), alt: i.alt || '', "
            "width: i.naturalWidth, height: i.naturalHeight}));"
            "const root = document.querySelector('article, main, #content, #search, #mw-content-text') || document.body;"
@@ -213,9 +218,22 @@ void ResearchBrowser::launch(std::function<void(const std::string&)> ready) {
     if (!settings.passwordStore.empty()) {
         args.push_back("--password-store=" + settings.passwordStore);
     }
+    // Its tabs work while nobody looks at them (the owner, 10 Nov: "не будет такого, что табы подзасыпают?"):
+    // no timer throttling or lower priority for background tabs and covered windows, no intensive throttling after
+    // 5 minutes (one --disable-features: Chrome takes only the last one given)
+    args.emplace_back("--disable-background-timer-throttling");
+    args.emplace_back("--disable-renderer-backgrounding");
+    args.emplace_back("--disable-backgrounding-occluded-windows");
+    std::string disabled = "IntensiveWakeUpThrottling";
     for (const auto& a: settings.extraArgs) {
-        args.push_back(a);
+        if (a.rfind("--disable-features=", 0) == 0) {
+            disabled += "," + a.substr(19);
+        } else {
+            args.push_back(a);
+        }
     }
+    args.push_back("--disable-features=" + disabled);
+    keepAwake(dir);
     // Where: another monitor, if there are several (else the next workspace, once its window shows)
     GdkDisplay* display = gdk_display_get_default();
     const int monitors = display ? gdk_display_get_n_monitors(display) : 1;
@@ -739,12 +757,9 @@ void ResearchBrowser::http(const std::string& method, const std::string& path, D
 
 void ResearchBrowser::open(const std::string& url, const std::string& topic, Done done) {
     std::weak_ptr<bool> token = alive;
-    // (PUT: Chrome refuses a GET for /json/new; the address escaped whole: Chrome takes all of the query as it, and an
-    // unescaped & ended it there)
-    gchar* escaped = g_uri_escape_string(url.c_str(), nullptr, FALSE);
-    const std::string path = std::string("/json/new?") + escaped;
-    g_free(escaped);
-    http("PUT", path, [this, token, topic, done](const json& t, const std::string& error) {
+    // A tab in the background (Target.createTarget): /json/new made it the active one, and Chrome came to the front
+    // with it (the owner, 10 Nov: it took focus, even moved him to its workspace)
+    browserPath([this, token, url, topic, done](const std::string& path, const std::string& error) {
         if (!token.lock()) {
             return;
         }
@@ -752,12 +767,65 @@ void ResearchBrowser::open(const std::string& url, const std::string& topic, Don
             done(nullptr, error);
             return;
         }
-        const std::string id = t.value("id", "");
-        if (!topic.empty()) {
-            topics[id] = topic;
-        }
-        done({{"tab", id}, {"url", t.value("url", "")}, {"topic", topic}}, "");
+        command(path, "Target.createTarget", {{"url", url}, {"background", true}},
+                [this, token, url, topic, done](const json& r, const std::string& error) {
+                    if (!token.lock()) {
+                        return;
+                    }
+                    if (!error.empty()) {
+                        done(nullptr, error);
+                        return;
+                    }
+                    const std::string id = r.value("targetId", "");
+                    if (!topic.empty()) {
+                        topics[id] = topic;
+                    }
+                    done({{"tab", id}, {"url", url}, {"topic", topic}}, "");
+                });
     });
+}
+
+void ResearchBrowser::browserPath(std::function<void(const std::string& path, const std::string& error)> done) {
+    std::weak_ptr<bool> token = alive;
+    http("GET", "/json/version", [token, done](const json& v, const std::string& error) {
+        if (!token.lock()) {
+            return;
+        }
+        const std::string ws = v.is_object() ? v.value("webSocketDebuggerUrl", "") : "";
+        const auto at = ws.find("/devtools/browser/");
+        if (!error.empty() || at == std::string::npos) {
+            done("", error.empty() ? "the browser gave no connection of its own" : error);
+            return;
+        }
+        done(ws.substr(at), "");
+    });
+}
+
+void ResearchBrowser::keepAwake(const fs::path& dir) {
+    // Its profile's own settings (Chrome 154's names; read while no Chrome holds the profile): Memory Saver and
+    // Energy Saver off (a tab unloaded comes back without its state), no freezing, foreground priority for every tab
+    std::error_code ec;
+    const fs::path prefs = dir / "Default" / "Preferences";
+    json p = json::object();
+    if (fs::exists(prefs, ec)) {
+        std::ifstream in(prefs);
+        p = json::parse(in, nullptr, false);
+        if (!p.is_object()) {
+            return;  // (unreadable: left as it is)
+        }
+    }
+    json& t = p["performance_tuning"];
+    if (!t.is_object()) {
+        t = json::object();
+    }
+    t["high_efficiency_mode"]["state"] = 0;
+    t["high_efficiency_mode"]["enabled"] = false;
+    t["battery_saver_mode"]["state"] = 0;
+    t["tab_freezing"]["enabled"] = false;
+    t["force_foreground_priority_for_all_tabs"] = true;
+    fs::create_directories(prefs.parent_path(), ec);
+    std::ofstream out(prefs);
+    out << p.dump() << "\n";
 }
 
 void ResearchBrowser::list(Done done) {
@@ -896,7 +964,23 @@ void ResearchBrowser::command(const std::string& path, const std::string& method
     g_object_unref(msg);
 }
 
+void ResearchBrowser::wake(const std::string& tab, std::function<void()> then) {
+    // (a tab Chrome froze is woken first; nothing happens to one that runs)
+    std::weak_ptr<bool> token = alive;
+    command("/devtools/page/" + tab, "Page.setWebLifecycleState", {{"state", "active"}},
+            [token, then](const json&, const std::string&) {
+                if (token.lock()) {
+                    then();
+                }
+            });
+}
+
 void ResearchBrowser::read(const std::string& tab, size_t maxChars, Done done) {
+    std::weak_ptr<bool> token = alive;
+    wake(tab, [this, token, tab, maxChars, done]() { readAwake(tab, maxChars, done); });
+}
+
+void ResearchBrowser::readAwake(const std::string& tab, size_t maxChars, Done done) {
     std::weak_ptr<bool> token = alive;
     evaluate(tab, readExpression(std::clamp<size_t>(maxChars, 200, 60000)),
              [this, token, tab, done](const json& v, const std::string& error) {

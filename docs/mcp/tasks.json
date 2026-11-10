@@ -4112,6 +4112,146 @@
               "finished": "2026-11-10T09:08:21+00:00"
             }
           ]
+        },
+        {
+          "id": "S15.22",
+          "title": "The research browser stays in the background",
+          "version": "1.18.2",
+          "stories": [
+            {
+              "id": "US-15.27",
+              "text": "As the owner, I want the research browser to work quietly behind my notes: never taking focus, never sleeping, keeping the pages I need and tidying the rest, and one tap to go there and back.",
+              "acceptance": [
+                "it never takes focus by itself; my own switches (Alt+Tab, a tap, a gesture) are never undone",
+                "its tabs don't sleep in the background",
+                "target pages are kept (★) until I close them; intermediate pages are closed as the agent goes",
+                "agents use exactly this browser (its name and deviceId), others only when I name them",
+                "«🔎 Browser» takes me there and «↩ Back» brings me back; the sign-in moves to its menu"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T15.22.1",
+              "story": "US-15.27",
+              "title": "Tabs open in the background and stay awake",
+              "details": "The owner (10 Nov): the browser takes focus while it works, sometimes moving him to its workspace; tabs must not fall asleep. Search tabs open with Target.createTarget {background: true} instead of /json/new (which makes the tab active). Launch flags against background throttling (--disable-background-timer-throttling, --disable-renderer-backgrounding, --disable-backgrounding-occluded-windows, IntensiveWakeUpThrottling off, merged with any --disable-features of extra_args); its profile's Preferences: Memory Saver, Energy Saver and tab freezing off, foreground priority for all tabs (performance_tuning.* as Chrome 154 names them). Before a read the tab is woken (Page.setWebLifecycleState active) and its lazy pictures are loaded. test_e17_research test_7: the flags (one --disable-features, merged), the profile's settings, a page counting its timer ticks (10 a second when awake) in a background tab: at least 20 in 4 s (Chrome without these flags on the same test display: 3, and the tab hidden), and it is not the active tab.",
+              "commit": "ai: research tabs open in the background and stay awake",
+              "status": "done",
+              "started": "2026-11-10T10:07:48+00:00",
+              "finished": "2026-11-10T10:09:59+00:00"
+            },
+            {
+              "id": "T15.22.2",
+              "story": "US-15.27",
+              "title": "Target pages kept (★) until he closes them; intermediate pages closed as the agent goes",
+              "details": "The owner: keep the tabs with the content that was looked for (what he asked for, the entities he needs); search results and steps along a site are not needed; target tabs stay open until he closes them himself. research op=keep (tab or url, note): ★ in its title, kept; op=close refuses a kept tab or one he looked at (the tab in front while he was in the browser), all=true skips them; op=sources: the kept pages by topic (also appended to <data>/xournalai/research/sources.jsonl). The skill: close intermediate pages as soon as you are past them; a «🔎 Sources» card at the end.",
+              "commit": "",
+              "status": "todo"
+            },
+            {
+              "id": "T15.22.3",
+              "story": "US-15.27",
+              "title": "The research browser's name and deviceId for agents",
+              "details": "Claude in Chrome lists every connected Chrome (each profile its own entry) under its display name, by default the host name (\"pop-os\" for all of his): an agent choosing by name could take the wrong instance. The extension keeps a user-set name (bridgeDisplayName) and its id (bridgeDeviceId, made on its first connection) in its storage: the app names the research browser «xournalai research» when no name is set, and research op=list gives the name and the deviceId. The skill and the serving session's instructions: research only in exactly that browser; any other browser (his own, the DataAnnotation profile) only when he names it.",
+              "commit": "",
+              "status": "todo"
+            },
+            {
+              "id": "T15.22.4",
+              "story": "US-15.27",
+              "title": "Behind the notes, a focus guard, «🔎 Browser» and «↩ Back»",
+              "details": "One monitor: the browser stays on his workspace behind the app (a covered window keeps drawing; another workspace may stop it); several: on another monitor. A guard (X11, events only): when the browser becomes active without his doing (he was in xournalai, no input went past the app in the last moments, the browser was busy) he is brought back to xournalai at once, with a short message, logged, and a setting to turn it off; Alt+Tab, a tap on the browser or a gesture are never undone. «🔎 Browser» next to Record (with «· N new» for tabs opened since he last looked): one tap brings the browser in front, with a small «↩ Back» pill of the app's own over it (it never takes focus) to come back. Its long press: «🔑 Browser sign-in» (moved from the Record menu).",
+              "commit": "",
+              "status": "todo"
+            },
+            {
+              "id": "T15.22.5",
+              "story": "US-15.27",
+              "title": "«Hold to talk» is a command of its own, in every mode",
+              "details": "The owner: «Hold to talk» lives its own life: holding it is his explicit command, whatever the recording's mode. The 🛡 guide (never act on speech) and the serving session's instructions now say so.",
+              "commit": "",
+              "status": "todo"
+            },
+            {
+              "id": "T15.22.6",
+              "story": "US-15.27",
+              "title": "Release 1.18.2",
+              "details": "",
+              "commit": "",
+              "status": "todo"
+            }
+          ]
+        },
+        {
+          "id": "S15.23",
+          "title": "Questions on the canvas",
+          "version": "1.19.0",
+          "stories": [
+            {
+              "id": "US-15.28",
+              "text": "As the owner, I want a question about a drawing to appear on that drawing, as well as under my thumb, so that I see what it is about.",
+              "acceptance": [
+                "ask_owner takes what the question is about",
+                "a short bubble with buttons next to that area at once, the full question in the panel; same number and colour",
+                "outside-the-app consent only in the panel",
+                "a switch in the question panel"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T15.23.1",
+              "story": "US-15.28",
+              "title": "ask_owner «about»: a bubble at the subject, short; the panel in full",
+              "details": "The owner (10 Nov): «если я нарисовал бабочку и ожидаю, что она улучшится, а слева внизу появился тип, я могу это не заметить». ask_owner gets about (an area, elements or his latest ink) and a short form; the canvas shows a dashed outline and a bubble beside it at once (no delay), never over his drawing, finger taps only, following scroll and zoom, «② ↗ page 3» when off screen, a ring for the time left; the panel keeps the full question; one number and colour for both; consent for actions outside the app never on the canvas. A switch in the question panel.",
+              "commit": "",
+              "status": "todo"
+            },
+            {
+              "id": "T15.23.2",
+              "story": "US-15.28",
+              "title": "Release 1.19.0",
+              "details": "",
+              "commit": "",
+              "status": "todo"
+            }
+          ]
+        },
+        {
+          "id": "S15.24",
+          "title": "The Record menu: what on paper × speech commands",
+          "version": "1.20.0",
+          "stories": [
+            {
+              "id": "US-15.29",
+              "text": "As the owner, I want the Record menu to ask two separate questions, what appears on paper and whether speech may steer things, instead of seven overlapping tiles.",
+              "acceptance": [
+                "tiles: Sound only, Transcript, Notes, Typeset, Voice only",
+                "one switch: speech commands off / only with Hey Assistant / conversation",
+                "✍ merges into Transcript + conversation",
+                "the guides follow the two axes"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T15.24.1",
+              "story": "US-15.29",
+              "title": "Tiles for what appears on paper; one switch for speech commands",
+              "details": "The brainstorm of 10 Nov: each tile answered two questions at once (✍ ≈ 🎙 + a transcript; 🛡 = notes with commands off and a more visual style; 🔤 a third level of the same question). Tiles: ⏺ Sound only · 📝 Transcript · 🧠 Notes · 🗒 Typeset · 🎙 Voice only; the switch «Speech commands»: 🛡 off / 🔤 only «Hey Assistant» (filtered by the app: no wake-up for other speech) / 💬 conversation; options ⚡/🌿, 🧾, 🔎, 💡 Proposals. «this» = his latest ink in every mode with commands. The guides: two independent parts instead of six modules. The plain Record tap and «Hold to talk» unchanged. Open (to settle with the owner before building): remembered or reset to 🛡, switching during a recording, labels by situation.",
+              "commit": "",
+              "status": "todo"
+            },
+            {
+              "id": "T15.24.2",
+              "story": "US-15.29",
+              "title": "Release 1.20.0",
+              "details": "",
+              "commit": "",
+              "status": "todo"
+            }
+          ]
         }
       ]
     }
