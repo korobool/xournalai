@@ -51,6 +51,10 @@
   - **Later (brainstorm, not decided):** a small extension of our own over native messaging instead of the DevTools
     port (no port, no sign-in mode); a built-in WebKitGTK browser for research; our own Chromium build only if the
     extension hits a wall.
+- **The Record menu, two questions (1.20.0, the brainstorm of 10 Nov):** tiles for what appears on paper (📝 🧠 🗒 🎙),
+  one switch «Speech commands» (🛡 off / 🔤 only «Hey Assistant» / 💬 conversation), remembered, in sight on every
+  tile and on a chip during the recording, changeable mid-recording. ✍ became 📝 + 💬 and 🛡 became 🧠 + 🛡 (their ids
+  still work). Presets were left for later.
 - **Fewer taps (10 Nov):** the question panel is only for unsafe operations outside the app and for disambiguation.
   An explicit command on the document, his own strokes included, is done at once as one undo step.
 - **Deferred, experimental:** telling the speakers apart ("я / собеседник" in an interview; diarization on the A40

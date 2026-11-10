@@ -10,6 +10,30 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.20.0 — The Record menu asks two questions; a shorter row
+- **The Record menu** (hold Record) no longer has six tiles that each mixed two choices. Instead:
+  - **Speech commands**, first: 🛡 **Commands off** (others talking, a video), 🔤 **«Hey Assistant»** (people
+    around), 💬 **Conversation** (just me). Remembered, and shown as a sign on every tile.
+  - **The tiles say what appears on paper:** 📝 Transcript, 🧠 Notes (cards, schemes, mind maps), 🗒 Typeset notes,
+    🎙 Voice only.
+  - What the old tiles were: ✍ «Requests on my drawing» = 📝 with 💬; 🛡 «Notes, no commands» = 🧠 with 🛡. Your
+    remembered choice keeps its meaning.
+  - 🎙 Voice only is nothing but commands: with 🛡 its tile is greyed («needs speech commands»).
+  - 📝 with 🔤: the app wakes the assistant only for a phrase that starts with «Hey Assistant»; the rest is just the
+    transcript.
+  - ❓ Question panel is now **💡 Proposals** (what the option really does since «fewer taps»).
+- **During a recording,** a chip 🛡/🔤/💬 next to ✂ shows the level; a tap changes it at once (someone came in, a
+  video started).
+- **A shorter row next to Record:** «Browser» (a globe), «Insert» (a pin) and «Sign in» moved to the Tools panel, in a
+  group «Research browser»; while you weren't looking, the globe says «2 new». «Hold to talk» is a microphone with
+  «Hold», red while held.
+- **The research browser comes back when it is needed:** closed, it is started again by any search, list or read,
+  and by the globe in Tools (which then shows it).
+- Fixed: the rule for 📝 with commands still said «his own strokes only after he confirms», against the fewer-taps
+  rule.
+- Tests: the X hang test found the app by "install/bin" in its command line, so it lost a race whenever the build was
+  installed elsewhere (as in every release check): it looked flaky and wasn't.
+
 ## 1.19.0 — Questions on the canvas
 - **A question about something on the page shows there too, at once.**
   - A dashed outline in the question's colour goes round the drawing it is about.
