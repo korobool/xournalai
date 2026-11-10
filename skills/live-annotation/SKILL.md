@@ -63,9 +63,11 @@ request may only touch the notes:
   was asked for, and only PD/CC0, with its source line, as for `*r!`).
 - **Big restructures are not destructive**: "redo it all as a mind map" goes onto a new page after the live pages;
   the cards stay.
+- **His own ink, on request**: what he asks to change in his own drawing on the open document is done at once, one
+  undo step (his rule, 10 Nov 2026); ask only when it is genuinely unclear or conflicts with another request.
 - **Only after his tap** (the owner's decision, 9 Nov 2026: a tap on the question panel is his explicit consent,
   also for what is outside the app): anything outside the live-notes pages (his other pages, other documents or
-  files, finding files on his system), changing his own ink, saving, closing, exporting or opening files, the
+  files, finding files on his system), saving, closing, exporting or opening files, the
   browser (a profile, a site, an action there, uploading to Google Drive), opening terminals, shell commands other
   than the drawing helpers, settings, sending or publishing, mail, calendar, messages.
   - Ask with `ask_owner` and say **exactly** what will be done: the command lines, the site and what is done there,

@@ -4025,6 +4025,51 @@
               "finished": "2026-11-10T00:21:32+00:00"
             }
           ]
+        },
+        {
+          "id": "S15.20",
+          "title": "🔎 The research browser",
+          "version": "1.18.0",
+          "stories": [
+            {
+              "id": "US-15.25",
+              "text": "As the owner brainstorming, I want searches to happen in a browser I can see on another screen, agents able to click, type and navigate there, and what I select there to go onto my page with its source.",
+              "acceptance": [
+                "the 🔎 option starts the research browser with the recording",
+                "agents open, read and take pictures cheaply through the app; they click and navigate through the Claude in Chrome extension",
+                "«📌 Insert selection» puts the owner's selection on the page",
+                "fewer taps: the panel only for outside-the-app actions and ambiguity"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T15.20.1",
+              "story": "US-15.25",
+              "title": "Fewer taps: the panel only for outside-the-app actions and ambiguity",
+              "details": "The owner (typed in the companion's terminal, 00:16): «Если я сказал выровнять рамки, их надо просто выравнивать и всё»; the question panel is only for (a) unsafe operations outside the app and (b) disambiguation. Tonight three voice commands (redraw the swallowtail, smooth «Ляля», neat frames) each asked for a tap under the old rule. The voice-control skill (commands are done at once; ask only when unclear or outside the app), the live-annotation safe list (his ink on request) and drawing.md, the serving session's instructions and ask_owner's description follow: one undo step is his safety net.",
+              "commit": "ai: fewer taps: the panel only for outside-the-app actions and ambiguity",
+              "status": "done",
+              "started": "2026-11-10T00:29:04+00:00",
+              "finished": "2026-11-10T00:29:04+00:00"
+            },
+            {
+              "id": "T15.20.2",
+              "story": "US-15.25",
+              "title": "The research browser: its own Chrome, the research tool, «📌 Insert selection», the extension",
+              "details": "assistant/ResearchBrowser: Chrome (assistant.research_browser.chrome, google-chrome 154 here) with a profile of the app's own (<data>/xournalai/research-browser; incognito optional), --remote-debugging-port=0 (the port from DevToolsActivePort; a browser still running from before is found again), --class=xournalai-research; on another monitor (--window-position/--window-size from GDK's workareas) or, with one monitor, moved to the next workspace (_NET_WM_DESKTOP, as a pager); it stays when the app quits (close_on_exit for tests). The DevTools protocol over libsoup: /json/new (PUT; the address escaped whole: an unescaped & ended it), /json/list, /json/close; Runtime.evaluate over a WebSocket per question (read: title, url, text, pictures, selection; a picture: data: decoded or fetched with the page as referer). The owner (01:0x): a search needs clicks, typing, navigation and tabs: through the Claude in Chrome extension: the app copies his native-messaging manifest (com.anthropic.*) into the profile (his files only read), names the profile «xournalai research», opens the extension's store page on the first run when it isn't installed; workers run with --chrome and may use mcp__claude-in-chrome. Tool research (open/list/read/image/close; list says whether the extension is installed). «📌 Insert selection» (QuickTools, while it runs): the selection of the tab he looks at, as a quote with its source, on the page he looks at, in a free place, his undo. The Record menu's 🔎 option is available: the browser starts with the recording; the wake line points to modes/research-browser.md. test_e17_research 6/6 with the real Chrome on the test display and a local test site (the option starts it; a search tab; read with pictures and the selection; a picture saved and placed; the selection inserted; tabs closed); no test browser left; the owner's ~/.config/google-chrome untouched.",
+              "commit": "ai: the research browser: its own Chrome, the research tool, «📌 Insert selection», the extension",
+              "status": "todo"
+            },
+            {
+              "id": "T15.20.3",
+              "story": "US-15.25",
+              "title": "Release 1.18.0",
+              "details": "",
+              "commit": "",
+              "status": "todo"
+            }
+          ]
         }
       ]
     }
