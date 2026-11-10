@@ -55,6 +55,7 @@ class AskPopover;
 class QuestionPanel;
 class RecordingChooser;
 class ResearchBrowser;
+class FocusGuard;
 }  // namespace xoj::assistant
 namespace xoj::api {
 struct DocEvent;
@@ -144,6 +145,8 @@ public:
     /// Opens it for signing in (Google refuses to sign in while the app is connected to it); back when he closes it
     void researchSignIn();
     void researchUnavailable(const std::string& error);  ///< (a pop-up: why not, or that it is open for signing in)
+    /// (tests) the focus guard's state, the «↩ Back» pill, «N new»
+    nlohmann::json researchFocusState() const;
     /// «📌 Insert selection»: what the owner selected in the research browser goes on the page he looks at, as a quote
     /// with its source (undoable, his)
     void insertResearchSelection();
@@ -316,6 +319,10 @@ private:
     int talkSeq = 0;
     guint talkIdle = 0;  ///< lets the recognizer go after a while without phrases
     std::unique_ptr<assistant::ResearchBrowser> researchBrowser;
+    std::unique_ptr<assistant::FocusGuard> focusGuard;  ///< (with the research browser: X11)
+    guint seenTimer = 0;                                ///< (while he is in the research browser)
+    guint adoptIdle = 0;  ///< (at start: the research browser still running from before is taken up again)
+    void researchOwnerInBrowser(bool in);
     void buildQuestions();
     void onQuestionAnswered(int id, const std::string& value, const std::string& by);
     std::unique_ptr<assistant::QuestionPanel> questionPanel;

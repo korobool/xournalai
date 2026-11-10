@@ -423,6 +423,20 @@ void registerTestTools(McpServer& server) {
     };
     server.getRegistry().addTool(std::move(modal));
 
+    ToolSpec focus;
+    focus.name = "test_focus";
+    focus.title = "Test hook: the research browser's focus guard";
+    focus.description = "Test hook (XOURNALAI_TEST_HOOKS=1 only): the focus guard's state (its windows, whether the "
+                        "owner is in the browser, how often he was brought back, the last decision), the «↩ Back» "
+                        "pill and the «🔎 Browser» button's text.";
+    focus.inputSchema = schema::object({}, {});
+    focus.tier = Tier::Ui;
+    focus.handler = [srv](const json&) {
+        auto* ui = srv->getUi();
+        return ToolResult::structured(ui ? ui->researchFocusState() : json::object());
+    };
+    server.getRegistry().addTool(std::move(focus));
+
     ToolSpec connect;
     connect.name = "test_connect_dialog";
     connect.title = "Test hook: open Connect an Agent";

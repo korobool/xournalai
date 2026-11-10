@@ -1,8 +1,9 @@
 # 🔎 Browser assistant (option `browser`, since 1.18.0)
 
 With this option the recording comes with the **research browser**. It is a Chrome of the app's own, with its own
-profile «xournalai research», on another monitor or on the next workspace. The owner sees its tabs and can open any of
-them. It has the **Claude in Chrome extension**, so a search can be done in full, the way he would do it. **The
+profile «xournalai research»: on one monitor it stays behind his notes, with several it is on another one. It never
+takes the focus by itself (the app brings him back if it does). He goes there with «🔎 Browser» and comes back with
+«↩ Back», so he sees its tabs and can open any of them. It has the **Claude in Chrome extension**, so a search can be done in full, the way he would do it. **The
 browser does the searching**: you decide what to look up and read only what you need.
 
 Two ways to work in it:

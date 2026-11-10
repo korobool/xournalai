@@ -88,6 +88,7 @@ ResearchBrowser::Settings ResearchBrowser::Settings::fromJson(const json& j, con
     s.chrome = j.value("chrome", s.chrome);
     s.profile = j.value("profile", s.profile);
     s.where = j.value("where", s.where);
+    s.focusGuard = j.value("focus_guard", s.focusGuard);
     s.passwordStore = j.value("password_store", s.passwordStore);
     s.closeOnExit = j.value("close_on_exit", s.closeOnExit);
     s.offerExtension = j.value("offer_extension", s.offerExtension);
@@ -128,6 +129,12 @@ ResearchBrowser::~ResearchBrowser() {
     *alive = false;
     if (signInWatch) {
         g_source_remove(signInWatch);
+    }
+    if (watcher) {
+        g_signal_handlers_disconnect_by_data(watcher, this);
+        soup_websocket_connection_close(watcher, SOUP_WEBSOCKET_CLOSE_NORMAL, nullptr);
+        g_object_unref(watcher);
+        watcher = nullptr;
     }
     // (the browser stays: it is a window of the owner's; the next start of the app finds it again; unless asked)
     if (process) {
@@ -178,6 +185,7 @@ void ResearchBrowser::ensure(std::function<void(const std::string& error)> ready
             return;
         }
         if (error.empty()) {
+            connected();
             ready("");
             return;
         }
@@ -305,10 +313,16 @@ void ResearchBrowser::launch(std::function<void(const std::string&)> ready) {
         g_object_unref(process);
     }
     process = p;  // (it runs on its own; it stays when the app quits, unless closeOnExit)
+    // (its first window comes to the front: the focus guard takes him back to his notes, it stays behind them)
+    lastActivity = g_get_monotonic_time();
     waitForPort(100, [this, target](const std::string& error) {
         launching = false;
-        if (error.empty() && !target) {
-            place();
+        if (error.empty()) {
+            lastActivity = g_get_monotonic_time();
+            connected();
+        }
+        if (error.empty() && !target && settings.where.rfind("workspace", 0) == 0) {
+            place();  // (asked for: another workspace)
         }
         auto w = std::move(waiting);
         waiting.clear();
@@ -607,6 +621,139 @@ bool ResearchBrowser::extensionInstalled() const {
     return fs::is_directory(settings.profileDir / "Default" / "Extensions" / EXTENSION_ID, ec);
 }
 
+void ResearchBrowser::connected() {
+    watchTargets();
+}
+
+bool ResearchBrowser::busy() const {
+    return lastActivity && g_get_monotonic_time() - lastActivity < 3 * G_USEC_PER_SEC;
+}
+
+void ResearchBrowser::ownerLooking(bool here) {
+    ownerHere = here;
+    if (here && newTabs) {
+        newTabs = 0;
+        if (onNewTabs) {
+            onNewTabs(0);
+        }
+    }
+}
+
+void ResearchBrowser::watchTargets() {
+    // One connection of its own that stays: the browser tells about every tab (made, changed, gone), so the app knows
+    // when agents work in it (the focus guard) and what was opened while he wasn't looking («N new»), without asking
+    if (watcher || connectingWatcher || port <= 0) {
+        return;
+    }
+    connectingWatcher = true;
+    std::weak_ptr<bool> token = alive;
+    http("GET", "/json/list", [this, token](const json& all, const std::string&) {
+        if (!token.lock()) {
+            return;
+        }
+        for (const auto& t: all.is_array() ? all : json::array()) {
+            knownTargets.insert(t.value("id", ""));
+        }
+        browserPath([this, token](const std::string& path, const std::string& error) {
+            if (!token.lock()) {
+                return;
+            }
+            const std::string uri = "ws://127.0.0.1:" + std::to_string(port) + path;
+            SoupMessage* msg = error.empty() ? soup_message_new("GET", uri.c_str()) : nullptr;
+            if (!msg) {
+                connectingWatcher = false;
+                return;
+            }
+            struct Ctx {
+                std::weak_ptr<bool> token;
+                ResearchBrowser* self;
+            };
+            soup_session_websocket_connect_async(
+                    session, msg, nullptr, nullptr, G_PRIORITY_DEFAULT, nullptr,
+                    +[](GObject* src, GAsyncResult* res, gpointer d) {
+                        std::unique_ptr<Ctx> c(static_cast<Ctx*>(d));
+                        GError* err = nullptr;
+                        SoupWebsocketConnection* conn =
+                                soup_session_websocket_connect_finish(SOUP_SESSION(src), res, &err);
+                        g_clear_error(&err);
+                        if (!c->token.lock()) {
+                            if (conn) {
+                                g_object_unref(conn);
+                            }
+                            return;
+                        }
+                        ResearchBrowser* self = c->self;
+                        self->connectingWatcher = false;
+                        if (!conn) {
+                            return;
+                        }
+                        self->watcher = conn;
+                        soup_websocket_connection_set_max_incoming_payload_size(conn, 16 * 1024 * 1024);
+                        g_signal_connect(conn, "message",
+                                         G_CALLBACK(+[](SoupWebsocketConnection*, gint, GBytes* bytes, gpointer d) {
+                                             static_cast<ResearchBrowser*>(d)->targetEvent(bytes);
+                                         }),
+                                         self);
+                        g_signal_connect(conn, "closed", G_CALLBACK(+[](SoupWebsocketConnection* c, gpointer d) {
+                                             auto* self = static_cast<ResearchBrowser*>(d);
+                                             if (self->watcher == c) {
+                                                 self->watcher = nullptr;  // (the browser closed: watched again
+                                                                           // when it is back)
+                                                 g_object_unref(c);
+                                             }
+                                         }),
+                                         self);
+                        soup_websocket_connection_send_text(
+                                conn, R"({"id":1,"method":"Target.setDiscoverTargets","params":{"discover":true}})");
+                    },
+                    new Ctx{token, this});
+            g_object_unref(msg);
+        });
+    });
+}
+
+void ResearchBrowser::targetEvent(GBytes* bytes) {
+    gsize size = 0;
+    const auto* p = static_cast<const char*>(g_bytes_get_data(bytes, &size));
+    const json m = json::parse(std::string(p ? p : "", size), nullptr, false);
+    const std::string method = m.is_object() ? m.value("method", "") : "";
+    if (method.rfind("Target.target", 0) != 0) {
+        return;
+    }
+    lastActivity = g_get_monotonic_time();
+    if (method != "Target.targetCreated" || !m.contains("params")) {
+        return;
+    }
+    const json& info = m["params"].value("targetInfo", json::object());
+    const std::string id = info.value("targetId", "");
+    if (info.value("type", "") != "page" || !knownTargets.insert(id).second) {
+        return;  // (not a tab, or one that was there before)
+    }
+    if (!ownerHere) {
+        newTabs++;
+        if (onNewTabs) {
+            onNewTabs(newTabs);
+        }
+    }
+}
+
+void ResearchBrowser::markVisibleSeen() {
+    std::weak_ptr<bool> token = alive;
+    list([this, token](const json& r, const std::string& error) {
+        if (!token.lock() || !error.empty()) {
+            return;
+        }
+        for (const auto& t: r.value("tabs", json::array())) {
+            const std::string id = t.value("tab", "");
+            evaluate(id, "document.visibilityState", [this, token, id](const json& v, const std::string&) {
+                if (token.lock() && v.is_string() && v.get<std::string>() == "visible") {
+                    markSeen(id);
+                }
+            });
+        }
+    });
+}
+
 void ResearchBrowser::identity(Done done) {
     const bool installed = extensionInstalled();
     std::weak_ptr<bool> token = alive;
@@ -678,10 +825,9 @@ void ResearchBrowser::waitForPort(int tries, std::function<void(const std::strin
 
 void ResearchBrowser::place() {
 #ifdef ENABLE_X11
-    // One monitor: its window goes to the next workspace (or the one asked for), where he works with it
-    if (settings.where == "here") {
-        return;
-    }
+    // where=workspace[:N]: its window goes to the next workspace (or the one asked for). (The default on one monitor
+    // is behind the app on the same one since 1.18.2: a window on another workspace may stop drawing, and the owner
+    // goes there and back with «🔎 Browser»)
     GdkDisplay* display = gdk_display_get_default();
     if (!display || !GDK_IS_X11_DISPLAY(display)) {
         return;
@@ -734,7 +880,7 @@ void ResearchBrowser::place() {
                 long desktop = -1;
                 if (found) {
                     const std::string& where = t->self->settings.where;
-                    if (where.rfind("workspace:", 0) == 0) {
+                    if (where.rfind("workspace:", 0) == 0) {  // (else "workspace": the next one)
                         desktop = std::max(0, std::atoi(where.c_str() + 10) - 1);
                     } else {
                         unsigned char* cur = nullptr;

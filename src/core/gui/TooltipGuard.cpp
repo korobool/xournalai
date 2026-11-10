@@ -7,6 +7,8 @@ namespace xoj::gui {
 
 namespace {
 GtkWidget* guardedCanvas = nullptr;  ///< weak
+void (*inputObserver)(guint32, gpointer) = nullptr;
+gpointer inputObserverData = nullptr;
 
 bool overGuardedCanvas(GdkEvent* event) {
     GtkWidget* target = gtk_get_event_widget(event);
@@ -15,6 +17,9 @@ bool overGuardedCanvas(GdkEvent* event) {
 
 void filter(GdkEvent* event, gpointer) {
     const GdkEventType type = gdk_event_get_event_type(event);
+    if (inputObserver && (type == GDK_KEY_PRESS || type == GDK_BUTTON_PRESS || type == GDK_TOUCH_BEGIN)) {
+        inputObserver(gdk_event_get_time(event), inputObserverData);
+    }
     // A pen whose button is let go (or that leaves the tablet's range) off the canvas: the canvas would never know
     // and a pen-button Ask would keep listening
     if (type == GDK_BUTTON_RELEASE || type == GDK_PROXIMITY_OUT) {
@@ -53,6 +58,11 @@ bool isTooltipHover(GdkEventType type, GdkInputSource source, GdkModifierType st
     constexpr auto buttons =
             GDK_BUTTON1_MASK | GDK_BUTTON2_MASK | GDK_BUTTON3_MASK | GDK_BUTTON4_MASK | GDK_BUTTON5_MASK;
     return (state & buttons) == 0;  // (a drag, e.g. of a slider, still passes)
+}
+
+void setInputObserver(void (*observer)(guint32, gpointer), gpointer data) {
+    inputObserver = observer;
+    inputObserverData = data;
 }
 
 void installTooltipGuard(GtkWidget* canvas) {

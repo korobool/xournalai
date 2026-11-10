@@ -48,6 +48,7 @@
 #include "api/Placement.h"  // for findFreeSpace
 #include "XJson.h"  // for elementFromXJson
 #include "assistant/QuestionPanel.h"
+#include "assistant/FocusGuard.h"       // for FocusGuard
 #include "assistant/ResearchBrowser.h"  // for ResearchBrowser            // for QuestionPanel
 #include "assistant/ThinkingOverlay.h"           // for ThinkingOverlay
 #include "control/RecordingObserver.h"           // for setRecordingObserver
@@ -237,6 +238,13 @@ McpUi::McpUi(McpServer& server): server(server) {
 
 McpUi::~McpUi() {
     xoj::audio::setSampleTap(nullptr);  // (before the live-notes session goes)
+    if (seenTimer) {
+        g_source_remove(seenTimer);
+    }
+    if (adoptIdle) {
+        g_source_remove(adoptIdle);
+    }
+    focusGuard.reset();  // (its hooks ask the research browser)
     if (highlightTimer) {
         g_source_remove(highlightTimer);
     }
@@ -1995,8 +2003,66 @@ assistant::ResearchBrowser* McpUi::research() {
                 thinkingOverlay->flashRecording("The research browser is back, connected");
             }
         };
+        researchBrowser->onNewTabs = [this](int n) {
+            if (quickTools) {
+                quickTools->setResearchNew(n);
+            }
+        };
+        // It never takes the focus by itself; he goes there and back with «🔎 Browser» / «↩ Back» (or Alt+Tab)
+        assistant::FocusGuard::Hooks hooks;
+        hooks.enabled = [this] {
+            return researchBrowser && researchBrowser->focusGuard() && !researchBrowser->signingIn();
+        };
+        hooks.browserBusy = [this] { return researchBrowser && researchBrowser->busy(); };
+        hooks.returned = [this] {
+            if (thinkingOverlay) {
+                thinkingOverlay->flashRecording("The browser took the focus by itself: back to your notes");
+            }
+        };
+        hooks.ownerInBrowser = [this](bool in) { researchOwnerInBrowser(in); };
+        focusGuard = std::make_unique<assistant::FocusGuard>(
+                GTK_WINDOW(server.getControl()->getWindow()->getWindow()), "xournalai-research", std::move(hooks));
     }
     return researchBrowser.get();
+}
+
+void McpUi::researchOwnerInBrowser(bool in) {
+    if (!researchBrowser) {
+        return;
+    }
+    researchBrowser->ownerLooking(in);
+    if (seenTimer) {
+        g_source_remove(seenTimer);
+        seenTimer = 0;
+    }
+    researchBrowser->markVisibleSeen();  // (the tab in front of him: his; again when he leaves)
+    if (in && !researchBrowser->signingIn()) {
+        GdkRectangle area{};
+        const bool known = focusGuard && focusGuard->browserMonitorArea(&area);
+        if (quickTools) {
+            quickTools->setBackPill(true, known ? &area : nullptr);
+        }
+        seenTimer = g_timeout_add_seconds(
+                3,
+                +[](gpointer d) -> gboolean {
+                    auto* self = static_cast<McpUi*>(d);
+                    if (self->researchBrowser) {
+                        self->researchBrowser->markVisibleSeen();
+                    }
+                    return G_SOURCE_CONTINUE;
+                },
+                this);
+    } else if (quickTools) {
+        quickTools->setBackPill(false);
+    }
+}
+
+nlohmann::json McpUi::researchFocusState() const {
+    nlohmann::json s = focusGuard ? focusGuard->state() : nlohmann::json::object();
+    s["back_pill"] = quickTools && quickTools->backPillVisible();
+    s["browser_button"] = quickTools ? quickTools->browserButtonText() : "";
+    s["busy"] = researchBrowser && researchBrowser->busy();
+    return s;
 }
 
 void McpUi::researchSignIn() {
@@ -2781,6 +2847,42 @@ void McpUi::buildToolbar() {
     quickTools->onTalk = [this](bool down) { talkPressed(down); };
     quickTools->onPinSelection = [this] { insertResearchSelection(); };
     quickTools->onResearchSignIn = [this] { researchSignIn(); };
+    quickTools->onResearchShow = [this] {
+        research();
+        if (!focusGuard) {
+            return;
+        }
+        if (focusGuard->ownerInBrowser()) {
+            focusGuard->back();  // (two monitors: the button is still in sight)
+        } else if (!focusGuard->showBrowser() && thinkingOverlay) {
+            thinkingOverlay->flashRecording("No research browser window");
+        }
+    };
+    quickTools->onResearchBack = [this] {
+        if (focusGuard) {
+            focusGuard->back();
+        }
+    };
+    // The research browser stays when the app quits: still running (its profile held by a Chrome), it is taken up
+    // again at once (its buttons, the focus guard), not only when an agent first uses it
+    adoptIdle = g_timeout_add_seconds(
+            2,
+            +[](gpointer d) -> gboolean {
+                auto* self = static_cast<McpUi*>(d);
+                self->adoptIdle = 0;
+                std::error_code ec;
+                const fs::path lock = fs::path(g_get_user_data_dir()) / "xournalai" / "research-browser" /
+                                      "SingletonLock";
+                if (fs::is_symlink(lock, ec) && self->research()->profilePid() > 0) {
+                    self->research()->ensure([self](const std::string& error) {
+                        if (error.empty()) {
+                            self->researchRunning(true);
+                        }
+                    });
+                }
+                return G_SOURCE_REMOVE;
+            },
+            this);
     if (GAction* a = g_action_map_lookup_action(G_ACTION_MAP(server.getControl()->getWindow()->getWindow()),
                                                 "ai-tools-button")) {
         g_simple_action_set_state(G_SIMPLE_ACTION(a), g_variant_new_boolean(quickTools->buttonWanted()));

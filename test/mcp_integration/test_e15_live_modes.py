@@ -64,7 +64,7 @@ def test_1_the_long_press_offers_every_mode_and_the_options(app):
                                                                 "browser"]), chips
     assert chips["aiRecordOpt-intense"]["label"] == "🌿 Economy"  # (a switch: economy, or intense)
     assert chips["aiRecordOpt-browser"].get("enabled", True) is True  # (since 1.18.0: the research browser)
-    assert ws["aiResearchSignIn"]["label"] == "🔑 Browser sign-in"  # (1.18.1: Google refuses while the app is connected)
+    assert "aiResearchSignIn" not in ws  # (1.18.2: in the «🔎 Browser» button's menu, not a recording's choice)
     # the options are toggled with a finger, remembered, and shown on the tiles they apply to
     c.call("ui_interact", op="click", target=chips["aiRecordOpt-intense"]["id"])
     c.call("ui_interact", op="click", target=chips["aiRecordOpt-summary"]["id"])

@@ -6,6 +6,8 @@ with «📌 Insert selection». A local test site stands in for the web (no inte
 import http.server
 import os
 import signal
+import subprocess
+import sys
 import json
 import pathlib
 import socketserver
@@ -87,7 +89,11 @@ APP_CONFIG = {"assistant": {"autostart": False,
 
 
 def widgets(c):
-    return {w["name"]: w for w in c.call("ui_inspect", max_depth=80, all=True)["widgets"] if w.get("name")}
+    # (the main window's: while the browser is in front, the focused window isn't the app's, and «↩ Back» is a small
+    # window of the app's own)
+    main = max(c.call("ui_windows")["windows"], key=lambda w: w["size"][0] * w["size"][1])
+    return {w["name"]: w for w in c.call("ui_inspect", target=main["id"], max_depth=80, all=True)["widgets"]
+            if w.get("name")}
 
 
 def wait(pred, timeout=20):
@@ -262,4 +268,107 @@ def test_8_target_pages_are_kept_until_he_closes_them(app):
     # he asks to close it: then it goes
     assert c.call("research", op="close", tab=target, owner_asked=True)["closed"]
     assert target not in {t["tab"] for t in c.call("research", op="list")["tabs"]}
+
+
+def x_env(app):
+    """The app's own Xvfb (never the desktop)"""
+    env = dict(os.environ, DISPLAY=app.display)
+    assert env["DISPLAY"] != os.environ.get("DISPLAY"), "never the real desktop"
+    if app._xauthority:
+        env["XAUTHORITY"] = app._xauthority
+    return env
+
+
+SET_ACTIVE = """import sys
+from Xlib import display, Xatom
+d = display.Display()
+r = d.screen().root
+r.change_property(d.intern_atom('_NET_ACTIVE_WINDOW'), Xatom.WINDOW, 32, [int(sys.argv[1])])
+d.sync()
+"""
+
+
+def wm_activates(app, window):
+    """What a window manager does when a window becomes the active one (the test display has none)"""
+    subprocess.run([sys.executable, "-c", SET_ACTIVE, str(window)], env=x_env(app), check=True, timeout=20)
+
+
+def xdo(app, *a):
+    return subprocess.run(["xdotool", *map(str, a)], env=x_env(app), check=True, timeout=20, capture_output=True,
+                          text=True).stdout.strip()
+
+
+def devtools(app, path):
+    """The research browser's DevTools HTTP (the test's own look at it)"""
+    import urllib.request
+    port = (app.home / "data" / "xournalai" / "research-browser" / "DevToolsActivePort").read_text().split()[0]
+    with urllib.request.urlopen(f"http://127.0.0.1:{port}{path}", timeout=10) as r:
+        return r.read().decode()
+
+
+def test_9_it_never_takes_the_focus_by_itself_and_his_own_switch_stays(app):
+    # (the owner, 10 Nov: «браузер неконтролируемо перехватывает фокус … уводит на другой workspace»; «если я сам
+    # руками поменяю фокус на браузер или альт-табом сделаю, что будет?»)
+    c = app.client()
+    s = c.call("test_focus")
+    assert s["x11"] and s["app_window"] and s["browser_window"], s
+    app_w, browser_w = s["app_window"], s["browser_window"]
+    wm_activates(app, app_w)  # (he is in his notes)
+    time.sleep(0.5)
+    # 1. agents at work, and the browser comes to the front by itself: he is brought back at once
+    c.call("research", op="open", query="busy now", topic="T9")
+    assert c.call("test_focus")["busy"]
+    wm_activates(app, browser_w)
+    s = wait(lambda: (lambda s: s if s["returned"] >= 1 else None)(c.call("test_focus")), 5)
+    assert s and s["returned"] == 1 and not s["in_browser"] and not s["back_pill"], s
+    assert s["last_decision"].startswith("returned"), s
+    # 2. his own switch: a press that never reached the app (here a click on the browser), then the switch
+    wm_activates(app, app_w)
+    time.sleep(0.3)
+    target = c.call("research", op="open", query="the page he reads", topic="T9")["tab"]
+    devtools(app, f"/json/activate/{target}")  # (the tab in front in the browser)
+    xdo(app, "windowraise", browser_w)
+    xdo(app, "mousemove", "--window", browser_w, 300, 300, "click", 1)
+    wm_activates(app, browser_w)
+    s = wait(lambda: (lambda s: s if s["in_browser"] else None)(c.call("test_focus")), 5)
+    assert s and s["returned"] == 1 and s["back_pill"], s
+    assert s["last_decision"] == "his own: a press of his went past the app", s
+    # the tab in front of him counts as seen: an agent can't close it
+    assert wait(lambda: any(t["tab"] == target and t.get("seen") for t in c.call("research", op="list")["tabs"]), 8)
+    assert "looked at" in c.call_error("research", op="close", tab=target)
+    # 3. «↩ Back to the notes»: a small window of the app's own over the browser
+    pill = xdo(app, "search", "--name", "^Back to the notes$")
+    xdo(app, "mousemove", "--window", pill.split()[0], 20, 20, "click", 1)
+    s = wait(lambda: (lambda s: s if not s["in_browser"] else None)(c.call("test_focus")), 5)
+    assert s and not s["back_pill"], s
+    # 4. «🔎 Browser · N new»: tabs opened while he wasn't looking; one tap takes him there
+    wm_activates(app, app_w)
+    c.call("research", op="open", query="while he draws", topic="T9")
+    assert wait(lambda: c.call("test_focus")["browser_button"] == "🔎 Browser\n1 new", 5), c.call("test_focus")
+    c.call("ui_interact", op="click", target=widgets(c)["aiResearchBrowserButton"]["id"])
+    s = wait(lambda: (lambda s: s if s["in_browser"] else None)(c.call("test_focus")), 5)
+    assert s and s["shown"] and s["back_pill"] and s["browser_button"] == "🔎 Browser", s
+    c.call("ui_interact", op="click", target=widgets(c)["aiResearchBrowserButton"]["id"])  # (again: back)
+    assert wait(lambda: not c.call("test_focus")["in_browser"], 5)
+    # 5. when nothing works in the browser, its coming to the front is left alone
+    wm_activates(app, app_w)
+    time.sleep(3.5)
+    assert not c.call("test_focus")["busy"]
+    wm_activates(app, browser_w)
+    s = wait(lambda: (lambda s: s if s["in_browser"] else None)(c.call("test_focus")), 5)
+    assert s and s["returned"] == 1 and s["last_decision"] == "his own: the browser wasn't busy", s
+    wm_activates(app, app_w)
+
+
+def test_10_signing_in_is_in_the_browser_button_s_menu(app):
+    c = app.client()
+    w = widgets(c)["aiResearchBrowserButton"]
+    x, y, width, height = w["bbox"]
+    app._xdo("mousemove", x + width // 2, y + height // 2)
+    app._xdo("mousedown", 1)
+    time.sleep(1.2)
+    app._xdo("mouseup", 1)
+    ws = wait(lambda: (lambda ws: ws if "aiResearchSignIn" in ws else None)(widgets(c)), 5)
+    assert ws and ws["aiResearchSignIn"]["label"] == "🔑 Browser sign-in", sorted(ws)[:20]
+    # (no «🔑» in the Record menu any more: test_e15_live_modes)
 

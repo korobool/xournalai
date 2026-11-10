@@ -3,7 +3,8 @@
  *
  * The research browser (🔎 Browser assistant; the owner's decisions 2026-11-09, docs/mcp/LIVE_MODES.md): a Chrome of
  * the app's own, with a profile in the app's folder (the owner signs in to Google once; none of his other accounts),
- * on another monitor if there are several, else on the next workspace. Agents search in its tabs (the browser does
+ * on another monitor if there are several, else behind the app on the same workspace (1.18.2: it never takes the focus,
+ * FocusGuard; «🔎 Browser» / «↩ Back»; its tabs never sleep). Agents search in its tabs (the browser does
  * the searching, not the model), read what they need and propose quotes and pictures; the owner sees every tab and
  * can open it. Driven through the Chrome DevTools protocol on a local port: open, list, read (evaluate) and close
  * tabs, take a picture. Clicks, typing and a site's navigation are the agents' part, through the Claude in Chrome
@@ -14,7 +15,7 @@
  * that window it comes back connected (the sign-ins stay in the profile). Its first start is such a sign-in.
  *
  * Settings (mcp.json assistant.research_browser): chrome (the command), profile ("own" | "incognito"), where ("auto" |
- * "here" | "workspace:N" | "monitor:N"), password_store ("" = the system's | "basic"), search (kind → URL template
+ * "behind" | "here" | "workspace[:N]" | "monitor:N"), focus_guard (true), password_store ("" = the system's | "basic"), search (kind → URL template
  * with {q}: web, images, wiki, scholar), sign_in_pages (opened for signing in; default claude.ai's login).
  *
  * @license GNU GPLv2 or later
@@ -38,6 +39,7 @@
 #include "mcp/Json.h"
 
 typedef struct _SoupSession SoupSession;
+typedef struct _SoupWebsocketConnection SoupWebsocketConnection;
 
 namespace xoj::assistant {
 
@@ -47,7 +49,9 @@ public:
         std::string chrome = "google-chrome";
         std::string profile = "own";  ///< own | incognito
         fs::path profileDir;          ///< the own profile's folder (in the app's data folder)
-        std::string where = "auto";   ///< auto | here | workspace:N | monitor:N
+        std::string where = "auto";  ///< auto (another monitor, else behind the app) | behind | here | workspace[:N] |
+                                     ///< monitor:N
+        bool focusGuard = true;      ///< the owner is brought back when it takes the focus by itself
         std::string passwordStore;    ///< "" (the system's) | basic
         std::vector<std::string> extraArgs;  ///< more flags for Chrome (tests: no background networking)
         bool closeOnExit = false;            ///< ends the browser it started when the app quits (tests)
@@ -89,6 +93,18 @@ public:
     void sources(Done done);
     /// He looked at this tab (in front while he was in the browser): an agent doesn't close it
     void markSeen(const std::string& tab) { seen.insert(tab); }
+    /// The tab in front of him now (he is in the browser) counts as seen
+    void markVisibleSeen();
+    /// Agents worked in it in the last few seconds (a tab opened, navigated, closed, looked at)
+    bool busy() const;
+    /// He is in the browser (no «N new» counted meanwhile) or not
+    void ownerLooking(bool here);
+    /// (the UI: «🔎 Browser · N new») tabs opened while he wasn't looking
+    std::function<void(int newTabs)> onNewTabs;
+    bool focusGuard() const { return settings.focusGuard; }
+    /// The Chrome holding its profile (from its SingletonLock, checked to be alive and of this very profile), 0 if
+    /// none; `withPort`: whether it has a DevTools port
+    int profilePid(bool* withPort = nullptr) const;
     /// The owner's selection in the tab he looks at (or any tab with one): text, url, title
     void selection(Done done);
     /// The Claude in Chrome extension is installed in its profile (agents click, type and navigate through it)
@@ -123,8 +139,6 @@ private:
     void readAwake(const std::string& tab, size_t maxChars, Done done);
     /// (the first start: set up, else launch)
     void start(std::function<void(const std::string&)> ready);
-    /// The Chrome holding its profile (from its SingletonLock), 0 if none; `withPort`: whether it has a DevTools port
-    int profilePid(bool* withPort = nullptr) const;
     /// Closes the browser (Browser.close; else SIGTERM to its verified pid) and waits until its profile is free
     void shutDown(std::function<void(const std::string&)> done);
     void waitForExit(int tries, std::function<void(bool exited)> done);
@@ -160,6 +174,16 @@ private:
     bool isKept(const nlohmann::json& tab) const;
     bool isSeen(const std::string& tab) const { return seen.count(tab) > 0; }
     void closeTab(const std::string& tab, Done done);
+    /// (connected) its events: Target.setDiscoverTargets on a connection of its own
+    void connected();
+    void watchTargets();
+    void targetEvent(GBytes* bytes);
+    SoupWebsocketConnection* watcher = nullptr;
+    bool connectingWatcher = false;
+    std::set<std::string> knownTargets;  ///< (the pages there before the watch: not new)
+    gint64 lastActivity = 0;
+    int newTabs = 0;
+    bool ownerHere = false;
     void appendSource(const Kept& k) const;
     GSubprocess* process = nullptr;  ///< the browser it started (closeOnExit)
     std::shared_ptr<bool> alive = std::make_shared<bool>(true);

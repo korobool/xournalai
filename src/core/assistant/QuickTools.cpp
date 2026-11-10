@@ -197,6 +197,18 @@ QuickTools::~QuickTools() {
     if (pinButton) {
         g_object_remove_weak_pointer(G_OBJECT(pinButton), reinterpret_cast<gpointer*>(&pinButton));
     }
+    if (browserButton) {
+        g_object_remove_weak_pointer(G_OBJECT(browserButton), reinterpret_cast<gpointer*>(&browserButton));
+    }
+    if (browserLabel) {
+        g_object_remove_weak_pointer(G_OBJECT(browserLabel), reinterpret_cast<gpointer*>(&browserLabel));
+    }
+    if (browserLongPress) {
+        g_object_unref(browserLongPress);
+    }
+    if (backPill) {
+        gtk_widget_destroy(backPill);
+    }
     if (talkButton) {
         g_object_remove_weak_pointer(G_OBJECT(talkButton), reinterpret_cast<gpointer*>(&talkButton));
     }
@@ -489,6 +501,12 @@ constexpr const char* CSS =
         ".xoai-pin-button { color: #ffffff; border: none; border-radius: 16px; padding: 6px 10px;"
         "  background-image: linear-gradient(160deg, #f0a43a, #d0731b); box-shadow: 0 2px 0 alpha(#000000, 0.2); }"
         ".xoai-pin-button label { color: #ffffff; font-weight: bold; }"
+        ".xoai-browser-button { color: #ffffff; border: none; border-radius: 16px; padding: 6px 10px;"
+        "  background-image: linear-gradient(160deg, #4a8fe7, #2763b8); box-shadow: 0 2px 0 alpha(#000000, 0.2); }"
+        ".xoai-browser-button label { color: #ffffff; font-weight: bold; }"
+        ".xoai-back-pill { color: #ffffff; border: none; border-radius: 26px; padding: 10px 22px; font-size: 1.15em;"
+        "  font-weight: bold; background-image: linear-gradient(160deg, #4a8fe7, #2763b8); }"
+        ".xoai-back-pill label { color: #ffffff; }"
         ".xoai-talk-button { color: #ffffff; border: none; border-radius: 16px; padding: 6px 10px;"
         "  background-image: linear-gradient(160deg, #2bb3a0, #13806f);"
         "  box-shadow: 0 2px 8px alpha(#13806f, 0.5), inset 0 1px alpha(#ffffff, 0.3); }"
@@ -907,6 +925,40 @@ void QuickTools::placeButton(GtkWidget* mainBox, const std::vector<GtkWidget*>& 
     gtk_widget_set_no_show_all(pinButton, TRUE);
     gtk_box_pack_end(GTK_BOX(outer), pinButton, FALSE, FALSE, 0);
 
+    // 🔎 the research browser in front and back again (it stays behind the notes); its long press: signing in
+    browserButton = gtk_button_new();
+    browserLabel = gtk_label_new("🔎 Browser");
+    gtk_label_set_justify(GTK_LABEL(browserLabel), GTK_JUSTIFY_CENTER);
+    gtk_container_add(GTK_CONTAINER(browserButton), browserLabel);
+    gtk_style_context_add_class(gtk_widget_get_style_context(browserButton), "xoai-browser-button");
+    gtk_widget_set_size_request(browserButton, 96, -1);
+    g_object_set(browserButton, "margin", 4, "margin-end", 0, nullptr);
+    gtk_widget_set_can_focus(browserButton, FALSE);
+    gtk_widget_set_tooltip_text(browserButton, "The research browser in front, or back to the notes; hold it to sign in "
+                                               "there");
+    gtk_buildable_set_name(GTK_BUILDABLE(browserButton), "aiResearchBrowserButton");
+    g_signal_connect(browserButton, "clicked", G_CALLBACK(+[](GtkButton*, gpointer d) {
+                         auto* self = static_cast<QuickTools*>(d);
+                         if (self->suppressBrowserClick) {
+                             self->suppressBrowserClick = false;
+                             return;
+                         }
+                         if (self->onResearchShow) {
+                             self->onResearchShow();
+                         }
+                     }),
+                     this);
+    browserLongPress = gtk_gesture_long_press_new(browserButton);
+    gtk_event_controller_set_propagation_phase(GTK_EVENT_CONTROLLER(browserLongPress), GTK_PHASE_CAPTURE);
+    g_signal_connect(browserLongPress, "pressed", G_CALLBACK(+[](GtkGestureLongPress*, double, double, gpointer d) {
+                         auto* self = static_cast<QuickTools*>(d);
+                         self->suppressBrowserClick = true;
+                         self->openBrowserMenu();
+                     }),
+                     this);
+    gtk_widget_set_no_show_all(browserButton, TRUE);
+    gtk_box_pack_end(GTK_BOX(outer), browserButton, FALSE, FALSE, 0);
+
     // Full screen: the app's own full-screen toggle, big enough for a finger
     fullscreenButton = gtk_button_new();
     gtk_style_context_add_class(gtk_widget_get_style_context(fullscreenButton), "xoai-fullscreen-button");
@@ -970,6 +1022,12 @@ void QuickTools::placeButton(GtkWidget* mainBox, const std::vector<GtkWidget*>& 
     gtk_widget_set_no_show_all(pinButton, TRUE);
     gtk_widget_hide(pinButton);
     g_object_add_weak_pointer(G_OBJECT(pinButton), reinterpret_cast<gpointer*>(&pinButton));
+    gtk_widget_set_no_show_all(browserButton, FALSE);
+    gtk_widget_show_all(browserButton);
+    gtk_widget_set_no_show_all(browserButton, TRUE);
+    gtk_widget_hide(browserButton);
+    g_object_add_weak_pointer(G_OBJECT(browserButton), reinterpret_cast<gpointer*>(&browserButton));
+    g_object_add_weak_pointer(G_OBJECT(browserLabel), reinterpret_cast<gpointer*>(&browserLabel));
     gtk_widget_set_no_show_all(talkButton, FALSE);
     gtk_widget_show_all(talkButton);  // (its content; the button itself with Record)
     gtk_widget_set_no_show_all(talkButton, TRUE);
@@ -1038,6 +1096,108 @@ void QuickTools::setResearchActive(bool on) {
     if (pinButton) {
         gtk_widget_set_visible(pinButton, on);
     }
+    if (browserButton) {
+        gtk_widget_set_visible(browserButton, on);
+    }
+    if (!on) {
+        setBackPill(false);
+    }
+}
+
+void QuickTools::setResearchNew(int n) {
+    if (browserLabel) {
+        gtk_label_set_text(GTK_LABEL(browserLabel),
+                           n > 0 ? ("🔎 Browser\n" + std::to_string(n) + " new").c_str() : "🔎 Browser");
+    }
+}
+
+void QuickTools::openBrowserMenu() {
+    if (!browserButton) {
+        return;
+    }
+    closePopover();
+    addCss();
+    popover = gtk_popover_new(browserButton);
+    g_object_add_weak_pointer(G_OBJECT(popover), reinterpret_cast<gpointer*>(&popover));
+    gtk_popover_set_position(GTK_POPOVER(popover), GTK_POS_BOTTOM);
+    gtk_buildable_set_name(GTK_BUILDABLE(popover), "aiResearchBrowserMenu");
+    GtkWidget* box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 8);
+    g_object_set(box, "margin", 10, nullptr);
+    // The research browser opened for signing in (Google refuses while the app is connected to it)
+    GtkWidget* signIn = gtk_button_new_with_label("🔑 Browser sign-in");
+    gtk_style_context_add_class(gtk_widget_get_style_context(signIn), "xoai-record-chip");
+    gtk_widget_set_can_focus(signIn, FALSE);
+    gtk_buildable_set_name(GTK_BUILDABLE(signIn), "aiResearchSignIn");
+    gtk_widget_set_tooltip_text(signIn, "Open the research browser to sign in to Google, Claude and Claude in Chrome; "
+                                        "close it when done and it comes back connected");
+    g_signal_connect(signIn, "clicked", G_CALLBACK(+[](GtkButton*, gpointer d) {
+                         auto* self = static_cast<QuickTools*>(d);
+                         if (self->popover) {
+                             gtk_popover_popdown(GTK_POPOVER(self->popover));
+                         }
+                         if (self->onResearchSignIn) {
+                             self->onResearchSignIn();
+                         }
+                     }),
+                     this);
+    gtk_box_pack_start(GTK_BOX(box), signIn, FALSE, FALSE, 0);
+    gtk_container_add(GTK_CONTAINER(popover), box);
+    g_signal_connect(popover, "closed", G_CALLBACK(+[](GtkPopover* p, gpointer d) {
+                         static_cast<QuickTools*>(d)->suppressBrowserClick = false;
+                         g_idle_add(
+                                 [](gpointer w) -> gboolean {
+                                     if (GTK_IS_WIDGET(w) && !gtk_widget_in_destruction(GTK_WIDGET(w))) {
+                                         gtk_widget_destroy(GTK_WIDGET(w));
+                                     }
+                                     g_object_unref(w);
+                                     return G_SOURCE_REMOVE;
+                                 },
+                                 g_object_ref(p));
+                     }),
+                     this);
+    gtk_widget_show_all(box);
+    gtk_popover_popup(GTK_POPOVER(popover));
+}
+
+void QuickTools::setBackPill(bool visible, const GdkRectangle* area) {
+    if (!visible) {
+        if (backPill) {
+            gtk_widget_hide(backPill);
+        }
+        return;
+    }
+    addCss();
+    if (!backPill) {
+        // A small window of the app's own over the browser: it never takes the focus (a tap on it still works)
+        backPill = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+        gtk_window_set_decorated(GTK_WINDOW(backPill), FALSE);
+        gtk_window_set_keep_above(GTK_WINDOW(backPill), TRUE);
+        gtk_window_set_accept_focus(GTK_WINDOW(backPill), FALSE);
+        gtk_window_set_focus_on_map(GTK_WINDOW(backPill), FALSE);
+        gtk_window_set_skip_taskbar_hint(GTK_WINDOW(backPill), TRUE);
+        gtk_window_set_skip_pager_hint(GTK_WINDOW(backPill), TRUE);
+        gtk_window_set_resizable(GTK_WINDOW(backPill), FALSE);
+        gtk_window_set_type_hint(GTK_WINDOW(backPill), GDK_WINDOW_TYPE_HINT_UTILITY);
+        gtk_window_set_title(GTK_WINDOW(backPill), "Back to the notes");
+        GtkWidget* b = gtk_button_new_with_label("↩ Back to the notes");
+        gtk_style_context_add_class(gtk_widget_get_style_context(b), "xoai-back-pill");
+        gtk_widget_set_can_focus(b, FALSE);
+        gtk_buildable_set_name(GTK_BUILDABLE(b), "aiResearchBackPill");
+        g_signal_connect(b, "clicked", G_CALLBACK(+[](GtkButton*, gpointer d) {
+                             auto* self = static_cast<QuickTools*>(d);
+                             if (self->onResearchBack) {
+                                 self->onResearchBack();
+                             }
+                         }),
+                         this);
+        gtk_container_add(GTK_CONTAINER(backPill), b);
+        gtk_widget_show_all(b);
+    }
+    // (bottom left of the browser's monitor: under the left thumb, like the question panel)
+    if (area) {
+        gtk_window_move(GTK_WINDOW(backPill), area->x + 16, area->y + area->height - 90);
+    }
+    gtk_widget_show(backPill);
 }
 
 void QuickTools::setLiveActive(bool on, bool voice) {
@@ -1148,26 +1308,6 @@ void QuickTools::openRecordMenu() {
                          }),
                          this);
         gtk_container_add(GTK_CONTAINER(chips), chip);
-    }
-    if (onResearchSignIn) {
-        // The research browser opened for signing in (Google refuses while the app is connected to it)
-        GtkWidget* signIn = gtk_button_new_with_label("🔑 Browser sign-in");
-        gtk_style_context_add_class(gtk_widget_get_style_context(signIn), "xoai-record-chip");
-        gtk_widget_set_can_focus(signIn, FALSE);
-        gtk_buildable_set_name(GTK_BUILDABLE(signIn), "aiResearchSignIn");
-        gtk_widget_set_tooltip_text(signIn, "Open the research browser to sign in to Google, Claude and Claude in "
-                                            "Chrome; close it when done and it comes back connected");
-        g_signal_connect(signIn, "clicked", G_CALLBACK(+[](GtkButton*, gpointer d) {
-                             auto* self = static_cast<QuickTools*>(d);
-                             if (self->popover) {
-                                 gtk_popover_popdown(GTK_POPOVER(self->popover));
-                             }
-                             if (self->onResearchSignIn) {
-                                 self->onResearchSignIn();
-                             }
-                         }),
-                         this);
-        gtk_container_add(GTK_CONTAINER(chips), signIn);
     }
     gtk_box_pack_start(GTK_BOX(box), chips, FALSE, FALSE, 0);
 

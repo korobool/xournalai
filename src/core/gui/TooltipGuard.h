@@ -22,4 +22,8 @@ bool isTooltipHover(GdkEventType type, GdkInputSource source, GdkModifierType st
 /// Installs the guard for the window whose drawing area is `canvas`
 void installTooltipGuard(GtkWidget* canvas);
 
+/// Told the server time of every key press, button press and touch that reaches this app (the research browser's
+/// focus guard: the same press seen by the X server without reaching the app went somewhere else, e.g. Alt+Tab)
+void setInputObserver(void (*observer)(guint32 time, gpointer data), gpointer data);
+
 }  // namespace xoj::gui
