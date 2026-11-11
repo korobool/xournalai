@@ -1135,6 +1135,9 @@ void QuickTools::openLevelMenu() {
     g_object_set(box, "margin", 10, nullptr);
     for (const auto& l: recordLevels()) {
         GtkWidget* b = gtk_button_new_with_label((l.label + "\n" + l.situation).c_str());
+        if (!l.explain.empty()) {
+            gtk_widget_set_tooltip_text(b, l.explain.c_str());  // (the mouse; this small menu has no strip)
+        }
         gtk_label_set_justify(GTK_LABEL(gtk_bin_get_child(GTK_BIN(b))), GTK_JUSTIFY_CENTER);
         gtk_style_context_add_class(gtk_widget_get_style_context(b), "xoai-record-chip");
         if (l.on) {
@@ -1227,7 +1230,13 @@ void showToggleState(GtkWidget* chip, const QuickTools::RecordToggle& t, bool on
     if (!t.available) {
         text += " · soon";
     }
+    if (const std::string& line = on ? t.hint : t.offHint; !line.empty()) {
+        text += "\n" + line;  // (a switch says what its side costs or means)
+    }
     gtk_button_set_label(GTK_BUTTON(chip), text.c_str());
+    if (GtkWidget* l = gtk_bin_get_child(GTK_BIN(chip)); GTK_IS_LABEL(l)) {
+        gtk_label_set_justify(GTK_LABEL(l), GTK_JUSTIFY_CENTER);
+    }
     GtkStyleContext* ctx = gtk_widget_get_style_context(chip);
     if (on && t.available) {
         gtk_style_context_add_class(ctx, "xoai-chip-on");
@@ -1261,6 +1270,7 @@ void QuickTools::openRecordMenu() {
             gtk_style_context_add_class(gtk_widget_get_style_context(b), "xoai-record-chip");
             gtk_widget_set_can_focus(b, FALSE);
             gtk_buildable_set_name(GTK_BUILDABLE(b), ("aiRecordLevel-" + l.id).c_str());
+            explainOnHold(b, l.label, l.explain);
             gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(b), l.on);
             if (l.on) {
                 gtk_style_context_add_class(gtk_widget_get_style_context(b), "xoai-chip-on");
@@ -1310,6 +1320,7 @@ void QuickTools::openRecordMenu() {
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(chip), t.on && t.available);
         gtk_widget_set_sensitive(chip, t.available);
         showToggleState(chip, t, t.on);
+        explainOnHold(chip, t.off.empty() ? t.label : t.off + " / " + t.label, t.explain);
         g_object_set_data_full(G_OBJECT(chip), "toggle", new RecordToggle(t),
                                +[](gpointer d) { delete static_cast<RecordToggle*>(d); });
         g_signal_connect(chip, "toggled", G_CALLBACK(+[](GtkToggleButton* b, gpointer d) {
@@ -1331,7 +1342,9 @@ void QuickTools::openRecordMenu() {
     GtkWidget* grid = gtk_grid_new();
     gtk_grid_set_row_spacing(GTK_GRID(grid), 8);
     gtk_grid_set_column_spacing(GTK_GRID(grid), 8);
-    std::vector<RecordChoice> choices = {{"plain", "⏺", "Record", "audio only,\nas a tap does", "", false, true}};
+    std::vector<RecordChoice> choices = {{"plain", "⏺", "Record", "audio only,\nas a tap does", "", false, true,
+                                          "Only the audio, as a short tap on Record does: no transcript, no "
+                                          "assistant. You can transcribe it later."}};
     if (recordChoices) {
         for (auto& ch: recordChoices()) {
             choices.push_back(std::move(ch));
@@ -1341,6 +1354,7 @@ void QuickTools::openRecordMenu() {
         const auto& ch = choices[i];
         const std::string name = ch.id == "plain" ? "aiRecordPlain" : "aiRecordMode-" + ch.id;
         GtkWidget* tile = modeTile(name, ch.emoji, ch.label, ch.hint, ch.badges, ch.last, ch.available);
+        explainOnHold(tile, ch.emoji + " " + ch.label, ch.explain);
         g_object_set_data_full(G_OBJECT(tile), "mode", g_strdup(ch.id.c_str()), g_free);
         g_signal_connect(tile, "clicked", G_CALLBACK(+[](GtkButton* b, gpointer d) {
                              auto* self = static_cast<QuickTools*>(d);
@@ -1362,6 +1376,16 @@ void QuickTools::openRecordMenu() {
     gtk_box_pack_start(GTK_BOX(box), grid, FALSE, FALSE, 0);
     recordGrid = grid;
     g_object_add_weak_pointer(G_OBJECT(grid), reinterpret_cast<gpointer*>(&recordGrid));
+    // (1.22.0) what a choice does: a long press on it shows it here (hover tooltips are the mouse's only)
+    GtkWidget* explain = gtk_label_new("Hold any choice to read what it does.");
+    gtk_buildable_set_name(GTK_BUILDABLE(explain), "aiRecordExplain");
+    gtk_label_set_line_wrap(GTK_LABEL(explain), TRUE);
+    gtk_label_set_max_width_chars(GTK_LABEL(explain), 70);
+    gtk_label_set_xalign(GTK_LABEL(explain), 0);
+    gtk_style_context_add_class(gtk_widget_get_style_context(explain), "xoai-mode-hint");
+    gtk_box_pack_start(GTK_BOX(box), explain, FALSE, FALSE, 0);
+    recordExplain = explain;
+    g_object_add_weak_pointer(G_OBJECT(explain), reinterpret_cast<gpointer*>(&recordExplain));
     gtk_container_add(GTK_CONTAINER(popover), box);
     g_signal_connect(popover, "closed", G_CALLBACK(+[](GtkPopover* p, gpointer d) {
                          // (closed by a later tap: the long press's own release is long past)
@@ -1379,6 +1403,32 @@ void QuickTools::openRecordMenu() {
                      this);
     gtk_widget_show_all(box);
     gtk_popover_popup(GTK_POPOVER(popover));
+}
+
+void QuickTools::explainOnHold(GtkWidget* w, const std::string& title, const std::string& text) {
+    if (text.empty()) {
+        return;
+    }
+    gtk_widget_set_tooltip_text(w, text.c_str());
+    // A long press claims the touch or click: the button underneath sees it cancelled (no click, no toggle)
+    GtkGesture* hold = gtk_gesture_long_press_new(w);
+    gtk_event_controller_set_propagation_phase(GTK_EVENT_CONTROLLER(hold), GTK_PHASE_CAPTURE);
+    g_object_set_data_full(G_OBJECT(w), "xoai-explain-gesture", hold, g_object_unref);  // (GTK 3: not owned by w)
+    g_object_set_data_full(G_OBJECT(hold), "title", g_strdup(title.c_str()), g_free);
+    g_object_set_data_full(G_OBJECT(hold), "text", g_strdup(text.c_str()), g_free);
+    g_signal_connect(hold, "pressed", G_CALLBACK(+[](GtkGestureLongPress* g, double, double, gpointer d) {
+                         auto* self = static_cast<QuickTools*>(d);
+                         gtk_gesture_set_state(GTK_GESTURE(g), GTK_EVENT_SEQUENCE_CLAIMED);
+                         if (!self->recordExplain) {
+                             return;
+                         }
+                         gchar* markup = g_markup_printf_escaped(
+                                 "<b>%s</b>\n%s", static_cast<const char*>(g_object_get_data(G_OBJECT(g), "title")),
+                                 static_cast<const char*>(g_object_get_data(G_OBJECT(g), "text")));
+                         gtk_label_set_markup(GTK_LABEL(self->recordExplain), markup);
+                         g_free(markup);
+                     }),
+                     this);
 }
 
 void QuickTools::refreshRecordBadges() {

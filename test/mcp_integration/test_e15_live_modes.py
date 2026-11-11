@@ -69,7 +69,7 @@ def test_1_the_long_press_offers_every_mode_and_the_options(app):
     assert levels["aiRecordLevel-off"]["label"] == "🛡 Commands off\nothers talking, a video"
     assert levels["aiRecordLevel-trigger"]["label"] == "🔤 «Hey Assistant»\npeople around"
     assert levels["aiRecordLevel-talk"]["label"] == "💬 Conversation\njust me"
-    assert chips["aiRecordOpt-intense"]["label"] == "🌿 Economy"  # (a switch: economy, or intense)
+    assert chips["aiRecordOpt-intense"]["label"].startswith("🌿 Economy\n")  # (a switch: economy, or intense)
     assert chips["aiRecordOpt-browser"].get("enabled", True) is True  # (since 1.18.0: the research browser)
     assert "aiResearchSignIn" not in ws  # (in the Tools panel since 1.20.0, not a recording's choice)
     # commands off: 🎙 Voice only (nothing but commands) can't be chosen; on again: it can
@@ -86,7 +86,7 @@ def test_1_the_long_press_offers_every_mode_and_the_options(app):
     c.call("ui_interact", op="click", target=chips["aiRecordOpt-intense"]["id"])
     c.call("ui_interact", op="click", target=chips["aiRecordOpt-summary"]["id"])
     ws = widgets(c)
-    assert ws["aiRecordOpt-intense"]["label"] == "⚡ Intense" and ws["aiRecordOpt-summary"]["label"].startswith("☑")
+    assert ws["aiRecordOpt-intense"]["label"].startswith("⚡ Intense\n") and ws["aiRecordOpt-summary"]["label"].startswith("☑")
     saved = json.loads(state_file(app).read_text())
     assert saved["options"]["intense"] is True and saved["options"]["summary"] is True, saved
     assert ws["aiRecordMode-conspect-badges"]["label"] == "💬⚡🧾", ws["aiRecordMode-conspect-badges"]

@@ -59,6 +59,10 @@
   own page the title and the transcript column go only where the page is empty (no column when his ink, a slide or a
   picture is at the right edge: the transcript then stays off the paper); the agents draw only where nothing of his
   is.
+- **The menu explains itself (1.22.0, the owner, 11 Nov: «я не знаю, что такое proposals, не вполне понимаю, чем
+  экономные и интенсивные режимы отличаются»):** a few lines for every tile, level and option: the mouse's tooltip,
+  and a long press (the pen and fingers have no hover tooltips, TooltipGuard) shows them at the bottom of the menu
+  without starting or switching anything. «💡 Proposals» became «❓ May ask me»; each switch's side has a second line.
 - **Fewer taps (10 Nov):** the question panel is only for unsafe operations outside the app and for disambiguation.
   An explicit command on the document, his own strokes included, is done at once as one undo step.
 - **Deferred, experimental:** telling the speakers apart ("я / собеседник" in an interview; diarization on the A40

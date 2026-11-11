@@ -68,16 +68,20 @@ public:
         std::string badges;  ///< the options that apply to it (their signs)
         bool last = false;   ///< the mode used last (highlighted)
         bool available = true;
+        std::string explain;  ///< (1.22.0) what it does: the mouse's tooltip, a long press's strip
     };
     struct RecordToggle {
         std::string id, label, off;  ///< `off`: its label when off ("" = the same, unticked)
         bool on = false;
         bool available = true;
+        std::string hint, offHint;  ///< (a switch) its second line, on and off ("" none)
+        std::string explain;
     };
     /// The switch «Speech commands» (1.20.0): its three levels, above the tiles (and, during a recording, its chip)
     struct RecordLevel {
         std::string id, label, situation;  ///< off | trigger | talk; "🛡 Commands off"; "others talking, a video"
         bool on = false;
+        std::string explain;
     };
     std::function<std::vector<RecordChoice>()> recordChoices;
     std::function<std::vector<RecordToggle>()> recordToggles;
@@ -160,6 +164,10 @@ private:
     void openRecordMenu();
     void refreshRecordBadges();       ///< the mode tiles' badges follow the option toggles
     GtkWidget* recordGrid = nullptr;  ///< weak: the Record menu's tiles while it is open
+    /// (1.22.0) what a choice of the Record menu does: the mouse's tooltip; a long press (pen, finger, mouse) shows it
+    /// in the strip at the bottom of the menu and neither starts nor switches anything
+    void explainOnHold(GtkWidget* w, const std::string& title, const std::string& text);
+    GtkWidget* recordExplain = nullptr;  ///< weak: that strip
     void toggleRecording();
     GtkWidget* recordFace = nullptr;   ///< weak
     GtkWidget* recordLabel = nullptr;  ///< (inside recordButton)

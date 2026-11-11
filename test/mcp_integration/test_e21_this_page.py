@@ -46,10 +46,10 @@ def test_1_the_switch_is_in_the_record_menu_and_remembered(app):
     long_press(app, widgets(c)["aiRecordButton"])
     ws = widgets(c)
     chip = ws["aiRecordOpt-this_page"]
-    assert chip["label"] == "📄 New page", chip  # (as before: a new page)
+    assert chip["label"].startswith("📄 New page"), chip  # (as before: a new page)
     c.call("ui_interact", op="click", target=chip["id"])
     ws = widgets(c)
-    assert ws["aiRecordOpt-this_page"]["label"] == "📍 This page"
+    assert ws["aiRecordOpt-this_page"]["label"].startswith("📍 This page")
     assert json.loads(state_file(app).read_text())["options"]["this_page"] is True
     assert "📍" in ws["aiRecordMode-conspect-badges"]["label"], ws["aiRecordMode-conspect-badges"]
     assert "📍" in ws["aiRecordMode-text-badges"]["label"]

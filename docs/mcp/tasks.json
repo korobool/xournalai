@@ -4382,7 +4382,9 @@
               "title": "Explanations in the Record menu: tooltips, and a long press for the pen and a finger",
               "details": "Branch ai/record-explain. One text per tile, level and option (LiveModes), the mouse's tooltip, a long press (pen, finger) shows it in a strip at the bottom of the menu without starting or switching anything; «💡 Proposals» → «❓ May ask me»; Economy/Intense hints say what they cost; tests.",
               "commit": "ai: the Record menu explains each choice (a tooltip, or a long press)",
-              "status": "todo"
+              "status": "done",
+              "started": "2026-11-11T12:19:07+00:00",
+              "finished": "2026-11-11T12:19:07+00:00"
             },
             {
               "id": "T15.26.3",

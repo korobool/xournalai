@@ -3075,7 +3075,7 @@ void McpUi::buildToolbar() {
             // (🎙 Voice only is nothing but commands: not with 🛡)
             const bool usable = m.available && (m.commandsOff || st.options.commands != "off");
             out.push_back({m.id, m.emoji, m.label, usable ? m.hint : "needs speech commands", badges,
-                           m.id == st.lastMode, usable});
+                           m.id == st.lastMode, usable, m.explain});
         }
         return out;
     };
@@ -3083,7 +3083,7 @@ void McpUi::buildToolbar() {
         const live::State st = live::State::load();
         std::vector<assistant::QuickTools::RecordToggle> out;
         for (const auto& t: live::toggles()) {
-            out.push_back({t.id, t.label, t.off, st.options.get(t.id), t.available});
+            out.push_back({t.id, t.label, t.off, st.options.get(t.id), t.available, t.hint, t.offHint, t.explain});
         }
         return out;
     };
@@ -3091,7 +3091,7 @@ void McpUi::buildToolbar() {
         std::vector<assistant::QuickTools::RecordLevel> out;
         const live::State st = live::State::load();
         for (const auto& l: live::levels()) {
-            out.push_back({l.id, l.emoji + " " + l.label, l.situation, l.id == st.options.commands});
+            out.push_back({l.id, l.emoji + " " + l.label, l.situation, l.id == st.options.commands, l.explain});
         }
         return out;
     };
