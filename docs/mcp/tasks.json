@@ -4440,9 +4440,11 @@
               "id": "T15.27.3",
               "story": "US-15.33",
               "title": "On the server: the sidecar installed and checked on real voices",
-              "details": "The owner allowed a speaker model on his server (11 Nov). transcript/.venv-speakers with sherpa-onnx, TitaNet-L in transcript/models/speakers; the faster-whisper venv untouched; thresholds tuned on real speech of two or more people.",
+              "details": "The owner allowed a speaker model on his server (11 Nov). On mainframe: transcript/.venv-speakers made with the same pyenv Python 3.14.6 as the faster-whisper venv (the system python3 has no ensurepip, and installing it needs sudo), sherpa-onnx 2.0.1 + numpy (125 MB); TitaNet-L in transcript/models/speakers (100 MB); the faster-whisper venv untouched. transcript/bin: the new live_worker.py and speakers.py; the old worker kept as live_worker.py.before-1.23.0 (the new one gives fingerprints only when asked, so older apps see no change). Checked: the worker with large-v3 on pyannote's public two-speaker sample (every segment of 1.5 s or more labelled right, the first short «Hello?»s «?»); then end to end, a test app on the test display with the real worker over ssh (inline audio): the column «[0:06] ?: Hello? …», «[0:10] A: … This is Diane in New Jersey», «[0:14] B: And I'm Sheila in Texas …», «[0:18] A: Oh, I'm originally from Chicago also …», in A's and B's colours. Thresholds kept (0.47, 1.5 s): the labels were the same from 0.40 to 0.55. Not verified: Russian speech and the owner's quiet laptop microphone.",
               "commit": "ai: speakers on the server: installed, thresholds from real speech",
-              "status": "todo"
+              "status": "done",
+              "started": "2026-11-11T12:44:43+00:00",
+              "finished": "2026-11-11T12:44:43+00:00"
             },
             {
               "id": "T15.27.4",

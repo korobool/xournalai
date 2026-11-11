@@ -42,11 +42,14 @@ venv is not touched and a failure there never stops the text:
 
 ```sh
 scp speakers.py server:<root>/bin/
-ssh server 'cd <root> && python3 -m venv .venv-speakers && .venv-speakers/bin/pip install sherpa-onnx numpy &&
+ssh server 'cd <root> && "$(.venv/bin/python -c "import sys; print(sys._base_executable)")" -m venv .venv-speakers &&
+  .venv-speakers/bin/pip install sherpa-onnx numpy &&
   mkdir -p models/speakers && curl -sSfL -o models/speakers/nemo_en_titanet_large.onnx \
   https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/nemo_en_titanet_large.onnx'
 ```
 
+- The venv is made with the same Python as the faster-whisper one (on the owner's server the system `python3` has no
+  `ensurepip`, and installing it needs sudo; pyenv's Python has it).
 - About 125 MB for the venv and 100 MB for the model; it runs on the CPU (about 0.1 s per second of speech).
 - The model: NVIDIA TitaNet-L (192 numbers per voice). Of five models tried on a public two-speaker recording
   (pyannote's sample, 11 Nov 2026) it kept the voices furthest apart: the same speaker 0.51–0.88, different ones
