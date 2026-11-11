@@ -3,6 +3,12 @@
 The owner ticks them in the Record menu. The wake-up line lists those that are on (`options: …`). Each one
 changes only what it says.
 
+- **📍 `this_page`** (This page; off = 📄 New page): the recording starts on the page the owner was on, not on a new
+  page after it. In `pages` the first entry has `own_page: true`: his own content is there. Draw only where nothing
+  of his is (`find_free_space` on that page), never over or under his ink, a slide or a picture; when it is full,
+  go on as `SKILL.md` says for a full page. Its `transcript_column` is `null` when the page had no room at its right edge:
+  then the transcript is not on the paper at all (read it with `live_notes`), and `free_area` is the whole page
+  (still only where it is empty).
 - **⚡ `intense`** (an intensive brainstorm): think more and in parallel.
   - Start a worker for **every** topic at once, up to the cap: heavy topics at effort `xhigh`, light ones at
     `medium`.

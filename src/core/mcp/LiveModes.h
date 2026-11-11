@@ -54,7 +54,7 @@ const Level* findLevel(const std::string& id);
 
 /// A toggle of the Record menu
 struct Toggle {
-    std::string id;     ///< intense, summary, questions, browser
+    std::string id;     ///< this_page, intense, summary, questions, browser
     std::string label;  ///< when on
     std::string off;    ///< when off ("" = the same label, unticked)
     bool available;     ///< built already
@@ -63,6 +63,7 @@ const std::vector<Toggle>& toggles();
 
 /// The options of the next recording (remembered)
 struct Options {
+    bool thisPage = false;  ///< (1.22.0) 📍 start on the page he is on, else 📄 a new page after it
     bool intense = false;  ///< ⚡ intense (no saving of the owner's limits), else 🌿 economy
     bool summary = false;  ///< 🧾 a summary page at the end
     bool questions = false;
@@ -86,7 +87,8 @@ struct State {
 
 /// The commands level a mode really gets (🎙 never 🛡: then 🔤)
 std::string effectiveCommands(const Mode& mode, const Options& options);
-/// Whether an option applies to a mode (its tile shows it as a badge): 📝 with 🛡 has no agent while it records
+/// Whether an option applies to a mode (its tile shows it as a badge): 📝 with 🛡 has no agent while it records; 🎙
+/// has no page
 bool applies(const std::string& toggle, const Mode& mode, const Options& options);
 
 /// What a recording of `mode` with `options` does: woken while he talks, for which requests, with which guides

@@ -1131,6 +1131,7 @@ bool McpUi::beginLive(const std::string& name, std::string& error, const std::st
     opt.guide = plan.guides;
     opt.wakeWhileTalking = plan.wakeWhileTalking;
     opt.summary = options.summary && live::applies("summary", *mode, options);
+    opt.thisPage = options.thisPage && live::applies("this_page", *mode, options);
     opt.rule = plan.rule;
     if (plan.wakeOnlyForTrigger) {
         opt.triggerWords = cfg.triggerWords;

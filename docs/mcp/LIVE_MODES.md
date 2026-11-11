@@ -55,6 +55,10 @@
   one switch «Speech commands» (🛡 off / 🔤 only «Hey Assistant» / 💬 conversation), remembered, in sight on every
   tile and on a chip during the recording, changeable mid-recording. ✍ became 📝 + 💬 and 🛡 became 🧠 + 🛡 (their ids
   still work). Presets were left for later.
+- **Where it starts (1.22.0, the owner, 11 Nov):** a switch «📄 New page / 📍 This page» in the Record menu. On his
+  own page the title and the transcript column go only where the page is empty (no column when his ink, a slide or a
+  picture is at the right edge: the transcript then stays off the paper); the agents draw only where nothing of his
+  is.
 - **Fewer taps (10 Nov):** the question panel is only for unsafe operations outside the app and for disambiguation.
   An explicit command on the document, his own strokes included, is done at once as one undo step.
 - **Deferred, experimental:** telling the speakers apart ("я / собеседник" in an interview; diarization on the A40
