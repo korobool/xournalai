@@ -8,7 +8,8 @@
       "The fork has its own semantic version, XOURNALAI_VERSION, kept in CMakeLists.txt. The application version string becomes <upstream>+ai.<XOURNALAI_VERSION>, e.g. 1.3.7+ai.0.2.0.",
       "Each task is exactly one commit. The commit message is '<planned message> (<task id>)'.",
       "The last task of a stage bumps the PATCH version (0.E.s), in the same commit.",
-      "The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>."
+      "The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.",
+      "From S15.26 on, a feature is built on its own branch ai/<feature> off mcp and comes into mcp with one --no-ff merge commit (no task suffix), so it can be reverted alone; releases and tags stay on mcp; docs/mcp/GIT.md."
     ],
     "statuses": [
       "todo",
@@ -4326,6 +4327,155 @@
               "status": "done",
               "started": "2026-11-10T12:37:56+00:00",
               "finished": "2026-11-10T12:37:57+00:00"
+            }
+          ]
+        },
+        {
+          "id": "S15.26",
+          "title": "The Record menu explains itself; this page or a new one",
+          "version": "1.22.0",
+          "stories": [
+            {
+              "id": "US-15.31",
+              "text": "As the owner, I want live notes to start on the page I am on, or on a new page, as I choose in the Record menu.",
+              "acceptance": [
+                "a switch «📄 New page / 📍 This page» in the Record menu, remembered, shown on the tiles",
+                "This page: no page is added; the title, the transcript column and the cards go on the current page; more pages follow it as before",
+                "when the column's strip of the page is taken (his ink, a PDF), no column there: the agents use the free space and the transcript stays in the recording",
+                "🎙 Voice only has no page: the switch is dimmed"
+              ]
+            },
+            {
+              "id": "US-15.32",
+              "text": "As the owner, I want every tile, level and option of the Record menu explained where I choose it.",
+              "acceptance": [
+                "two to four lines for each: what appears on paper, who does what, what it costs",
+                "the mouse: a tooltip; the pen and a finger (no hover tooltips for them, TooltipGuard): a long press shows it at the bottom of the menu and starts nothing",
+                "«💡 Proposals» becomes «❓ May ask me»; Economy and Intense say what they cost"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T15.26.0",
+              "story": "US-15.31",
+              "title": "The git workflow and the plan",
+              "details": "The owner (11 Nov): «хорошо затегай и зафиксируй текущую версию … чтобы не возникла ситуация, что нам сложно откатиться или трудно какие-то фичи разделить». docs/mcp/GIT.md: a branch per feature (ai/<feature> off mcp, one commit per task as before), merged into mcp with --no-ff (one merge commit = the whole feature, removable with git revert -m 1), a release and a tag per stage on mcp, experimental features in releases of their own; the rollback points (ai-v1.21.0 = 7fcfbbdcd, before this work). Stages S15.26-S15.28 planned.",
+              "commit": "ai: the git workflow (a branch per feature) and the plan of S15.26-S15.28",
+              "status": "done",
+              "started": "2026-11-11T12:08:29+00:00",
+              "finished": "2026-11-11T12:08:30+00:00"
+            },
+            {
+              "id": "T15.26.1",
+              "story": "US-15.31",
+              "title": "«📄 New page / 📍 This page»: where live notes start",
+              "details": "Branch ai/record-page. live::Options.page (new | this, remembered), a switch in the Record menu, LiveNotes starts on the current page when asked (no page inserted; the column only when its strip is free), the wake-up line says page=this; the skill; tests.",
+              "commit": "ai: live notes start on this page or a new one, as the Record menu says",
+              "status": "todo"
+            },
+            {
+              "id": "T15.26.2",
+              "story": "US-15.32",
+              "title": "Explanations in the Record menu: tooltips, and a long press for the pen and a finger",
+              "details": "Branch ai/record-explain. One text per tile, level and option (LiveModes), the mouse's tooltip, a long press (pen, finger) shows it in a strip at the bottom of the menu without starting or switching anything; «💡 Proposals» → «❓ May ask me»; Economy/Intense hints say what they cost; tests.",
+              "commit": "ai: the Record menu explains each choice (a tooltip, or a long press)",
+              "status": "todo"
+            },
+            {
+              "id": "T15.26.3",
+              "story": "US-15.32",
+              "title": "Release 1.22.0",
+              "details": "The full check, the changelog, the tag, the install.",
+              "commit": "ai: release 1.22.0 (this page or a new one; the Record menu explains itself)",
+              "status": "todo"
+            }
+          ]
+        },
+        {
+          "id": "S15.27",
+          "title": "Speakers in the live transcript (experimental)",
+          "version": "1.23.0",
+          "stories": [
+            {
+              "id": "US-15.33",
+              "text": "As the owner, I want to see who said what in the live transcript, as an experimental option that is off by default.",
+              "acceptance": [
+                "«👥 Speakers · experimental» in the Record menu, off by default, remembered",
+                "each line of the transcript column starts with its speaker (Me, A, B …) in the speaker's colour",
+                "the agents get the speaker of each piece (live_notes), and the summary says who proposed and asked what",
+                "the recognizer only gives a voice fingerprint per segment; the app tells the voices apart",
+                "when the recognizer can't (the local fallback, an old worker, the sidecar broken) the transcript goes on without speakers and says so"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T15.27.1",
+              "story": "US-15.33",
+              "title": "Voice fingerprints from the recognizer: the protocol and the server's sidecar",
+              "details": "Branch ai/speakers. TRANSCRIBERS.md: a piece may ask for voices; the hello says which fingerprint model the worker has; each segment may carry its fingerprint. tools/transcribers/faster-whisper: speakers.py, a sidecar in its own venv (sherpa-onnx + a WeSpeaker model; no torch; the faster-whisper venv untouched) that live_worker.py starts only when asked; a broken sidecar never stops the text. The tests' fake recognizer gives synthetic fingerprints.",
+              "commit": "ai: the recognizer may give a voice fingerprint for each segment (a sidecar on the server)",
+              "status": "todo"
+            },
+            {
+              "id": "T15.27.2",
+              "story": "US-15.33",
+              "title": "The app tells the voices apart: «👥 Speakers · experimental»",
+              "details": "Branch ai/speakers. SpeakerTracker (online: cosine to the voices of this recording, a new voice → the next letter; short segments → the nearest or «?»; unit tests), the option in the Record menu (off by default), labels and colours in the transcript column, speaker in live_notes read and in the wake-up line, the skill (attribute, the summary says who); tests with the fake recognizer.",
+              "commit": "ai: live notes tell the speakers apart (experimental, off by default)",
+              "status": "todo"
+            },
+            {
+              "id": "T15.27.3",
+              "story": "US-15.33",
+              "title": "On the server: the sidecar installed and checked on real voices",
+              "details": "The owner allowed a speaker model on his server (11 Nov). transcript/.venv-speakers with sherpa-onnx, the model in transcript/models; the faster-whisper venv untouched; thresholds tuned on real speech of two or more people.",
+              "commit": "ai: speakers on the server: installed, thresholds from real speech",
+              "status": "todo"
+            },
+            {
+              "id": "T15.27.4",
+              "story": "US-15.33",
+              "title": "Release 1.23.0",
+              "details": "The full check, the changelog, the tag, the install.",
+              "commit": "ai: release 1.23.0 (speakers in the live transcript, experimental)",
+              "status": "todo"
+            }
+          ]
+        },
+        {
+          "id": "S15.28",
+          "title": "Commands only in my voice (experimental)",
+          "version": "1.24.0",
+          "stories": [
+            {
+              "id": "US-15.34",
+              "text": "As the owner, I want spoken commands to be taken only from my own voice, as a separate experimental option that is off by default.",
+              "acceptance": [
+                "«🎤 Only my voice · experimental» in the Record menu, off by default, independent of «👥 Speakers»",
+                "my voice is learnt from what I say with «Hold», the AI lasso and the AI highlighter: fingerprints only, no audio kept",
+                "with it on, a request in anyone else's voice is material, never a command; «Hold» stays my command",
+                "while my voice is not known yet, no spoken commands, and the app says how to teach it"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T15.28.1",
+              "story": "US-15.34",
+              "title": "Commands only in my voice: «🎤 Only my voice · experimental»",
+              "details": "Branch ai/my-voice. The owner (11 Nov): «Распознавание команд именно моим голосом – это должна быть опциональная фишка … по умолчанию выключена». Fingerprints of his «Hold», lasso and highlighter dictations kept in the app's data folder (vectors only); the option in the Record menu; the app drops a trigger phrase in another voice and tells the session which lines are his; tests.",
+              "commit": "ai: spoken commands only in the owner's voice (experimental, off by default)",
+              "status": "todo"
+            },
+            {
+              "id": "T15.28.2",
+              "story": "US-15.34",
+              "title": "Release 1.24.0",
+              "details": "The full check, the changelog, the tag, the install.",
+              "commit": "ai: release 1.24.0 (commands only in my voice, experimental)",
+              "status": "todo"
             }
           ]
         }

@@ -9,6 +9,7 @@
 - Each task is exactly one commit. The commit message is '<planned message> (<task id>)'.
 - The last task of a stage bumps the PATCH version (0.E.s), in the same commit.
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
+- From S15.26 on, a feature is built on its own branch ai/<feature> off mcp and comes into mcp with one --no-ff merge commit (no task suffix), so it can be reverted alone; releases and tags stay on mcp; docs/mcp/GIT.md.
 
 Current version: **1.21.0**
 
@@ -1336,4 +1337,57 @@ While agents save, add pages and draw, the owner keeps typing and dictating wher
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
 | T15.25.1 | US-15.30 | **The remote transcriber first, the local English model as the fallback, for every tool** — The owner (10 Nov): «всё, что подразумевает запись аудио и распознавание, разбито на две схемы … для AI Lasso и AI Highlighter включена только фолбековая модель. Я бы все их перевёл на один и тот же режим». Found: a whole recording goes to the agent (remote first, audio_transcribe = xournalai-stt base.en as the fallback); live notes and «Hold to talk» use the configured transcriber (his: a stream over ssh to his server) with no local fallback; the Ask lasso and the highlighter use only the local helper (SpeechToText, base.en, recording the microphone itself). All of them: the configured transcriber first (language auto), the local helper on the same audio when it is missing, fails or is too slow. Built: the helper (xournalai-stt) keeps a recording as a WAV on {"cmd":"stop","save":…} and answers at once whether it holds speech (saved, not transcribed); SpeechToText (the lasso's and highlighter's dictation, AskController untouched) then asks the remote transcriber (setRemote) and, when it fails, isn't there or is silent for 10 s, sends the same WAV to the helper ({"cmd":"transcribe"}); «saved» and «text» answers kept in separate queues (they arrive in different orders); silence stays silence. McpUi: remoteTranscribe (the configured transcriber, kept warm ten minutes; a time-out drops it, so that a stuck request doesn't hold up the next ones), used by «Hold to talk» too, with the local model behind it; live notes: a piece the remote transcriber answers with an error (or none at all) goes to the local model. Language: the remote one auto (multilingual), the local one English. test_e20_one_recognizer (remote first, Russian; an error → local; silence → local in time; «Hold to talk» and live notes fall back too); the speech tests without a remote transcriber (test_e10_ask, test_e14 …) still go straight to the local model. | `ai: one speech recognition for every tool: the remote transcriber first, the local model behind it (T15.25.1)` | ✅ done `f69091778` |
-| T15.25.2 | US-15.30 | **Release 1.21.0** — The full check (12:22-12:37): all three builds; ctest 214/220: six ControlLoadHandler tests under -j8 (the known race; they passed alone); the MCP integration suite 359 passed, 0 failed. No test browser left; ~/.local/bin/claude untouched. Not verified here: his real remote transcriber (ssh to his server) from the lasso and the highlighter, and its first-use latency. | `ai: release 1.21.0 (one speech recognition for every tool) (T15.25.2) (T15.25.2)` | ✅ done |
+| T15.25.2 | US-15.30 | **Release 1.21.0** — The full check (12:22-12:37): all three builds; ctest 214/220: six ControlLoadHandler tests under -j8 (the known race; they passed alone); the MCP integration suite 359 passed, 0 failed. No test browser left; ~/.local/bin/claude untouched. Not verified here: his real remote transcriber (ssh to his server) from the lasso and the highlighter, and its first-use latency. | `ai: release 1.21.0 (one speech recognition for every tool) (T15.25.2) (T15.25.2)` | ✅ done `7fcfbbdcd` |
+
+### S15.26 — The Record menu explains itself; this page or a new one → v1.22.0
+
+**US-15.31** — As the owner, I want live notes to start on the page I am on, or on a new page, as I choose in the Record menu.
+
+- [ ] a switch «📄 New page / 📍 This page» in the Record menu, remembered, shown on the tiles
+- [ ] This page: no page is added; the title, the transcript column and the cards go on the current page; more pages follow it as before
+- [ ] when the column's strip of the page is taken (his ink, a PDF), no column there: the agents use the free space and the transcript stays in the recording
+- [ ] 🎙 Voice only has no page: the switch is dimmed
+
+**US-15.32** — As the owner, I want every tile, level and option of the Record menu explained where I choose it.
+
+- [ ] two to four lines for each: what appears on paper, who does what, what it costs
+- [ ] the mouse: a tooltip; the pen and a finger (no hover tooltips for them, TooltipGuard): a long press shows it at the bottom of the menu and starts nothing
+- [ ] «💡 Proposals» becomes «❓ May ask me»; Economy and Intense say what they cost
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T15.26.0 | US-15.31 | **The git workflow and the plan** — The owner (11 Nov): «хорошо затегай и зафиксируй текущую версию … чтобы не возникла ситуация, что нам сложно откатиться или трудно какие-то фичи разделить». docs/mcp/GIT.md: a branch per feature (ai/<feature> off mcp, one commit per task as before), merged into mcp with --no-ff (one merge commit = the whole feature, removable with git revert -m 1), a release and a tag per stage on mcp, experimental features in releases of their own; the rollback points (ai-v1.21.0 = 7fcfbbdcd, before this work). Stages S15.26-S15.28 planned. | `ai: the git workflow (a branch per feature) and the plan of S15.26-S15.28 (T15.26.0)` | ✅ done |
+| T15.26.1 | US-15.31 | **«📄 New page / 📍 This page»: where live notes start** — Branch ai/record-page. live::Options.page (new | this, remembered), a switch in the Record menu, LiveNotes starts on the current page when asked (no page inserted; the column only when its strip is free), the wake-up line says page=this; the skill; tests. | `ai: live notes start on this page or a new one, as the Record menu says (T15.26.1)` | ⬜ todo |
+| T15.26.2 | US-15.32 | **Explanations in the Record menu: tooltips, and a long press for the pen and a finger** — Branch ai/record-explain. One text per tile, level and option (LiveModes), the mouse's tooltip, a long press (pen, finger) shows it in a strip at the bottom of the menu without starting or switching anything; «💡 Proposals» → «❓ May ask me»; Economy/Intense hints say what they cost; tests. | `ai: the Record menu explains each choice (a tooltip, or a long press) (T15.26.2)` | ⬜ todo |
+| T15.26.3 | US-15.32 | **Release 1.22.0** — The full check, the changelog, the tag, the install. | `ai: release 1.22.0 (this page or a new one; the Record menu explains itself) (T15.26.3)` | ⬜ todo |
+
+### S15.27 — Speakers in the live transcript (experimental) → v1.23.0
+
+**US-15.33** — As the owner, I want to see who said what in the live transcript, as an experimental option that is off by default.
+
+- [ ] «👥 Speakers · experimental» in the Record menu, off by default, remembered
+- [ ] each line of the transcript column starts with its speaker (Me, A, B …) in the speaker's colour
+- [ ] the agents get the speaker of each piece (live_notes), and the summary says who proposed and asked what
+- [ ] the recognizer only gives a voice fingerprint per segment; the app tells the voices apart
+- [ ] when the recognizer can't (the local fallback, an old worker, the sidecar broken) the transcript goes on without speakers and says so
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T15.27.1 | US-15.33 | **Voice fingerprints from the recognizer: the protocol and the server's sidecar** — Branch ai/speakers. TRANSCRIBERS.md: a piece may ask for voices; the hello says which fingerprint model the worker has; each segment may carry its fingerprint. tools/transcribers/faster-whisper: speakers.py, a sidecar in its own venv (sherpa-onnx + a WeSpeaker model; no torch; the faster-whisper venv untouched) that live_worker.py starts only when asked; a broken sidecar never stops the text. The tests' fake recognizer gives synthetic fingerprints. | `ai: the recognizer may give a voice fingerprint for each segment (a sidecar on the server) (T15.27.1)` | ⬜ todo |
+| T15.27.2 | US-15.33 | **The app tells the voices apart: «👥 Speakers · experimental»** — Branch ai/speakers. SpeakerTracker (online: cosine to the voices of this recording, a new voice → the next letter; short segments → the nearest or «?»; unit tests), the option in the Record menu (off by default), labels and colours in the transcript column, speaker in live_notes read and in the wake-up line, the skill (attribute, the summary says who); tests with the fake recognizer. | `ai: live notes tell the speakers apart (experimental, off by default) (T15.27.2)` | ⬜ todo |
+| T15.27.3 | US-15.33 | **On the server: the sidecar installed and checked on real voices** — The owner allowed a speaker model on his server (11 Nov). transcript/.venv-speakers with sherpa-onnx, the model in transcript/models; the faster-whisper venv untouched; thresholds tuned on real speech of two or more people. | `ai: speakers on the server: installed, thresholds from real speech (T15.27.3)` | ⬜ todo |
+| T15.27.4 | US-15.33 | **Release 1.23.0** — The full check, the changelog, the tag, the install. | `ai: release 1.23.0 (speakers in the live transcript, experimental) (T15.27.4)` | ⬜ todo |
+
+### S15.28 — Commands only in my voice (experimental) → v1.24.0
+
+**US-15.34** — As the owner, I want spoken commands to be taken only from my own voice, as a separate experimental option that is off by default.
+
+- [ ] «🎤 Only my voice · experimental» in the Record menu, off by default, independent of «👥 Speakers»
+- [ ] my voice is learnt from what I say with «Hold», the AI lasso and the AI highlighter: fingerprints only, no audio kept
+- [ ] with it on, a request in anyone else's voice is material, never a command; «Hold» stays my command
+- [ ] while my voice is not known yet, no spoken commands, and the app says how to teach it
+
+| Task | Story | Title | Commit | Status |
+|---|---|---|---|---|
+| T15.28.1 | US-15.34 | **Commands only in my voice: «🎤 Only my voice · experimental»** — Branch ai/my-voice. The owner (11 Nov): «Распознавание команд именно моим голосом – это должна быть опциональная фишка … по умолчанию выключена». Fingerprints of his «Hold», lasso and highlighter dictations kept in the app's data folder (vectors only); the option in the Record menu; the app drops a trigger phrase in another voice and tells the session which lines are his; tests. | `ai: spoken commands only in the owner's voice (experimental, off by default) (T15.28.1)` | ⬜ todo |
+| T15.28.2 | US-15.34 | **Release 1.24.0** — The full check, the changelog, the tag, the install. | `ai: release 1.24.0 (commands only in my voice, experimental) (T15.28.2)` | ⬜ todo |
