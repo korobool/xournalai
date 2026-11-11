@@ -11,7 +11,7 @@
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 - From S15.26 on, a feature is built on its own branch ai/<feature> off mcp and comes into mcp with one --no-ff merge commit (no task suffix), so it can be reverted alone; releases and tags stay on mcp; docs/mcp/GIT.md.
 
-Current version: **1.23.0**
+Current version: **1.24.0**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -1389,5 +1389,5 @@ While agents save, add pages and draw, the owner keeps typing and dictating wher
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T15.28.1 | US-15.34 | **Commands only in my voice: «🎤 Only my voice · experimental»** — Branch ai/my-voice. The owner (11 Nov): «Распознавание команд именно моим голосом – это должна быть опциональная фишка … по умолчанию выключена». Fingerprints of his «Hold», lasso and highlighter dictations kept in the app's data folder (vectors only); the option in the Record menu; the app drops a trigger phrase in another voice and tells the session which lines are his; tests. | `ai: spoken commands only in the owner's voice (experimental, off by default) (T15.28.1)` | ✅ done |
-| T15.28.2 | US-15.34 | **Release 1.24.0** — The full check, the changelog, the tag, the install. | `ai: release 1.24.0 (commands only in my voice, experimental) (T15.28.2)` | ⬜ todo |
+| T15.28.1 | US-15.34 | **Commands only in my voice: «🎤 Only my voice · experimental»** — Branch ai/my-voice. The owner (11 Nov): «Распознавание команд именно моим голосом – это должна быть опциональная фишка … по умолчанию выключена». Fingerprints of his «Hold», lasso and highlighter dictations kept in the app's data folder (vectors only); the option in the Record menu; the app drops a trigger phrase in another voice and tells the session which lines are his; tests. | `ai: spoken commands only in the owner's voice (experimental, off by default) (T15.28.1)` | ✅ done `3ae8d6c7a` |
+| T15.28.2 | US-15.34 | **Release 1.24.0** — The first full check failed build-noterm (OwnerVoice.h was included inside McpUi.cpp's ENABLE_AI_TERMINAL block); the include moved out in the same, still unpushed task commit and the merge made again. The full check then (13:26-13:51): all three builds; ctest 221/227: six ControlLoadHandler tests under -j8 (the known race; all 29 passed alone); the MCP integration suite 377 passed, 0 failed (new: test_e24_my_voice; unit: SpeakerTracker.theOwnersVoiceIsMe). On the real server: a test app learnt a voice from one 3.4 s «Hold» phrase of pyannote's public sample (Diane) in 8.5 s (the recognizer's first start), then labelled that conversation «Me» for every line of hers and «A» for the other speaker, the short «Neither did I.» «?», and owner_text held only her words. Not verified: the owner's own voice, Russian, his quiet microphone. | `ai: release 1.24.0 (commands only in my voice, experimental) (T15.28.2)` | ✅ done |

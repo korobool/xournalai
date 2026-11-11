@@ -10,6 +10,19 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.24.0 — Commands only in my voice (experimental)
+- **«🎤 Only my voice · experimental»** among the Record menu's options, off by default and separate from
+  «👥 Speakers». Spoken commands then count only in your own voice: someone else's «Hey Assistant, …» is material,
+  never a command.
+- **The app learns your voice** from what you say with «Hold», the AI lasso and the AI highlighter while the option
+  is on. It keeps the last 20 voice fingerprints in its own data folder (`~/.local/share/xournalai/voice/owner.json`):
+  numbers, no sound, no text. The first time it shows «🎤 Your voice is learnt».
+- **Until it knows your voice, nothing said is a command.** The status strip says to say a phrase with «Hold».
+  «Hold» itself is always your command.
+- With «👥 Speakers» on too, your lines are labelled «Me».
+- Where the app decides (📝 Transcript with «Hey Assistant», 🎙 Voice only) it checks the voice itself. Elsewhere it
+  tells the assistant which words were yours.
+
 ## 1.23.0 — Speakers in the live transcript (experimental)
 - **«👥 Speakers · experimental»** among the Record menu's options, off by default: the transcript tells the voices
   apart.
