@@ -26,6 +26,7 @@
 #include <vector>      // for vector
 
 #include "assistant/LiveChunker.h"      // for LiveChunker
+#include "assistant/SpeakerTracker.h"   // for SpeakerTracker
 #include "assistant/Transcriber.h"  // for Transcriber
 #include "model/PageRef.h"              // for PageRef
 #include "util/Rectangle.h"             // for Rectangle
@@ -61,6 +62,9 @@ public:
         bool transcriptPage = true;
         /// (1.22.0, «📍 This page») start on the page the owner is on instead of a new one after it
         bool thisPage = false;
+        /// (1.23.0, «👥 Speakers», experimental) who said what: voice fingerprints from the recognizer, told apart
+        bool speakers = false;
+        assistant::SpeakerTracker::Settings speakerSettings;
         bool voice = false;
         std::vector<std::string> triggerWords;  ///< (lower case) empty: no trigger word
         /// (📝 with 🔤, 1.20.0) woken only when a new phrase starts with a trigger word (the rest is context)
@@ -128,7 +132,18 @@ private:
         double elapsed = -1;
         bool command = false;     ///< 🎙: taken as a command
         std::string commandText;  ///< (without the trigger word)
+        /// (👥) its speech by speaker, in order (consecutive segments of one voice joined); empty: no speakers
+        struct Turn {
+            int64_t startMs = 0;  ///< in the recording
+            int64_t endMs = 0;
+            std::string speaker;  ///< "A", "B" … or "?"
+            std::string text;
+        };
+        std::vector<Turn> turns;
+        size_t turnsWritten = 0;  ///< (each turn is a line of its own in the column, in its speaker's colour)
     };
+    /// (👥) the turns of an answered piece from its segments' fingerprints
+    void labelTurns(Piece& p, const assistant::TranscriberResult& r);
     void heardPiece(Piece& p);  ///< 🎙: a command (woken with it) or context (kept for the next command)
     void onPiece(assistant::LiveChunk&& c);
     void onResult(const assistant::TranscriberResult& r);
@@ -191,6 +206,10 @@ private:
     double top = 0;  ///< where the free area starts (below the title)
     bool ownPage = false;   ///< (📍) the first live page is the owner's own page
     bool noColumn = false;  ///< (📍) his page had no room for the column: the transcript stays off the paper
+
+    // (👥) who is speaking
+    std::unique_ptr<assistant::SpeakerTracker> tracker;  ///< (null: «Speakers» is off)
+    std::string speakersProblem;  ///< why the last pieces have no speakers ("" none)
 };
 
 }  // namespace xoj::mcp

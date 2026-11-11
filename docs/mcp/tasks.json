@@ -4432,7 +4432,9 @@
               "title": "The app tells the voices apart: «👥 Speakers · experimental»",
               "details": "Branch ai/speakers. SpeakerTracker (online: cosine to the voices of this recording, a new voice → the next letter; short segments → the nearest or «?»; unit tests), the option in the Record menu (off by default), labels and colours in the transcript column, speaker in live_notes read and in the wake-up line, the skill (attribute, the summary says who); tests with the fake recognizer.",
               "commit": "ai: live notes tell the speakers apart (experimental, off by default)",
-              "status": "todo"
+              "status": "done",
+              "started": "2026-11-11T12:43:44+00:00",
+              "finished": "2026-11-11T12:43:44+00:00"
             },
             {
               "id": "T15.27.3",

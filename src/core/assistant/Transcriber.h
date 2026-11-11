@@ -19,6 +19,7 @@
 #include <functional>  // for function
 #include <memory>      // for unique_ptr
 #include <string>      // for string
+#include <vector>      // for vector
 
 #include <gio/gio.h>            // for GSubprocess
 #include <nlohmann/json_fwd.hpp>  // for json
@@ -31,6 +32,17 @@ struct TranscriberPiece {
     std::string language = "auto";
     std::string languageHint;  ///< filled just before sending (Hooks::prepare)
     std::string prompt;        ///< filled just before sending
+    bool voices = false;       ///< (1.23.0) ask for voice fingerprints, if the recognizer offers them
+};
+
+/// A voice fingerprint (docs/mcp/TRANSCRIBERS.md, «Voice fingerprints»): a unit vector; empty = none
+using Voice = std::vector<float>;
+
+struct TranscriberSegment {
+    double start = 0;  ///< seconds within the piece
+    double end = 0;
+    std::string text;
+    Voice voice;
 };
 
 struct TranscriberResult {
@@ -41,6 +53,9 @@ struct TranscriberResult {
     double languageProbability = -1;
     double elapsed = -1;
     std::string error;
+    std::vector<TranscriberSegment> segments;  ///< (when the recognizer gives them)
+    Voice voice;                               ///< (asked for) all the piece's speech
+    std::string voicesError;                   ///< (asked for) why there are no fingerprints
 };
 
 struct TranscriberHooks {
@@ -63,6 +78,8 @@ public:
     virtual size_t waiting() const = 0;
     bool done() const { return finished && waiting() == 0; }
     virtual std::string engine() const { return {}; }
+    /// The model of the voice fingerprints it gives ("" none, or not known yet: before its hello)
+    virtual std::string voicesModel() const { return {}; }
 
     /// The recognizer `config` names ({"kind": …, "command": …, …}: see the specification); null with `error` if it
     /// can't be used

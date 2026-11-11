@@ -20,7 +20,7 @@ APP_CONFIG = {"assistant": {"autostart": True, "command": f"env FAKE_AGENT_LOG={
 
 CHOICES = ["aiRecordPlain"] + [f"aiRecordMode-{m}" for m in ["text", "conspect", "konspekt", "voice"]] + \
           [f"aiRecordLevel-{l}" for l in ["off", "trigger", "talk"]] + \
-          [f"aiRecordOpt-{t}" for t in ["this_page", "intense", "summary", "questions", "browser"]]
+          [f"aiRecordOpt-{t}" for t in ["this_page", "intense", "summary", "questions", "browser", "speakers"]]
 
 
 def open_menu(app, c):

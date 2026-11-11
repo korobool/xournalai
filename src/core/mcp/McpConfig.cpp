@@ -118,6 +118,11 @@ McpConfig McpConfig::load() {
                                 live.triggerWords = words;
                             }
                         }
+                        if (l.contains("speakers") && l["speakers"].is_object()) {
+                            const json& sp = l["speakers"];
+                            live.speakerSame = std::clamp(sp.value("same", live.speakerSame), 0.1, 0.95);
+                            live.speakerNewS = std::clamp(sp.value("new_min_s", live.speakerNewS), 0.5, 10.0);
+                        }
                     } catch (const std::exception&) {
                     }
                 }
@@ -198,7 +203,9 @@ void McpConfig::save() const {
                   {"hard_s", assistant.liveNotes.hardS},
                   {"language", assistant.liveNotes.language},
                   {"transcript_size", assistant.liveNotes.transcriptSize},
-                  {"trigger_words", assistant.liveNotes.triggerWords}}}}},
+                  {"trigger_words", assistant.liveNotes.triggerWords},
+                  {"speakers",
+                   {{"same", assistant.liveNotes.speakerSame}, {"new_min_s", assistant.liveNotes.speakerNewS}}}}}}},
               {"backup_dir", toUtf8(backupDir)},
               {"_help",
                {{"url", url()},

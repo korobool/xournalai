@@ -65,8 +65,12 @@
   without starting or switching anything. «💡 Proposals» became «❓ May ask me»; each switch's side has a second line.
 - **Fewer taps (10 Nov):** the question panel is only for unsafe operations outside the app and for disambiguation.
   An explicit command on the document, his own strokes included, is done at once as one undo step.
-- **Deferred, experimental:** telling the speakers apart ("я / собеседник" in an interview; diarization on the A40
-  server). Only as an experimental option, later.
+- **Telling the speakers apart (1.23.0, experimental; deferred until the owner, 11 Nov: «начинаем работать над
+  экспериментальной галочкой разделения речи собеседников»):** «👥 Speakers · experimental», off by default. The
+  recognizer only gives a voice fingerprint per segment (docs/mcp/TRANSCRIBERS.md; on the A40: TitaNet-L in a venv of
+  its own); the app tells the voices apart (A, B … in the order they first speak, «?» when short and unsure), writes
+  each turn as its own line in the speaker's colour and gives the agents who said what. Commands only in the owner's
+  voice are a separate option (S15.28), off by default too.
 - **Voice control:**
   - **push-to-talk by default:** a big 🎙 button appears during the recording; what is said while it is held is
     a command, everything else is context;
