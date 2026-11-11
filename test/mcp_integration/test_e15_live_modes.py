@@ -62,7 +62,7 @@ def test_1_the_long_press_offers_every_mode_and_the_options(app):
     assert ws["aiRecordMode-voice"].get("enabled", True) is True  # (since 1.17.1)
     chips = {n: ws[n] for n in ws if n.startswith("aiRecordOpt-")}
     assert sorted(chips) == sorted(f"aiRecordOpt-{t}" for t in ["this_page", "intense", "summary", "questions",
-                                                                  "browser"]), chips
+                                                                  "browser", "speakers"]), chips
     # one switch for speech commands (it replaced the 🛡 tile and the 🔤 option)
     levels = {n: ws[n] for n in ws if n.startswith("aiRecordLevel-")}
     assert sorted(levels) == ["aiRecordLevel-off", "aiRecordLevel-talk", "aiRecordLevel-trigger"], levels

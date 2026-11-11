@@ -64,6 +64,10 @@ struct McpConfig {
             /// The option «Просьбы по слову»: a request (a voice command) starts with one of these phrases (any case;
             /// punctuation between the words ignored). The owner's choice: «Hey Assistant» (2026-11-09)
             std::vector<std::string> triggerWords{"hey assistant", "эй ассистент", "хей ассистент", "hey assistent"};
+            /// «👥 Speakers» (1.23.0, experimental): how close a voice fingerprint must be to a voice heard before
+            /// to be that voice (cosine), and how long a stretch matching none must be to be a new voice
+            double speakerSame = 0.47;
+            double speakerNewS = 1.5;
         } liveNotes;
         /// The research browser (assistant/ResearchBrowser.h): kept as written
         nlohmann::json researchBrowser = nlohmann::json::object();

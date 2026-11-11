@@ -41,3 +41,13 @@ changes only what it says.
   the page (a card, a slot, a picture's place) gets `about` ({page, region}) and `short`: it shows there too.
 - **🔎 `browser`** (Browser assistant): the research browser runs with the recording; how to use it is in
   [research-browser.md](research-browser.md).
+- **👥 `speakers`** (Speakers · experimental): the app tells the voices apart. A piece read with `live_notes` then
+  has `speakers`: its speech by voice, in order (`speaker`, `start_s`, `end_s`, `text`), and `speaker` when it is
+  one voice. The voices are named A, B, C … in the order they first speak; «?» is a stretch too short or too unsure
+  to tell. The transcript column shows the same: each line starts with its speaker, in that speaker's colour.
+  - Use it: who proposed, asked, objected or decided («B предложил …», «A спросил …»); in the summary, decisions and
+    action items with who said them.
+  - It is a guess. A letter is a voice, not a person: never name anyone unless the talk does, and don't build much
+    on one short line. Voices talking at once are not separated.
+  - `live_notes(op="status")` → `speakers`: `voices` (the fingerprint model, or null: the recognizer gives none),
+    `heard` (the voices so far), `problem` (why the last pieces have no speakers). With a problem, go on without.

@@ -89,13 +89,19 @@ const std::vector<Toggle>& toggles() {
              "A browser of its own runs with the recording, behind the notes. Helpers search the topics in it, keep "
              "the pages worth keeping open (★) and bring quotes and pictures onto the page. You look at it with the "
              "🌐 tile in Tools."},
+            {"speakers", "👥 Speakers · experimental", "", true, "", "",
+             "Experimental. Tells the voices apart in the transcript: each line starts with its speaker (A, B, C … in "
+             "the order they first speak) in that speaker's colour, and the assistant knows who said what. Needs a "
+             "speech server that gives voice fingerprints; short replies may show «?», and voices talking at once "
+             "are not separated."},
     };
     return list;
 }
 
 bool Options::get(const std::string& id) const {
     return id == "this_page" ? thisPage : id == "intense" ? intense : id == "summary" ? summary :
-                                         id == "questions" ? questions : id == "browser" ? browser : false;
+                                         id == "questions" ? questions : id == "browser" ? browser :
+                                         id == "speakers"  ? speakers : false;
 }
 
 void Options::set(const std::string& id, bool on) {
@@ -109,12 +115,14 @@ void Options::set(const std::string& id, bool on) {
         questions = on;
     } else if (id == "browser") {
         browser = on;
+    } else if (id == "speakers") {
+        speakers = on;
     }
 }
 
 std::vector<std::string> Options::names() const {
     std::vector<std::string> out{intense ? "intense" : "economy"};
-    for (const char* id: {"this_page", "summary", "questions", "browser"}) {
+    for (const char* id: {"this_page", "summary", "questions", "browser", "speakers"}) {
         if (get(id)) {
             out.emplace_back(id);
         }
@@ -180,8 +188,8 @@ std::string effectiveCommands(const Mode& mode, const Options& options) {
 }
 
 bool applies(const std::string& toggle, const Mode& mode, const Options& options) {
-    if (toggle == "this_page") {
-        return mode.transcriptPage;  // (🎙 Voice only writes no page)
+    if (toggle == "this_page" || toggle == "speakers") {
+        return mode.transcriptPage;  // (🎙 Voice only writes no page, no transcript to label)
     }
     if (toggle == "summary") {
         return mode.id != "voice";  // (a summary of commands means nothing; the transcript's mode gets one)

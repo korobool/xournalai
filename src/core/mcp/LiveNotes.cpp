@@ -41,6 +41,15 @@ std::string clock(int64_t ms) {
     return b;
 }
 
+/// (👥) a speaker's colour in the transcript column: dark, distinct, «?» grey
+std::string speakerColor(const std::string& who) {
+    static const char* palette[] = {"#1f5fa8", "#2e7d32", "#b35c00", "#7b3fa0", "#00838f", "#a1452e"};
+    if (who.size() == 1 && who[0] >= 'A' && who[0] <= 'Z') {
+        return palette[(who[0] - 'A') % 6];
+    }
+    return who == "?" ? "#808080" : "#3c3c3c";
+}
+
 std::string tail(const std::string& s, glong chars) {
     const glong n = g_utf8_strlen(s.c_str(), -1);
     if (n <= chars) {
@@ -102,7 +111,11 @@ LiveNotes::LiveNotes(McpServer& server, Options options, std::string recording, 
     hooks.prepare = [this](assistant::TranscriberPiece& p) {
         p.languageHint = languageHint;
         p.prompt = tail(lastText, 200);
+        p.voices = opt.speakers;  // (👥: voice fingerprints, if the recognizer offers them)
     };
+    if (opt.speakers) {
+        tracker = std::make_unique<assistant::SpeakerTracker>(opt.speakerSettings);
+    }
     transcriber = assistant::Transcriber::make(opt.transcriber, std::move(hooks), problem);
     if (opt.transcriptPage && opt.thisPage) {
         startHere([this] { pump(); });  // (📍: his own page is the first one)
@@ -349,6 +362,9 @@ void LiveNotes::onResult(const assistant::TranscriberResult& r) {
     p.language = r.language;
     p.error = r.error;
     p.elapsed = r.elapsed;
+    if (tracker && r.ok && !r.text.empty()) {
+        labelTurns(p, r);
+    }
     if (r.ok && !r.text.empty()) {
         lastText = r.text;
         if (!r.language.empty()) {
@@ -358,6 +374,42 @@ void LiveNotes::onResult(const assistant::TranscriberResult& r) {
     pump();
     if (changed) {
         changed();
+    }
+}
+
+void LiveNotes::labelTurns(Piece& p, const assistant::TranscriberResult& r) {
+    if (!r.voicesError.empty()) {
+        speakersProblem = r.voicesError;
+        return;
+    }
+    if (transcriber && transcriber->voicesModel().empty()) {
+        speakersProblem = "the speech recognizer gives no voice fingerprints";
+        return;
+    }
+    std::vector<Piece::Turn> turns;
+    auto add = [&](double start, double end, const assistant::Voice& voice, const std::string& text) {
+        if (text.empty()) {
+            return;
+        }
+        const std::string who = tracker->assign(voice, end - start);
+        const int64_t from = p.startMs + static_cast<int64_t>(start * 1000);
+        const int64_t to = p.startMs + static_cast<int64_t>(end * 1000);
+        if (!turns.empty() && turns.back().speaker == who) {
+            turns.back().text += " " + text;  // (one voice going on: one line)
+            turns.back().endMs = to;
+        } else {
+            turns.push_back({from, to, who, text});
+        }
+    };
+    for (const auto& seg: r.segments) {
+        add(seg.start, seg.end, seg.voice, seg.text);
+    }
+    if (turns.empty() && !r.voice.empty()) {  // (no segments: the whole piece is one voice)
+        add(0, static_cast<double>(p.endMs - p.startMs) / 1000.0, r.voice, r.text);
+    }
+    if (!turns.empty()) {
+        speakersProblem.clear();
+        p.turns = std::move(turns);
     }
 }
 
@@ -589,8 +641,11 @@ void LiveNotes::pump() {
             nextToWrite++;
             continue;
         }
+        // (👥: a line for each turn, its speaker first, in the speaker's colour)
+        const Piece::Turn* turn = p.ok && p.turnsWritten < p.turns.size() ? &p.turns[p.turnsWritten] : nullptr;
         const std::string line =
-                "[" + clock(p.startMs) + "] " + (p.ok ? p.text : "(not recognized: " + p.error + ")");
+                turn ? "[" + clock(turn->startMs) + "] " + turn->speaker + ": " + turn->text :
+                       "[" + clock(p.startMs) + "] " + (p.ok ? p.text : "(not recognized: " + p.error + ")");
         // a rough height (Sans: ~0.5 em a character): a new page when it would not fit — but on a fresh column it is
         // written anyway (a line longer than a page would otherwise ask for pages without end)
         const double size = opt.transcriptSize;
@@ -609,11 +664,16 @@ void LiveNotes::pump() {
                      {"y", y},
                      {"wrap", colW},
                      {"font", {{"name", "Sans Italic"}, {"size", opt.transcriptSize}}},  // (italic from the start)
-                     {"color", p.ok ? "#3c3c3c" : "#b04a4a"}};
+                     {"color", turn ? speakerColor(turn->speaker) : p.ok ? "#3c3c3c" : "#b04a4a"}};
         writeTexts(pages.back(), json::array({text}), [this, index](double written) {
             writing = false;
             const double bottom = written > 0 ? written : y + opt.transcriptSize * 1.3;
             y = bottom + std::max(1.5, opt.transcriptSize * 0.4);  // (a little air between pieces)
+            Piece& q = pieces[index];
+            if (!q.turns.empty() && ++q.turnsWritten < q.turns.size()) {
+                pumpLater();  // (the next turn of the same piece)
+                return;
+            }
             pieces[index].written = true;
             appendTranscript(pieces[index]);
             nextToWrite = index + 1;
@@ -730,6 +790,21 @@ json LiveNotes::read(std::optional<int> since) {
             if (opt.voice) {
                 e["kind"] = p.command ? "command" : "context";
             }
+            if (!p.turns.empty()) {  // (👥 who said what; one voice: "speaker" too)
+                json turns = json::array();
+                bool one = true;
+                for (const auto& t: p.turns) {
+                    turns.push_back({{"speaker", t.speaker},
+                                     {"start_s", static_cast<double>(t.startMs) / 1000.0},
+                                     {"end_s", static_cast<double>(t.endMs) / 1000.0},
+                                     {"text", t.text}});
+                    one = one && t.speaker == p.turns.front().speaker;
+                }
+                e["speakers"] = std::move(turns);
+                if (one) {
+                    e["speaker"] = p.turns.front().speaker;
+                }
+            }
         } else {
             e["error"] = p.error;
         }
@@ -800,6 +875,12 @@ json LiveNotes::status() const {
               {"pages", pagesJson()},
               {"folder", folder.string()}};
     j["mode"] = opt.mode;
+    if (tracker) {
+        const std::string model = transcriber ? transcriber->voicesModel() : "";
+        j["speakers"] = {{"voices", model.empty() ? json(nullptr) : json(model)},
+                         {"heard", tracker->labels()},
+                         {"problem", speakersProblem}};
+    }
     if (opt.voice) {
         j["commands"] = commands;
         j["talking"] = talkingSince.has_value();
@@ -833,6 +914,11 @@ std::string LiveNotes::statusLine() const {
     } else if (ended && done()) {
         s += ", done";
     }
+    if (tracker) {  // (👥)
+        const size_t n = tracker->labels().size();
+        s += !speakersProblem.empty() ? " · 👥 no speakers: " + speakersProblem :
+                                        " · 👥 " + std::to_string(n) + (n == 1 ? " voice" : " voices");
+    }
     return s;
 }
 
@@ -851,6 +937,12 @@ void LiveNotes::appendTranscript(const Piece& p) {
         }
         out << "\n";
         transcriptStarted = true;
+    }
+    if (p.ok && !p.turns.empty()) {
+        for (const auto& t: p.turns) {
+            out << "[" << clock(t.startMs) << "] " << t.speaker << ": " << t.text << "\n";
+        }
+        return;
     }
     out << "[" << clock(p.startMs) << "] " << (p.ok ? p.text : "(not recognized: " + p.error + ")") << "\n";
 }

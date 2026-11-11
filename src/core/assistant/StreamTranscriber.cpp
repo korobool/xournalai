@@ -62,6 +62,7 @@ public:
 
     size_t waiting() const override { return pending.size(); }
     std::string engine() const override { return engineName; }
+    std::string voicesModel() const override { return voicesName; }
 
 private:
     // ---- the process ----
@@ -251,13 +252,53 @@ private:
             if (!r.ok) {
                 r.error = jsonString(j, "message", "the recognizer failed");
             }
+            if (j.contains("segments") && j["segments"].is_array()) {
+                for (const auto& s: j["segments"]) {
+                    if (!s.is_object()) {
+                        continue;
+                    }
+                    TranscriberSegment seg;
+                    seg.start = jsonNumber(s, "start", 0);
+                    seg.end = jsonNumber(s, "end", seg.start);
+                    seg.text = jsonString(s, "text");
+                    seg.voice = voiceOf(s);
+                    r.segments.push_back(std::move(seg));
+                }
+            }
+            r.voice = voiceOf(j);
+            r.voicesError = jsonString(j, "voices_error");
             answer(std::move(r));
         }
+    }
+
+    /// A fingerprint as the hello said (its length); anything else is none
+    Voice voiceOf(const json& j) const {
+        Voice v;
+        if (voicesDim <= 0 || !j.contains("voice") || !j["voice"].is_array() ||
+            j["voice"].size() != static_cast<size_t>(voicesDim)) {
+            return v;
+        }
+        v.reserve(static_cast<size_t>(voicesDim));
+        for (const auto& x: j["voice"]) {
+            if (!x.is_number()) {
+                return {};
+            }
+            v.push_back(x.get<float>());
+        }
+        return v;
     }
 
     void onHello(const json& j) {
         ready = true;
         engineName = jsonString(j, "engine");
+        if (j.contains("voices") && j["voices"].is_object()) {  // (1.23.0: it can give voice fingerprints)
+            voicesName = jsonString(j["voices"], "model");
+            voicesDim = static_cast<int>(jsonNumber(j["voices"], "dim", 0));
+            if (voicesName.empty() || voicesDim <= 0 || voicesDim > 4096) {
+                voicesName.clear();
+                voicesDim = 0;
+            }
+        }
         inlineAudio = jsonString(j, "audio", "path") == "inline";
         maxInFlight = static_cast<size_t>(std::clamp(jsonNumber(j, "max_in_flight", 1), 1.0, 16.0));
         const int protocol = static_cast<int>(jsonNumber(j, "protocol", 0));
@@ -284,6 +325,9 @@ private:
             json req = {{"type", "transcribe"},          {"id", p.id},
                         {"audio_path", p.audioPath},       {"language", p.language},
                         {"language_hint", p.languageHint}, {"prompt", p.prompt}};
+            if (p.voices && !voicesName.empty()) {
+                req["voices"] = true;
+            }
             if (inlineAudio) {
                 gchar* data = nullptr;
                 gsize size = 0;
@@ -421,6 +465,8 @@ private:
     std::map<std::string, guint> inFlight;  ///< sent: id → its timeout
     std::set<std::string> pending;          ///< submitted, not answered
     std::string engineName;
+    std::string voicesName;  ///< (its hello) the model of its voice fingerprints; "" none
+    int voicesDim = 0;
     std::string lastStderr;
 };
 }  // namespace
