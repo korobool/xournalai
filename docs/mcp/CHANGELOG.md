@@ -10,6 +10,23 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.23.0 — Speakers in the live transcript (experimental)
+- **«👥 Speakers · experimental»** among the Record menu's options, off by default: the transcript tells the voices
+  apart.
+  - Each line starts with its speaker: A, B, C … in the order they first speak, in that speaker's colour; «?» when a
+    stretch is too short or unsure.
+  - The assistant knows who said what: who proposed, asked, decided; the summary says it too.
+  - Voices talking at once are not separated, and a letter is a voice, not a person.
+- **How:** your speech server now also gives a voice fingerprint for each stretch of speech (a list of numbers, not
+  sound). The app compares them and decides who is who.
+  - On your A40: NVIDIA TitaNet-L in an environment of its own (`transcript/.venv-speakers`); the faster-whisper
+    environment is untouched. The previous worker is kept as `transcript/bin/live_worker.py.before-1.23.0`.
+  - Of five models tried on a public two-speaker recording, TitaNet kept different voices furthest apart. With the
+    real Whisper, every line of 1.5 s or more there was labelled right.
+- A speech server without fingerprints (or the local English model, when it stands in): the transcript goes on without
+  speakers and says why.
+- The thresholds can be changed in `mcp.json`: `assistant.live_notes.speakers` (`same`, `new_min_s`).
+
 ## 1.22.0 — This page or a new one; the Record menu explains itself
 - **«📄 New page / 📍 This page»** in the Record menu (remembered): live notes start on a new page after the one you
   are on, as before, or on the page you are on.
