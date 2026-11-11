@@ -65,6 +65,10 @@ public:
         /// (1.23.0, «👥 Speakers», experimental) who said what: voice fingerprints from the recognizer, told apart
         bool speakers = false;
         assistant::SpeakerTracker::Settings speakerSettings;
+        /// (1.24.0, «🎤 Only my voice», experimental) spoken commands count only in the owner's own voice
+        bool myVoice = false;
+        assistant::Voice ownerVoice;  ///< (OwnerVoice) his voice so far; empty: not known
+        std::string ownerModel;       ///< the fingerprint model it was measured with
         bool voice = false;
         std::vector<std::string> triggerWords;  ///< (lower case) empty: no trigger word
         /// (📝 with 🔤, 1.20.0) woken only when a new phrase starts with a trigger word (the rest is context)
@@ -93,6 +97,8 @@ public:
     void reconfigure(const std::string& modeLine, const std::string& guide, const std::string& rule,
                      bool wakeWhileTalking, std::vector<std::string> triggerWords, bool wakeOnlyForTrigger);
     const std::string& mode() const { return opt.mode; }
+    /// (🎤) his voice was learnt (or learnt better) during the recording
+    void setOwnerVoice(const std::string& model, assistant::Voice voice);
 
     /// What the sample tap feeds (on the recorder's thread)
     std::shared_ptr<assistant::LiveChunker> chunker() const { return pieceCutter; }
@@ -144,6 +150,10 @@ private:
     };
     /// (👥) the turns of an answered piece from its segments' fingerprints
     void labelTurns(Piece& p, const assistant::TranscriberResult& r);
+    /// (🎤) whether his voice is known for the recognizer's fingerprints
+    bool ownerKnown() const;
+    /// (🎤) what he said in a piece in his own voice ("" none, or not known)
+    std::string ownerText(const Piece& p) const;
     void heardPiece(Piece& p);  ///< 🎙: a command (woken with it) or context (kept for the next command)
     void onPiece(assistant::LiveChunk&& c);
     void onResult(const assistant::TranscriberResult& r);

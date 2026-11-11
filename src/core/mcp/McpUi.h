@@ -334,6 +334,8 @@ private:
     /// (the live notes' one) and then, as a command, to the serving session. `device`: false: sound only from tests
 public:
     void talkPressed(bool down, bool device = true);
+    /// (🎤 Only my voice) a fingerprint of what he said with «Hold», the lasso or the highlighter: kept as his voice
+    void learnOwnerVoice(const std::string& model, const std::vector<float>& voice);
     void talkFeed(const float* frames, size_t count, int channels, int rate);
 private:
     void onTalkResult(const std::string& id, bool ok, const std::string& text, const std::string& error);

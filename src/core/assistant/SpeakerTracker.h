@@ -34,9 +34,13 @@ public:
     explicit SpeakerTracker(Settings settings): settings(settings) {}
     SpeakerTracker(): SpeakerTracker(Settings{}) {}
 
-    /// Who spoke `seconds` of speech with this fingerprint: "A", "B" …, or "?" (none, too short, or unsure)
+    /// Who spoke `seconds` of speech with this fingerprint: "Me" (the owner's own voice, when known), "A", "B" …, or
+    /// "?" (none, too short, or unsure)
     std::string assign(const Voice& voice, double seconds);
-    /// The voices heard so far, in the order they first spoke
+    /// (1.24.0) the owner's own voice (OwnerVoice; empty: not known); a stretch this close to it is «Me»
+    void setOwner(Voice voice) { owner = std::move(voice); }
+    bool ownerKnown() const { return !owner.empty(); }
+    /// The voices heard so far, in the order they first spoke («Me» first, when heard)
     std::vector<std::string> labels() const;
     /// The cosine of two fingerprints (0 when either is empty or their lengths differ)
     static double similarity(const Voice& a, const Voice& b);
@@ -51,6 +55,8 @@ private:
     };
     Settings settings;
     std::vector<Speaker> speakers;
+    Voice owner;
+    bool ownerHeard = false;
 };
 
 }  // namespace xoj::assistant

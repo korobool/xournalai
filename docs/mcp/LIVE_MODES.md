@@ -71,6 +71,13 @@
   its own); the app tells the voices apart (A, B … in the order they first speak, «?» when short and unsure), writes
   each turn as its own line in the speaker's colour and gives the agents who said what. Commands only in the owner's
   voice are a separate option (S15.28), off by default too.
+- **Commands only in my voice (1.24.0, experimental; the owner, 11 Nov: «опциональная фишка … по умолчанию
+  выключена и просто работает на голос»):** «🎤 Only my voice · experimental», off by default, apart from «👥
+  Speakers». The app learns his voice from «Hold», the AI lasso and the AI highlighter (voice fingerprints only, in
+  <data>/xournalai/voice/owner.json, the last 20) and then takes spoken commands only in that voice: it enforces it
+  where it decides itself (📝 with 🔤 wakes only for his trigger phrase; 🎙's commands), and tells the session which
+  words were his (owner_text) everywhere else. Until his voice is known nothing said is a command; «Hold» is always
+  his.
 - **Voice control:**
   - **push-to-talk by default:** a big 🎙 button appears during the recording; what is said while it is held is
     a command, everything else is context;
