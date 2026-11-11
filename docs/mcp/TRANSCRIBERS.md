@@ -144,6 +144,25 @@ or, when this piece failed (the process goes on):
 should exit. If it hasn't after 10 s, its process group gets SIGTERM, and SIGKILL 5 s later (a hung worker must not
 keep its GPU).
 
+**6. Voice fingerprints (optional; since xournalai 1.23.0, experimental).** For telling the speakers apart
+(«👥 Speakers») and the owner's own voice («🎤 Only my voice»). A recognizer that can't simply leaves them out:
+nothing else changes.
+
+- The hello offers them: `"voices": {"model": "nemo_en_titanet_large", "dim": 192}`. Fingerprints of one model are
+  comparable across pieces, recordings and processes; xournalai never compares fingerprints of different models.
+- A request asks for them with `"voices": true`.
+- The answer then has `"voice"` on each segment of 0.5 s or longer, and on the whole answer (all its speech, when it
+  is 1 s or longer): a unit-length vector of `dim` numbers (cosine similarity = the dot product). When they failed
+  for this piece, `"voices_error": "…"` instead; the text is there as usual.
+
+```json
+{"type": "result", "id": "7", "text": "…", "voice": [0.0123, …],
+ "segments": [{"start": 0.0, "end": 3.2, "text": "…", "voice": [0.0311, …]}]}
+```
+
+A fingerprint is not audio: the speech can't be got back from it. xournalai decides who spoke; the recognizer only
+measures.
+
 ## What is kept
 
 - Every piece stays as a WAV file in the recording's `live/<recording>/` folder (failed ones can be transcribed
@@ -163,6 +182,8 @@ the sound ended; the worker's hello 5–6 s after start (the model loading).
 - `tools/transcribers/faster-whisper/live_worker.py`: a stream recognizer (faster-whisper; the model loaded once;
   stock phrases Whisper says over silence are dropped). Install it next to an existing faster-whisper setup and point
   `command` at it, e.g. through ssh.
+  With `speakers.py` beside it (a helper in a venv of its own: sherpa-onnx and a speaker model, no torch) it gives
+  voice fingerprints too; see its README.
 - Tests use fake recognizers of both kinds, including misbehaving ones (`test/mcp_integration/test_e15_live_notes*.py`).
 
 ## Changing this specification

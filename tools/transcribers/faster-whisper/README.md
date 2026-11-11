@@ -33,3 +33,24 @@ text as Whisper's initial prompt: off, as it made large-v3 answer a quiet piece 
 
 Stock phrases Whisper produces over silence («Субтитры сделал …», «Продолжение следует…», "Thanks for watching") are
 dropped (an empty text), after one more try without the prompt.
+
+## Voice fingerprints (optional; xournalai 1.23.0, experimental)
+
+For «👥 Speakers» and «🎤 Only my voice» the worker can give a voice fingerprint for each segment (docs/mcp/TRANSCRIBERS.md,
+«Voice fingerprints»). It does so through `speakers.py`, a helper in a **venv of its own**, so the faster-whisper
+venv is not touched and a failure there never stops the text:
+
+```sh
+scp speakers.py server:<root>/bin/
+ssh server 'cd <root> && python3 -m venv .venv-speakers && .venv-speakers/bin/pip install sherpa-onnx numpy &&
+  mkdir -p models/speakers && curl -sSfL -o models/speakers/nemo_en_titanet_large.onnx \
+  https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/nemo_en_titanet_large.onnx'
+```
+
+- About 125 MB for the venv and 100 MB for the model; it runs on the CPU (about 0.1 s per second of speech).
+- The model: NVIDIA TitaNet-L (192 numbers per voice). Of five models tried on a public two-speaker recording
+  (pyannote's sample, 11 Nov 2026) it kept the voices furthest apart: the same speaker 0.51–0.88, different ones
+  at most 0.43 (WeSpeaker ResNet34: 0.49–0.89 against up to 0.73, overlapping).
+- The worker finds it by itself (`<root>/.venv-speakers/bin/python`, the first `<root>/models/speakers/*.onnx`) and
+  says so in its log (`ready …; voices: nemo_en_titanet_large`). `--voices off` turns it off; `--voices-python` and
+  `--voices-model` point elsewhere.
