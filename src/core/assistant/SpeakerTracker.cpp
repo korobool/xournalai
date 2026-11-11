@@ -60,6 +60,12 @@ std::string SpeakerTracker::assign(const Voice& voice, double seconds) {
             }
         }
     };
+    // (1.24.0) the owner's own voice: as close as it must be, and closer than any other voice heard
+    const double ownerSim = similarity(owner, voice);
+    if (!owner.empty() && owner.size() == voice.size() && ownerSim >= settings.same && ownerSim >= bestSim) {
+        ownerHeard = true;
+        return "Me";
+    }
     if (best && bestSim >= settings.same) {
         learn(*best);
         return best->label;
@@ -77,7 +83,10 @@ std::string SpeakerTracker::assign(const Voice& voice, double seconds) {
 
 std::vector<std::string> SpeakerTracker::labels() const {
     std::vector<std::string> out;
-    out.reserve(speakers.size());
+    out.reserve(speakers.size() + 1);
+    if (ownerHeard) {
+        out.emplace_back("Me");
+    }
     for (const auto& s: speakers) {
         out.push_back(s.label);
     }

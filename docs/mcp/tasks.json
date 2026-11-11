@@ -4481,7 +4481,9 @@
               "title": "Commands only in my voice: «🎤 Only my voice · experimental»",
               "details": "Branch ai/my-voice. The owner (11 Nov): «Распознавание команд именно моим голосом – это должна быть опциональная фишка … по умолчанию выключена». Fingerprints of his «Hold», lasso and highlighter dictations kept in the app's data folder (vectors only); the option in the Record menu; the app drops a trigger phrase in another voice and tells the session which lines are his; tests.",
               "commit": "ai: spoken commands only in the owner's voice (experimental, off by default)",
-              "status": "todo"
+              "status": "done",
+              "started": "2026-11-11T13:11:24+00:00",
+              "finished": "2026-11-11T13:11:24+00:00"
             },
             {
               "id": "T15.28.2",

@@ -40,6 +40,7 @@
 #include "assistant/Ask.h"                       // for AskController
 #include "assistant/AskPopover.h"                // for AskPopover
 #include "assistant/Markers.h"                   // for findMarkers          // for AiToolbar
+#include "assistant/OwnerVoice.h"                // for OwnerVoice
 #include "assistant/QuickTools.h"                // for QuickTools
 #include "assistant/RecordingChooser.h"          // for RecordingChooser
 #include "assistant/SpeechToText.h"              // for SpeechToText
@@ -1135,6 +1136,12 @@ bool McpUi::beginLive(const std::string& name, std::string& error, const std::st
     opt.speakers = options.speakers && live::applies("speakers", *mode, options);
     opt.speakerSettings.same = cfg.speakerSame;
     opt.speakerSettings.newMinS = cfg.speakerNewS;
+    opt.myVoice = options.myVoice && live::applies("my_voice", *mode, options);
+    if (opt.myVoice) {
+        const assistant::OwnerVoice owner = assistant::OwnerVoice::load();
+        opt.ownerModel = owner.model();
+        opt.ownerVoice = owner.average();
+    }
     opt.rule = plan.rule;
     if (plan.wakeOnlyForTrigger) {
         opt.triggerWords = cfg.triggerWords;
@@ -2102,7 +2109,13 @@ bool McpUi::talkRecognizerReady(std::string& problem) {
         return false;
     }
     assistant::TranscriberHooks hooks;
-    hooks.onResult = [this](const assistant::TranscriberResult& r) { onTalkResult(r.id, r.ok, r.text, r.error); };
+    hooks.onResult = [this](const assistant::TranscriberResult& r) {
+        // (🎤 Only my voice: what he said with «Hold», the lasso or the highlighter is certainly him)
+        if (r.ok && !r.voice.empty() && talkRecognizer && live::State::load().options.myVoice) {
+            learnOwnerVoice(talkRecognizer->voicesModel(), r.voice);
+        }
+        onTalkResult(r.id, r.ok, r.text, r.error);
+    };
     hooks.onStatus = [](const std::string&) {};
     talkRecognizer.reset();
     talkRecognizer = assistant::Transcriber::make(cfg.transcriber, std::move(hooks), problem);
@@ -2145,8 +2158,28 @@ void McpUi::remoteTranscribe(const std::string& wav,
     piece.id = id;
     piece.audioPath = wav;
     piece.language = cfg.language.empty() ? "auto" : cfg.language;
+    piece.voices = live::State::load().options.myVoice;  // (🎤: learn his voice from it)
     talkRecognizer->submit(std::move(piece));
     keepTalkRecognizer();
+}
+
+void McpUi::learnOwnerVoice(const std::string& model, const assistant::Voice& voice) {
+    if (model.empty()) {
+        return;
+    }
+    assistant::OwnerVoice owner = assistant::OwnerVoice::load();
+    const bool first = owner.samples() == 0 || owner.model() != model;
+    owner.add(model, voice);
+    if (!owner.save()) {
+        g_warning("only my voice: could not write %s", assistant::OwnerVoice::file().string().c_str());
+        return;
+    }
+    if (live && live->listening()) {
+        live->setOwnerVoice(owner.model(), owner.average());
+    }
+    if (first && thinkingOverlay) {
+        thinkingOverlay->flashHeard("🎤 Your voice is learnt", false);
+    }
 }
 
 void McpUi::onTalkResult(const std::string& id, bool ok, const std::string& text, const std::string& error) {

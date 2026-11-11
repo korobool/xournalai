@@ -94,6 +94,11 @@ const std::vector<Toggle>& toggles() {
              "the order they first speak) in that speaker's colour, and the assistant knows who said what. Needs a "
              "speech server that gives voice fingerprints; short replies may show «?», and voices talking at once "
              "are not separated."},
+            {"my_voice", "🎤 Only my voice · experimental", "", true, "", "",
+             "Experimental. Spoken commands count only in your own voice: a request or «Hey Assistant» in anyone "
+             "else's voice is material, never a command. The app learns your voice from what you say with «Hold», "
+             "the AI lasso and the AI highlighter (it keeps voice fingerprints, never the sound). Until it knows your "
+             "voice, nothing said is a command: say a phrase with «Hold» first. «Hold» itself is always your command."},
     };
     return list;
 }
@@ -101,7 +106,8 @@ const std::vector<Toggle>& toggles() {
 bool Options::get(const std::string& id) const {
     return id == "this_page" ? thisPage : id == "intense" ? intense : id == "summary" ? summary :
                                          id == "questions" ? questions : id == "browser" ? browser :
-                                         id == "speakers"  ? speakers : false;
+                                         id == "speakers"  ? speakers :
+                                         id == "my_voice"  ? myVoice : false;
 }
 
 void Options::set(const std::string& id, bool on) {
@@ -117,12 +123,14 @@ void Options::set(const std::string& id, bool on) {
         browser = on;
     } else if (id == "speakers") {
         speakers = on;
+    } else if (id == "my_voice") {
+        myVoice = on;
     }
 }
 
 std::vector<std::string> Options::names() const {
     std::vector<std::string> out{intense ? "intense" : "economy"};
-    for (const char* id: {"this_page", "summary", "questions", "browser", "speakers"}) {
+    for (const char* id: {"this_page", "summary", "questions", "browser", "speakers", "my_voice"}) {
         if (get(id)) {
             out.emplace_back(id);
         }
@@ -190,6 +198,9 @@ std::string effectiveCommands(const Mode& mode, const Options& options) {
 bool applies(const std::string& toggle, const Mode& mode, const Options& options) {
     if (toggle == "this_page" || toggle == "speakers") {
         return mode.transcriptPage;  // (🎙 Voice only writes no page, no transcript to label)
+    }
+    if (toggle == "my_voice") {
+        return effectiveCommands(mode, options) != "off";  // (no speech commands: nothing to keep to his voice)
     }
     if (toggle == "summary") {
         return mode.id != "voice";  // (a summary of commands means nothing; the transcript's mode gets one)

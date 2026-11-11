@@ -56,7 +56,7 @@ const Level* findLevel(const std::string& id);
 
 /// A toggle of the Record menu
 struct Toggle {
-    std::string id;     ///< this_page, intense, summary, questions, browser, speakers
+    std::string id;     ///< this_page, intense, summary, questions, browser, speakers, my_voice
     std::string label;  ///< when on
     std::string off;    ///< when off ("" = the same label, unticked)
     bool available;     ///< built already
@@ -74,6 +74,7 @@ struct Options {
     bool questions = false;
     bool browser = false;
     bool speakers = false;  ///< (1.23.0, experimental) 👥 who said what in the transcript
+    bool myVoice = false;   ///< (1.24.0, experimental) 🎤 spoken commands only in his own voice
     std::string commands = "talk";  ///< the switch: off | trigger | talk
     bool get(const std::string& id) const;
     void set(const std::string& id, bool on);

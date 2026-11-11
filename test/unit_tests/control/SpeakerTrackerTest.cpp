@@ -75,3 +75,16 @@ TEST(SpeakerTracker, similarity) {
     EXPECT_GT(SpeakerTracker::similarity(stretch(1, 1), stretch(1, 2)), 0.7);
     EXPECT_EQ(SpeakerTracker::similarity({}, a), 0.0);
 }
+
+// «🎤 Only my voice» (1.24.0): the owner's own voice, when known, is «Me»; the others keep their letters
+TEST(SpeakerTracker, theOwnersVoiceIsMe) {
+    SpeakerTracker t;
+    EXPECT_FALSE(t.ownerKnown());
+    t.setOwner(stretch(1, 99));
+    EXPECT_TRUE(t.ownerKnown());
+    EXPECT_EQ(t.assign(stretch(2, 1), 3.0), "A");
+    EXPECT_EQ(t.assign(stretch(1, 1), 3.0), "Me");
+    EXPECT_EQ(t.assign(stretch(1, 2), 0.6), "Me");  // (short, but clearly him)
+    EXPECT_EQ(t.assign(stretch(2, 2), 2.0), "A");
+    EXPECT_EQ(t.labels(), (std::vector<std::string>{"Me", "A"}));
+}
