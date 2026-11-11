@@ -15,6 +15,8 @@
 #include "control/PageBackgroundChangeController.h"  // for newPageLike
 #include "undo/UndoAction.h"                          // for UndoAction
 #include "model/Document.h"   // for Document
+#include "model/Element.h"   // for Element
+#include "model/Layer.h"     // for Layer
 #include "model/XojPage.h"    // for XojPage
 
 #include "McpServer.h"
@@ -102,7 +104,9 @@ LiveNotes::LiveNotes(McpServer& server, Options options, std::string recording, 
         p.prompt = tail(lastText, 200);
     };
     transcriber = assistant::Transcriber::make(opt.transcriber, std::move(hooks), problem);
-    if (opt.transcriptPage) {
+    if (opt.transcriptPage && opt.thisPage) {
+        startHere([this] { pump(); });  // (📍: his own page is the first one)
+    } else if (opt.transcriptPage) {
         newPage([this] { pump(); });  // (the page is there from the start: the owner sees where it goes)
     }
 }
@@ -484,12 +488,87 @@ void LiveNotes::newPage(std::function<void()> then) {
     });
 }
 
+bool LiveNotes::emptyArea(const PageRef& page, const xoj::util::Rectangle<double>& area) {
+    const PageType bg = page->getBackgroundType();
+    if (bg.isPdfPage() || bg.isImagePage()) {
+        return false;  // (a slide, a scan: its picture is under the whole page)
+    }
+    for (const auto& layer: page->getLayers()) {
+        for (const auto& e: layer->getElements()) {
+            const auto& b = e->getBoundingBox();
+            if (b.x < area.x + area.width && area.x < b.x + b.width && b.y < area.y + area.height &&
+                area.y < b.y + b.height) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+void LiveNotes::startHere(std::function<void()> then) {
+    Control* ctrl = server.getControl();
+    PageRef page;
+    bool titleFree = false;
+    {
+        Document* doc = ctrl->getDocument();
+        std::shared_lock lock(*doc);
+        if (afterPage < doc->getPageCount()) {
+            page = doc->getPage(afterPage);
+        }
+        if (page) {
+            pageW = page->getWidth();
+            pageH = page->getHeight();
+            colW = std::max(90.0, pageW * 0.18);
+            colX = pageW - MARGIN - colW;
+            // (the column's strip with its gap, from the top; the title's line across the top)
+            noColumn = !emptyArea(page, {colX - GAP, 0, pageW - colX + GAP, pageH});
+            titleFree = emptyArea(page, {0, 0, pageW, 17});
+        }
+    }
+    if (!page) {
+        newPage(std::move(then));  // (no such page any more: as «📄 New page»)
+        return;
+    }
+    pages.push_back(page);
+    ownPage = true;
+    json texts = json::array();
+    if (titleFree) {
+        texts.push_back({{"text", "Live notes · " + startedAt + " · " + name}, {"x", MARGIN}, {"y", 6},
+                         {"font", {{"name", "Sans Bold"}, {"size", 7}}}, {"color", "#666666"}});
+    }
+    if (!noColumn) {
+        texts.push_back({{"text", "TRANSCRIPT"},
+                         {"x", colX},
+                         {"y", 17},
+                         {"font", {{"name", "Sans Bold"}, {"size", 4.5}}},
+                         {"color", "#999999"}});
+    }
+    y = columnTop = 24;
+    top = titleFree ? 17 : 0;
+    if (texts.empty()) {
+        if (changed) {
+            changed();
+        }
+        then();
+        return;
+    }
+    writing = true;
+    writeTexts(page, texts, [this, then](double) {
+        writing = false;
+        if (changed) {
+            changed();
+        }
+        then();
+    });
+}
+
 void LiveNotes::pump() {
     if (writing) {
         return;
     }
-    // (a page could not be added: the text still goes to the file, and to the serving session)
-    const bool noPage = !opt.transcriptPage || !pageProblem.empty();
+    // (a page could not be added: the text still goes to the file, and to the serving session; 📍 his own page with
+    // no room for the column: the same)
+    const bool noPage = !opt.transcriptPage || !pageProblem.empty() || noColumn;
     if (pages.empty() && !noPage) {
         return;  // (the first page is on its way)
     }
@@ -681,10 +760,20 @@ json LiveNotes::pagesJson() const {
     for (size_t i = 0; i < pages.size(); i++) {
         if (auto n = pageNumber(i)) {
             const bool last = i + 1 == pages.size();
-            list.push_back({{"page", *n},
-                            {"transcript_column", {colX, top, colW, pageH - MARGIN - top}},
-                            {"free_area", {MARGIN, top, colX - GAP - MARGIN, pageH - MARGIN - top}},
-                            {"column_filled_to", last ? y : pageH - MARGIN}});
+            json e = {{"page", *n}};
+            if (i == 0 && ownPage) {
+                // (📍 This page: his own content is there; the free area is only where nothing of his is)
+                e["own_page"] = true;
+            }
+            if (i == 0 && noColumn) {
+                e["transcript_column"] = nullptr;
+                e["free_area"] = {MARGIN, top, pageW - 2 * MARGIN, pageH - MARGIN - top};
+            } else {
+                e["transcript_column"] = {colX, top, colW, pageH - MARGIN - top};
+                e["free_area"] = {MARGIN, top, colX - GAP - MARGIN, pageH - MARGIN - top};
+                e["column_filled_to"] = last ? y : pageH - MARGIN;
+            }
+            list.push_back(std::move(e));
         }
     }
     return list;

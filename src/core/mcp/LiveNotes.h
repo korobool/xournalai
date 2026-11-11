@@ -5,8 +5,9 @@
  * tap) is cut into pieces at pauses (LiveChunker), each piece goes to the owner's speech recognizer
  * (assistant::Transcriber: any program behind docs/mcp/TRANSCRIBERS.md), and its text, with its time in the recording,
  * goes into a narrow column on the right of a live-notes page inserted after the page the owner was on (more pages
- * as it fills). The rest of the page is the serving Claude's: it is woken when new text is there, reads it with
- * live_notes(op="read") and draws what is being talked about at its own pace (the live-annotation skill); one
+ * as it fills), or of the page he is on when he chose «📍 This page» (1.22.0; no column where the page has its own
+ * content at the right edge). The rest of the page is the serving Claude's: it is woken when new text is there, reads
+ * it with live_notes(op="read") and draws what is being talked about at its own pace (the live-annotation skill); one
  * wake-up waits until it has read. The recording itself is unchanged.
  *
  * The pieces stay in <audio folder>/live/<recording>/ (WAV), the whole text in transcripts/<recording>.live.txt.
@@ -58,6 +59,8 @@ public:
         // 🎙 voice control (1.17.1): no page, nothing written on the document; each piece is a command (said while
         // the owner held the talk button, or starting with a trigger word) or context
         bool transcriptPage = true;
+        /// (1.22.0, «📍 This page») start on the page the owner is on instead of a new one after it
+        bool thisPage = false;
         bool voice = false;
         std::vector<std::string> triggerWords;  ///< (lower case) empty: no trigger word
         /// (📝 with 🔤, 1.20.0) woken only when a new phrase starts with a trigger word (the rest is context)
@@ -132,6 +135,10 @@ private:
     void pump();  ///< writes answered pieces into the column, in order, one at a time
     void pumpLater();
     void newPage(std::function<void()> then);
+    /// «📍 This page»: the page the owner is on is the first live page (its title and column only where it is free)
+    void startHere(std::function<void()> then);
+    /// Whether the area of `page` holds nothing of its own (no element, no PDF or picture background)
+    static bool emptyArea(const PageRef& page, const xoj::util::Rectangle<double>& area);
     /// Writes text boxes (create_text's JSON) on `page`: not undoable by the user, origin "app"; `then(bottom)`
     void writeTexts(const PageRef& page, const json& texts, std::function<void(double bottom)> then);
     std::optional<size_t> pageNumber(size_t i) const;  ///< 1-based number of the i-th live page (if it still exists)
@@ -182,6 +189,8 @@ private:
     double y = 0;  ///< the next line in the column
     double columnTop = 0;  ///< where a column's first line goes
     double top = 0;  ///< where the free area starts (below the title)
+    bool ownPage = false;   ///< (📍) the first live page is the owner's own page
+    bool noColumn = false;  ///< (📍) his page had no room for the column: the transcript stays off the paper
 };
 
 }  // namespace xoj::mcp

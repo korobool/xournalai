@@ -51,6 +51,7 @@ const Level* findLevel(const std::string& id) {
 
 const std::vector<Toggle>& toggles() {
     static const std::vector<Toggle> list = {
+            {"this_page", "📍 This page", "📄 New page", true},
             {"intense", "⚡ Intense", "🌿 Economy", true},
             {"summary", "🧾 Summary at the end", "", true},
             {"questions", "💡 Proposals", "", true},
@@ -60,13 +61,14 @@ const std::vector<Toggle>& toggles() {
 }
 
 bool Options::get(const std::string& id) const {
-    return id == "intense" ? intense : id == "summary" ? summary : id == "questions" ? questions :
-                                      id == "browser" ? browser :
-                                                        false;
+    return id == "this_page" ? thisPage : id == "intense" ? intense : id == "summary" ? summary :
+                                         id == "questions" ? questions : id == "browser" ? browser : false;
 }
 
 void Options::set(const std::string& id, bool on) {
-    if (id == "intense") {
+    if (id == "this_page") {
+        thisPage = on;
+    } else if (id == "intense") {
         intense = on;
     } else if (id == "summary") {
         summary = on;
@@ -79,7 +81,7 @@ void Options::set(const std::string& id, bool on) {
 
 std::vector<std::string> Options::names() const {
     std::vector<std::string> out{intense ? "intense" : "economy"};
-    for (const char* id: {"summary", "questions", "browser"}) {
+    for (const char* id: {"this_page", "summary", "questions", "browser"}) {
         if (get(id)) {
             out.emplace_back(id);
         }
@@ -145,6 +147,9 @@ std::string effectiveCommands(const Mode& mode, const Options& options) {
 }
 
 bool applies(const std::string& toggle, const Mode& mode, const Options& options) {
+    if (toggle == "this_page") {
+        return mode.transcriptPage;  // (🎙 Voice only writes no page)
+    }
     if (toggle == "summary") {
         return mode.id != "voice";  // (a summary of commands means nothing; the transcript's mode gets one)
     }

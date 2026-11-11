@@ -94,7 +94,8 @@ added background gets a grey "фон:" label or a source line. Never present an 
 `DIR` = `~/.local/share/xournalai/companion/live/<recording stem>`.
 
 1. Woken: `live_notes(op="read")` → new `pieces` (`n`, `at`, `start_s`, `end_s`, `text`, `language`) and `pages`
-   (`page`, `free_area`, `transcript_column`, `[x,y,w,h]`).
+   (`page`, `free_area`, `transcript_column`, `[x,y,w,h]`; `own_page`: the owner's own page, see «📍 This page»
+   in modes/options.md).
 2. Join cut sentences; drop empty or noise pieces ("да", "Фух, спасибо").
 3. For each piece decide: topic (an existing `Tn`, or a new one; a piece may feed two topics) and kind
    (`material` / `request` / `request?`).
