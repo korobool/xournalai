@@ -35,6 +35,7 @@ struct Mode {
     std::string guide;     ///< its own module ("" = the live-annotation skill as written)
     bool commandsOff;      ///< whether 🛡 (no commands) makes sense for it (🎙 Voice only is nothing but commands)
     bool available;        ///< built already (the menu shows the others as "soon")
+    std::string explain;   ///< (1.22.0) what it does, in a few lines: the tooltip, or a long press's strip
 };
 
 /// The tiles in the menu's order (the plain recording is the Record button's own tap, not one of them)
@@ -48,6 +49,7 @@ struct Level {
     std::string emoji;      ///< 🛡 🔤 💬
     std::string label;      ///< what it does
     std::string situation;  ///< when to choose it (the owner thinks of who is talking)
+    std::string explain;    ///< (1.22.0) what it does
 };
 const std::vector<Level>& levels();
 const Level* findLevel(const std::string& id);
@@ -58,6 +60,9 @@ struct Toggle {
     std::string label;  ///< when on
     std::string off;    ///< when off ("" = the same label, unticked)
     bool available;     ///< built already
+    std::string hint;     ///< (a switch) a second line when on ("" none)
+    std::string offHint;  ///< (a switch) a second line when off
+    std::string explain;  ///< (1.22.0) what it does
 };
 const std::vector<Toggle>& toggles();
 

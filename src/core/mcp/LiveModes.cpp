@@ -11,12 +11,23 @@ namespace xoj::mcp::live {
 const std::vector<Mode>& modes() {
     // (the order of the menu's grid, after the plain recording: what appears on paper)
     static const std::vector<Mode> list = {
-            {"text", "📝", "Transcript", "the text on a page;\ncommands as switched", "none", true, "", true, true},
-            {"conspect", "🧠", "Notes", "cards, schemes,\nmind maps", "visual", true, "", true, true},
+            {"text", "📝", "Transcript", "the text on a page;\ncommands as switched", "none", true, "", true, true,
+             "What is said is written as text in a column of the notes page; nothing is drawn for it. With speech "
+             "commands on, what you ask for is done on your own page (your latest ink). With them off, no agent "
+             "works while you record: only «Summary at the end» wakes one, afterwards."},
+            {"conspect", "🧠", "Notes", "cards, schemes,\nmind maps", "visual", true, "", true, true,
+             "The assistant draws the talk as it goes: topic cards joined into a flow, schemes, mind maps and "
+             "pictures, next to the transcript column. Helpers take the bigger topics in parallel. Spoken requests "
+             "are taken as the «Speech commands» switch allows."},
             {"konspekt", "🗒", "Typeset notes", "a planned layout\nand graphs", "visual", true, "modes/konspekt.md", true,
-             true},
+             true,
+             "Like Notes, but the pages are planned like a printed summary: blocks, headings, tables and accurate "
+             "graphs, filled in as the talk goes. Slower and heavier than Notes."},
             {"voice", "🎙", "Voice only", "talk to the canvas;\nnothing on the page", "none", false,
-             "the voice-control skill", false, true},
+             "the voice-control skill", false, true,
+             "Nothing is written on the page: you talk to the assistant. A phrase with the trigger (or said while you "
+             "hold «Hold») is a command, done on your document; the rest is context for it. What it heard pops up "
+             "for a moment. Needs speech commands on."},
     };
     return list;
 }
@@ -33,9 +44,15 @@ const Mode* findMode(const std::string& id) {
 
 const std::vector<Level>& levels() {
     static const std::vector<Level> list = {
-            {"off", "🛡", "Commands off", "others talking, a video"},
-            {"trigger", "🔤", "«Hey Assistant»", "people around"},
-            {"talk", "💬", "Conversation", "just me"},
+            {"off", "🛡", "Commands off", "others talking, a video",
+             "Nothing said is ever carried out, however it sounds: for a lecture, a video, other people talking. "
+             "«Hold» still takes your own command."},
+            {"trigger", "🔤", "«Hey Assistant»", "people around",
+             "Only a phrase that starts with «Hey Assistant» (or «Эй, ассистент») is a command; everything else is "
+             "material. For when people around you are talking."},
+            {"talk", "💬", "Conversation", "just me",
+             "The assistant recognises requests in what you say, without a trigger phrase. For when only you are "
+             "speaking."},
     };
     return list;
 }
@@ -51,11 +68,27 @@ const Level* findLevel(const std::string& id) {
 
 const std::vector<Toggle>& toggles() {
     static const std::vector<Toggle> list = {
-            {"this_page", "📍 This page", "📄 New page", true},
-            {"intense", "⚡ Intense", "🌿 Economy", true},
-            {"summary", "🧾 Summary at the end", "", true},
-            {"questions", "💡 Proposals", "", true},
-            {"browser", "🔎 Browser assistant", "", true},
+            {"this_page", "📍 This page", "📄 New page", true, "the page I am on", "after this one",
+             "📄 New page: the notes start on a new page after the one you are on.\n📍 This page: they start on the "
+             "page you are on. The transcript column goes there only if its right edge is empty, and the assistant "
+             "draws only where nothing of yours is."},
+            {"intense", "⚡ Intense", "🌿 Economy", true, "an agent per topic, costs more",
+             "fewer agents, saves limits",
+             "🌿 Economy: the assistant does small things itself, starts helpers only for heavy topics and reads the "
+             "talk in batches. It saves your subscription's limits.\n⚡ Intense: a helper for every topic at once, "
+             "the heavy ones at the highest effort; it adds background and links on its own and reacts to every "
+             "piece. Richer and faster, but it uses your limits much faster."},
+            {"summary", "🧾 Summary at the end", "", true, "", "",
+             "When the recording ends, a summary page: the main points, decisions, open questions, action items, and "
+             "what you asked for and what was done."},
+            {"questions", "❓ May ask me", "", true, "", "",
+             "The assistant and its helpers may ask you during the recording: a short question with big buttons, in "
+             "the panel and as a bubble at the drawing it is about. Off: they don't ask; they mark what is unsure "
+             "and go on."},
+            {"browser", "🔎 Browser assistant", "", true, "", "",
+             "A browser of its own runs with the recording, behind the notes. Helpers search the topics in it, keep "
+             "the pages worth keeping open (★) and bring quotes and pictures onto the page. You look at it with the "
+             "🌐 tile in Tools."},
     };
     return list;
 }

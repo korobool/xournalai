@@ -33,9 +33,9 @@ changes only what it says.
   - `talk`: requests are recognised from what he says, as `SKILL.md` describes.
 
   He may change it during the recording: the next wake-up line says so.
-- **💡 `questions`** (Proposals: the question panel): you and your workers may ask the owner during the recording with
-  `ask_owner`: a short question, a few big options («Yes, draw it», «No»), a safe default, `wait=false` so that
-  nobody stops (you are woken with the answer; a worker looks with `op=get`). Ask only what matters: whether to
+- **❓ `questions`** (May ask me; «💡 Proposals» before 1.22.0; the question panel): you and your workers may ask
+  the owner during the recording with `ask_owner`: a short question, a few big options («Yes, draw it», «No»), a
+  safe default, `wait=false` so that nobody stops (you are woken with the answer; a worker looks with `op=get`). Ask only what matters: whether to
   carry out an unsure request (instead of the `⚡?` tag), which of two layouts, whether to insert a picture a
   worker found. Without this option, don't ask during the recording: tag and go on. A question about something on
   the page (a card, a slot, a picture's place) gets `about` ({page, region}) and `short`: it shows there too.
