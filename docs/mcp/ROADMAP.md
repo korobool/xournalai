@@ -11,7 +11,7 @@
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 - From S15.26 on, a feature is built on its own branch ai/<feature> off mcp and comes into mcp with one --no-ff merge commit (no task suffix), so it can be reverted alone; releases and tags stay on mcp; docs/mcp/GIT.md.
 
-Current version: **1.21.0**
+Current version: **1.22.0**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -1358,8 +1358,8 @@ While agents save, add pages and draw, the owner keeps typing and dictating wher
 |---|---|---|---|---|
 | T15.26.0 | US-15.31 | **The git workflow and the plan** — The owner (11 Nov): «хорошо затегай и зафиксируй текущую версию … чтобы не возникла ситуация, что нам сложно откатиться или трудно какие-то фичи разделить». docs/mcp/GIT.md: a branch per feature (ai/<feature> off mcp, one commit per task as before), merged into mcp with --no-ff (one merge commit = the whole feature, removable with git revert -m 1), a release and a tag per stage on mcp, experimental features in releases of their own; the rollback points (ai-v1.21.0 = 7fcfbbdcd, before this work). Stages S15.26-S15.28 planned. | `ai: the git workflow (a branch per feature) and the plan of S15.26-S15.28 (T15.26.0)` | ✅ done `5e02cda5d` |
 | T15.26.1 | US-15.31 | **«📄 New page / 📍 This page»: where live notes start** — Branch ai/record-page. live::Options.page (new | this, remembered), a switch in the Record menu, LiveNotes starts on the current page when asked (no page inserted; the column only when its strip is free), the wake-up line says page=this; the skill; tests. | `ai: live notes start on this page or a new one, as the Record menu says (T15.26.1)` | ✅ done `5cbc762ff` |
-| T15.26.2 | US-15.32 | **Explanations in the Record menu: tooltips, and a long press for the pen and a finger** — Branch ai/record-explain. One text per tile, level and option (LiveModes), the mouse's tooltip, a long press (pen, finger) shows it in a strip at the bottom of the menu without starting or switching anything; «💡 Proposals» → «❓ May ask me»; Economy/Intense hints say what they cost; tests. | `ai: the Record menu explains each choice (a tooltip, or a long press) (T15.26.2)` | ✅ done |
-| T15.26.3 | US-15.32 | **Release 1.22.0** — The full check, the changelog, the tag, the install. | `ai: release 1.22.0 (this page or a new one; the Record menu explains itself) (T15.26.3)` | ⬜ todo |
+| T15.26.2 | US-15.32 | **Explanations in the Record menu: tooltips, and a long press for the pen and a finger** — Branch ai/record-explain. One text per tile, level and option (LiveModes), the mouse's tooltip, a long press (pen, finger) shows it in a strip at the bottom of the menu without starting or switching anything; «💡 Proposals» → «❓ May ask me»; Economy/Intense hints say what they cost; tests. | `ai: the Record menu explains each choice (a tooltip, or a long press) (T15.26.2)` | ✅ done `dad51017c` |
+| T15.26.3 | US-15.32 | **Release 1.22.0** — The full check (12:19-12:43): all three builds; ctest 215/220: five ControlLoadHandler tests under -j8 (the known race; all 220 passed run one at a time); the MCP integration suite 367 passed, 0 failed (new: test_e21_this_page, test_e22_record_explain). Each feature came in as one merge commit (ai/record-page, ai/record-explain; docs/mcp/GIT.md). Not verified here: a long press with a real finger or pen (tested with the mouse on the test display; GTK's long-press gesture takes touch and pen the same way). | `ai: release 1.22.0 (this page or a new one; the Record menu explains itself) (T15.26.3)` | ✅ done |
 
 ### S15.27 — Speakers in the live transcript (experimental) → v1.23.0
 

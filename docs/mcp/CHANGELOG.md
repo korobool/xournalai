@@ -10,6 +10,24 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.22.0 — This page or a new one; the Record menu explains itself
+- **«📄 New page / 📍 This page»** in the Record menu (remembered): live notes start on a new page after the one you
+  are on, as before, or on the page you are on.
+  - On your own page the title and the transcript column go only where the page is empty. With your ink, a slide or
+    a picture at the right edge there is no column: the transcript then stays off the paper (the assistant still has
+    it).
+  - The assistant draws only where nothing of yours is.
+- **Every choice in the Record menu explains itself:** every tile, speech-commands level and option has a few lines on
+  what it does and what it costs.
+  - With the mouse: a tooltip.
+  - With the pen or a finger, which get no hover tooltips: a long press on the choice shows the lines at the bottom of
+    the menu. A long press neither starts a recording nor switches anything.
+- **«💡 Proposals» is now «❓ May ask me»:** the assistant may ask you questions during the recording.
+- **Each side of a switch says what it means:** «🌿 Economy · fewer agents, saves limits» / «⚡ Intense · an agent per
+  topic, costs more»; «📄 New page · after this one» / «📍 This page · the page I am on».
+- **Git:** each feature is now built on a branch of its own and merged into `mcp` as one merge commit, so it can be
+  taken out alone (`docs/mcp/GIT.md`).
+
 ## 1.21.0 — One speech recognition for every tool
 - **Every tool that hears you recognises speech the same way:** the AI lasso's and the AI highlighter's dictation,
   «Hold to talk» and live notes.
