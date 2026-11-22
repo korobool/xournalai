@@ -44,7 +44,12 @@ struct McpConfig {
         int watchdogS = 20;                   ///< resend a wake-up the session didn't react to after this long
         int maxParallel = 8;                  ///< workers (subagents, worker tabs) / open edit transactions at once (1-8)
         bool speech = true;                   ///< Ask: listen while the pen's button is held (local speech to text)
-        std::string speechModel = "base.en";  ///< whisper.cpp model (ggml-<name>.bin in the models folder)
+        /// The local speech model (whisper.cpp, ggml-<name>.bin in the models folder; downloaded when missing).
+        /// Multilingual for good (1.25.0, the owner: «ALWAYS multilingual, Russian and English well»); a "*.en" one
+        /// hears English only
+        std::string speechModel = "small";
+        /// The languages it picks from (Whisper's codes); empty: any
+        std::vector<std::string> speechLanguages{"ru", "en"};
         bool shareRecordings = true;          ///< tell the serving session when an audio recording ends
         /// GNOME's on-screen keyboard (tablet mode): "manual" (only when called: swipe up from the bottom edge) or
         /// "auto" (it opens whenever a text field gets the keyboard)

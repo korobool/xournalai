@@ -1,4 +1,4 @@
-"""E11: audio_transcribe — the local, English-only fallback for recordings (the remote transcriber comes first)."""
+"""E11: audio_transcribe — the local fallback for recordings (the remote transcriber comes first)."""
 
 import pathlib
 import shutil

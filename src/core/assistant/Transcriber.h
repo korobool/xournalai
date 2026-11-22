@@ -76,6 +76,8 @@ public:
     virtual void finish() = 0;
     /// Pieces submitted and not answered yet
     virtual size_t waiting() const = 0;
+    /// Starts the recognizer now, before a piece (a long-running one loads its model meanwhile); no effect otherwise
+    virtual void warm() {}
     bool done() const { return finished && waiting() == 0; }
     virtual std::string engine() const { return {}; }
     /// The model of the voice fingerprints it gives ("" none, or not known yet: before its hello)

@@ -15,6 +15,7 @@
 #include <functional>
 #include <memory>  // for function
 #include <string>      // for string
+#include <vector>      // for vector
 
 #include <gio/gio.h>
 
@@ -24,8 +25,8 @@ class SpeechToText final {
 public:
     enum class State { Unavailable, Downloading, Starting, Ready, Listening, Transcribing };
 
-    /// `model`: e.g. "base.en" (file ggml-base.en.bin)
-    explicit SpeechToText(std::string model);
+    /// `model`: e.g. "small" (file ggml-small.bin); `languages`: the ones a multilingual model picks from (empty: any)
+    explicit SpeechToText(std::string model, std::vector<std::string> languages = {"ru", "en"});
     ~SpeechToText();
     SpeechToText(const SpeechToText&) = delete;
     SpeechToText& operator=(const SpeechToText&) = delete;
@@ -53,6 +54,7 @@ public:
     State state() const { return current; }
     static const char* name(State s);
     std::string model() const { return modelName; }
+    const std::vector<std::string>& speechLanguages() const { return languages; }
     std::string problem() const { return lastProblem; }  ///< why it is unavailable, or the last error
     /// Called when the state changes
     void setListener(std::function<void(State)> l) { listener = std::move(l); }
@@ -64,6 +66,8 @@ public:
     static void log(const std::string& line);
     std::string modelPath() const;
     static std::string helperPath();
+    /// The helper's --languages value: "ru,en", or "auto" for any
+    static std::string languagesArg(const std::vector<std::string>& languages);
 
 private:
     void set(State s);
@@ -75,6 +79,7 @@ private:
     void onExit();
 
     std::string modelName;
+    std::vector<std::string> languages;
     State current = State::Unavailable;
     std::string lastProblem;
     GSubprocess* proc = nullptr;

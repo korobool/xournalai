@@ -60,6 +60,12 @@ public:
         closeIfDone();
     }
 
+    void warm() override {
+        if (!proc && !finished) {
+            start();
+        }
+    }
+
     size_t waiting() const override { return pending.size(); }
     std::string engine() const override { return engineName; }
     std::string voicesModel() const override { return voicesName; }

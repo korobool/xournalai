@@ -4496,6 +4496,43 @@
               "finished": "2026-11-11T13:47:36+00:00"
             }
           ]
+        },
+        {
+          "id": "S15.29",
+          "title": "Speech is always Russian and English",
+          "version": "1.25.0",
+          "stories": [
+            {
+              "id": "US-15.35",
+              "text": "As the owner, I want every speech recognition in xournalai to understand Russian and English well, the remote one and the local fallback, as the default for good.",
+              "acceptance": [
+                "the local fallback is a multilingual model and picks Russian or English by itself; a fresh config never falls back to base.en",
+                "Russian text from the local model is kept (not taken for silence) and Whisper's subtitle phrases over silence are dropped",
+                "the remote recognizer is started when I begin speaking and gets time for its cold start, so a phrase does not fall to the local model just because the server was waking up",
+                "the tools' and the companion's texts no longer say «local, English only»"
+              ]
+            }
+          ],
+          "tasks": [
+            {
+              "id": "T15.29.1",
+              "story": "US-15.35",
+              "title": "Multilingual local speech, the remote one given time",
+              "details": "Branch ai/multilingual-speech. The owner's order (22 Nov, through the companion): «speech recognition in xournalai must ALWAYS be multilingual (Russian and English well), both remote and local, as the default forever». Found: «Hold to talk» talk-3 (Russian) came out as «(speaking in foreign language)»: the remote worker answers in ~17 s cold, the 10 s time-out fell to the local model, which was base.en with the language fixed to \"en\" in xournalai-stt.",
+              "commit": "ai: speech in Russian and English everywhere: multilingual local model, the remote one given time",
+              "status": "done",
+              "started": "2026-11-22T22:50:47+00:00",
+              "finished": "2026-11-22T23:52:21+00:00"
+            },
+            {
+              "id": "T15.29.2",
+              "story": "US-15.35",
+              "title": "Release 1.25.0",
+              "details": "",
+              "commit": "ai: release 1.25.0 (speech in Russian and English everywhere)",
+              "status": "todo"
+            }
+          ]
         }
       ]
     }

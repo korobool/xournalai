@@ -17,7 +17,11 @@
  * Silence (no speech in the recording) gives "silent":true and no text, so that holding the button without speaking
  * changes nothing. XOURNALAI_STT_FAKE_MIC=<wav> makes "start" record that file instead of the microphone (tests).
  *
- *   xournalai-stt --model ~/.local/share/xournalai/models/ggml-base.en.bin [--threads 4]
+ *   xournalai-stt --model ~/.local/share/xournalai/models/ggml-small.bin [--languages ru,en] [--threads 4]
+ *
+ * Languages (1.25.0, the owner: «ALWAYS multilingual, Russian and English well»): a multilingual model hears which of
+ * --languages is spoken (default ru,en; "auto": any) and writes it in that language; an English-only model (*.en)
+ * writes English. The answers say which ("language").
  *
  * @license GNU GPLv2 or later
  */
@@ -168,6 +172,72 @@ SpeechStats lastStats;
 
 bool isNonSpeech(const std::string& text);
 
+/// The languages a multilingual model may pick from (--languages; empty: any)
+std::vector<std::string> allowedLanguages{"ru", "en"};
+
+bool allowed(const std::string& language) {
+    return allowedLanguages.empty() ||
+           std::find(allowedLanguages.begin(), allowedLanguages.end(), language) != allowedLanguages.end();
+}
+
+/// Hearing the language: a whisper state of its own whose encoder looks at the first DETECT_S seconds only. Whisper
+/// detects a language with the encoder size of the call before (the full 30 s window at first) and the clip again:
+/// for the small model that cost as much as the transcription (22 Nov: 35 s instead of 17 s for 11 s of English on a
+/// busy laptop). Whisper sets a state's encoder size only in whisper_full, so the state is given it once with a
+/// second of silence.
+constexpr int DETECT_S = 10;
+whisper_state* detectState = nullptr;
+
+/// The language to write `pcm` in: "en" for an English-only model; else the most likely of allowedLanguages (any,
+/// when none is given), heard in its first DETECT_S seconds
+std::string pickLanguage(whisper_context* ctx, const std::vector<float>& pcm, int threads) {
+    if (!whisper_is_multilingual(ctx)) {
+        return "en";
+    }
+    const std::string fallback = allowedLanguages.empty() ? "en" : allowedLanguages.front();
+    if (!detectState) {
+        detectState = whisper_init_state(ctx);
+        if (!detectState) {
+            return fallback;
+        }
+        whisper_full_params q = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
+        q.language = "en";
+        q.n_threads = threads;
+        q.audio_ctx = DETECT_S * 1500 / 30;
+        q.no_timestamps = true;
+        q.single_segment = true;
+        q.max_tokens = 1;
+        q.print_progress = q.print_realtime = q.print_special = q.print_timestamps = false;
+        const std::vector<float> silence(RATE, 0.0f);
+        whisper_full_with_state(ctx, detectState, q, silence.data(), static_cast<int>(silence.size()));
+    }
+    const int n = static_cast<int>(std::min(pcm.size(), static_cast<size_t>(DETECT_S * RATE)));
+    std::vector<float> probs(static_cast<size_t>(whisper_lang_max_id() + 1), 0.0f);
+    if (n <= 0 || whisper_pcm_to_mel_with_state(ctx, detectState, pcm.data(), n, threads) != 0 ||
+        whisper_lang_auto_detect_with_state(ctx, detectState, 0, threads, probs.data()) < 0) {
+        return fallback;
+    }
+    int best = -1;
+    for (int id = 0; id < static_cast<int>(probs.size()); id++) {
+        if (allowed(whisper_lang_str(id)) &&
+            (best < 0 || probs[static_cast<size_t>(id)] > probs[static_cast<size_t>(best)])) {
+            best = id;
+        }
+    }
+    return best >= 0 ? whisper_lang_str(best) : fallback;
+}
+
+/// Runs whisper on `pcm` with `p` in the language it hears (pickLanguage); gives that language, or "" when whisper
+/// failed
+std::string runWhisper(whisper_context* ctx, const std::vector<float>& pcm, whisper_full_params p, int threads) {
+    const std::string language = pickLanguage(ctx, pcm, threads);
+    p.language = language.c_str();
+    if (whisper_full(ctx, p, pcm.data(), static_cast<int>(pcm.size())) != 0) {
+        return "";
+    }
+    return language;
+}
+
 /// Mono float samples at 16 kHz from any file libsndfile reads (the recorder's .ogg, .wav, .flac, …); empty on failure
 std::vector<float> readAudio(const std::string& path, std::string& why) {
     SF_INFO info{};
@@ -209,7 +279,6 @@ std::vector<float> readAudio(const std::string& path, std::string& why) {
 json transcribeFile(whisper_context* ctx, const std::vector<float>& pcm, int threads) {
     const auto t0 = std::chrono::steady_clock::now();
     whisper_full_params p = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
-    p.language = "en";
     p.n_threads = threads;
     p.no_timestamps = false;
     p.print_progress = false;
@@ -217,7 +286,8 @@ json transcribeFile(whisper_context* ctx, const std::vector<float>& pcm, int thr
     p.print_special = false;
     p.print_timestamps = false;
     p.suppress_blank = true;
-    if (whisper_full(ctx, p, pcm.data(), static_cast<int>(pcm.size())) != 0) {
+    const std::string language = runWhisper(ctx, pcm, p, threads);
+    if (language.empty()) {
         return {{"event", "error"}, {"message", "transcription failed"}};
     }
     json segments = json::array();
@@ -237,10 +307,11 @@ json transcribeFile(whisper_context* ctx, const std::vector<float>& pcm, int thr
     }
     const auto ms =
             std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
-    logLine("file: audio " + std::to_string(pcm.size() * 1000 / RATE) + "ms, " + std::to_string(segments.size()) +
-            " segments in " + std::to_string(ms) + "ms");
+    logLine("file: audio " + std::to_string(pcm.size() * 1000 / RATE) + "ms, " + language + ", " +
+            std::to_string(segments.size()) + " segments in " + std::to_string(ms) + "ms");
     return {{"event", "transcript"},
             {"text", text},
+            {"language", language},
             {"segments", segments},
             {"audio_ms", static_cast<long>(pcm.size() * 1000 / RATE)},
             {"ms", ms}};
@@ -273,14 +344,69 @@ bool hasSpeech(const std::vector<float>& pcm) {
 }
 
 /// Whisper's words for silence or noise (it sometimes "hears" these in quiet recordings)
-bool isNonSpeech(const std::string& text) {
-    std::string t;
-    for (char c: text) {
-        if (std::isalnum(static_cast<unsigned char>(c))) {
-            t += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+/// Lower case for ASCII and Russian Cyrillic (UTF-8); other bytes as they are
+std::string lowerUtf8(const std::string& s) {
+    std::string out;
+    for (size_t i = 0; i < s.size(); i++) {
+        const auto c = static_cast<unsigned char>(s[i]);
+        if (c == 0xD0 && i + 1 < s.size()) {
+            const auto d = static_cast<unsigned char>(s[i + 1]);
+            if (d >= 0x90 && d <= 0x9F) {  // А..П → а..п
+                out += {static_cast<char>(0xD0), static_cast<char>(d + 0x20)};
+            } else if (d >= 0xA0 && d <= 0xAF) {  // Р..Я → р..я
+                out += {static_cast<char>(0xD1), static_cast<char>(d - 0x20)};
+            } else if (d == 0x81) {  // Ё → ё
+                out += {static_cast<char>(0xD1), static_cast<char>(0x91)};
+            } else {
+                out += {static_cast<char>(c), static_cast<char>(d)};
+            }
+            i++;
+        } else {
+            out += static_cast<char>(std::tolower(c));
         }
     }
-    return t.empty() || t == "blankaudio" || t == "silence" || t == "music" || t == "inaudible" || t == "noise";
+    return out;
+}
+
+/// What Whisper says over silence or a stretch it can't hear (learned from subtitled videos): never real speech. The
+/// same list as the remote worker's (tools/transcribers/faster-whisper/live_worker.py)
+constexpr const char* HALLUCINATIONS[] = {
+        "субтитры сделал", "субтитры создавал", "редактор субтитров", "корректор", "продолжение следует",
+        "спасибо за просмотр", "thanks for watching", "thank you for watching", "subtitles by", "amara.org",
+        "дима торжок", "dimatorzok"};
+
+bool isNonSpeech(const std::string& text) {
+    // Only Whisper's notes in brackets ("[BLANK_AUDIO]", "(speaking in foreign language)", "(музыка)"): nothing said
+    std::string words;
+    int depth = 0;
+    for (char c: text) {
+        if (c == '(' || c == '[') {
+            depth++;
+        } else if ((c == ')' || c == ']') && depth > 0) {
+            depth--;
+        } else if (depth == 0) {
+            words += c;
+        }
+    }
+    std::string t;  // letters and digits only (any non-ASCII byte counts: Cyrillic is speech)
+    for (char c: words) {
+        const auto u = static_cast<unsigned char>(c);
+        if (u >= 0x80 || std::isalnum(u)) {
+            t += static_cast<char>(u >= 0x80 ? c : std::tolower(u));
+        }
+    }
+    if (t.empty() || t == "blankaudio" || t == "silence" || t == "music" || t == "inaudible" || t == "noise") {
+        return true;
+    }
+    const std::string lower = lowerUtf8(text);
+    if (lower.size() < 160) {  // (80 characters of Cyrillic)
+        for (const char* h: HALLUCINATIONS) {
+            if (lower.find(h) != std::string::npos) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 class Recorder {
@@ -426,7 +552,6 @@ json transcribe(whisper_context* ctx, const std::vector<float>& pcm, int threads
     }
     const auto t0 = std::chrono::steady_clock::now();
     whisper_full_params p = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
-    p.language = "en";
     p.n_threads = threads;
     p.no_timestamps = true;
     p.no_context = true;
@@ -437,7 +562,8 @@ json transcribe(whisper_context* ctx, const std::vector<float>& pcm, int threads
     p.print_timestamps = false;
     // Short requests: size the encoder to the audio (whisper otherwise always encodes 30 s); 1500 = 30 s
     p.audio_ctx = std::min(1500, static_cast<int>(pcm.size() * 1500 / (30 * RATE)) + 128);
-    if (whisper_full(ctx, p, pcm.data(), static_cast<int>(pcm.size())) != 0) {
+    const std::string language = runWhisper(ctx, pcm, p, threads);
+    if (language.empty()) {
         return {{"event", "error"}, {"message", "transcription failed"}};
     }
     std::string text;
@@ -451,9 +577,11 @@ json transcribe(whisper_context* ctx, const std::vector<float>& pcm, int threads
     const bool silent = isNonSpeech(text);
     const auto ms =
             std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
-    logLine(stats() + " -> " + (silent ? "SILENT (whisper heard no words: \"" + text + "\")" : "\"" + text + "\"") +
-            " in " + std::to_string(ms) + "ms");
-    return {{"event", "text"}, {"text", silent ? "" : text}, {"silent", silent}, {"audio_ms", audioMs}, {"ms", ms}};
+    logLine(stats() + " -> " + language + " " +
+            (silent ? "SILENT (whisper heard no words: \"" + text + "\")" : "\"" + text + "\"") + " in " +
+            std::to_string(ms) + "ms");
+    return {{"event", "text"},     {"text", silent ? "" : text}, {"silent", silent},
+            {"language", language}, {"audio_ms", audioMs},        {"ms", ms}};
 }
 
 }  // namespace
@@ -466,10 +594,21 @@ int main(int argc, char** argv) {
             model = argv[++i];
         } else if (std::string(argv[i]) == "--threads") {
             threads = std::max(1, std::atoi(argv[++i]));
+        } else if (std::string(argv[i]) == "--languages") {
+            const std::string list = argv[++i];
+            allowedLanguages.clear();
+            size_t a = 0;
+            while (a <= list.size() && list != "auto") {
+                const size_t b = std::min(list.find(',', a), list.size());
+                if (b > a) {
+                    allowedLanguages.push_back(list.substr(a, b - a));
+                }
+                a = b + 1;
+            }
         }
     }
     if (model.empty()) {
-        error("usage: xournalai-stt --model <ggml model file> [--threads N]");
+        error("usage: xournalai-stt --model <ggml model file> [--languages ru,en|auto] [--threads N]");
         return 2;
     }
     whisper_log_set([](enum ggml_log_level, const char*, void*) {}, nullptr);  // quiet: stdout is the protocol
@@ -482,8 +621,18 @@ int main(int argc, char** argv) {
         error("could not load the speech model " + model);
         return 1;
     }
+    json languages = json::array();
+    if (whisper_is_multilingual(ctx)) {
+        for (const auto& l: allowedLanguages) {
+            languages.push_back(l);
+        }
+    } else {
+        languages.push_back("en");
+    }
     emit({{"event", "ready"},
           {"model", model},
+          {"multilingual", whisper_is_multilingual(ctx) != 0},
+          {"languages", languages},  // ([] with a multilingual model: any)
           {"threads", threads},
           {"load_ms",
            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count()}});
