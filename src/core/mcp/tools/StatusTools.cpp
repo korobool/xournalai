@@ -97,7 +97,9 @@ static json speechStatus(McpServer* srv) {
     if (!sp) {
         return {{"state", "off"}};
     }
-    json j = {{"state", assistant::SpeechToText::name(sp->state())}, {"model", sp->model()}};
+    json j = {{"state", assistant::SpeechToText::name(sp->state())},
+              {"model", sp->model()},
+              {"languages", assistant::SpeechToText::languagesArg(sp->speechLanguages())}};
     if (!sp->problem().empty()) {
         j["problem"] = sp->problem();
     }

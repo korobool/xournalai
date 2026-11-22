@@ -13,7 +13,16 @@ namespace {
 bool cancelled(GError* err) { return err && g_error_matches(err, G_IO_ERROR, G_IO_ERROR_CANCELLED); }
 }  // namespace
 
-SpeechToText::SpeechToText(std::string model): modelName(std::move(model)), cancellable(g_cancellable_new()) {}
+SpeechToText::SpeechToText(std::string model, std::vector<std::string> languages):
+        modelName(std::move(model)), languages(std::move(languages)), cancellable(g_cancellable_new()) {}
+
+std::string SpeechToText::languagesArg(const std::vector<std::string>& languages) {
+    std::string out;
+    for (const auto& l: languages) {
+        out += (out.empty() ? "" : ",") + l;
+    }
+    return out.empty() ? "auto" : out;
+}
 
 SpeechToText::~SpeechToText() {
     *alive = false;                     // (a remote answer still on its way finds nobody)
@@ -179,10 +188,11 @@ void SpeechToText::spawn() {
     GError* err = nullptr;
     const std::string helper = helperPath();
     const std::string model = modelPath();
+    const std::string langs = languagesArg(languages);
     proc = g_subprocess_new(
             static_cast<GSubprocessFlags>(G_SUBPROCESS_FLAGS_STDIN_PIPE | G_SUBPROCESS_FLAGS_STDOUT_PIPE |
                                           G_SUBPROCESS_FLAGS_STDERR_SILENCE),
-            &err, helper.c_str(), "--model", model.c_str(), nullptr);
+            &err, helper.c_str(), "--model", model.c_str(), "--languages", langs.c_str(), nullptr);
     if (!proc) {
         lastProblem = std::string("could not start the speech helper: ") + (err ? err->message : "?");
         g_clear_error(&err);

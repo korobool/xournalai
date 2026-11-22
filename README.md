@@ -59,7 +59,7 @@ laptop.
 | **Files** | Open, save, save as, new, close; export to PDF/PNG/SVG; import images, PDFs and SVGs. |
 | **Work together** | `wait_for_user` returns when you've drawn something and paused, with a picture of it. A change log tells your strokes from the agent's. The agent sees your page, pointer, selection and tool, and can leave short callouts on the canvas. |
 | **Remember** | `notes` keeps transcripts, summaries and meanings of drawings next to the file (`<file>.ai-notes.json`). |
-| **Listen** | `audio_recorded` events for finished recordings, the audio moment of every stroke written during one, and `audio_transcribe` (local, English, timestamped). |
+| **Listen** | `audio_recorded` events for finished recordings, the audio moment of every stroke written during one, and `audio_transcribe` (local, Russian and English, timestamped). |
 | **Show progress** | `thinking` zones on the canvas; `app_status` reports the session, the speech helper and UI stalls. |
 
 The full reference is generated from the running server: [docs/mcp/TOOLS.md](docs/mcp/TOOLS.md) (63 tools) and

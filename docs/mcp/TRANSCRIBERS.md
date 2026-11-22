@@ -186,6 +186,26 @@ the sound ended; the worker's hello 5–6 s after start (the model loading).
   voice fingerprints too; see its README.
 - Tests use fake recognizers of both kinds, including misbehaving ones (`test/mcp_integration/test_e15_live_notes*.py`).
 
+## The local fallback (Russian and English since 1.25.0)
+
+Every tool that hears the owner («Hold to talk», the AI lasso's and highlighter's dictation, live notes,
+`audio_transcribe`) asks the recognizer configured here first. When it isn't configured, fails or doesn't answer in
+time, the same audio goes to the laptop's own model: whisper.cpp through `xournalai-stt`.
+
+- **The model:** `assistant.speech_model` in `mcp.json`, default `small` (multilingual, 466 MB, downloaded once into
+  `~/.local/share/xournalai/models`). A `*.en` model hears English only.
+- **The language:** `assistant.speech_languages`, default `["ru", "en"]` (`[]`: any). The helper hears which of them
+  is spoken in the first 10 s and writes the whole piece in it; the answers say which (`language`). A piece that is
+  only Whisper's notes in brackets («(speaking in foreign language)», «[BLANK_AUDIO]») or its subtitle phrases over
+  silence («Продолжение следует…») counts as silence.
+- **How long the configured recognizer gets:** it is started when the owner begins to speak (the press of «Hold»,
+  the pen button, the highlighter's first touch), not when he stops. One that has not said hello yet gets 45 s
+  plus half the phrase's length for its cold start (the owner's server loads large-v3 in ~17 s); a ready one gets
+  10 s plus half the phrase's length. The owner (22 Nov 2026): «speech recognition in xournalai must ALWAYS be
+  multilingual (Russian and English well), both remote and local, as the default forever».
+- **Speed:** the small model is several times slower than base.en (measured on the owner's i7-1355U under a heavy
+  load, 22 Nov: 11 s of English in ~27 s, 57 s of Russian in ~100 s); it is the last resort.
+
 ## Changing this specification
 
 Bump the version above, keep version 1 working where possible (the `protocol` in the hello lets xournalai tell them

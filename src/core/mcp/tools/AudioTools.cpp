@@ -1,4 +1,5 @@
-// Tool: audio_transcribe (the local, English-only fallback for recordings; the owner's remote transcriber comes first)
+// Tool: audio_transcribe (the local fallback for recordings, Russian and English; the owner's remote transcriber comes
+// first)
 
 #include <fstream>  // for ofstream, ifstream
 #include <memory>   // for unique_ptr
@@ -42,8 +43,9 @@ void registerAudioTools(McpServer& server) {
     t.name = "audio_transcribe";
     t.title = "Transcribe a recording (local fallback)";
     t.description =
-            "Transcribes an audio recording on this laptop (whisper.cpp, English only, timestamped segments). A "
-            "fallback: use the user's remote transcriber first when it is available (long or non-English audio). "
+            "Transcribes an audio recording on this laptop (whisper.cpp, Russian and English: the language is "
+            "heard, timestamped segments). A fallback: use the user's remote transcriber first when it is available "
+            "(faster and more exact). "
             "Transcripts are kept in the recordings folder's transcripts/ (<name>.local.txt / .local.json); an "
             "existing transcript (also the remote one, <name>.txt) is returned unless force=true. Long recordings "
             "take about a tenth of their length.";
@@ -91,11 +93,12 @@ void registerAudioTools(McpServer& server) {
             throw ToolError("The local transcriber is not available (xournalai-stt or its model " + model + ")");
         }
         // Its own helper process: a long recording must not hold up the user's Ask
+        const std::string langs = assistant::SpeechToText::languagesArg(srv->getConfig().assistant.speechLanguages);
         GError* err = nullptr;
         GSubprocess* proc = g_subprocess_new(
                 static_cast<GSubprocessFlags>(G_SUBPROCESS_FLAGS_STDIN_PIPE | G_SUBPROCESS_FLAGS_STDOUT_PIPE |
                                               G_SUBPROCESS_FLAGS_STDERR_SILENCE),
-                &err, helper.c_str(), "--model", model.c_str(), nullptr);
+                &err, helper.c_str(), "--model", model.c_str(), "--languages", langs.c_str(), nullptr);
         if (!proc) {
             std::string why = err ? err->message : "?";
             g_clear_error(&err);
@@ -133,7 +136,7 @@ void registerAudioTools(McpServer& server) {
                         return;
                     }
                     result.erase("event");
-                    result["source"] = "local (whisper.cpp, English)";
+                    result["source"] = "local (whisper.cpp)";
                     result["file"] = c->file.string();
                     std::error_code ec;
                     fs::create_directories(c->dir, ec);

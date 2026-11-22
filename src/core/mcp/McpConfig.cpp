@@ -87,6 +87,14 @@ McpConfig McpConfig::load() {
                 cfg.assistant.maxParallel = a.value("max_parallel", cfg.assistant.maxParallel);
                 cfg.assistant.speech = a.value("speech", cfg.assistant.speech);
                 cfg.assistant.speechModel = a.value("speech_model", cfg.assistant.speechModel);
+                if (a.contains("speech_languages") && a["speech_languages"].is_array()) {
+                    cfg.assistant.speechLanguages.clear();
+                    for (const auto& l: a["speech_languages"]) {
+                        if (l.is_string() && !l.get<std::string>().empty() && l.get<std::string>() != "auto") {
+                            cfg.assistant.speechLanguages.push_back(l.get<std::string>());
+                        }
+                    }
+                }
                 cfg.assistant.shareRecordings = a.value("share_recordings", cfg.assistant.shareRecordings);
                 cfg.assistant.questionsOnCanvas = a.value("questions_on_canvas", cfg.assistant.questionsOnCanvas);
                 if (a.contains("research_browser") && a["research_browser"].is_object()) {
@@ -191,6 +199,7 @@ void McpConfig::save() const {
                 {"max_parallel", assistant.maxParallel},
                 {"speech", assistant.speech},
                 {"speech_model", assistant.speechModel},
+                {"speech_languages", assistant.speechLanguages},
                 {"share_recordings", assistant.shareRecordings},
                 {"screen_keyboard", assistant.screenKeyboard},
                 {"research_browser", assistant.researchBrowser},

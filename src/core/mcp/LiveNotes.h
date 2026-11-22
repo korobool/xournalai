@@ -77,7 +77,8 @@ public:
         std::function<void(const std::string& text, bool command,
                            std::optional<std::pair<size_t, xoj::util::Rectangle<double>>> where)>
                 heard;
-        /// (1.21.0) the local English model on a piece's WAV, when the remote transcriber fails or isn't there
+        /// (1.21.0) the local model (Russian and English since 1.25.0) on a piece's WAV, when the remote transcriber
+        /// fails or isn't there
         std::function<void(const std::string& wav,
                            std::function<void(bool ok, const std::string& text, const std::string& error)> done)>
                 fallback;

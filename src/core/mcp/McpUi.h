@@ -162,6 +162,8 @@ public:
                           std::function<void(const std::string& text, const std::string& error)> done);
     /// The talk recognizer (the configured remote transcriber, kept warm ten minutes after its last use)
     bool talkRecognizerReady(std::string& problem);
+    /// Starts the remote recognizer as he begins to speak (its cold start overlaps the phrase)
+    void warmRemote();
     void keepTalkRecognizer();
     std::map<std::string, std::pair<std::function<void(const std::string&, const std::string&)>, guint>> remoteAsks;
     int remoteSeq = 0;
