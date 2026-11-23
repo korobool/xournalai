@@ -11,7 +11,7 @@
 - The last task of an epoch is a release task: MINOR bump (0.E+1.0, or 1.0.0 for the final epoch), CHANGELOG entry and a local git tag ai-v<version>.
 - From S15.26 on, a feature is built on its own branch ai/<feature> off mcp and comes into mcp with one --no-ff merge commit (no task suffix), so it can be reverted alone; releases and tags stay on mcp; docs/mcp/GIT.md.
 
-Current version: **1.24.0**
+Current version: **1.25.0**
 
 ## E0 — Foundations (release 0.1.0)
 
@@ -1403,5 +1403,5 @@ While agents save, add pages and draw, the owner keeps typing and dictating wher
 
 | Task | Story | Title | Commit | Status |
 |---|---|---|---|---|
-| T15.29.1 | US-15.35 | **Multilingual local speech, the remote one given time** — Branch ai/multilingual-speech. The owner's order (22 Nov, through the companion): «speech recognition in xournalai must ALWAYS be multilingual (Russian and English well), both remote and local, as the default forever». Found: «Hold to talk» talk-3 (Russian) came out as «(speaking in foreign language)»: the remote worker answers in ~17 s cold, the 10 s time-out fell to the local model, which was base.en with the language fixed to "en" in xournalai-stt. | `ai: speech in Russian and English everywhere: multilingual local model, the remote one given time (T15.29.1)` | ✅ done |
-| T15.29.2 | US-15.35 | **Release 1.25.0** —  | `ai: release 1.25.0 (speech in Russian and English everywhere) (T15.29.2)` | ⬜ todo |
+| T15.29.1 | US-15.35 | **Multilingual local speech, the remote one given time** — Branch ai/multilingual-speech. The owner's order (22 Nov, through the companion): «speech recognition in xournalai must ALWAYS be multilingual (Russian and English well), both remote and local, as the default forever». Found: «Hold to talk» talk-3 (Russian) came out as «(speaking in foreign language)»: the remote worker answers in ~17 s cold, the 10 s time-out fell to the local model, which was base.en with the language fixed to "en" in xournalai-stt. | `ai: speech in Russian and English everywhere: multilingual local model, the remote one given time (T15.29.1)` | ✅ done `319c9afc2` |
+| T15.29.2 | US-15.35 | **Release 1.25.0** — Full check (23 Nov, 23:55-00:30, the laptop under a load average of 21-28: an Android emulator and gradle): build-noterm and build-nomcp ok; ctest 224/227, the three ControlLoadHandler tests of the known -j8 race passed alone; the MCP integration suite 378 passed, 3 failed: test_e3_control test_view and test_e6_wakeups test_3_watchdog_and_pause passed alone; test_e9_responsiveness test_3_the_pen_does_not_wait failed again alone (pen gaps of 125 and 76 ms), then on the 1.24.0 binary too (255 ms) under the same load, and passed twice on each binary afterwards: the load, not this change. New: test_e25_multilingual_speech 4/4 with a synthesized Russian phrase (XOAI_RU_SAMPLE). The owner's talk-3.wav (57 s, Russian) through xournalai-stt with ggml-small: language ru, the right text, ~100 s under that load (base.en: silent); jfk (11 s, English): language en, ~27 s (base.en ~8 s). | `ai: release 1.25.0 (speech in Russian and English everywhere) (T15.29.2)` | ✅ done |

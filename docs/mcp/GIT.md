@@ -34,6 +34,7 @@ The owner (11 Nov 2026): «хорошо затегай и зафиксируй �
 
 | Tag | Commit | What it is |
 |---|---|---|
+| `ai-v1.24.0` | `57a4ebc4e` | before S15.29: the local fallback English only (`base.en`), the remote one 10 s |
 | `ai-v1.21.0` | `7fcfbbdcd` | before S15.26: one speech recognition for every tool (the last release made one commit at a time) |
 | `ai-v1.20.0` | `60877d18b` | the Record menu with two questions; a shorter row |
 | `ai-v1.18.0` | `ee5840e93` | the first research browser |

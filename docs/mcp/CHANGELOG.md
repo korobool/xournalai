@@ -10,6 +10,20 @@ See [ROADMAP.md](ROADMAP.md) for the versioning rules.
   `topicmap.py` (any conversation's data.json, English or Russian labels; a made-up example), and the remote
   transcriber helper as a template configured outside the repo.
 
+## 1.25.0 — Speech in Russian and English everywhere
+- **The local model is multilingual now** (`small`, 466 MB, downloaded once into `~/.local/share/xournalai/models`).
+  It hears whether you speak Russian or English and writes in that language. Before, the laptop's own model was
+  English only (`base.en`), and a Russian phrase came back as «(speaking in foreign language)».
+  - It is used when your speech server is not there, fails or is too slow: «Hold to talk», the AI lasso's and
+    highlighter's dictation, live notes and `audio_transcribe`.
+  - `speech_languages` in `mcp.json` (default `["ru", "en"]`) lists the languages it chooses from; `[]` means any.
+  - It is several times slower than the old English model: it is the last resort.
+  - Whisper's notes in brackets and its subtitle phrases over silence («Продолжение следует…») count as silence.
+- **The speech server gets time to wake up.** It is started as soon as you begin to speak (the press of «Hold», the
+  pen button, the highlighter's first touch), not when you stop. While it is still loading it gets 45 s; once ready,
+  10 s. Before, a phrase went to the local model whenever the server took more than 10 s, and a cold start takes ~17 s.
+- The assistant's and the tools' texts no longer say the local transcription is English only.
+
 ## 1.24.0 — Commands only in my voice (experimental)
 - **«🎤 Only my voice · experimental»** among the Record menu's options, off by default and separate from
   «👥 Speakers». Spoken commands then count only in your own voice: someone else's «Hey Assistant, …» is material,
